@@ -97,4 +97,4 @@ graph_snapshot_conversation_v2/
 _old/
 docs/
 *.patch
-test/
+tests/
