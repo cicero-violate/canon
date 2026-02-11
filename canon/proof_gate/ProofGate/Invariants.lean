@@ -1,4 +1,4 @@
-ximport ProofGate.State
+import ProofGate.State
 
 namespace ProofGate
 
