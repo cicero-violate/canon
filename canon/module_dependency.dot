@@ -1,0 +1,79 @@
+digraph Canon_Module_DAG {
+  label = "Canon Module Dependency DAG";
+  labelloc = top;
+  fontsize = 18;
+  rankdir = LR;
+  fontname = "JetBrains Mono";
+
+  node [
+    shape=box,
+    style=rounded,
+    fontname="JetBrains Mono",
+    fontsize=10
+  ];
+
+  edge [
+    fontname="JetBrains Mono",
+    fontsize=9
+  ];
+
+  /* ===== Core Data / Types ===== */
+
+  proof [
+    label="proof\n(ProofArtifact, ProofScope)"
+  ];
+
+  delta [
+    label="delta\n(Delta)"
+  ];
+
+  state [
+    label="state\n(StateLog)"
+  ];
+
+  invariants [
+    label="invariants\n(InvariantRegistry)"
+  ];
+
+  judgment [
+    label="judgment\n(Judgment, Predicate)"
+  ];
+
+  admission [
+    label="admission\n(Admission)"
+  ];
+
+  /* ===== Execution / Compute ===== */
+
+  gpu [
+    label="gpu\n(GpuFunction, GpuExecution)"
+  ];
+
+  /* ===== Kernel ===== */
+
+  kernel [
+    label="kernel\n(apply_admission)",
+    shape=octagon,
+    style="rounded,filled",
+    fillcolor=lightgray
+  ];
+
+  /* ===== Dependencies ===== */
+
+  delta -> proof      [label="uses"];
+  admission -> delta  [label="contains"];
+  admission -> judgment [label="references"];
+
+  judgment -> state     [label="reads"];
+  judgment -> invariants [label="reads"];
+
+  kernel -> state       [label="reads + writes"];
+  kernel -> admission   [label="reads"];
+  kernel -> judgment    [label="reads"];
+  kernel -> invariants  [label="reads"];
+  kernel -> proof       [label="reads"];
+
+  gpu -> delta          [label="produces"];
+  gpu -> proof          [label="requires"];
+
+}

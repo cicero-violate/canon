@@ -1,0 +1,21 @@
+*** Begin Patch
+*** Update File: src/main.rs
+@@
+ fn main() -> Result<()> {
+-    let repo_root = env::current_dir().context("unable to resolve repo root")?;
++    // Resolve workspace root deterministically from this crate location.
++    // CARGO_MANIFEST_DIR = <workspace>/canon/host_runtime
++    // We want <workspace>/canon
++    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
++        .parent() // host_runtime
++        .ok_or_else(|| anyhow!("cannot resolve host_runtime parent"))?
++        .to_path_buf();
+     match parse_cli_mode()? {
+         CliMode::Shell(options) => run_shell_flow(&repo_root, options),
+         CliMode::Execute {
+             verify_only,
+             intent,
+         } => run_system_flow(&repo_root, verify_only, intent),
+     }
+ }
+*** End Patch

@@ -1,0 +1,30 @@
+- [check] Define a minimal kernel crate containing only: Invariant, Judgment, Delta, Proof, Admission, Apply.
+- [check] Remove all non-kernel logic (plans, ticks, GPU, materialize) from the kernel crate.
+- [check] Represent State only as fold(State₀, Vec<Delta>); forbid direct mutation.
+- [check] Enforce append-only deltas at the type level; no delete or update APIs.
+- [check] Require every Delta to reference a ProofId; reject construction otherwise.
+- [check] Model Judgment as a pure function returning {Accept, Reject}.
+- [check] Implement Admission as the only bridge from Judgment::Accept to Apply.
+- [check] Ensure Apply only appends deltas and records total order deterministically.
+- [check] Encode Invariant as data, not code; no embedded logic.
+- [check] Add MetaJudgment that targets JudgmentPredicates themselves.
+- [check] Require MetaJudgment decisions to also emit proof-backed deltas.
+- [check] Prohibit runtime execution paths that bypass Admission.
+- [check] Externalize Lean: no Lean code runs inside the Rust runtime.
+- [check] Treat Lean proofs as immutable artifacts (hash + URI only).
+- [check] Verify proofs via hash equality and scope matching only.
+- [check] Implement Learning to emit candidate invariants as deltas.
+- [check] Block candidate invariants until a valid proof artifact is attached.
+- [check] On proof acceptance, promote invariant into active JudgmentPredicate set.
+- [check] Make Judgment evaluation depend solely on current invariant set + state view.
+- [check] Ensure Judgment can revoke prior JudgmentPredicates via MetaJudgment.
+- [check] Encode revocations as append-only deltas with proofs.
+- [check] Disallow any execution continuation without a fresh Judgment boundary.
+- [check] Collapse loops into Judgment-gated continuation decisions.
+- [check] Guarantee replay determinism from (InitialState, DeltaLog).
+- [check] Forbid clocks, randomness, IO, or hidden state in the kernel.
+- [check] Keep kernel APIs synchronous, total, and side-effect free.
+- [check] Add exhaustive tests asserting invalid states are unrepresentable.
+- [check] Add replay tests proving identical delta logs yield identical states.
+- [check] Document kernel laws formally in comments matching code invariants.
+- [check] Treat everything outside this kernel as replaceable policy.

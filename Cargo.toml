@@ -1,0 +1,10 @@
+# Cargo.toml
+[workspace]
+members = [
+  "canon",
+  "canon/kernel"
+  , "host_runtime", "host_state_controller"
+]
+
+resolver = "2"
+

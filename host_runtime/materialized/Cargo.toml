@@ -1,0 +1,8 @@
+# Derived from Canonical IR. Do not edit.
+[package]
+name = "FixtureAdd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# no external dependencies

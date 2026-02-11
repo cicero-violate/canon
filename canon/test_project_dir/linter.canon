@@ -1,0 +1,7 @@
+# Semantic linter pipeline
+module parse
+module test
+module lint imports parse
+module report imports lint
+
+goal pipeline: FilePath -> LintReport -> Test2 -> Test3

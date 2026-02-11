@@ -1,0 +1,94 @@
+digraph Canon_DAG {
+  label = "Canon Execution DAG";
+  labelloc = top;
+  fontsize = 18;
+  rankdir = LR;
+  fontname = "JetBrains Mono";
+
+  node [
+    shape=box,
+    style=rounded,
+    fontname="JetBrains Mono",
+    fontsize=10
+  ];
+
+  edge [
+    fontname="JetBrains Mono",
+    fontsize=9
+  ];
+
+  /* ===== Declarative Construction ===== */
+
+  DSL [
+    label="DSL\n(text input)",
+    shape=component
+  ];
+
+  Proposal [
+    label="Proposal\n(nodes, apis, edges)"
+  ];
+
+  ResolvedNodes [
+    label="ResolvedProposalNodes\n(ids + bindings)"
+  ];
+
+  CanonicalIR [
+    label="CanonicalIr\n(validated DAG)"
+  ];
+
+  DSL -> Proposal [label="parse"];
+  Proposal -> ResolvedNodes [label="resolve ids"];
+  ResolvedNodes -> CanonicalIR [label="validate"];
+
+  /* ===== Proof / Effect Branch ===== */
+
+  ProofArtifact [
+    label="ProofArtifact\n(scope + hash)"
+  ];
+
+  Delta [
+    label="Delta\n(append-only, proof-backed)"
+  ];
+
+  ProofArtifact -> Delta [label="authorizes"];
+
+  /* ===== Decision / Control Branch ===== */
+
+  Judgment [
+    label="Judgment\n(predicate)"
+  ];
+
+  Admission [
+    label="Admission\n(judgment → deltas)"
+  ];
+
+  CanonicalIR -> Judgment [label="declare"];
+  Judgment -> Admission [label="accepts"];
+
+  /* ===== State Materialization ===== */
+
+  StateLog [
+    label="StateLog\n(append-only history)",
+    shape=folder
+  ];
+
+  Admission -> StateLog [label="apply"];
+  Delta -> StateLog [label="recorded"];
+
+  /* ===== Kernel Gate ===== */
+
+  Kernel [
+    label="apply_admission\n(kernel)",
+    shape=octagon,
+    style="rounded,filled",
+    fillcolor=lightgray
+  ];
+
+  Admission -> Kernel;
+  Delta -> Kernel;
+  Judgment -> Kernel;
+  ProofArtifact -> Kernel;
+
+  Kernel -> StateLog [label="materialize"];
+
+}

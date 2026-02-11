@@ -1,0 +1,10 @@
+name = "LearnGate"
+version = "0.1.0"
+defaultTargets = ["learngate"]
+
+[[lean_lib]]
+name = "LearnGate"
+
+[[lean_exe]]
+name = "learngate"
+root = "Main"

@@ -1,0 +1,16 @@
+[package]
+name = "host_runtime"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+canon = { path = "../canon" }
+host_state_controller = { path = "../host_state_controller" }
+hex = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3.10"
