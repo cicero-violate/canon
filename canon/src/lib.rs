@@ -32,9 +32,9 @@ pub use patch_protocol::{
 pub use proof::smt_bridge::{
     SmtCertificate, SmtError, attach_function_proofs, verify_function_postconditions,
 };
-pub use proof_object::{
-    ProofArtifact as CanonProofArtifact, ProofObject, ProofResult, evaluate_proof_object,
-};
+// pub use proof_object::{
+//     ProofArtifact as CanonProofArtifact, ProofObject, ProofResult, evaluate_proof_object,
+// };
 pub use proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl};
 pub use schema::generate_schema;
 pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
