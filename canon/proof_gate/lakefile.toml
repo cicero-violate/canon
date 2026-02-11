@@ -1,10 +1,10 @@
-name = "LearnGate"
+name = "ProofGate"
 version = "0.1.0"
-defaultTargets = ["learngate"]
+defaultTargets = ["proofgate"]
 
 [[lean_lib]]
-name = "LearnGate"
+name = "ProofGate"
 
 [[lean_exe]]
-name = "learngate"
+name = "proofgate"
 root = "Main"
