@@ -94,5 +94,4 @@ graph_snapshot/
 graph_snapshot_conversation_v2/
 
 *.json
-
 /_old/
