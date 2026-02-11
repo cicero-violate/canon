@@ -7,7 +7,7 @@ pub mod memory;
 pub mod observe;
 pub mod patch_protocol;
 pub mod proof;
-pub mod proof_object;
+// pub mod proof_object;
 mod proposal;
 pub mod runtime;
 pub mod schema;
