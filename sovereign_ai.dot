@@ -1,182 +1,127 @@
-digraph Sovereign_AI_Level_7 {
+digraph Tier7_Sovereign_AI {
+
     rankdir=LR;
     compound=true;
-    nodesep=0.4;
+    nodesep=0.8;
     ranksep=1.2;
-    node [shape=box, style=rounded, fontsize=10];
 
-    // =========================
-    // ROW 1 : Perception Engine
-    // =========================
-    subgraph cluster_1 {
-        label="P1 · Perception Engine";
-        style=rounded; color="#444444";
-        rank=same;
-        P1_A -> P1_B -> P1_C -> P1_D -> P1_E;
+    node [shape=box, style=rounded, fontname="JetBrains Mono"];
+    edge [fontname="JetBrains Mono"];
+
+    /* ============================================================
+       TIER 7 — SOVEREIGN EXECUTION ARCHITECTURE
+       ============================================================ */
+
+    /* ---------- LAYER 1 : INPUT ---------- */
+
+    subgraph cluster_input {
+        label="Layer 1 — Input Surface";
+        style=rounded;
+
+        DSL              [label="DSL / Intent\n(text, API, CLI)"];
+        ExternalSignals  [label="External Signals\n(events, files, net)"];
     }
 
-    // =========================
-    // ROW 2 : Canonicalization Engine
-    // =========================
-    subgraph cluster_2 {
-        label="P2 · Canonicalization Engine";
-        style=rounded; color="#444444";
-        rank=same;
-        P2_A -> P2_B -> P2_C -> P2_D -> P2_E;
+    /* ---------- LAYER 2 : STRUCTURE ---------- */
+
+    subgraph cluster_structure {
+        label="Layer 2 — Structural Truth";
+        style=rounded;
+
+        Proposal         [label="Proposal\n(raw graph intent)"];
+        Resolver         [label="Resolver\n(bind ids, names)"];
+        CanonicalIR      [label="CanonicalIR\n(validated DAG)"];
     }
 
-    // =========================
-    // ROW 3 : Strategic Planner
-    // =========================
-    subgraph cluster_3 {
-        label="P3 · Strategic Planner";
-        style=rounded; color="#444444";
-        rank=same;
-        P3_A -> P3_B -> P3_C -> P3_D -> P3_E;
+    /* ---------- LAYER 3 : GOVERNANCE ---------- */
+
+    subgraph cluster_governance {
+        label="Layer 3 — Governance (Judgment)";
+        style=rounded;
+
+        Policy           [label="Policy Engine\n(lints, laws)"];
+        ProofSystem      [label="Proof System\n(structure/execution/meta)"];
+        Gate             [label="Gate\n(accept / reject)"];
     }
 
-    // =========================
-    // ROW 3' : Strategic Planner Prime (feedback target)
-    // =========================
-    subgraph cluster_3p {
-        label="P3' · Strategic Planner (Updated)";
-        style=rounded; color="#0055aa";
-        rank=same;
-        P3p_A -> P3p_B -> P3p_C -> P3p_D -> P3p_E;
+    /* ---------- LAYER 4 : KERNEL ---------- */
+
+    subgraph cluster_kernel {
+        label="Layer 4 — Deterministic Kernel";
+        style=rounded;
+
+        StateModel       [label="Canonical State"];
+        DeltaEngine      [label="Delta Engine"];
+        Kernel           [label="Kernel\n(apply verified delta)"];
     }
 
-    // =========================
-    // ROW 4 : Judgment Core
-    // =========================
-    subgraph cluster_4 {
-        label="P4 · Judgment Core";
-        style=rounded; color="#444444";
-        rank=same;
-        P4_A -> P4_B -> P4_C -> P4_D -> P4_E;
+    /* ---------- LAYER 5 : MEMORY ---------- */
+
+    subgraph cluster_memory {
+        label="Layer 5 — Sovereign Memory";
+        style=rounded;
+
+        Epochs           [label="Epoch Manager"];
+        Ledger           [label="Append-Only Ledger"];
+        Snapshot         [label="Snapshot / Merkle Root"];
     }
 
-    // =========================
-    // ROW 4' : Judgment Core Prime
-    // =========================
-    subgraph cluster_4p {
-        label="P4' · Judgment Core (Updated)";
-        style=rounded; color="#0055aa";
-        rank=same;
-        P4p_A -> P4p_B -> P4p_C -> P4p_D -> P4p_E;
+    /* ---------- LAYER 6 : EXECUTION ---------- */
+
+    subgraph cluster_execution {
+        label="Layer 6 — Runtime Execution";
+        style=rounded;
+
+        Interpreter      [label="System Interpreter"];
+        Scheduler        [label="Scheduler"];
+        HostAdapter      [label="Host Adapter\n(shell / fs / gpu)"];
     }
 
-    // =========================
-    // ROW 5 : Execution Engine
-    // =========================
-    subgraph cluster_5 {
-        label="P5 · Execution Engine";
-        style=rounded; color="#444444";
-        rank=same;
-        P5_A -> P5_B -> P5_C -> P5_D -> P5_E;
+    /* ---------- LAYER 7 : OBSERVATION ---------- */
+
+    subgraph cluster_observe {
+        label="Layer 7 — Observation & Feedback";
+        style=rounded;
+
+        EventStream      [label="Execution Events"];
+        Scoring          [label="Scoring / Metrics"];
+        Learning         [label="Learning Layer\n(optional)"];
     }
 
-    // =========================
-    // ROW 6 : Memory Engine
-    // =========================
-    subgraph cluster_6 {
-        label="P6 · Memory Engine";
-        style=rounded; color="#444444";
-        rank=same;
-        P6_A -> P6_B -> P6_C -> P6_D -> P6_E;
-    }
+    /* ============================================================
+       PRIMARY FLOW (STRICT LR)
+       ============================================================ */
 
-    // =========================
-    // ROW 7 : Learning Engine
-    // =========================
-    subgraph cluster_7 {
-        label="P7 · Learning Engine";
-        style=rounded; color="#444444";
-        rank=same;
-        P7_A -> P7_B -> P7_C -> P7_D -> P7_E;
-    }
+    DSL -> Proposal;
+    ExternalSignals -> Proposal;
 
-    // =========================
-    // ROW 8 : Governance Layer
-    // =========================
-    subgraph cluster_8 {
-        label="P8 · Governance Layer";
-        style=rounded; color="#884400";
-        rank=same;
-        P8_A -> P8_B -> P8_C -> P8_D -> P8_E;
-    }
+    Proposal -> Resolver;
+    Resolver -> CanonicalIR;
 
-    // =========================
-    // ROW 8' : Governance Layer Prime
-    // =========================
-    subgraph cluster_8p {
-        label="P8' · Governance Layer (Updated)";
-        style=rounded; color="#0055aa";
-        rank=same;
-        P8p_A -> P8p_B -> P8p_C -> P8p_D -> P8p_E;
-    }
+    CanonicalIR -> Policy;
+    Policy -> ProofSystem;
+    ProofSystem -> Gate;
 
-    // =========================
-    // ROW 9 : Security Layer
-    // =========================
-    subgraph cluster_9 {
-        label="P9 · Security Layer";
-        style=rounded; color="#884400";
-        rank=same;
-        P9_A -> P9_B -> P9_C -> P9_D -> P9_E;
-    }
+    Gate -> StateModel;
 
-    // =========================
-    // ROW 10 : Meta-Evolution Engine
-    // =========================
-    subgraph cluster_10 {
-        label="P10 · Meta-Evolution Engine";
-        style=rounded; color="#006600";
-        rank=same;
-        P10_A -> P10_B -> P10_C -> P10_D -> P10_E;
-    }
+    StateModel -> DeltaEngine;
+    DeltaEngine -> Kernel;
 
-    // =========================
-    // Inter-Pipeline Edges — Forward Sovereign Flow
-    // =========================
-    P1_E -> P2_A   [label="→"];
-    P2_E -> P3_A   [label="→"];
-    P3_E -> P4_A   [label="→"];
-    P4_E -> P5_A   [label="→"];
+    Kernel -> Epochs;
+    Epochs -> Ledger;
+    Ledger -> Snapshot;
 
-    // Execution feeds Memory (no loop: P5 → P6, P6 feeds back to P3' not P3)
-    P5_E -> P6_A   [label="→"];
+    Snapshot -> Interpreter;
+    Interpreter -> Scheduler;
+    Scheduler -> HostAdapter;
 
-    // Memory feeds Learning
-    P6_E -> P7_A   [label="→"];
+    HostAdapter -> EventStream;
+    EventStream -> Scoring;
+    Scoring -> Learning;
 
-    // =========================
-    // Feedback-as-Prime Edges (P_x → P_y')
-    // =========================
+    /* ============================================================
+       CONTROL CONSTRAINTS (NOT BACK-EDGES, BUT FEED-FORWARD)
+       ============================================================ */
 
-    // Memory → Planning prime
-    P6_E -> P3p_A  [style=dashed, color="#0055aa", label="mem→plan'"];
-
-    // Learning → Planning prime
-    P7_E -> P3p_A  [style=dashed, color="#0055aa", label="learn→plan'"];
-
-    // Meta-Evolution → Planning prime
-    P10_E -> P3p_A [style=dashed, color="#006600", label="meta→plan'"];
-
-    // Meta-Evolution → Judgment prime
-    P10_E -> P4p_A [style=dashed, color="#006600", label="meta→judg'"];
-
-    // Meta-Evolution → Governance prime
-    P10_E -> P8p_A [style=dashed, color="#006600", label="meta→gov'"];
-
-    // Governance → Judgment prime (was P8_E → P4_A, now primed)
-    P8_E -> P4p_A  [style=dashed, color="#884400", label="gov→judg'"];
-
-    // Security → Judgment prime
-    P9_E -> P4p_A  [style=dashed, color="#884400", label="sec→judg'"];
-
-    // Judgment → Governance prime (was P4_E → P8_A, now primed)
-    P4_E -> P8p_A  [style=dashed, color="#0055aa", label="judg→gov'"];
-
-    // Judgment → Security prime
-    P4_E -> P9_A   [style=dashed, color="#0055aa", label="judg→sec'"];
+    Learning -> Policy;
 }
