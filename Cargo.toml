@@ -3,7 +3,7 @@
 members = [
   "canon",
   "lints",
-  "test_project",
+  "test_projects/test_lint",
   "canon/kernel",
   "host_runtime",
   "host_state_controller"
