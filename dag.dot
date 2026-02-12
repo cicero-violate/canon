@@ -1,7 +1,6 @@
 digraph Level7AI {
 
     rankdir=LR;
-    compound=true;
 
     node [shape=box, style=rounded];
 
@@ -10,28 +9,28 @@ digraph Level7AI {
     Planner [label="Planner (LLM / Heuristics)"];
     Judgment [label="Judgment (Radius + Policy + Proof)"];
     Reject [label="Reject", shape=diamond];
-    Executor [label="Executor (Pure State Transition)"];
-    Delta [label="Delta Dt"];
+
+    Kernel [label="KERNEL\n(State Transition + Invariants + Hash Root)"];
+
     Memory [label="Memory Engine (Append Only Ledger)"];
     State [label="Canonical State St"];
     Hash [label="Root Hash H(St)"];
     GraphProj [label="Graph Projection (Read Only)"];
+    Lean [label="Formal Proof System"];
     Feedback [label="Feedback Loop"];
-    Lean [label="Formal Proof System (Lean Certificate)"];
 
     ExternalWorld -> Intent;
     Intent -> Planner;
     Planner -> Judgment;
 
     Judgment -> Reject [label="Fail"];
-    Judgment -> Executor [label="Accept"];
-
-    Judgment -> Lean [label="Generate Obligation"];
+    Judgment -> Lean [label="Proof Obligation"];
     Lean -> Judgment [label="Certificate"];
 
-    Executor -> Delta;
-    Delta -> Memory [label="append"];
-    Memory -> State [label="replay"];
+    Judgment -> Kernel [label="Accept"];
+
+    Kernel -> Memory [label="Delta"];
+    Memory -> State [label="Replay"];
     State -> Hash;
 
     State -> GraphProj;
