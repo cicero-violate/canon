@@ -23,7 +23,7 @@ pub struct ProposalDelta {
     pub bytes: usize,
 }
 
-/// Certificate emitted by LearnGate when a proposal is proven admissible.
+/// Certificate emitted by ProofGate when a proposal is proven admissible.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GateCertificate {
     pub proposal_name: String,
@@ -82,7 +82,7 @@ struct RawRejection {
     detail: Option<String>,
 }
 
-/// Invoke the LearnGate CLI with the canonical schema.
+/// Invoke the ProofGate CLI with the canonical schema.
 pub fn verify_proposal(
     gate_dir: &Path,
     state: &StateSlice,
@@ -92,36 +92,36 @@ pub fn verify_proposal(
 
     let mut child = Command::new("lake")
         .arg("exe")
-        .arg("learngate")
+        .arg("proof_gate")
         .current_dir(gate_dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .with_context(|| format!("failed to invoke LearnGate at {}", gate_dir.display()))?;
+        .with_context(|| format!("failed to invoke ProofGate at {}", gate_dir.display()))?;
 
     if let Some(stdin) = child.stdin.as_mut() {
         stdin
             .write_all(&payload)
-            .context("unable to send request to LearnGate")?;
+            .context("unable to send request to ProofGate")?;
     } else {
-        return Err(anyhow!("failed to open LearnGate stdin"));
+        return Err(anyhow!("failed to open ProofGate stdin"));
     }
 
     let output = child
         .wait_with_output()
-        .context("failed to await LearnGate result")?;
+        .context("failed to await ProofGate result")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow!(
-            "LearnGate verification failed: {}",
+            "ProofGate verification failed: {}",
             stderr.trim().to_string()
         ));
     }
 
     let response: RawProofResponse =
-        serde_json::from_slice(&output.stdout).context("LearnGate returned invalid JSON")?;
+        serde_json::from_slice(&output.stdout).context("ProofGate returned invalid JSON")?;
 
     match response.status.as_str() {
         "accepted" => Ok(ProofResult {
@@ -143,6 +143,6 @@ pub fn verify_proposal(
                 proofs: response.proofs,
             })
         }
-        other => Err(anyhow!("unknown LearnGate status `{other}`")),
+        other => Err(anyhow!("unknown ProofGate status `{other}`")),
     }
 }

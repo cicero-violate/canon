@@ -1,0 +1,63 @@
+digraph HostRuntimeCallGraph {
+    rankdir=LR;
+    node [shape=box];
+
+    main;
+    parse_cli_mode;
+    parse_shell_mode;
+    run_system_flow;
+    run_shell_flow;
+    resolve_fixture_path;
+    load_ir;
+    load_state;
+    build_initial_inputs;
+    select_system_graph;
+    report_execution;
+    run_gate_and_persist;
+    gate_and_commit;
+    shell_delta_from_receipt;
+    shell_metadata_from_receipt;
+    rebuild_shell_ledgers;
+    verify_proof_hash;
+    persist_certificate;
+    tlog_path;
+    state_dir;
+    shell_state_dir;
+
+    // Entry
+    main -> parse_cli_mode;
+    main -> run_shell_flow;
+    main -> run_system_flow;
+
+    // CLI parsing
+    parse_cli_mode -> parse_shell_mode;
+
+    // System flow
+    run_system_flow -> resolve_fixture_path;
+    run_system_flow -> load_ir;
+    run_system_flow -> load_state;
+    run_system_flow -> build_initial_inputs;
+    run_system_flow -> select_system_graph;
+    run_system_flow -> report_execution;
+    run_system_flow -> run_gate_and_persist;
+
+    run_gate_and_persist -> gate_and_commit;
+
+    // Shell flow
+    run_shell_flow -> load_state;
+    run_shell_flow -> shell_state_dir;
+    run_shell_flow -> shell_delta_from_receipt;
+    run_shell_flow -> shell_metadata_from_receipt;
+    run_shell_flow -> gate_and_commit;
+
+    // State loading
+    load_state -> state_dir;
+    load_state -> tlog_path;
+    load_state -> verify_proof_hash;
+    load_state -> rebuild_shell_ledgers;
+
+    // Gate
+    gate_and_commit -> persist_certificate;
+    gate_and_commit -> tlog_path;
+    gate_and_commit -> state_dir;
+}

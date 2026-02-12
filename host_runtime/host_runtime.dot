@@ -1,0 +1,44 @@
+digraph HostRuntime {
+    rankdir=LR;
+    node [shape=box];
+
+    lean_gate;
+
+    "canon::ir";
+    "canon::runtime";
+    "canon::runtime::value";
+    "canon::memory";
+    "canon::memory::delta";
+    "canon::memory::delta::shell_delta";
+    "canon::memory::epoch";
+    "canon::memory::primitives";
+
+    host_state_controller;
+
+    anyhow;
+    serde_json;
+    sha2;
+    hex;
+    tempfile;
+
+    host_runtime;
+    lean_gate -> host_runtime;
+
+    "canon::ir" -> host_runtime;
+    "canon::runtime" -> host_runtime;
+    "canon::runtime::value" -> host_runtime;
+
+    "canon::memory" -> host_runtime;
+    "canon::memory::delta" -> host_runtime;
+    "canon::memory::delta::shell_delta" -> host_runtime;
+    "canon::memory::epoch" -> host_runtime;
+    "canon::memory::primitives" -> host_runtime;
+
+    host_state_controller -> host_runtime;
+
+    anyhow -> host_runtime;
+    serde_json -> host_runtime;
+    sha2 -> host_runtime;
+    hex -> host_runtime;
+    tempfile -> host_runtime;
+}

@@ -213,6 +213,8 @@ fn apply_structural_delta(ir: &mut CanonicalIr, delta: &Delta) -> Result<(), Evo
                 name: name.clone(),
                 visibility: *visibility,
                 description: description.clone(),
+                files: Vec::new(),
+                file_edges: Vec::new(),
             });
         }
         Some(DeltaPayload::AddStruct {
@@ -354,6 +356,7 @@ fn apply_structural_delta(ir: &mut CanonicalIr, delta: &Delta) -> Result<(), Evo
                 source: from.clone(),
                 target: to.clone(),
                 rationale: rationale.clone(),
+                imported_types: Vec::new(),
             });
         }
         Some(DeltaPayload::AddCallEdge { caller, callee }) => {

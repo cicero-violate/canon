@@ -1,6 +1,6 @@
-import LearnGate.State
+import ProofGate.State
 
-namespace LearnGate
+namespace ProofGate
 
 /-- Minimal description of a delta proposed by the runtime. -/
 structure ProposalDelta where
@@ -35,4 +35,4 @@ def applyRule (_ : Proposal) (s : State) : State :=
 def enabled (_ : Proposal) (_ : State) : Prop :=
   True
 
-end LearnGate
+end ProofGate

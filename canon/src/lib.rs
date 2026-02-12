@@ -1,4 +1,6 @@
 pub mod decision;
+pub mod dot_import;
+pub mod dot_export;
 pub mod evolution;
 pub mod gpu;
 pub mod ir;
@@ -17,6 +19,7 @@ pub use decision::{
     AcceptProposalError, AutoAcceptDslError, ProposalAcceptance, ProposalAcceptanceInput,
     accept_proposal, auto_accept_dsl_proposal,
 };
+pub use decision::{AutoAcceptDotError, auto_accept_dot_proposal};
 pub use evolution::{EvolutionError, apply_deltas};
 pub use gpu::{
     codegen::{GpuProgram, flatten_ports, generate_shader},

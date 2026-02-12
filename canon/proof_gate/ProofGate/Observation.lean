@@ -1,7 +1,7 @@
-import LearnGate.State
-import LearnGate.Core
+import ProofGate.State
+import ProofGate.Core
 
-namespace LearnGate
+namespace ProofGate
 
 /-- Observation is what the runtime records (already happened). -/
 structure Observation where
@@ -12,4 +12,4 @@ deriving Repr, DecidableEq
 def extractFact (o : Observation) : Delta :=
   Delta.fact s!"spent={o.spent}"
 
-end LearnGate
+end ProofGate

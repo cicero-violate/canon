@@ -83,6 +83,20 @@ impl JsonSchema for Word {
 
 pub type ModuleId = String;
 
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct FileNode {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct FileEdge {
+    pub from: String,
+    pub to: String,
+}
+
 pub type StructId = String;
 pub type TraitId = String;
 pub type TraitFunctionId = String;
@@ -158,6 +172,10 @@ pub struct Module {
     pub name: Word,
     pub visibility: Visibility,
     pub description: String,
+    #[serde(default)]
+    pub files: Vec<FileNode>,
+    #[serde(default)]
+    pub file_edges: Vec<FileEdge>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
@@ -168,6 +186,8 @@ pub struct ModuleEdge {
     #[serde(rename = "to")]
     pub target: ModuleId,
     pub rationale: String,
+    #[serde(default)]
+    pub imported_types: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

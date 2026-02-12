@@ -1,9 +1,9 @@
-import LearnGate.Core
-import LearnGate.State
-import LearnGate.Invariants
-import LearnGate.Proposal
+import ProofGate.Core
+import ProofGate.State
+import ProofGate.Invariants
+import ProofGate.Proposal
 
-namespace LearnGate
+namespace ProofGate
 
   /--
   What Lean must prove to admit a proposal:
@@ -26,4 +26,4 @@ namespace LearnGate
     let _proof : Admissible p := admissible_balance p
     Sum.inr { proposalName := p.graphId, proofTag := "Admissible" }
 
-end LearnGate
+end ProofGate

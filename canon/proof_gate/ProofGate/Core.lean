@@ -1,6 +1,6 @@
-namespace LearnGate
+namespace ProofGate
 
-/-- Minimal “delta” types for append-only learning artifacts. -/
+/-- Minimal delta types for append-only admission artifacts. -/
 inductive Delta where
   | fact   (msg : String)
   | rule   (name : String)
@@ -14,4 +14,4 @@ structure Certificate where
   proofTag     : String
 deriving Repr, DecidableEq
 
-end LearnGate
+end ProofGate

@@ -1,1 +1,1 @@
-# LearnGate
+# ProofGate

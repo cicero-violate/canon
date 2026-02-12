@@ -1,8 +1,8 @@
-import LearnGate.Core
-import LearnGate.Proposal
-import LearnGate.Verify
+import ProofGate.Core
+import ProofGate.Proposal
+import ProofGate.Verify
 
-namespace LearnGate
+namespace ProofGate
 
 /-- Policy is the set of admitted rule names (toy model). -/
 structure Policy where
@@ -18,11 +18,11 @@ def addRule (pi : Policy) (ruleName : String) : Policy :=
 Update policy only if Lean produced a certificate.
 This is the “only proven rules enter policy” rule.
 -/
-def applyLearning (pi : Policy) (p : Proposal) : Policy × List Delta :=
+def applyAdmission (pi : Policy) (p : Proposal) : Policy × List Delta :=
   match verify p with
   | Sum.inr cert =>
       (addRule pi cert.proposalName, [Delta.rule cert.proposalName])
   | Sum.inl rej =>
       (pi, [rej])
 
-end LearnGate
+end ProofGate

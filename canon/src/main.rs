@@ -11,6 +11,8 @@ use canon::{
     runtime::{TickExecutionMode, TickExecutor},
     validate_ir, write_file_tree,
 };
+use canon::dot_export::export_dot;
+use canon::auto_accept_dot_proposal;
 
 fn main() {
     if let Err(err) = run() {
@@ -147,6 +149,39 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 result.emitted_deltas.len()
             );
         }
+        Command::ImportDot {
+            dot_file,
+            ir,
+            goal,
+            output_ir,
+            materialize_dir,
+        } => {
+            let ir_bytes = fs::read(&ir)?;
+            let ir_doc: CanonicalIr = serde_json::from_slice(&ir_bytes)?;
+            let dot_source = fs::read_to_string(&dot_file)?;
+            let acceptance = auto_accept_dot_proposal(&ir_doc, &dot_source, &goal)?;
+            validate_ir(&acceptance.ir)?;
+            enforce_version_gate(&acceptance.ir)?;
+            let rendered = serde_json::to_string_pretty(&acceptance.ir)?;
+            fs::write(&output_ir, rendered)?;
+            let tree = materialize(&acceptance.ir);
+            write_file_tree(&tree, &materialize_dir)?;
+            println!(
+                "DOT `{}` imported via judgment `{}` ({} deltas).",
+                dot_file.display(),
+                acceptance.judgment_id,
+                acceptance.delta_ids.len()
+            );
+        }
+        Command::ExportDot { ir, output } => {
+            let data = fs::read(&ir)?;
+            let ir_doc: CanonicalIr = serde_json::from_slice(&data)?;
+            validate_ir(&ir_doc)?;
+            enforce_version_gate(&ir_doc)?;
+            let dot = export_dot(&ir_doc);
+            fs::write(&output, &dot)?;
+            println!("Exported DOT to `{}`.", output.display());
+        }
     }
 
     Ok(())
@@ -245,6 +280,30 @@ enum Command {
         /// Enable experimental parallel verification.
         #[arg(long)]
         parallel: bool,
+    },
+    /// Import a Graphviz DOT file and evolve Canon with its module structure.
+    ImportDot {
+        /// Path to the `.dot` file to import.
+        dot_file: PathBuf,
+        /// Path to the base canonical IR JSON document.
+        #[arg(long)]
+        ir: PathBuf,
+        /// Short goal label for the generated proposal.
+        #[arg(long)]
+        goal: String,
+        /// Output path for the updated Canonical IR document.
+        #[arg(long)]
+        output_ir: PathBuf,
+        /// Directory for materialized sources.
+        #[arg(long)]
+        materialize_dir: PathBuf,
+    },
+    /// Export a Canonical IR document as a Graphviz DOT file.
+    ExportDot {
+        /// Path to the canonical IR JSON document.
+        ir: PathBuf,
+        /// Output path for the emitted `.dot` file.
+        output: PathBuf,
     },
 }
 

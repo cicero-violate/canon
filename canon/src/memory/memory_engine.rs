@@ -118,7 +118,7 @@ impl CanonicalState {
 
 fn state_snapshot_path(repo_root: &Path) -> PathBuf {
     repo_root
-        .join("host_runtime_state")
+        .join("canon_store")
         .join("snapshots")
         .join("canonical_state.bin")
 }

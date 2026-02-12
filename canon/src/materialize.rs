@@ -3,8 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::ir::{
-    CanonicalIr, ExternalDependency, Function, ImplBlock, Project, Struct, Trait, TypeRef,
-    ValuePort, Visibility,
+    CanonicalIr, ExternalDependency, FileNode, Function, ImplBlock, Module, ModuleEdge, Project,
+    Struct, Trait, TypeRef, ValuePort, Visibility,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,14 +76,172 @@ pub fn materialize(ir: &CanonicalIr) -> FileTree {
         tree.add_directory(module_dir.clone());
         lib_rs.push_str(&format!("pub mod {};\n", module.name.as_str()));
 
-        let module_contents = render_module(module, ir, &struct_map, &trait_map, &function_map);
-        tree.add_file(format!("{module_dir}/mod.rs"), module_contents);
+        if module.files.is_empty() {
+            // no file topology — emit everything into mod.rs as before
+            let module_contents =
+                render_module(module, ir, &struct_map, &trait_map, &function_map);
+            tree.add_file(format!("{module_dir}/mod.rs"), module_contents);
+        } else {
+            // file topology present — emit one file per FileNode
+            let ordered = topo_sort_files(&module.files, &module.file_edges_as_pairs());
+            let incoming_types = collect_incoming_types(ir, &module.id);
+
+            let mut mod_rs = String::from("// Derived from Canonical IR. Do not edit.\n\n");
+            for file_node in &ordered {
+                let stem = file_stem(&file_node.name);
+                if stem != "lib" && stem != "mod" {
+                    mod_rs.push_str(&format!("pub mod {};\n", stem));
+                }
+            }
+            tree.add_file(format!("{module_dir}/mod.rs"), mod_rs);
+
+            for (idx, file_node) in ordered.iter().enumerate() {
+                let stem = file_stem(&file_node.name);
+                if stem == "lib" || stem == "mod" {
+                    continue;
+                }
+                // imports from other crates flow into the first non-lib file
+                let use_block = if idx == 0 && !incoming_types.is_empty() {
+                    render_use_block(&incoming_types)
+                } else {
+                    String::new()
+                };
+                let contents = format!(
+                    "// Derived from Canonical IR. Do not edit.\n\n{use_block}// {}\n",
+                    file_node.name
+                );
+                tree.add_file(format!("{module_dir}/{}", file_node.name), contents);
+            }
+        }
     }
 
     tree.add_file("src/lib.rs", lib_rs);
     let cargo = render_cargo_toml(&ir.project, &ir.dependencies);
     tree.add_file("Cargo.toml", cargo);
     tree
+}
+
+// ── file topology helpers ────────────────────────────────────────────────────
+
+impl crate::ir::Module {
+    fn file_edges_as_pairs(&self) -> Vec<(String, String)> {
+        self.file_edges
+            .iter()
+            .map(|e| (e.from.clone(), e.to.clone()))
+            .collect()
+    }
+}
+
+/// Topological sort of FileNodes by their intra-module edges.
+/// Nodes with no edges are returned in declaration order.
+fn topo_sort_files(
+    files: &[FileNode],
+    edges: &[(String, String)],
+) -> Vec<FileNode> {
+    use std::collections::{HashSet, VecDeque};
+
+    let mut in_degree: HashMap<String, usize> =
+        files.iter().map(|f| (f.id.clone(), 0)).collect();
+    let mut adj: HashMap<String, Vec<String>> = HashMap::new();
+
+    for (from, to) in edges {
+        adj.entry(from.clone()).or_default().push(to.clone());
+        *in_degree.entry(to.clone()).or_insert(0) += 1;
+    }
+
+    let mut zero: Vec<String> = in_degree
+        .iter()
+        .filter(|(_, d)| **d == 0)
+        .map(|(id, _)| id.clone())
+        .collect();
+    zero.sort();
+
+    let mut queue: VecDeque<String> = zero.into();
+
+    let id_to_file: HashMap<String, FileNode> =
+        files.iter().map(|f| (f.id.clone(), f.clone())).collect();
+
+    let mut result = Vec::new();
+
+    while let Some(id) = queue.pop_front() {
+        if let Some(file) = id_to_file.get(&id) {
+            result.push(file.clone());
+        }
+        if let Some(neighbors) = adj.get(&id) {
+            let mut next = neighbors.clone();
+            next.sort();
+            for nb in next {
+                let deg = in_degree.entry(nb.clone()).or_insert(0);
+                *deg = deg.saturating_sub(1);
+                if *deg == 0 {
+                    queue.push_back(nb);
+                }
+            }
+        }
+    }
+
+    // append any remaining (cycles or disconnected nodes)
+    let seen: HashSet<String> = result.iter().map(|f| f.id.clone()).collect();
+    for file in files {
+        if !seen.contains(&file.id) {
+            result.push(file.clone());
+        }
+    }
+
+    result
+}
+
+/// Collect all types imported into `module_id` from other modules.
+fn collect_incoming_types(ir: &CanonicalIr, module_id: &str) -> Vec<(String, Vec<String>)> {
+    let mut out: Vec<(String, Vec<String>)> = Vec::new();
+
+    for edge in &ir.module_edges {
+        if edge.target != module_id || edge.imported_types.is_empty() {
+            continue;
+        }
+
+        let source_name: String = ir
+            .modules
+            .iter()
+            .find(|m| m.id == edge.source)
+            .map(|m| m.name.as_str().to_string())
+            .unwrap_or_else(|| edge.source.clone());
+
+        out.push((source_name, edge.imported_types.clone()));
+    }
+
+    out
+}
+
+/// Render `use crate_name::{TypeA, TypeB};` lines.
+fn render_use_block(incoming: &[(String, Vec<String>)]) -> String {
+    let mut out = String::new();
+
+    for (source, types) in incoming {
+        let slugged: String = source
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() {
+                    c.to_ascii_lowercase()
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+
+        if types.len() == 1 {
+            out.push_str(&format!("use {}::{};\n", slugged, types[0]));
+        } else {
+            out.push_str(&format!("use {}::{{{}}};\n", slugged, types.join(", ")));
+        }
+    }
+
+    out.push('\n');
+    out
+}
+
+fn file_stem(name: &str) -> &str {
+    name.trim_end_matches(".rs")
 }
 
 fn render_module(

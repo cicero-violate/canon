@@ -338,7 +338,7 @@ fn resolve_fixture_path(repo_root: &Path) -> Result<std::path::PathBuf> {
 }
 
 fn state_dir(repo_root: &Path) -> PathBuf {
-    repo_root.join("host_runtime_state")
+    repo_root.join("canon_store")
 }
 
 fn tlog_path(repo_root: &Path) -> PathBuf {
@@ -458,14 +458,14 @@ fn gate_and_commit(
             .collect(),
         shell,
     };
-    let gate_dir = repo_root.join("canon").join("learn_gate");
+    let gate_dir = repo_root.join("canon").join("proof_gate");
     let decision = lean_gate::verify_proposal(&gate_dir, &state_slice, &proposal)
         .context("Lean gate invocation failed")?;
     if !decision.accepted {
         let reason = decision
             .rejection_reason
             .unwrap_or_else(|| "proposal rejected".into());
-        bail!("LearnGate rejected proposal: {reason}");
+        bail!("ProofGate rejected proposal: {reason}");
     }
     let proof_hash = persist_certificate(repo_root, &decision)?;
 
@@ -513,7 +513,7 @@ fn persist_certificate(repo_root: &Path, decision: &lean_gate::ProofResult) -> R
     let cert = decision
         .certificate
         .as_ref()
-        .ok_or_else(|| anyhow!("LearnGate accepted but omitted certificate"))?;
+        .ok_or_else(|| anyhow!("ProofGate accepted but omitted certificate"))?;
     let record = json!({
         "certificate": cert,
         "proofs": decision.proofs.clone(),

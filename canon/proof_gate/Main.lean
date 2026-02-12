@@ -1,7 +1,7 @@
 import Lean.Data.Json
-import LearnGate.Verify
-import LearnGate.State
-import LearnGate.Proposal
+import ProofGate.Verify
+import ProofGate.State
+import ProofGate.Proposal
 
 open Lean
 
@@ -33,17 +33,17 @@ structure Request where
   proposal : RequestProposal
 deriving FromJson
 
-def deltaToJson : LearnGate.Delta -> Json
-  | LearnGate.Delta.fact msg =>
+def deltaToJson : ProofGate.Delta -> Json
+  | ProofGate.Delta.fact msg =>
       Json.mkObj [("kind", Json.str "fact"), ("message", Json.str msg)]
-  | LearnGate.Delta.rule name =>
+  | ProofGate.Delta.rule name =>
       Json.mkObj [("kind", Json.str "rule"), ("name", Json.str name)]
-  | LearnGate.Delta.goal name =>
+  | ProofGate.Delta.goal name =>
       Json.mkObj [("kind", Json.str "goal"), ("name", Json.str name)]
-  | LearnGate.Delta.reject reason =>
+  | ProofGate.Delta.reject reason =>
       Json.mkObj [("kind", Json.str "reject"), ("reason", Json.str reason)]
 
-def certificateToJson (cert : LearnGate.Certificate) : Json :=
+def certificateToJson (cert : ProofGate.Certificate) : Json :=
   Json.mkObj
     [ ("proposal_name", Json.str cert.proposalName)
     , ("proof_tag", Json.str cert.proofTag)
@@ -51,8 +51,8 @@ def certificateToJson (cert : LearnGate.Certificate) : Json :=
 
 def responseToJson
     (status : String)
-    (cert? : Option LearnGate.Certificate := none)
-    (delta? : Option LearnGate.Delta := none)
+    (cert? : Option ProofGate.Certificate := none)
+    (delta? : Option ProofGate.Delta := none)
     (error? : Option String := none)
     (proofs : List Json := []) : Json :=
   let base := [("status", Json.str status)]
@@ -81,23 +81,23 @@ def mkProof (name detail : String) : Json :=
 def emitJson (json : Json) : IO Unit :=
   IO.println json.compress
 
-def toState (st : RequestState) : LearnGate.State :=
+def toState (st : RequestState) : ProofGate.State :=
   { rootHash := st.root_hash }
 
-def toProposalDelta (delta : RequestDelta) : LearnGate.ProposalDelta :=
+def toProposalDelta (delta : RequestDelta) : ProofGate.ProposalDelta :=
   { deltaId := delta.delta_id
   , payloadHash := delta.payload_hash
   , bytes := delta.bytes
   }
 
-def toShellMetadata (sh : RequestShell) : LearnGate.ShellMetadata :=
+def toShellMetadata (sh : RequestShell) : ProofGate.ShellMetadata :=
   { shellId := sh.shell_id
   , epoch := sh.epoch
   , command := sh.command
   , stateHash := sh.state_hash
   }
 
-def toProposal (prop : RequestProposal) : LearnGate.Proposal :=
+def toProposal (prop : RequestProposal) : ProofGate.Proposal :=
   { graphId := prop.graph_id
   , deltas := prop.deltas.map toProposalDelta
   , shell? := prop.shell?.map toShellMetadata
@@ -114,7 +114,7 @@ def runVerify (req : Request) : IO Unit := do
           s!"shell {shell.shellId} epoch {shell.epoch} hash {shell.stateHash}"]
     | none => []
   let proofs := baseProofs ++ shellProofs
-  match LearnGate.verify proposal with
+  match ProofGate.verify proposal with
   | Sum.inr cert =>
       emitJson (responseToJson "accepted" (some cert) none none proofs)
   | Sum.inl delta =>

@@ -1,0 +1,2 @@
+[build]
+rustc-wrapper = "./lints/lint_rustc_gate"

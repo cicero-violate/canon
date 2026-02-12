@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Gate: auto-build lint_rustc if missing, then delegate
+
+# Prevent infinite recursion during bootstrap
+if [ "$LINT_RUSTC_BUILDING" = "1" ]; then
+    exec "$1" "${@:2}"
+fi
+
+# Find workspace root (where .cargo/config.toml exists)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+LINT_RUSTC="$WORKSPACE_ROOT/target/debug/lint_rustc"
+
+if [ ! -x "$LINT_RUSTC" ]; then
+    # Build the wrapper first
+    export LINT_RUSTC_BUILDING=1
+    cd "$WORKSPACE_ROOT/lints"
+    rustc build_wrapper.rs -o build_wrapper 2>/dev/null
+    ./build_wrapper >/dev/null 2>&1
+    unset LINT_RUSTC_BUILDING
+fi
+
+# Now delegate to lint_rustc (which should exist)
+if [ -x "$LINT_RUSTC" ]; then
+    exec "$LINT_RUSTC" "$@"
+else
+    # Fallback: use real rustc directly (only when called via RUSTC_WRAPPER)
+    if [ $# -ge 1 ] && [ -n "$1" ]; then
+        exec "$1" "${@:2}"
+    else
+        echo "Error: lint_rustc not found and no fallback rustc provided" >&2
+        exit 1
+    fi
+fi
