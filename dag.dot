@@ -1,39 +1,107 @@
-digraph Level7AI {
+digraph Canon_DAG {
 
-    rankdir=LR;
+  label = "Canon Level-7 Execution DAG";
+  labelloc = top;
+  fontsize = 18;
+  rankdir = LR;
+  fontname = "JetBrains Mono";
 
-    node [shape=box, style=rounded];
+  node [
+    shape=box,
+    style=rounded,
+    fontname="JetBrains Mono",
+    fontsize=10
+  ];
 
-    ExternalWorld [label="External World"];
-    Intent [label="External Intent It"];
-    Planner [label="Planner (LLM / Heuristics)"];
-    Judgment [label="Judgment (Radius + Policy + Proof)"];
-    Reject [label="Reject", shape=diamond];
+  edge [
+    fontname="JetBrains Mono",
+    fontsize=9
+  ];
 
-    Kernel [label="KERNEL\n(State Transition + Invariants + Hash Root)"];
+  /* ===== Declarative Construction ===== */
 
-    Memory [label="Memory Engine (Append Only Ledger)"];
-    State [label="Canonical State St"];
-    Hash [label="Root Hash H(St)"];
-    GraphProj [label="Graph Projection (Read Only)"];
-    Lean [label="Formal Proof System"];
-    Feedback [label="Feedback Loop"];
+  DSL [
+    label="DSL\n(text input)",
+    shape=component
+  ];
 
-    ExternalWorld -> Intent;
-    Intent -> Planner;
-    Planner -> Judgment;
+  Proposal [
+    label="Proposal\n(nodes, apis, edges)"
+  ];
 
-    Judgment -> Reject [label="Fail"];
-    Judgment -> Lean [label="Proof Obligation"];
-    Lean -> Judgment [label="Certificate"];
+  ResolvedNodes [
+    label="ResolvedProposalNodes\n(ids + bindings)"
+  ];
 
-    Judgment -> Kernel [label="Accept"];
+  CanonicalIR [
+    label="CanonicalIr\n(validated DAG)"
+  ];
 
-    Kernel -> Memory [label="Delta"];
-    Memory -> State [label="Replay"];
-    State -> Hash;
+  DSL -> Proposal [label="parse"];
+  Proposal -> ResolvedNodes [label="resolve ids"];
+  ResolvedNodes -> CanonicalIR [label="validate"];
 
-    State -> GraphProj;
-    GraphProj -> Feedback;
-    Feedback -> Planner;
+  /* ===== Judgment & Proof ===== */
+
+  Judgment [
+    label="Judgment\n(radius + policy)"
+  ];
+
+  ProofArtifact [
+    label="ProofArtifact\n(scope + hash)"
+  ];
+
+  CanonicalIR -> Judgment [label="declare"];
+  Judgment -> ProofArtifact [label="prove"];
+
+  /* ===== Admission (Gate Only) ===== */
+
+  Admission [
+    label="Admission\n(accept / reject)"
+  ];
+
+  ProofArtifact -> Admission [label="certificate"];
+  Judgment -> Admission;
+
+  /* ===== Kernel (SOLE MUTATION AUTHORITY) ===== */
+
+  Kernel [
+    label="Kernel\n(apply + invariants + hash)",
+    shape=octagon,
+    style="rounded,filled",
+    fillcolor=lightgray
+  ];
+
+  Admission -> Kernel [label="if accepted"];
+
+  /* ===== Delta Generation ===== */
+
+  Delta [
+    label="Delta\n(state transition)"
+  ];
+
+  Kernel -> Delta [label="emit"];
+
+  /* ===== Append-Only Ledger ===== */
+
+  StateLog [
+    label="StateLog\n(append-only ledger)",
+    shape=folder
+  ];
+
+  Kernel -> StateLog [label="append delta"];
+
+  /* ===== Canonical State ===== */
+
+  CanonicalState [
+    label="CanonicalState\n(materialized state)"
+  ];
+
+  RootHash [
+    label="RootHash\n(H(state))"
+  ];
+
+  StateLog -> CanonicalState [label="replay"];
+  CanonicalState -> RootHash [label="compute"];
+
 }
