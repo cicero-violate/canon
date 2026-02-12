@@ -1,37 +1,65 @@
-digraph CanonSystem {
+digraph CanonWorkspace {
     rankdir=LR;
     node [shape=box];
 
-    Canon      [shape=doubleoctagon, label="Canon\n(State Root + Ledger)"];
-    Judgment   [shape=diamond, label="Judgment\n(Validation + Policy Gate)"];
+    // Core crates
+    canon_kernel;
+    canon_core;
+    canon_memory;
+    canon_runtime;
+    canon_gpu;
+    canon_proof;
+    canon_proof_gate;
+    canon_ir;
 
-    ShellDAG     [label="Shell DAG\n(Execution Substrate)"];
-    MemoryEngine [label="Memory Engine\n(Persistence + Replay)"];
-    GPUPipeline  [label="GPU Pipeline\n(Pure Compute)"];
-    LeanGate     [label="Lean Gate\n(Formal Proof Oracle)"];
-    HostRuntime  [label="Host Runtime\n(Intent Source)"];
+    host_runtime;
+    host_state_controller;
+    lints;
+    lint_rustc;
+    lint_rustc_gate;
+    test_projects;
 
-    /* Intent Path */
-    HostRuntime -> Judgment  [label="External Intent"];
-    Judgment    -> LeanGate  [label="Proof Obligation"];
-    LeanGate    -> Judgment  [label="Proof Result"];
+    // === Canon internal structure ===
 
-    Judgment    -> Canon     [label="Accepted Delta"];
-    Judgment    -> HostRuntime [label="Reject"];
+    canon_ir -> canon_core;
+    canon_memory -> canon_core;
+    canon_runtime -> canon_core;
+    canon_gpu -> canon_core;
+    canon_proof -> canon_core;
 
-    /* Execution */
-    Canon     -> ShellDAG     [label="Execute"];
-    ShellDAG  -> Canon        [label="Emit Delta"];
+    canon_kernel -> canon_core;
 
-    Canon     -> GPUPipeline  [label="Compute"];
-    GPUPipeline -> Canon      [label="Result"];
+    canon_proof_gate -> canon_proof;
 
-    /* Persistence */
-    Canon       -> MemoryEngine [label="Append Delta"];
-    MemoryEngine -> Canon       [label="Replay Snapshot"];
+    // Memory substructure
+    canon_memory -> canon_ir;
+    canon_runtime -> canon_memory;
+    canon_runtime -> canon_ir;
 
-    /* Authority Constraints */
-    ShellDAG    -> MemoryEngine [style=dashed, label="NO DIRECT WRITE"];
-    GPUPipeline -> MemoryEngine [style=dashed, label="NO DIRECT WRITE"];
-    LeanGate    -> Canon        [style=dashed, label="NO DIRECT MUTATION"];
+    canon_gpu -> canon_ir;
+
+    canon_proof -> canon_memory;
+    canon_proof -> canon_ir;
+
+    // === Host integration ===
+
+    canon_core -> host_runtime;
+    canon_memory -> host_runtime;
+    canon_runtime -> host_runtime;
+    canon_proof_gate -> host_runtime;
+
+    canon_core -> host_state_controller;
+
+    host_state_controller -> host_runtime;
+
+    // === Lints system ===
+
+    lints -> lint_rustc;
+    lints -> lint_rustc_gate;
+
+    canon_core -> lints;
+
+    // === Test projects ===
+
+    canon_core -> test_projects;
 }
