@@ -2,25 +2,22 @@ digraph Level7AI {
 
     rankdir=LR;
     compound=true;
-    fontsize=12;
-    labelloc="t";
-    label="Level-7 AI Unified Deterministic DAG";
 
     node [shape=box, style=rounded];
 
     ExternalWorld [label="External World"];
-    Intent [label="External Intent I_t"];
-    Planner [label="Planner\n(LLM / Heuristics)"];
-    Judgment [label="Judgment\n(Radius + Policy + Proof)"];
+    Intent [label="External Intent It"];
+    Planner [label="Planner (LLM / Heuristics)"];
+    Judgment [label="Judgment (Radius + Policy + Proof)"];
     Reject [label="Reject", shape=diamond];
-    Executor [label="Executor\n(Pure State Transition)"];
-    Delta [label="Delta Δ_t"];
-    Memory [label="Memory Engine\n(Append-Only Ledger)"];
-    State [label="Canonical State S_t"];
-    Hash [label="Root Hash H(S_t)"];
-    Graph [label="Graph Projection\n(Read-Only)"];
+    Executor [label="Executor (Pure State Transition)"];
+    Delta [label="Delta Dt"];
+    Memory [label="Memory Engine (Append Only Ledger)"];
+    State [label="Canonical State St"];
+    Hash [label="Root Hash H(St)"];
+    GraphProj [label="Graph Projection (Read Only)"];
     Feedback [label="Feedback Loop"];
-    Lean [label="Formal Proof System\n(Lean Certificate)"];
+    Lean [label="Formal Proof System (Lean Certificate)"];
 
     ExternalWorld -> Intent;
     Intent -> Planner;
@@ -37,8 +34,7 @@ digraph Level7AI {
     Memory -> State [label="replay"];
     State -> Hash;
 
-    State -> Graph;
-    Graph -> Feedback;
+    State -> GraphProj;
+    GraphProj -> Feedback;
     Feedback -> Planner;
-
 }
