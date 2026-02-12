@@ -1,0 +1,37 @@
+digraph CanonSystem {
+    rankdir=LR;
+    node [shape=box];
+
+    Canon      [shape=doubleoctagon, label="Canon\n(State Root + Ledger)"];
+    Judgment   [shape=diamond, label="Judgment\n(Validation + Policy Gate)"];
+
+    ShellDAG     [label="Shell DAG\n(Execution Substrate)"];
+    MemoryEngine [label="Memory Engine\n(Persistence + Replay)"];
+    GPUPipeline  [label="GPU Pipeline\n(Pure Compute)"];
+    LeanGate     [label="Lean Gate\n(Formal Proof Oracle)"];
+    HostRuntime  [label="Host Runtime\n(Intent Source)"];
+
+    /* Intent Path */
+    HostRuntime -> Judgment  [label="External Intent"];
+    Judgment    -> LeanGate  [label="Proof Obligation"];
+    LeanGate    -> Judgment  [label="Proof Result"];
+
+    Judgment    -> Canon     [label="Accepted Delta"];
+    Judgment    -> HostRuntime [label="Reject"];
+
+    /* Execution */
+    Canon     -> ShellDAG     [label="Execute"];
+    ShellDAG  -> Canon        [label="Emit Delta"];
+
+    Canon     -> GPUPipeline  [label="Compute"];
+    GPUPipeline -> Canon      [label="Result"];
+
+    /* Persistence */
+    Canon       -> MemoryEngine [label="Append Delta"];
+    MemoryEngine -> Canon       [label="Replay Snapshot"];
+
+    /* Authority Constraints */
+    ShellDAG    -> MemoryEngine [style=dashed, label="NO DIRECT WRITE"];
+    GPUPipeline -> MemoryEngine [style=dashed, label="NO DIRECT WRITE"];
+    LeanGate    -> Canon        [style=dashed, label="NO DIRECT MUTATION"];
+}
