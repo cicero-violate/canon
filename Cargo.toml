@@ -5,7 +5,6 @@ members = [
   "lints",
   "canon/kernel",
   "host_runtime",
-  "test_projects/test_lint",
   "host_state_controller"
 ]
 
