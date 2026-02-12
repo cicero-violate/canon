@@ -5,10 +5,24 @@ extern crate rustc_interface;
 extern crate rustc_session;
 
 extern crate lints;
+extern crate serde;
 extern crate serde_json;
 
 use rustc_driver::Callbacks;
 use rustc_session::EarlyDiagCtxt;
+use std::{
+    fs,
+    io,
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+#[derive(serde::Serialize)]
+struct PersistedSignals {
+    crate_name: String,
+    captured_at_unix: u64,
+    signals: Vec<lints::LintSignal>,
+}
 
 struct LintCallbacks;
 
@@ -36,6 +50,11 @@ fn main() {
     let mut callbacks = LintCallbacks;
     let mut argv: Vec<String> = std::env::args().collect();
     let real_rustc = argv.get(1).cloned().expect("missing real rustc path");
+    let crate_name = find_flag_value(&argv, "--crate-name");
+    let workspace_root = workspace_root_from_exe();
+    if let Some(root) = workspace_root.as_ref() {
+        std::env::set_var("CANON_WORKSPACE_ROOT", root);
+    }
 
     let is_probe = argv.iter().any(|a| a.starts_with("--print="))
         || argv.iter().any(|a| a == "-")
@@ -59,14 +78,62 @@ fn main() {
     args.extend(argv.drain(2..));
 
     let _diag = EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
-
     rustc_driver::run_compiler(&args, &mut callbacks);
 
-    let signals = lints::LINT_SIGNALS.lock().unwrap();
+    let signals = {
+        let guard = lints::LINT_SIGNALS.lock().unwrap();
+        guard.clone()
+    };
     if !signals.is_empty() {
-        println!("{}", serde_json::to_string_pretty(&*signals)
-            .expect("failed to serialize judgment signals"));
+        if let Some(repo_root) = workspace_root.as_ref() {
+            if let Some(crate_name) = crate_name.as_deref() {
+                if let Err(err) = persist_signals(&repo_root, crate_name, &signals) {
+                    eprintln!(
+                        "warning: failed to persist lint signals for {crate_name}: {err}"
+                    );
+                }
+            }
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&signals)
+                .expect("failed to serialize judgment signals")
+        );
     }
 
     std::process::exit(0);
+}
+
+fn find_flag_value(args: &[String], flag: &str) -> Option<String> {
+    args.windows(2)
+        .find(|w| w[0] == flag)
+        .map(|w| w[1].clone())
+}
+
+fn workspace_root_from_exe() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let debug_dir = exe.parent()?;
+    let target_dir = debug_dir.parent()?;
+    target_dir.parent().map(|p| p.to_path_buf())
+}
+
+fn persist_signals(
+    repo_root: &Path,
+    crate_name: &str,
+    signals: &[lints::LintSignal],
+) -> io::Result<()> {
+    let store_dir = repo_root.join("canon_store").join("lint_signals");
+    fs::create_dir_all(&store_dir)?;
+    let payload = PersistedSignals {
+        crate_name: crate_name.to_string(),
+        captured_at_unix: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+        signals: signals.to_vec(),
+    };
+    let file = fs::File::create(store_dir.join(format!("{crate_name}.json")))?;
+    serde_json::to_writer_pretty(file, &payload)
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+    Ok(())
 }

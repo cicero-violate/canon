@@ -722,6 +722,10 @@ pub enum DeltaPayload {
         execution_id: ExecutionRecordId,
         event: ExecutionEvent,
     },
+    UpdateFunctionAst {
+        function_id: FunctionId,
+        ast: JsonValue,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

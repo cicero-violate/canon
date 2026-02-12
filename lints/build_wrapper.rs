@@ -17,7 +17,7 @@ fn main() {
 
     // Build lints library first
     let status = Command::new("cargo")
-        .arg("build")
+        .args(["build", "-p", "lints"])
         .env("LINT_RUSTC_BUILDING", "1")
         .current_dir(".")
         .status()
@@ -33,29 +33,24 @@ fn main() {
 
     let deps_dir = target_dir.join("deps");
     
-    // Find lazy_static from deps (lints was compiled against this version)
-    let lazy_static = std::fs::read_dir(&deps_dir)
+    // Helper to find a dependency artifact in `target/debug/deps`
+    let find_dep = |prefix: &str, suffix: &str| {
+        std::fs::read_dir(&deps_dir)
         .expect("failed to read deps dir")
         .filter_map(Result::ok)
         .find(|e| {
             let name = e.file_name().to_string_lossy().into_owned();
-            name.starts_with("liblazy_static-") && name.ends_with(".rlib")
+            name.starts_with(prefix) && name.ends_with(suffix)
         })
-        .expect("no lazy_static rlib found")
-        .path();
+        .map(|e| e.path())
+        .unwrap_or_else(|| panic!("{}", format!("missing dependency {prefix}*{suffix} in deps")))
+    };
 
-    // Get serde_json from sysroot (not deps) to avoid conflicts
-    let serde_json_sysroot = std::fs::read_dir(format!("{}/lib/rustlib/x86_64-unknown-linux-gnu/lib", sysroot))
-        .expect("failed to read sysroot rustlib")
-        .filter_map(Result::ok)
-        .find(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .starts_with("libserde_json-")
-                && e.file_name().to_string_lossy().ends_with(".rmeta")
-        })
-        .expect("no serde_json in sysroot")
-        .path();
+    // Find lazy_static from deps (lints was compiled against this version)
+    let lazy_static = find_dep("liblazy_static-", ".rlib");
+    let serde_dep = find_dep("libserde-", ".rlib");
+    let serde_derive = find_dep("libserde_derive-", ".so");
+    let serde_json_dep = find_dep("libserde_json-", ".rlib");
 
     let rustc_driver = std::fs::read_dir(format!("{}/lib", sysroot))
         .expect("failed to read sysroot/lib")
@@ -81,7 +76,9 @@ fn main() {
             "--extern", &format!("lints={}", lints_rlib.display()),
             "--extern", &format!("rustc_driver={}", rustc_driver.display()),
             "--extern", &format!("lazy_static={}", lazy_static.display()),
-            "--extern", &format!("serde_json={}", serde_json_sysroot.display()),
+            "--extern", &format!("serde={}", serde_dep.display()),
+            "--extern", &format!("serde_derive={}", serde_derive.display()),
+            "--extern", &format!("serde_json={}", serde_json_dep.display()),
             "--edition", "2021",
             "lint_rustc/src/main.rs",
             "-o", target_dir.join("lint_rustc").to_str().unwrap(),

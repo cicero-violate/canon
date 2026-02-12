@@ -390,6 +390,14 @@ fn apply_structural_delta(ir: &mut CanonicalIr, delta: &Delta) -> Result<(), Evo
             record.events.push(event.clone());
         }
         _ => {}
+        Some(DeltaPayload::UpdateFunctionAst { function_id, ast }) => {
+            let function = ir
+                .functions
+                .iter_mut()
+                .find(|f| f.id == *function_id)
+                .ok_or_else(|| EvolutionError::UnknownFunction(function_id.clone()))?;
+            function.metadata.ast = Some(ast.clone());
+        }
     }
     Ok(())
 }

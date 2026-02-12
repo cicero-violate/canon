@@ -3,11 +3,11 @@ use std::sync::Mutex;
 extern crate lazy_static;
 extern crate serde;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LintSignal {
-    pub policy: &'static str,
+    pub policy: String,
     pub def_path: String,
-    pub kind: &'static str,
+    pub kind: String,
     pub module: String,
     pub severity: f32,
 }

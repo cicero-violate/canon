@@ -8,6 +8,7 @@ extern crate rustc_span;
 extern crate serde;
 
 mod classify;
+mod law;
 mod pass;
 mod policy;
 mod signal;
@@ -25,4 +26,5 @@ pub use signal::{LINT_SIGNALS, LintSignal};
 pub fn register_lints(store: &mut LintStore) {
     store.register_lints(&[&API_TRAITS_ONLY]);
     store.register_late_pass(|_| Box::new(ApiTraitsOnly));
+    law::register_laws(store);
 }

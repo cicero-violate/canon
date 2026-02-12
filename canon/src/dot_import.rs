@@ -76,6 +76,15 @@ pub fn parse_dot(source: &str) -> Result<DotGraph, DotImportError> {
     for raw in source.lines() {
         let line = raw.trim();
 
+        // strip line comments
+        let line = match line.find("//") {
+            Some(pos) => line[..pos].trim(),
+            None => line,
+        };
+        if line.is_empty() {
+            continue;
+        }
+
         // ── open cluster ────────────────────────────────────────────────────
         if line.starts_with("subgraph cluster_") {
             let cluster_id = line

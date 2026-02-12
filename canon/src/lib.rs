@@ -20,6 +20,7 @@ pub use decision::{
     accept_proposal, auto_accept_dsl_proposal,
 };
 pub use decision::{AutoAcceptDotError, auto_accept_dot_proposal};
+pub use decision::{AutoAcceptFnAstError, auto_accept_fn_ast};
 pub use evolution::{EvolutionError, apply_deltas};
 pub use gpu::{
     codegen::{GpuProgram, flatten_ports, generate_shader},

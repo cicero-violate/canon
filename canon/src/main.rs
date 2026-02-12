@@ -13,6 +13,7 @@ use canon::{
 };
 use canon::dot_export::export_dot;
 use canon::auto_accept_dot_proposal;
+use canon::auto_accept_fn_ast;
 
 fn main() {
     if let Err(err) = run() {
@@ -182,6 +183,31 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(&output, &dot)?;
             println!("Exported DOT to `{}`.", output.display());
         }
+        Command::SubmitFnAst {
+            ir,
+            function_id,
+            ast_file,
+            output_ir,
+            materialize_dir,
+        } => {
+            let ir_bytes = fs::read(&ir)?;
+            let ir_doc: CanonicalIr = serde_json::from_slice(&ir_bytes)?;
+            let ast_bytes = fs::read(&ast_file)?;
+            let ast: serde_json::Value = serde_json::from_slice(&ast_bytes)?;
+            let acceptance = auto_accept_fn_ast(&ir_doc, &function_id, ast)?;
+            validate_ir(&acceptance.ir)?;
+            enforce_version_gate(&acceptance.ir)?;
+            let rendered = serde_json::to_string_pretty(&acceptance.ir)?;
+            fs::write(&output_ir, rendered)?;
+            let tree = materialize(&acceptance.ir);
+            write_file_tree(&tree, &materialize_dir)?;
+            println!(
+                "AST for `{}` accepted via judgment `{}` ({} deltas).",
+                function_id,
+                acceptance.judgment_id,
+                acceptance.delta_ids.len()
+            );
+        }
     }
 
     Ok(())
@@ -304,6 +330,23 @@ enum Command {
         ir: PathBuf,
         /// Output path for the emitted `.dot` file.
         output: PathBuf,
+    },
+    /// Submit a JSON AST file as the body of an existing function.
+    SubmitFnAst {
+        /// Path to the canonical IR JSON document.
+        ir: PathBuf,
+        /// Function identifier to update.
+        #[arg(long)]
+        function_id: String,
+        /// Path to the JSON file containing the AST node tree.
+        #[arg(long)]
+        ast_file: PathBuf,
+        /// Output path for the updated Canonical IR document.
+        #[arg(long)]
+        output_ir: PathBuf,
+        /// Directory for materialized sources.
+        #[arg(long)]
+        materialize_dir: PathBuf,
     },
 }
 

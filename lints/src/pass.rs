@@ -1,17 +1,24 @@
 use rustc_hir::Item;
 use rustc_lint::LintContext;
 use rustc_lint::{LateContext, LateLintPass};
+use serde_json;
 
 use crate::classify::classify_item;
+use crate::law::{enforce_file_length, reset_cache, FILE_TOO_LONG};
 use crate::policy::API_TRAITS_ONLY;
 use crate::signal::{LINT_SIGNALS, LintSignal};
 
 use rustc_session::declare_lint_pass;
 
-declare_lint_pass!(ApiTraitsOnly => [API_TRAITS_ONLY]);
+declare_lint_pass!(ApiTraitsOnly => [API_TRAITS_ONLY, FILE_TOO_LONG]);
 
 impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
+    fn check_crate(&mut self, _: &LateContext<'tcx>) {
+        reset_cache();
+    }
+
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
+        enforce_file_length(cx, item.span);
         // Only public items
         let vis = cx.tcx.visibility(item.owner_id.def_id);
         if !vis.is_public() {
@@ -42,21 +49,29 @@ impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
 
         // Classify item
         let (kind, severity) = classify_item(&item.kind);
+        let signal = LintSignal {
+            policy: "API_TRAITS_ONLY".into(),
+            def_path: cx.tcx.def_path_str(item.owner_id.def_id.to_def_id()),
+            kind: kind.to_string(),
+            module: "api".into(),
+            severity,
+        };
+
+        let signal_json = serde_json::to_string_pretty(&signal)
+            .unwrap_or_else(|err| format!(r#"{{"serialization_error":"{err}"}}"#));
 
         // ---- Human-facing lint emission (PROOF) ----
-        cx.span_lint(API_TRAITS_ONLY, item.span, |_diag| {
-            // emission handled by rustc; closure is for notes/help only
+        cx.span_lint(API_TRAITS_ONLY, item.span, |diag| {
+            diag.note(format!(
+                "Canon lint signal (also stored under canon_store/lint_signals):\n{}",
+                signal_json
+            ));
         });
 
         // Emit judgment signal
-        LINT_SIGNALS.lock().unwrap().push(LintSignal {
-            policy: "API_TRAITS_ONLY",
-            def_path: cx.tcx.def_path_str(item.owner_id.def_id.to_def_id()),
-            kind,
-            module: "api".into(),
-            severity,
-        });
+        LINT_SIGNALS.lock().unwrap().push(signal);
 
         // Signal-only; no human-facing lint emission
     }
+
 }
