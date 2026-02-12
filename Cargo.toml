@@ -6,8 +6,9 @@ members = [
   "test_projects/test_lint",
   "canon/kernel",
   "host_runtime",
-  "host_state_controller"
-, "memory/merkle-core", "memory/partition-store", "memory/tlog-writer", "memory/snapshot-manager", "memory/epoch-sealer", "memory/proof-store", "memory/verifier", "memory/root-chain", "memory/memory_engine"]
+  "host_state_controller",
+  # "memory/merkle-core", "memory/partition-store", "memory/tlog-writer", "memory/snapshot-manager", "memory/epoch-sealer", "memory/proof-store", "memory/verifier", "memory/root-chain",
+  "memory/memory_engine"]
 
 resolver = "2"
 
