@@ -1,6 +1,6 @@
 name = "ProofGate"
 version = "0.1.0"
-defaultTargets = ["proofgate"]
+defaultTargets = ["proof_gate"]
 
 [[lean_lib]]
 name = "ProofGate"
