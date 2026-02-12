@@ -1,127 +1,90 @@
 digraph Tier7_Sovereign_AI {
 
     rankdir=LR;
-    compound=true;
-    nodesep=0.8;
-    ranksep=1.2;
+    labelloc="t";
+    label="Tier 7 Sovereign AI System (Deterministic, Judgment-Gated)";
+    fontsize=20;
 
     node [shape=box, style=rounded, fontname="JetBrains Mono"];
-    edge [fontname="JetBrains Mono"];
 
-    /* ============================================================
-       TIER 7 — SOVEREIGN EXECUTION ARCHITECTURE
-       ============================================================ */
+    /* ===== LAYER 1: INPUT / WORLD ===== */
 
-    /* ---------- LAYER 1 : INPUT ---------- */
+    Input        [label="External Input\n(DSL / User / Sensors)"];
+    Resources    [label="Resource Layer\n(GPU / CPU / FS / Network)"];
 
-    subgraph cluster_input {
-        label="Layer 1 — Input Surface";
-        style=rounded;
+    /* ===== LAYER 2: REPRESENTATION ===== */
 
-        DSL              [label="DSL / Intent\n(text, API, CLI)"];
-        ExternalSignals  [label="External Signals\n(events, files, net)"];
-    }
+    Parser       [label="Parser"];
+    Resolver     [label="Resolver"];
+    CanonicalIR  [label="Canonical IR\n(DAG Source of Truth)"];
+    Snapshot     [label="Graph Snapshot\n(Deterministic State Image)"];
 
-    /* ---------- LAYER 2 : STRUCTURE ---------- */
+    /* ===== LAYER 3: MEMORY ===== */
 
-    subgraph cluster_structure {
-        label="Layer 2 — Structural Truth";
-        style=rounded;
+    DeltaLog     [label="Delta Log\n(Append-Only Ledger)"];
+    EpochMgr     [label="Epoch Manager"];
+    StateStore   [label="Canonical State Store"];
 
-        Proposal         [label="Proposal\n(raw graph intent)"];
-        Resolver         [label="Resolver\n(bind ids, names)"];
-        CanonicalIR      [label="CanonicalIR\n(validated DAG)"];
-    }
+    /* ===== LAYER 4: JUDGMENT ===== */
 
-    /* ---------- LAYER 3 : GOVERNANCE ---------- */
+    Policy       [label="Policy Engine\n(Hard Law / Lints / Invariants)"];
+    LeanGate     [label="Formal Gate\n(SMT / Lean Proof Check)"];
+    IntentRadius [label="Intent Radius\n(Cost / Risk Bound)"];
+    Judgment     [label="Judgment Kernel\n(Allow / Deny)"];
 
-    subgraph cluster_governance {
-        label="Layer 3 — Governance (Judgment)";
-        style=rounded;
+    /* ===== LAYER 5: PLANNING ===== */
 
-        Policy           [label="Policy Engine\n(lints, laws)"];
-        ProofSystem      [label="Proof System\n(structure/execution/meta)"];
-        Gate             [label="Gate\n(accept / reject)"];
-    }
+    Planner      [label="Capability Planner"];
+    Constraint   [label="Constraint Graph"];
+    Plan         [label="Execution Plan"];
 
-    /* ---------- LAYER 4 : KERNEL ---------- */
+    /* ===== LAYER 6: EXECUTION ===== */
 
-    subgraph cluster_kernel {
-        label="Layer 4 — Deterministic Kernel";
-        style=rounded;
+    Runtime      [label="System Runtime"];
+    ShellDAG     [label="Shell DAG Engine"];
+    GPUPipeline  [label="GPU MIR → PTX Pipeline"];
+    Materialize  [label="Materializer"];
 
-        StateModel       [label="Canonical State"];
-        DeltaEngine      [label="Delta Engine"];
-        Kernel           [label="Kernel\n(apply verified delta)"];
-    }
+    /* ===== LAYER 7: OBSERVE / LEARN ===== */
 
-    /* ---------- LAYER 5 : MEMORY ---------- */
+    Observer     [label="Observer"];
+    Metrics      [label="Metrics Engine"];
+    Scoring      [label="Score Function"];
+    Update       [label="Graph Update"];
 
-    subgraph cluster_memory {
-        label="Layer 5 — Sovereign Memory";
-        style=rounded;
+    /* ===== FLOW ===== */
 
-        Epochs           [label="Epoch Manager"];
-        Ledger           [label="Append-Only Ledger"];
-        Snapshot         [label="Snapshot / Merkle Root"];
-    }
+    Input      -> Parser;
+    Parser     -> Resolver;
+    Resolver   -> CanonicalIR;
+    CanonicalIR-> Snapshot;
 
-    /* ---------- LAYER 6 : EXECUTION ---------- */
-
-    subgraph cluster_execution {
-        label="Layer 6 — Runtime Execution";
-        style=rounded;
-
-        Interpreter      [label="System Interpreter"];
-        Scheduler        [label="Scheduler"];
-        HostAdapter      [label="Host Adapter\n(shell / fs / gpu)"];
-    }
-
-    /* ---------- LAYER 7 : OBSERVATION ---------- */
-
-    subgraph cluster_observe {
-        label="Layer 7 — Observation & Feedback";
-        style=rounded;
-
-        EventStream      [label="Execution Events"];
-        Scoring          [label="Scoring / Metrics"];
-        Learning         [label="Learning Layer\n(optional)"];
-    }
-
-    /* ============================================================
-       PRIMARY FLOW (STRICT LR)
-       ============================================================ */
-
-    DSL -> Proposal;
-    ExternalSignals -> Proposal;
-
-    Proposal -> Resolver;
-    Resolver -> CanonicalIR;
+    Snapshot   -> DeltaLog;
+    DeltaLog   -> EpochMgr;
+    EpochMgr   -> StateStore;
 
     CanonicalIR -> Policy;
-    Policy -> ProofSystem;
-    ProofSystem -> Gate;
+    Policy      -> LeanGate;
+    LeanGate    -> IntentRadius;
+    IntentRadius-> Judgment;
 
-    Gate -> StateModel;
+    Judgment   -> Planner;
+    Planner    -> Constraint;
+    Constraint -> Plan;
 
-    StateModel -> DeltaEngine;
-    DeltaEngine -> Kernel;
+    Plan       -> Runtime;
+    Runtime    -> ShellDAG;
+    Runtime    -> GPUPipeline;
+    Runtime    -> Materialize;
 
-    Kernel -> Epochs;
-    Epochs -> Ledger;
-    Ledger -> Snapshot;
+    ShellDAG   -> Observer;
+    GPUPipeline-> Observer;
+    Materialize-> Observer;
 
-    Snapshot -> Interpreter;
-    Interpreter -> Scheduler;
-    Scheduler -> HostAdapter;
+    Observer   -> Metrics;
+    Metrics    -> Scoring;
+    Scoring    -> Update;
+    Update     -> CanonicalIR;
 
-    HostAdapter -> EventStream;
-    EventStream -> Scoring;
-    Scoring -> Learning;
-
-    /* ============================================================
-       CONTROL CONSTRAINTS (NOT BACK-EDGES, BUT FEED-FORWARD)
-       ============================================================ */
-
-    Learning -> Policy;
+    Resources  -> Runtime;
 }
