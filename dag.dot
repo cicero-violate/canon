@@ -1,94 +1,65 @@
-digraph Canon_DAG {
-  label = "Canon Execution DAG";
-  labelloc = top;
-  fontsize = 18;
-  rankdir = LR;
-  fontname = "JetBrains Mono";
+digraph CanonWorkspace {
+    rankdir=LR;
+    node [shape=box];
 
-  node [
-    shape=box,
-    style=rounded,
-    fontname="JetBrains Mono",
-    fontsize=10
-  ];
+    // Core crates
+    canon_kernel;
+    canon_core;
+    canon_memory;
+    canon_runtime;
+    canon_gpu;
+    canon_proof;
+    canon_proof_gate;
+    canon_ir;
 
-  edge [
-    fontname="JetBrains Mono",
-    fontsize=9
-  ];
+    host_runtime;
+    host_state_controller;
+    lints;
+    lint_rustc;
+    lint_rustc_gate;
+    test_projects;
 
-  /* ===== Declarative Construction ===== */
+    // === Canon internal structure ===
 
-  DSL [
-    label="DSL\n(text input)",
-    shape=component
-  ];
+    canon_ir -> canon_core;
+    canon_memory -> canon_core;
+    canon_runtime -> canon_core;
+    canon_gpu -> canon_core;
+    canon_proof -> canon_core;
 
-  Proposal [
-    label="Proposal\n(nodes, apis, edges)"
-  ];
+    canon_kernel -> canon_core;
 
-  ResolvedNodes [
-    label="ResolvedProposalNodes\n(ids + bindings)"
-  ];
+    canon_proof_gate -> canon_proof;
 
-  CanonicalIR [
-    label="CanonicalIr\n(validated DAG)"
-  ];
+    // Memory substructure
+    canon_memory -> canon_ir;
+    canon_runtime -> canon_memory;
+    canon_runtime -> canon_ir;
 
-  DSL -> Proposal [label="parse"];
-  Proposal -> ResolvedNodes [label="resolve ids"];
-  ResolvedNodes -> CanonicalIR [label="validate"];
+    canon_gpu -> canon_ir;
 
-  /* ===== Proof / Effect Branch ===== */
+    canon_proof -> canon_memory;
+    canon_proof -> canon_ir;
 
-  ProofArtifact [
-    label="ProofArtifact\n(scope + hash)"
-  ];
+    // === Host integration ===
 
-  Delta [
-    label="Delta\n(append-only, proof-backed)"
-  ];
+    canon_core -> host_runtime;
+    canon_memory -> host_runtime;
+    canon_runtime -> host_runtime;
+    canon_proof_gate -> host_runtime;
 
-  ProofArtifact -> Delta [label="authorizes"];
+    canon_core -> host_state_controller;
 
-  /* ===== Decision / Control Branch ===== */
+    host_state_controller -> host_runtime;
 
-  Judgment [
-    label="Judgment\n(predicate)"
-  ];
+    // === Lints system ===
 
-  Admission [
-    label="Admission\n(judgment → deltas)"
-  ];
+    lints -> lint_rustc;
+    lints -> lint_rustc_gate;
 
-  CanonicalIR -> Judgment [label="declare"];
-  Judgment -> Admission [label="accepts"];
+    canon_core -> lints;
 
-  /* ===== State Materialization ===== */
+    // === Test projects ===
 
-  StateLog [
-    label="StateLog\n(append-only history)",
-    shape=folder
-  ];
-
-  Admission -> StateLog [label="apply"];
-  Delta -> StateLog [label="recorded"];
-
-  /* ===== Kernel Gate ===== */
-
-  Kernel [
-    label="apply_admission\n(kernel)",
-    shape=octagon,
-    style="rounded,filled",
-    fillcolor=lightgray
-  ];
-
-  Admission -> Kernel;
-  Delta -> Kernel;
-  Judgment -> Kernel;
-  ProofArtifact -> Kernel;
-
-  Kernel -> StateLog [label="materialize"];
-
+    canon_core -> test_projects;
 }
