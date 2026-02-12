@@ -1,65 +1,44 @@
-digraph CanonWorkspace {
+digraph Level7AI {
+
     rankdir=LR;
-    node [shape=box];
+    compound=true;
+    fontsize=12;
+    labelloc="t";
+    label="Level-7 AI Unified Deterministic DAG";
 
-    // Core crates
-    canon_kernel;
-    canon_core;
-    canon_memory;
-    canon_runtime;
-    canon_gpu;
-    canon_proof;
-    canon_proof_gate;
-    canon_ir;
+    node [shape=box, style=rounded];
 
-    host_runtime;
-    host_state_controller;
-    lints;
-    lint_rustc;
-    lint_rustc_gate;
-    test_projects;
+    ExternalWorld [label="External World"];
+    Intent [label="External Intent I_t"];
+    Planner [label="Planner\n(LLM / Heuristics)"];
+    Judgment [label="Judgment\n(Radius + Policy + Proof)"];
+    Reject [label="Reject", shape=diamond];
+    Executor [label="Executor\n(Pure State Transition)"];
+    Delta [label="Delta Δ_t"];
+    Memory [label="Memory Engine\n(Append-Only Ledger)"];
+    State [label="Canonical State S_t"];
+    Hash [label="Root Hash H(S_t)"];
+    Graph [label="Graph Projection\n(Read-Only)"];
+    Feedback [label="Feedback Loop"];
+    Lean [label="Formal Proof System\n(Lean Certificate)"];
 
-    // === Canon internal structure ===
+    ExternalWorld -> Intent;
+    Intent -> Planner;
+    Planner -> Judgment;
 
-    canon_ir -> canon_core;
-    canon_memory -> canon_core;
-    canon_runtime -> canon_core;
-    canon_gpu -> canon_core;
-    canon_proof -> canon_core;
+    Judgment -> Reject [label="Fail"];
+    Judgment -> Executor [label="Accept"];
 
-    canon_kernel -> canon_core;
+    Judgment -> Lean [label="Generate Obligation"];
+    Lean -> Judgment [label="Certificate"];
 
-    canon_proof_gate -> canon_proof;
+    Executor -> Delta;
+    Delta -> Memory [label="append"];
+    Memory -> State [label="replay"];
+    State -> Hash;
 
-    // Memory substructure
-    canon_memory -> canon_ir;
-    canon_runtime -> canon_memory;
-    canon_runtime -> canon_ir;
+    State -> Graph;
+    Graph -> Feedback;
+    Feedback -> Planner;
 
-    canon_gpu -> canon_ir;
-
-    canon_proof -> canon_memory;
-    canon_proof -> canon_ir;
-
-    // === Host integration ===
-
-    canon_core -> host_runtime;
-    canon_memory -> host_runtime;
-    canon_runtime -> host_runtime;
-    canon_proof_gate -> host_runtime;
-
-    canon_core -> host_state_controller;
-
-    host_state_controller -> host_runtime;
-
-    // === Lints system ===
-
-    lints -> lint_rustc;
-    lints -> lint_rustc_gate;
-
-    canon_core -> lints;
-
-    // === Test projects ===
-
-    canon_core -> test_projects;
 }
