@@ -82,6 +82,7 @@ impl JsonSchema for Word {
 }
 
 pub type ModuleId = String;
+
 pub type StructId = String;
 pub type TraitId = String;
 pub type TraitFunctionId = String;
