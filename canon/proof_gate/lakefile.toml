@@ -6,5 +6,5 @@ defaultTargets = ["proofgate"]
 name = "ProofGate"
 
 [[lean_exe]]
-name = "proofgate"
+name = "proof_gate"
 root = "Main"
