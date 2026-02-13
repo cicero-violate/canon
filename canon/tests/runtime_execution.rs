@@ -148,7 +148,8 @@ fn test_multi_function_fixture_executes_pipeline() {
 #[test]
 fn test_tick_executor_parallel_matches() {
     let ir = load_fixture("tick_noop.json");
-    let executor = TickExecutor::new(&ir);
+    let mut ir = ir;
+    let executor = TickExecutor::new(&mut ir);
     let parallel = executor
         .execute_tick_with_mode("tick.noop", TickExecutionMode::ParallelVerified)
         .expect("parallel execution should succeed");

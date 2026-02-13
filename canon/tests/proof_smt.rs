@@ -31,11 +31,21 @@ fn sample_function(expr: Expr) -> Function {
         impl_id: "impl.math".into(),
         trait_function: "trait_fn.math.test".into(),
         visibility: Visibility::Public,
+        doc: None,
+        lifetime_params: Vec::new(),
+        receiver: canon::ir::Receiver::None,
+        is_async: false,
+        is_unsafe: false,
+        generics: Vec::new(),
+        where_clauses: Vec::new(),
         inputs: vec![ValuePort {
             name: Word::new("Input").unwrap(),
             ty: TypeRef {
                 name: Word::new("ScalarValue").unwrap(),
                 kind: TypeKind::Scalar,
+                params: Vec::new(),
+                ref_kind: Default::default(),
+                lifetime: None,
             },
         }],
         outputs: vec![ValuePort {
@@ -43,6 +53,9 @@ fn sample_function(expr: Expr) -> Function {
             ty: TypeRef {
                 name: Word::new("ScalarValue").unwrap(),
                 kind: TypeKind::Scalar,
+                params: Vec::new(),
+                ref_kind: Default::default(),
+                lifetime: None,
             },
         }],
         deltas: vec![],
