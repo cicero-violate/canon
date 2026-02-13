@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::ir::{CanonicalIr, FunctionId, Tick, TickGraph};
+use crate::ir::world_model::PredictionRecord;
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::{ExecutorError, FunctionExecutor};
 use crate::runtime::parallel::{
