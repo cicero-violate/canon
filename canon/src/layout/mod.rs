@@ -289,6 +289,10 @@ mod tests {
             errors: Vec::new(),
             dependencies: Vec::new(),
             file_hashes: HashMap::new(),
+
+            // --- Added for planning integration ---
+            reward_deltas: Vec::new(),
+            world_model: Default::default(),
         }
     }
 
