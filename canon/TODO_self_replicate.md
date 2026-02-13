@@ -1,55 +1,5 @@
 ## Self-Replication Capability Analysis
 
-### Variables
-
-$$
-\text{Let } \mathcal{S} = \text{set of capabilities required for self-replication}
-$$
-
-$$
-\text{Let } \mathcal{C}_{\text{have}} = \text{capabilities Canon currently has}
-$$
-
-$$
-\text{Let } \mathcal{C}_{\text{need}} = \mathcal{S} \setminus \mathcal{C}_{\text{have}}
-$$
-
-$$
-\text{Let } \mathcal{R} = \text{self-replication} \iff \text{Canon}(ir_{\text{self}}) \to \text{Canon}_{\text{compiled}}
-$$
-
-$$
-\text{Let } \delta_{\text{gap}} = |\mathcal{C}_{\text{need}}| / |\mathcal{S}|, \quad \delta_{\text{gap}} \in [0, 1]
-$$
-
-## Latent Equations
-
-$$
-\mathcal{R} \iff \text{materialize}(ir_{\text{self}}) \xrightarrow{\texttt{rustc}} \text{binary} \equiv \text{Canon}
-$$
-
-$$
-ir_{\text{self}} = \text{parse}(\texttt{src/**/*.rs}) \quad \text{(bootstrap condition)}
-$$
-
-$$
-\text{Fidelity} = \frac{|\text{symbols in } ir_{\text{self}}}|}{|\text{symbols in Canon source}|}
-$$
-
----
-
-## What Self-Replication Means Precisely
-
-Canon self-replicates when:
-
-$$
-\texttt{canon materialize --ir canon\_self.json --out ./out} \xrightarrow{\texttt{cargo build ./out}} \texttt{canon\_v2} \equiv \texttt{canon\_v1}
-$$
-
-That is: Canon's own source code is fully representable in its own IR, and materializing that IR produces Rust source that compiles to a functionally identical binary.
-
----
-
 ## Gap Analysis
 
 ### Already Have
@@ -68,10 +18,6 @@ These cover roughly **60–65%** of Canon's own source.
 ---
 
 ### Gap 1 — Source Ingestion (Most Critical)
-
-$$
-\mathcal{C}_{\text{need}}^{(1)} : \texttt{src/**/*.rs} \xrightarrow{\text{parse}} ir_{\text{self}}
-$$
 
 Canon has no Rust parser. There is no path from existing `.rs` files to `CanonicalIr`. Currently the IR is authored by hand or via proposal acceptance. To self-replicate, Canon needs a **source-to-IR ingestor**:
 
@@ -98,10 +44,6 @@ fn build_indexes<'a>(ir: &'a CanonicalIr, ...) -> Indexes<'a>
 fn module_has_permission<'a>(...) -> bool
 ```
 
-$$
-\mathcal{C}_{\text{need}}^{(2)} : \texttt{TypeRef.lifetime} \text{ on arbitrary positions} + \text{named lifetime params on functions}
-$$
-
 Currently `lifetime: Option<String>` exists on `TypeRef` but there is no `lifetime_params: Vec<String>` on `Function` or `FunctionSignature`. Canon's own functions that use `'a`, `'b` named lifetimes in multiple positions cannot be represented without this.
 
 **Required additions:**
@@ -120,10 +62,6 @@ fn new(...) -> Self
 fn default() -> Self
 ```
 
-$$
-\mathcal{C}_{\text{need}}^{(3)} : \texttt{TypeKind::SelfType} \to \text{render as } \texttt{"Self"}
-$$
-
 This is a one-line IR addition and a one-line render addition, but without it many of Canon's own `impl` functions produce incorrect signatures.
 
 ---
@@ -136,10 +74,6 @@ Canon's own source uses both heavily:
 fn iter(&self) -> impl Iterator<Item = &VerifiedPatch>
 fn run() -> Result<(), Box<dyn std::error::Error>>
 ```
-
-$$
-\mathcal{C}_{\text{need}}^{(4)} : \texttt{TypeKind::ImplTrait},\; \texttt{TypeKind::DynTrait}
-$$
 
 **Required:**
 - `ImplTrait { bounds: Vec<String> }` variant in `TypeKind`
@@ -161,10 +95,6 @@ panic!("...");
 writeln!(f, "...")?;
 ```
 
-$$
-\mathcal{C}_{\text{need}}^{(5)} : \texttt{AST node kind "macro\_call"}
-$$
-
 **Required additions to AST renderer:**
 - `render_macro_call(node) -> String` producing `<name>!(<args>)` or `<name>![<args>]` or `<name>!{<args>}`
 - `args` is an opaque string (verbatim) since macro argument structure is not typed in the IR
@@ -185,10 +115,6 @@ Canon's own source passes closures to higher-order functions:
 .find(|f| f.id == fn_id)
 items.iter().map(|x| render_type(x)).collect::<Vec<_>>()
 ```
-
-$$
-\mathcal{C}_{\text{need}}^{(6)} : \text{closure with typed params + } \texttt{collect::<Vec<\_>>()} \text{ turbofish}
-$$
 
 The closure renderer added this session handles the basic case. The gap is:
 - Typed closure params: `|x: &str| ...`
@@ -212,10 +138,6 @@ match value {
 }
 ```
 
-$$
-\mathcal{C}_{\text{need}}^{(7)} : \text{pattern nodes in let/match/if-let/while-let AST}
-$$
-
 Currently `let` nodes carry only a name string. Match arms carry only a string pattern. For self-replication, patterns need to be structured:
 - Tuple destructure: `(a, b)`
 - Struct destructure: `Foo { field }`
@@ -230,10 +152,6 @@ Currently `let` nodes carry only a name string. Match arms carry only a string p
 
 Canon's own source uses `use` inside function bodies for local disambiguation. More critically, the ingestion path must correctly reconstruct which items each file imports from other modules. The current `collect_incoming_types` approach is heuristic. A fully faithful ingestor needs to track `use` declarations at file scope exactly as written.
 
-$$
-\mathcal{C}_{\text{need}}^{(8)} : \text{exact } \texttt{use} \text{ declaration preservation in Module.pub\_uses + file-scoped uses}
-$$
-
 ---
 
 ### Gap 9 — `const` and `static` in `impl` Blocks
@@ -246,9 +164,6 @@ impl Foo {
 }
 ```
 
-$$
-\mathcal{C}_{\text{need}}^{(9)} : \texttt{ImplBlock.constants: Vec<ConstItem>}
-$$
 
 ---
 
@@ -256,9 +171,6 @@ $$
 
 Canon's own source has multiple files per module (e.g. `validate/` has `mod.rs`, `check_artifacts.rs`, `check_deltas.rs`, etc.). Currently all functions emit to `mod.rs`. Without file-placement routing on `Function.file_id`, the materialized output collapses all module content into one file, which does not match the original layout.
 
-$$
-\mathcal{C}_{\text{need}}^{(10)} : \text{route } f \text{ to } \texttt{FileNode}(f.\texttt{file\_id}) \text{ during materialize}
-$$
 
 ---
 
