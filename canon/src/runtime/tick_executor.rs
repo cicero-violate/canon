@@ -27,7 +27,7 @@ fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
 
 /// Executes a tick graph in topological order.
 pub struct TickExecutor<'a> {
-    ir: &'a CanonicalIr,
+    ir: &'a mut CanonicalIr,
     function_executor: FunctionExecutor<'a>,
 }
 
@@ -41,15 +41,16 @@ pub enum TickExecutionMode {
 }
 
 impl<'a> TickExecutor<'a> {
-    pub fn new(ir: &'a CanonicalIr) -> Self {
+    pub fn new(ir: &'a mut CanonicalIr) -> Self {
+        let fe = FunctionExecutor::new(ir);
         Self {
             ir,
-            function_executor: FunctionExecutor::new(ir),
+            function_executor: fe,
         }
     }
 
     /// Execute a tick by its ID.
-    pub fn execute_tick(&self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError> {
+    pub fn execute_tick(&mut self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError> {
         self.execute_tick_with_mode(tick_id, TickExecutionMode::Sequential)
     }
 
@@ -57,7 +58,7 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick with explicit initial inputs provided to the root nodes.
     pub fn execute_tick_with_inputs(
-        &self,
+        &mut self,
         tick_id: &str,
         initial_inputs: BTreeMap<String, Value>,
     ) -> Result<TickExecutionResult, TickExecutorError> {
@@ -70,7 +71,7 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick with an explicit mode (sequential or parallel-verified).
     pub fn execute_tick_with_mode(
-        &self,
+        &mut self,
         tick_id: &str,
         mode: TickExecutionMode,
     ) -> Result<TickExecutionResult, TickExecutorError> {
@@ -79,7 +80,7 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick with an explicit mode and initial inputs.
     pub fn execute_tick_with_mode_and_inputs(
-        &self,
+        &mut self,
         tick_id: &str,
         mode: TickExecutionMode,
         initial_inputs: BTreeMap<String, Value>,
@@ -104,7 +105,7 @@ impl<'a> TickExecutor<'a> {
     /// Execute a tick graph in topological order.
     /// Graph must be acyclic (Canon Line 48).
     fn execute_graph(
-        &self,
+        &mut self,
         graph: &TickGraph,
         tick: &Tick,
         mode: TickExecutionMode,
@@ -155,7 +156,7 @@ impl<'a> TickExecutor<'a> {
         // WorldModel mutation requires an explicit mutable integration point.
         // This hook marks the post-execution update boundary.
 
-        Ok(TickExecutionResult {
+        let result = TickExecutionResult {
             tick_id: tick.id.clone(),
             function_results: results,
             execution_order,
@@ -163,7 +164,20 @@ impl<'a> TickExecutor<'a> {
             reward: compute_reward_from_deltas(context.deltas()),
             sequential_duration,
             parallel_duration,
-        })
+        };
+
+        // --- World Model Reconciliation (W4) ---
+        self.ir
+            .world_model
+            .reconcile(&result.tick_id, &result.emitted_deltas, result.reward);
+
+        // --- Reward Logging ---
+        self.ir.reward_deltas.push(crate::ir::reward::RewardRecord {
+            tick_id: result.tick_id.clone(),
+            reward: result.reward,
+        });
+
+        Ok(result)
     }
 
     // W4: PredictionRecord creation logic resides in world_model module.
