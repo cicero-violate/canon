@@ -37,6 +37,25 @@ impl From<std::io::Error> for IngestError {
     }
 }
 
+impl std::fmt::Display for IngestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IngestError::Io(e) => write!(f, "IO error: {e}"),
+            IngestError::Parse(msg) => write!(f, "Parse error: {msg}"),
+            IngestError::UnsupportedFeature(msg) => write!(f, "Unsupported feature: {msg}"),
+        }
+    }
+}
+
+impl std::error::Error for IngestError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            IngestError::Io(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
 /// Entry point for converting an existing workspace into semantic + layout graphs.
 pub fn ingest_workspace(opts: &IngestOptions) -> Result<LayoutMap, IngestError> {
     let files = fs_walk::discover_source_files(&opts.root)?;

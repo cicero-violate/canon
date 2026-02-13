@@ -7,6 +7,7 @@ use super::parser::ParsedWorkspace;
 
 pub(crate) mod edges;
 pub(crate) mod functions;
+pub(crate) mod ast_lower;
 pub(crate) mod layout;
 pub(crate) mod modules;
 pub(crate) mod types;
@@ -43,7 +44,8 @@ pub(crate) fn build_layout_map(
         });
         let mk = modules::module_key(file);
         if let Some(module_id) = module_lookup.get(&mk) {
-            layout_acc.register_file(module_id, &file_id, &path);
+            let use_lines = collect_use_lines(file);
+            layout_acc.register_file(module_id, &file_id, &path, use_lines);
         }
     }
     let structs = functions::build_structs(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
@@ -66,4 +68,21 @@ pub(crate) fn build_layout_map(
     };
     let layout = layout_acc.into_graph(&semantic.modules);
     Ok(LayoutMap { semantic, layout })
+}
+
+/// Render every `use` item in a parsed file to a string, preserving
+/// declaration order. These are stored verbatim in `LayoutFile.use_block`
+/// so the materializer can emit them before its synthesised imports.
+fn collect_use_lines(file: &super::parser::ParsedFile) -> Vec<String> {
+    file.ast
+        .items
+        .iter()
+        .filter_map(|item| {
+            if let syn::Item::Use(item_use) = item {
+                Some(types::render_use_item(item_use))
+            } else {
+                None
+            }
+        })
+        .collect()
 }

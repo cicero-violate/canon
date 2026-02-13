@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::PathBuf;
 
 use crate::cli::Command;
 use crate::diff::diff_ir;
@@ -56,7 +55,24 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Command::Ingest { .. } => {
-            return Err("Ingest command not yet reconnected after refactor.".into());
+            // Destructure so the compiler enforces all fields are handled.
+            let Command::Ingest { src, semantic_out, layout_out } = cmd else {
+                unreachable!()
+            };
+            let layout_map = canon::ingest::ingest_workspace(
+                &canon::ingest::IngestOptions::new(src),
+            )?;
+            let semantic_json = serde_json::to_string_pretty(&layout_map.semantic)?;
+            fs::write(&semantic_out, &semantic_json)?;
+            println!("Semantic IR written to `{}`.", semantic_out.display());
+            let layout_path = layout_out.unwrap_or_else(|| {
+                let mut p = semantic_out.clone();
+                p.set_extension("layout.json");
+                p
+            });
+            let layout_json = serde_json::to_string_pretty(&layout_map.layout)?;
+            fs::write(&layout_path, &layout_json)?;
+            println!("Layout written to `{}`.", layout_path.display());
         }
 
         Command::ObserveEvents { .. } => {

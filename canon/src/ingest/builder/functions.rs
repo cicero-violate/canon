@@ -14,6 +14,7 @@ use super::types::{
     word_from_ident, word_from_string,
 };
 use super::modules::module_key;
+use super::ast_lower;
 
 // ── Top-level builders ────────────────────────────────────────────────────────
 
@@ -163,7 +164,7 @@ pub(crate) fn function_from_syn(
         impl_id,
         trait_function: trait_function.unwrap_or_default(),
         visibility,
-        doc: None,
+        doc: collect_doc_string(&item.attrs),
         lifetime_params: item
             .sig
             .generics
@@ -185,7 +186,10 @@ pub(crate) fn function_from_syn(
             explicit_outputs: true,
             effects_are_deltas: true,
         },
-        metadata: Default::default(),
+        metadata: crate::ir::FunctionMetadata {
+            ast: ast_lower::lower_block(&item.block),
+            ..Default::default()
+        },
     }
 }
 
