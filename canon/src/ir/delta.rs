@@ -125,7 +125,4 @@ pub enum DeltaPayload {
     RecordReward {
         record: RewardRecord,
     },
-    RecordReward {
-        record: RewardRecord,
-    },
 }
