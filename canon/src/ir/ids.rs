@@ -24,3 +24,4 @@ pub type DeltaId = String;
 pub type ProofId = String;
 pub type ErrorId = String;
 pub type GpuFunctionId = String;
+pub type RewardRecordId = String;
