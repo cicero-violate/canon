@@ -17,6 +17,7 @@ use crate::runtime::parallel::{
     ParallelJob, ParallelJobResult, execute_jobs, partition_independent_batches,
 };
 use crate::runtime::value::{DeltaValue, Value};
+use crate::runtime::planner::Planner;
 
 fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
     // Layer 1 (Foundation): deterministic scalar utility.
@@ -47,6 +48,11 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick by its ID.
     pub fn execute_tick(&mut self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError> {
+        // Layer 3 — planning pre-pass (depth = 1 baseline)
+        let planner = Planner::new(&*self.ir);
+        let _utility_estimate =
+            planner.score_tick(tick_id, 1, BTreeMap::new());
+
         self.execute_tick_with_mode(tick_id, TickExecutionMode::Sequential)
     }
 
