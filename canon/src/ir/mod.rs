@@ -12,9 +12,11 @@ mod learning;
 mod project;
 mod proofs;
 mod proposal;
+mod reward;
 mod timeline;
 mod types;
 mod word;
+mod world_model;
 
 pub use admission::{AppliedDeltaRecord, DeltaAdmission};
 pub use artifacts::{
@@ -46,6 +48,7 @@ pub use proposal::{
 pub use timeline::{
     ExecutionError, ExecutionEvent, ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch,
 };
+pub use reward::{RewardRecord, UtilityKind};
 pub use types::{
     Receiver, RefKind, ScalarType, StructKind, TypeKind, TypeRef, ValuePort, Visibility,
 };
