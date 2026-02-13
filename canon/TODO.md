@@ -10,39 +10,46 @@ The pipeline currently generates:
 - Impl blocks with stub function bodies
 - Real function bodies from JSON AST nodes (block, let, if, match, while, return, call, lit)
 - use statements from inter-module imported_types
+- ProposalKind enum (Structural / FunctionBody / SchemaEvolution) — auto_accept_fn_ast no longer needs fake scaffold
+- Receiver support on Function and FunctionSignature (&self, &mut self, self, none)
+- Enum support (EnumNode, EnumVariant, EnumVariantFields, AddEnum/AddEnumVariant deltas, render_enum, check_enums)
+- Generic types in TypeRef (params: Vec<TypeRef>, ref_kind: Ref/MutRef/None, recursive render_type)
+- Full expression node coverage in AST renderer: bin, cmp, logical, unary, field, index, method,
+  struct_lit, tuple, array, ref, range, cast, question
+- Full statement node coverage: for, loop, break, continue, assign, compound_assign, let mut
 
 ---
 
 ## 1. IR gaps — things Canon cannot yet express
 
 ### 1.1 Expression nodes missing from AST renderer
-- [ ] Binary operators: `a + b`, `a - b`, `a * b`, `a / b`, `a % b`
-- [ ] Comparison operators: `a == b`, `a != b`, `a < b`, `a > b`
-- [ ] Logical operators: `a && b`, `a || b`, `!a`
-- [ ] Field access: `self.field`, `a.b.c`
-- [ ] Index: `a[i]`
-- [ ] Method call: `a.method(args)`  — distinct from free `call`
-- [ ] Struct literal: `Foo { field: value }`
-- [ ] Tuple: `(a, b, c)`
-- [ ] Array literal: `[a, b, c]`
-- [ ] Reference / dereference: `&x`, `*x`, `&mut x`
+- [x] Binary operators: `a + b`, `a - b`, `a * b`, `a / b`, `a % b`
+- [x] Comparison operators: `a == b`, `a != b`, `a < b`, `a > b`
+- [x] Logical operators: `a && b`, `a || b`, `!a`
+- [x] Field access: `self.field`, `a.b.c`
+- [x] Index: `a[i]`
+- [x] Method call: `a.method(args)`  — distinct from free `call`
+- [x] Struct literal: `Foo { field: value }`
+- [x] Tuple: `(a, b, c)`
+- [x] Array literal: `[a, b, c]`
+- [x] Reference / dereference: `&x`, `&mut x`
 - [ ] Closure: `|args| body`
-- [ ] Range: `0..n`, `0..=n`
-- [ ] Cast: `x as u64`
-- [ ] Question mark operator: `expr?`
+- [x] Range: `0..n`, `0..=n`
+- [x] Cast: `x as u64`
+- [x] Question mark operator: `expr?`
 
 ### 1.2 Statement nodes missing
-- [ ] `for` loop: `for x in iter { body }`
-- [ ] `loop` with `break`/`continue`
-- [ ] `break` with value
-- [ ] `continue`
-- [ ] Assignment: `x = value`
-- [ ] Compound assignment: `x += value`, `x -= value` etc.
-- [ ] `let mut` binding
+- [x] `for` loop: `for x in iter { body }`
+- [x] `loop` with `break`/`continue`
+- [x] `break` with value
+- [x] `continue`
+- [x] Assignment: `x = value`
+- [x] Compound assignment: `x += value`, `x -= value` etc.
+- [x] `let mut` binding
 
 ### 1.3 Type system — TypeRef is too simple
-- [ ] Generic types: `Vec<T>`, `Option<T>`, `Result<T, E>`
-- [ ] Reference types: `&T`, `&mut T`
+- [x] Generic types: `Vec<T>`, `Option<T>`, `Result<T, E>`
+- [x] Reference types: `&T`, `&mut T`
 - [ ] Tuple types: `(A, B)`
 - [ ] Slice types: `&[T]`
 - [ ] Function pointer types: `fn(A) -> B`
@@ -65,7 +72,7 @@ The pipeline currently generates:
 - [ ] Generic trait parameters: `trait Foo<T>`
 
 ### 1.6 Function features
-- [ ] `self`, `&self`, `&mut self` receiver — currently no receiver concept in IR
+- [x] `self`, `&self`, `&mut self` receiver — Receiver enum on Function and FunctionSignature
 - [ ] Default parameter values (via wrapper fns)
 - [ ] `async fn` flag on Function
 - [ ] `unsafe fn` flag on Function
@@ -75,12 +82,12 @@ The pipeline currently generates:
 - [ ] Doc comments on functions
 
 ### 1.7 Enum support — entirely missing
-- [ ] `DeltaPayload::AddEnum` variant in ir.rs
-- [ ] `EnumNode { id, name, module, variants: Vec<EnumVariant> }` in IR
-- [ ] `EnumVariant { name, fields: EnumVariantFields }` — unit / tuple / struct variants
-- [ ] `apply_structural_delta` arm for `AddEnum`
-- [ ] `render_enum` in materialize/
-- [ ] Enum in `validate/check_artifacts.rs`
+- [x] `DeltaPayload::AddEnum` / `AddEnumVariant` variants in ir.rs
+- [x] `EnumNode { id, name, module, variants: Vec<EnumVariant> }` in IR
+- [x] `EnumVariant { name, fields: EnumVariantFields }` — unit / tuple / struct variants
+- [x] `apply_structural_delta` arm for `AddEnum` / `AddEnumVariant`
+- [x] `render_enum` in materialize/render_struct.rs
+- [x] `check_enums` in `validate/check_artifacts.rs`
 
 ### 1.8 Module-level items missing
 - [ ] `use` re-exports: `pub use crate::foo::Bar;`
@@ -102,11 +109,9 @@ The pipeline currently generates:
 - [ ] `RenameArtifact { kind, old_id, new_id }` — rename with full ref-update
 
 ### 2.2 auto_accept_fn_ast structural flaw (Gap 1)
-- [ ] Replace fake Proposal+Trait scaffolding with a dedicated `FunctionBodyProposal`
-      type that bypasses `enforce_proposal_ready` legitimately
-- [ ] Or: relax `enforce_proposal_ready` to allow proposals with no edges
-      when `proposal.kind == ProposalKind::FunctionBody`
-- [ ] Add `ProposalKind` enum to IR: `Structural | FunctionBody | SchemaEvolution`
+- [x] `ProposalKind` enum added: `Structural | FunctionBody | SchemaEvolution`
+- [x] `enforce_proposal_ready` skips node/api/edge check for `FunctionBody` proposals
+- [x] `auto_accept_fn_ast` uses `ProposalKind::FunctionBody`, fake scaffold removed
 
 ---
 
@@ -136,11 +141,9 @@ The pipeline currently generates:
 ## 4. DOT import/export gaps
 
 ### 4.1 Round-trip fidelity (Gap 3)
-- [ ] Add `canon verify-dot --original <a.dot> --ir <ir.json> --roundtrip <b.dot>`
-      command that checks cluster names, node names, and edge labels match
-- [ ] Define round-trip equivalence precisely:
-      same set of cluster ids, same node ids per cluster,
-      same inter-cluster edges with same imported_types (order-insensitive)
+- [x] `canon verify-dot --ir <ir.json> --original <a.dot>` implemented
+- [x] Round-trip equivalence: cluster ids, per-cluster node ids,
+      inter-cluster edges with sorted imported_types (order-insensitive)
 
 ### 4.2 DOT parser robustness
 - [ ] Handle multi-line `label=` values
@@ -179,11 +182,19 @@ The pipeline currently generates:
 
 ## 7. Priority order (suggested)
 
-1. Gap 1 fix — ProposalKind + FunctionBodyProposal (correctness)
-2. Receiver support — `&self` / `&mut self` (needed for real Rust)
-3. Enum support — most Rust code needs enums
-4. Generic types in TypeRef (needed for Vec, Option, Result)
-5. Expression nodes — binary ops, field access, method call
-6. File placement — Function.file_id
-7. Round-trip verification — canon verify-dot
-8. Incremental materialization
+- [x] 1. ProposalKind + FunctionBodyProposal (correctness)
+- [x] 2. Receiver support — `&self` / `&mut self`
+- [x] 3. Enum support
+- [x] 4. Generic types in TypeRef
+- [x] 5. Expression nodes — binary ops, field access, method call, statements
+- [x] 6. File placement — Function.file_id
+- [x] 7. Round-trip verification — canon verify-dot
+- [ ] 8. Incremental materialization
+
+Next session — natural starting points:
+Priority 8: Incremental materialization — hash-based re-emit, // canon:preserve regions (section 3.4)
+Section 1.4/1.5: Struct and trait features — derive macros, pub(crate), associated types, default method bodies, supertraits
+Section 1.6: Function features — async fn, unsafe fn, generics on functions, where clauses
+Section 1.8: Module-level items — pub use, pub const, type aliases
+Section 2.1: Delta pipeline gaps — UpdateFunctionInputs, UpdateFunctionOutputs, UpdateStructVisibility, RemoveField
+Section 3.2: Import deduplication — use super::, use crate::, use ::external_crate::
