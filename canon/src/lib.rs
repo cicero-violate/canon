@@ -46,7 +46,6 @@ pub use patch_protocol::{
 pub use proof::smt_bridge::{
     SmtCertificate, SmtError, attach_function_proofs, verify_function_postconditions,
 };
-
 // pub use proof_object::{
 //     ProofArtifact as CanonProofArtifact, ProofObject, ProofResult, evaluate_proof_object,
 // };
