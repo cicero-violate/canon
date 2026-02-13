@@ -1,0 +1,87 @@
+digraph Tier7_Sovereign_AI {
+
+    rankdir=LR;
+    labelloc="t";
+    label="Tier-7 Sovereign AI Subsystem DAG";
+    fontsize=18;
+
+    node [
+        shape=box,
+        style=rounded,
+        fontname="JetBrains Mono",
+        fontsize=11
+    ];
+
+    edge [
+        fontname="JetBrains Mono",
+        fontsize=10
+    ];
+
+    /* =============================
+       Observation Layer
+    ============================= */
+
+    ExternalWorld [label="External World\n(Environment / APIs / Shell)"];
+    Observation   [label="Observation Layer\n(Structured Input Extraction)"];
+
+    ExternalWorld -> Observation;
+
+    /* =============================
+       Planning Layer
+    ============================= */
+
+    Planner [label="Planner\n(Goal → Plan Δ₁..Δₙ)"];
+
+    Observation -> Planner;
+
+    /* =============================
+       Judgment Layer
+    ============================= */
+
+    Judgment [label="Judgment Core\n(Policy / Risk / Budget / Intent Radius)"];
+
+    Planner -> Judgment;
+
+    /* =============================
+       Verification Layer
+    ============================= */
+
+    Verification [label="Verification System\n(Invariants / Hash / Proof)"];
+
+    Judgment -> Verification;
+
+    /* =============================
+       Kernel + Execution
+    ============================= */
+
+    Kernel [label="State Kernel\n(Canonical State + Δ Apply)"];
+    Execution [label="Execution Engine\n(Runtime / IO / GPU)"];
+
+    Verification -> Kernel;
+    Kernel -> Execution;
+
+    /* =============================
+       Memory + Recursion
+    ============================= */
+
+    Memory [label="Memory Ledger\n(Append-only Δ Log)"];
+    State  [label="Canonical State\n(Structured Graph)"];
+
+    Execution -> Memory;
+    Memory -> State;
+    State -> Observation;
+
+    /* =============================
+       Governance + Resources
+    ============================= */
+
+    Governance [label="Governance Boundary\n(Self-Modification Limits)"];
+    Resources  [label="Resource Controller\n(Compute / Budget / Energy)"];
+    Learning   [label="Learning Engine\n(Heuristic Update Under Law)"];
+
+    Governance -> Judgment;
+    Resources  -> Judgment;
+    Memory     -> Learning;
+    Learning   -> Planner;
+
+}

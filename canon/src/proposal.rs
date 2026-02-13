@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
 use crate::ir::{
-    ModuleId, Proposal, ProposalGoal, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
-    ProposedNodeKind, StructId, TraitId, Word, WordError,
+    ModuleId, Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge,
+    ProposedNode, ProposedNodeKind, StructId, TraitId, Word, WordError,
 };
 
 #[derive(Debug, Clone)]
@@ -344,6 +344,7 @@ pub fn create_proposal_from_dsl(source: &str) -> Result<DslProposalArtifacts, Ds
     let goal_slug = sanitize_identifier(&goal.name);
     let proposal = Proposal {
         id: format!("proposal.dsl.{goal_slug}"),
+        kind: ProposalKind::Structural,
         goal: ProposalGoal {
             id: goal_id,
             description: format!("Auto-generated from DSL: {}", goal.signature),

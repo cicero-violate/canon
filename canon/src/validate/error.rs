@@ -1,5 +1,5 @@
-use std::fmt;
 use super::rules::CanonRule;
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -9,7 +9,10 @@ pub struct Violation {
 
 impl Violation {
     pub fn new(rule: CanonRule, detail: impl Into<String>) -> Self {
-        Self { rule, detail: detail.into() }
+        Self {
+            rule,
+            detail: detail.into(),
+        }
     }
 
     pub fn rule(&self) -> CanonRule {
@@ -38,9 +41,19 @@ impl ValidationErrors {
 
 impl fmt::Display for ValidationErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Canon validation failed with {} violation(s):", self.violations.len())?;
+        writeln!(
+            f,
+            "Canon validation failed with {} violation(s):",
+            self.violations.len()
+        )?;
         for v in &self.violations {
-            writeln!(f, "- {} ({}) → {}", v.rule().code(), v.rule().text(), v.detail())?;
+            writeln!(
+                f,
+                "- {} ({}) → {}",
+                v.rule().code(),
+                v.rule().text(),
+                v.detail()
+            )?;
         }
         Ok(())
     }

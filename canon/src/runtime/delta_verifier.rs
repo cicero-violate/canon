@@ -3,15 +3,10 @@
 //! Verifies deltas are applied correctly with state hash validation.
 //! Implements rollback on verification failure.
 
-use blake3::hash;
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::evolution::EvolutionError;
-use crate::ir::{
-    AdmissionId, AppliedDeltaRecord, CanonicalIr, Delta, DeltaAdmission, DeltaId, Judgment,
-    JudgmentDecision, Proof, ProofScope,
-};
+use crate::ir::{AdmissionId, AppliedDeltaRecord, CanonicalIr, Delta, DeltaId, Proof};
 
 /// Verifies delta application with state hash checking.
 pub struct DeltaVerifier;

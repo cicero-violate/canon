@@ -11,8 +11,8 @@ pub trait Compute {
 impl Compute for State {
 
     pub fn Process(Input: ScalarValue) -> ScalarValue {
-        // Invoke Canon runtime interpreter (generated stub)
-        canon_runtime::execute_function("fn.compute");
+    // Canon runtime stub
+    canon_runtime::execute_function("fn.compute");
     }
 
 }

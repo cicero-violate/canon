@@ -1,0 +1,1159 @@
+dot_export.rs:
+  struct DotVerifyError  { mismatches }  (line 8)
+  impl std::fmt::Display for DotVerifyError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 12)
+  impl std::error::Error for DotVerifyError  (line 21)
+  fn verify_dot(
+    ir: &CanonicalIr,
+    original_dot: &str,
+) -> Result<(), DotVerifyError>  (line 25)
+  fn edge_color(module_id: &str) -> &'static str  (line 104)
+  fn export_dot(ir: &CanonicalIr) -> String  (line 118)
+  fn lib_node(module: &crate::ir::Module) -> Option<String>  (line 216)
+  fn entry_node(module: &crate::ir::Module) -> Option<String>  (line 231)
+  fn cluster_id_of(module_id: &str) -> String  (line 244)
+  fn sanitize_node_id(id: &str) -> String  (line 248)
+  fn slugify(s: &str) -> String  (line 254)
+
+gpu/dispatch.rs:
+  struct GpuExecutor  { device, queue }  (line 12)
+  enum GpuExecutorError  { NoAdapter, Init, Execution }  (line 18)
+  impl GpuExecutor  { fn new() -> Result<Self, GpuExecutorError>, fn execute(
+        &self,
+        program: &GpuProgram,
+        inputs: &[f32],
+        outputs: &mut [f32],
+    ) -> Result<(), GpuExecutorError> }  (line 27)
+
+gpu/fusion.rs:
+  struct FusionCandidate  { producer_gpu, consumer_gpu, producer_function, consumer_function }  (line 12)
+  fn analyze_fusion_candidates(ir: &CanonicalIr) -> Vec<FusionCandidate>  (line 20)
+
+gpu/codegen.rs:
+  struct GpuProgram  { shader, workgroup_size, lanes, input_offsets, output_offsets }  (line 13)
+  fn generate_shader(gpu: &GpuFunction, function: &Function) -> Result<GpuProgram, String>  (line 22)
+  fn lane_count(gpu: &GpuFunction) -> Result<u32, String>  (line 119)
+  fn compute_offsets(ports: &[VectorPort], lanes: u32) -> Vec<u32>  (line 140)
+  fn flatten_ports(ports: &[VectorPort], data: &[Vec<f32>]) -> Result<Vec<f32>, String>  (line 149)
+  fn push_binary_op(lines: &mut Vec<String>, op: &str)  (line 182)
+  fn literal_to_f32(value: &Value) -> Option<f32>  (line 191)
+  fn sanitize_ident(value: &str) -> String  (line 200)
+
+patch_protocol.rs:
+  struct PatchMetadata  { agent_id, prompt, timestamp }  (line 7)
+  struct PatchProposal  { id, diff, metadata }  (line 15)
+  struct PatchQueue  { proposals }  (line 23)
+  impl PatchQueue  { fn new() -> Self, fn enqueue(
+        &mut self,
+        diff: String,
+        metadata: PatchMetadata,
+    ) -> Result<&PatchProposal, PatchError>, fn dequeue(&mut self) -> Option<PatchProposal>, fn len(&self) -> usize }  (line 27)
+  struct PatchLogEntry  { proposal_id, decision }  (line 59)
+  enum PatchDecisionData  { Accepted, Rejected }  (line 65)
+  struct PatchGate  { log }  (line 72)
+  impl PatchGate  { fn new() -> Self, fn evaluate(&mut self, proposal: PatchProposal) -> PatchDecision, fn log(&self) -> &[PatchLogEntry] }  (line 76)
+  enum PatchDecision  { Accepted, Rejected }  (line 116)
+  struct VerifiedPatch  { proposal, proof_id }  (line 128)
+  struct ApprovedPatchRegistry  { patches }  (line 135)
+  impl ApprovedPatchRegistry  { fn new() -> Self, fn insert(&mut self, patch: VerifiedPatch), fn get(&self, id: &str) -> Option<&VerifiedPatch>, fn iter(&self) -> impl Iterator<Item = &VerifiedPatch> }  (line 139)
+  struct PatchApplier  { test_runner }  (line 160)
+  impl PatchApplier<F>  { fn new(test_runner: F) -> Self, fn apply(&self, patch: &VerifiedPatch) -> Result<(), PatchError> }  (line 167)
+  fn is_structured_patch(diff: &str) -> bool  (line 183)
+  fn compute_patch_id(diff: &str, metadata: &PatchMetadata) -> String  (line 187)
+  enum PatchError  { MalformedPatch, TestsFailed }  (line 197)
+
+schema.rs:
+  fn generate_schema(pretty: bool) -> serde_json::Result<String>  (line 6)
+  fn schema_value() -> Value  (line 15)
+
+validate/error.rs:
+  struct Violation  { rule, detail }  (line 5)
+  impl Violation  { fn new(rule: CanonRule, detail: impl Into<String>) -> Self, fn rule(&self) -> CanonRule, fn detail(&self) -> &str }  (line 10)
+  struct ValidationErrors  { violations }  (line 25)
+  impl ValidationErrors  { fn new(violations: Vec<Violation>) -> Self, fn violations(&self) -> &[Violation] }  (line 29)
+  impl fmt::Display for ValidationErrors  { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result }  (line 39)
+  impl std::error::Error for ValidationErrors  (line 49)
+
+validate/mod.rs:
+  fn validate_ir(ir: &CanonicalIr) -> Result<(), ValidationErrors>  (line 16)
+
+validate/check_deltas.rs:
+  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 6)
+  fn check_deltas(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 13)
+  fn check_struct_history(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 101)
+  fn check_admissions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 111)
+  fn check_applied_records(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 131)
+
+validate/rules.rs:
+  enum CanonRule  { ExplicitArtifacts, ModuleDag, ModuleSelfImport, ImplBinding, ExecutionOnlyInImpl, FunctionContracts, EffectsAreDeltas, DeltaProofs, DeltaAppendOnly, CallGraphPublicApis, CallGraphRespectsDag, CallGraphAcyclic, TickGraphAcyclic, TickGraphEdgesDeclared, LoopContinuationJudgment, GpuLawfulMath, ProposalDeclarative, JudgmentDecisions, LearningDeclarations, TraitVerbs, TickRoot, ProjectEnvelope, ExternalDependencies, DeltaPipeline, ProofScope, VersionEvolution, TickEpochs, PlanArtifacts, ExecutionBoundary, AdmissionBridge, FunctionAst }  (line 2)
+  impl CanonRule  { fn code(self) -> &'static str, fn text(self) -> &'static str }  (line 36)
+
+validate/helpers.rs:
+  struct Indexes  { modules, structs, traits, impls, functions, deltas, proofs, predicates, judgments, admissions, tick_graphs, ticks, epochs, plans, proposals }  (line 6)
+  fn build_indexes(
+    ir: &'a CanonicalIr,
+    violations: &mut Vec<Violation>,
+) -> Indexes<'a>  (line 24)
+  fn index_by_id(
+    items: &'a [T],
+    id_fn: F,
+    rule: CanonRule,
+    kind: &str,
+    violations: &mut Vec<Violation>,
+) -> HashMap<&'a str, &'a T>  (line 47)
+  fn pipeline_stage_allows(stage: PipelineStage, kind: DeltaKind) -> bool  (line 67)
+  fn proof_scope_allows(kind: DeltaKind, scope: ProofScope) -> bool  (line 77)
+  fn module_has_permission(
+    from: &'a str,
+    to: &'a str,
+    adjacency: &HashMap<&'a str, Vec<&'a str>>,
+    cache: &mut HashMap<&'a str, std::collections::HashSet<&'a str>>,
+) -> bool  (line 86)
+
+validate/check_project.rs:
+  fn check(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 6)
+
+validate/check_graphs.rs:
+  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 9)
+  fn check_module_graph(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    violations: &mut Vec<Violation>,
+) -> HashMap<&'a str, Vec<&'a str>>  (line 16)
+  fn check_call_graph(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    module_adj: &HashMap<&'a str, Vec<&'a str>>,
+    violations: &mut Vec<Violation>,
+)  (line 44)
+  fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 78)
+  fn check_loop_policies(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 110)
+
+validate/check_artifacts.rs:
+  fn check(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    violations: &mut Vec<Violation>,
+)  (line 8)
+  fn check_version_proofs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 24)
+  fn check_module_files(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 34)
+  fn check_module_edges(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 67)
+  fn check_structs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 83)
+  fn check_enums(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 105)
+  fn check_traits(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 116)
+  fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 141)
+  fn check_ast_node_kinds(ir: &CanonicalIr, _: &Indexes, violations: &mut Vec<Violation>)  (line 180)
+  fn validate_ast_node(
+    value: &JsonValue,
+    function_id: &str,
+    allowed: &HashSet<&str>,
+    violations: &mut Vec<Violation>,
+)  (line 226)
+  fn check_functions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 255)
+
+validate/check_proposals.rs:
+  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 8)
+  fn check_proposals(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 14)
+  fn check_judgments(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 57)
+  fn check_learning(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 68)
+
+validate/check_execution.rs:
+  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 6)
+  fn check_epochs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 14)
+  fn check_ticks(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 42)
+  fn check_plans(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 60)
+  fn check_executions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 82)
+  fn check_gpu(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 98)
+
+decision/bootstrap.rs:
+  fn ensure_dsl_proof(ir: &mut CanonicalIr)  (line 5)
+  fn ensure_dsl_predicate(ir: &mut CanonicalIr)  (line 21)
+  fn ensure_dsl_tick(ir: &mut CanonicalIr) -> Result<(), ()>  (line 35)
+
+decision/auto_dsl.rs:
+  enum AutoAcceptDslError  { Proposal, Accept, MissingTickGraph }  (line 15)
+  fn auto_accept_dsl_proposal(
+    ir: &CanonicalIr,
+    dsl_source: &str,
+) -> Result<ProposalAcceptance, AutoAcceptDslError>  (line 24)
+
+decision/auto_fn_ast.rs:
+  enum AutoAcceptFnAstError  { Accept, UnknownFunction, MissingTickGraph }  (line 19)
+  fn auto_accept_fn_ast(
+    ir: &CanonicalIr,
+    function_id: &str,
+    ast: JsonValue,
+) -> Result<ProposalAcceptance, AutoAcceptFnAstError>  (line 30)
+
+decision/accept/proposal_checks.rs:
+  fn enforce_proposal_ready(proposal: &Proposal) -> Result<(), AcceptProposalError>  (line 10)
+  fn ensure_proof_exists(
+    ir: &CanonicalIr,
+    proof_id: &str,
+) -> Result<(), AcceptProposalError>  (line 23)
+  fn ensure_predicate_exists(
+    ir: &CanonicalIr,
+    predicate_id: &str,
+) -> Result<(), AcceptProposalError>  (line 34)
+  fn ensure_tick_exists(
+    ir: &CanonicalIr,
+    tick_id: &str,
+) -> Result<(), AcceptProposalError>  (line 47)
+  fn ensure_unique_judgment(
+    ir: &CanonicalIr,
+    judgment_id: &str,
+) -> Result<(), AcceptProposalError>  (line 58)
+  fn ensure_unique_admission(
+    ir: &CanonicalIr,
+    admission_id: &str,
+) -> Result<(), AcceptProposalError>  (line 71)
+  fn enforce_references(
+    ir: &CanonicalIr,
+    proposal: &Proposal,
+    resolved: &ResolvedProposalNodes,
+    trait_functions: &BTreeMap<String, Vec<TraitFunction>>,
+) -> Result<(), AcceptProposalError>  (line 84)
+
+decision/accept/mod.rs:
+  struct ProposalAcceptanceInput  { proposal_id, proof_id, predicate_id, judgment_id, admission_id, tick_id, rationale }  (line 24)
+  struct ProposalAcceptance  { ir, delta_ids, judgment_id, admission_id }  (line 35)
+  enum AcceptProposalError  { UnknownProposal, InvalidProposalStatus, IncompleteProposal, UnknownProof, UnknownPredicate, UnknownTick, DuplicateJudgment, DuplicateAdmission, DuplicateDelta, NoDeltas, UnknownModule, UnknownTrait, EmptyApi, ArtifactExists, Resolution, Evolution, Word, Proof }  (line 43)
+  fn accept_proposal(
+    ir: &CanonicalIr,
+    input: ProposalAcceptanceInput,
+) -> Result<ProposalAcceptance, AcceptProposalError>  (line 85)
+
+decision/accept/delta_emitter.rs:
+  fn emit_deltas(
+    input: &ProposalAcceptanceInput,
+    proposal: &Proposal,
+    resolved: &ResolvedProposalNodes,
+    trait_function_map: &BTreeMap<String, Vec<TraitFunction>>,
+    known_delta_ids: &mut HashSet<String>,
+) -> Result<(Vec<Delta>, Vec<DeltaId>), AcceptProposalError>  (line 16)
+  fn build_trait_function_map(
+    proposal: &Proposal,
+) -> Result<BTreeMap<String, Vec<TraitFunction>>, AcceptProposalError>  (line 156)
+  fn default_trait_output(name: &Word) -> Result<ValuePort, AcceptProposalError>  (line 186)
+  fn build_delta(
+    identifier: &str,
+    input: &ProposalAcceptanceInput,
+    payload: &DeltaPayload,
+    related_function: Option<String>,
+    artifact_label: &str,
+) -> Result<Delta, AcceptProposalError>  (line 203)
+  fn register_delta(
+    known_ids: &mut HashSet<String>,
+    delta: &Delta,
+) -> Result<(), AcceptProposalError>  (line 226)
+  fn delta_identifier(proposal_id: &str, kind: &str, artifact: &str) -> String  (line 237)
+  fn build_function_signature(
+    trait_function: &TraitFunction,
+    struct_name: &Word,
+) -> Result<FunctionSignature, AcceptProposalError>  (line 246)
+  fn sorted_modules(mods: &[ModuleSpec]) -> Vec<ModuleSpec>  (line 268)
+  fn sorted_structs(structs: &[StructSpec]) -> Vec<StructSpec>  (line 274)
+  fn sorted_traits(traits: &[TraitSpec]) -> Vec<TraitSpec>  (line 280)
+  fn sorted_edges(edges: &[ProposedEdge]) -> Vec<ProposedEdge>  (line 286)
+
+decision/auto_dot.rs:
+  enum AutoAcceptDotError  { Import, Accept, Empty, MissingTickGraph }  (line 19)
+  fn auto_accept_dot_proposal(
+    ir: &CanonicalIr,
+    dot_source: &str,
+    goal: &str,
+) -> Result<ProposalAcceptance, AutoAcceptDotError>  (line 33)
+
+ir/timeline.rs:
+  struct LoopPolicy  { id, graph, continuation, max_ticks, description }  (line 14)
+  struct Tick  { id, graph, input_state, output_deltas }  (line 24)
+  struct TickEpoch  { id, ticks, parent_epoch }  (line 33)
+  struct Plan  { id, judgment, steps, expected_deltas }  (line 41)
+  struct ExecutionRecord  { id, tick, plan, outcome_deltas, errors, events }  (line 50)
+  struct ExecutionError  { code, message }  (line 63)
+  enum ExecutionEvent  { Stdout, Stderr, Artifact, Error }  (line 70)
+
+ir/delta.rs:
+  struct Delta  { id, kind, stage, append_only, proof, description, related_function, payload, proof_object_hash }  (line 18)
+  enum DeltaKind  { State, Io, Structure, History }  (line 33)
+  enum DeltaPayload  { AddModule, AddStruct, AddField, AddTrait, AddTraitFunction, AddImpl, AddFunction, AddModuleEdge, AddCallEdge, AttachExecutionEvent, UpdateFunctionAst, AddEnum, AddEnumVariant, UpdateFunctionInputs, UpdateFunctionOutputs, UpdateStructVisibility, RemoveField, RenameArtifact }  (line 42)
+
+ir/word.rs:
+  struct Word  (line 18)
+  impl Word  { fn new(value: impl Into<String>) -> Result<Self, WordError>, fn as_str(&self) -> &str }  (line 20)
+  impl fmt::Display for Word  { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result }  (line 35)
+  enum WordError  { Invalid }  (line 42)
+  impl Serialize for Word  { fn serialize(&self, serializer: S) -> Result<S::Ok, S::Error> }  (line 47)
+  impl Deserialize<'de> for Word  { fn deserialize(deserializer: D) -> Result<Self, D::Error> }  (line 56)
+  impl JsonSchema for Word  { fn schema_name() -> String, fn json_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema }  (line 66)
+
+ir/files.rs:
+  struct FileNode  { id, name }  (line 6)
+  struct FileEdge  { from, to }  (line 13)
+
+ir/proofs.rs:
+  struct Proof  { id, invariant, scope, evidence, proof_object_hash }  (line 8)
+  struct ProofArtifact  { uri, hash }  (line 18)
+  enum ProofScope  { Structure, Execution, Law }  (line 25)
+
+ir/admission.rs:
+  struct DeltaAdmission  { id, judgment, tick, delta_ids }  (line 8)
+  struct AppliedDeltaRecord  { id, admission, delta, order }  (line 17)
+
+ir/judgment.rs:
+  struct Judgment  { id, proposal, predicate, decision, rationale }  (line 8)
+  struct JudgmentPredicate  { id, description }  (line 18)
+  enum JudgmentDecision  { Accept, Reject }  (line 25)
+
+ir/ids.rs:
+  type ModuleId  (line 1)
+  type StructId  (line 2)
+  type EnumId  (line 3)
+  type TraitId  (line 4)
+  type TraitFunctionId  (line 5)
+  type ImplId  (line 6)
+  type FunctionId  (line 7)
+  type CallEdgeId  (line 8)
+  type TickGraphId  (line 9)
+  type SystemGraphId  (line 10)
+  type SystemNodeId  (line 11)
+  type LoopPolicyId  (line 12)
+  type TickId  (line 13)
+  type TickEpochId  (line 14)
+  type PlanId  (line 15)
+  type ExecutionRecordId  (line 16)
+  type AdmissionId  (line 17)
+  type AppliedDeltaId  (line 18)
+  type ProposalId  (line 19)
+  type JudgmentId  (line 20)
+  type JudgmentPredicateId  (line 21)
+  type LearningId  (line 22)
+  type DeltaId  (line 23)
+  type ProofId  (line 24)
+  type ErrorId  (line 25)
+  type GpuFunctionId  (line 26)
+
+ir/functions.rs:
+  struct Function  { id, name, module, impl_id, trait_function, visibility, doc, lifetime_params, receiver, is_async, is_unsafe, generics, where_clauses, file_id, inputs, outputs, deltas, contract, metadata }  (line 13)
+  struct DeltaRef  { delta, description }  (line 46)
+  struct FunctionContract  { total, deterministic, explicit_inputs, explicit_outputs, effects_are_deltas }  (line 53)
+  struct FunctionMetadata  { bytecode_b64, ast, postconditions }  (line 63)
+  enum Postcondition  { NonNegative }  (line 74)
+  struct FunctionSignature  { name, receiver, is_async, is_unsafe, lifetime_params, generics, where_clauses, doc, inputs, outputs, visibility, trait_function }  (line 80)
+  struct GenericParam  { name, bounds }  (line 104)
+  struct WhereClause  { ty, bounds }  (line 112)
+
+ir/gpu.rs:
+  struct GpuFunction  { id, function, inputs, outputs, properties }  (line 12)
+  struct VectorPort  { name, scalar, lanes }  (line 22)
+  struct GpuProperties  { pure, no_io, no_alloc, no_branch }  (line 30)
+
+ir/core.rs:
+  struct CanonicalIr  { meta, version_contract, project, modules, module_edges, structs, enums, traits, impl_blocks, functions, call_edges, tick_graphs, system_graphs, loop_policies, ticks, tick_epochs, plans, executions, admissions, applied_deltas, gpu_functions, proposals, judgments, judgment_predicates, deltas, proofs, learning, errors, dependencies, file_hashes }  (line 25)
+  struct CanonicalMeta  { version, law_revision, description }  (line 64)
+  struct VersionContract  { current, compatible_with, migration_proofs }  (line 72)
+  enum PipelineStage  { Observe, Learn, Decide, Plan, Act }  (line 80)
+  enum Language  { Rust }  (line 90)
+
+ir/project.rs:
+  struct Project  { name, version, language }  (line 8)
+  struct ExternalDependency  { name, source, version }  (line 16)
+
+ir/learning.rs:
+  struct Learning  { id, proposal, new_rules, notes, proof_object_hash }  (line 8)
+
+ir/graphs.rs:
+  struct CallEdge  { id, caller, callee, rationale }  (line 11)
+  struct TickGraph  { id, name, nodes, edges }  (line 20)
+  struct TickEdge  { from, to }  (line 29)
+  struct SystemGraph  { id, name, nodes, edges }  (line 36)
+  struct SystemNode  { id, function, kind }  (line 45)
+  enum SystemNodeKind  { Function, Gate, Persist, Materialize }  (line 53)
+  struct SystemEdge  { from, to, kind }  (line 62)
+  enum SystemEdgeKind  { Control, Data }  (line 70)
+
+ir/artifacts.rs:
+  struct Module  { id, name, visibility, description, files, file_edges, pub_uses, constants, type_aliases, statics, attributes }  (line 15)
+  struct ModuleEdge  { source, target, rationale, imported_types }  (line 38)
+  struct Struct  { id, name, module, visibility, file_id, derives, doc, kind, fields, history }  (line 50)
+  struct Field  { name, ty, visibility, doc }  (line 69)
+  struct Trait  { id, name, module, visibility, file_id, generic_params, functions, supertraits, associated_types, associated_consts }  (line 79)
+  struct TraitFunction  { id, name, inputs, outputs, default_body }  (line 99)
+  struct ImplBlock  { id, module, struct_id, trait_id, functions }  (line 110)
+  struct ImplFunctionBinding  { trait_fn, function }  (line 120)
+  struct EnumNode  { id, name, module, visibility, variants, history }  (line 127)
+  struct EnumVariant  { name, fields }  (line 138)
+  struct AssociatedType  { name }  (line 145)
+  struct AssociatedConst  { name, ty }  (line 151)
+  enum EnumVariantFields  { Unit, Tuple, Struct }  (line 158)
+  struct PubUseItem  { path }  (line 166)
+  struct ConstItem  { name, ty, value_expr }  (line 172)
+  struct StaticItem  { name, ty, value_expr, mutable, doc, visibility }  (line 180)
+  struct TypeAlias  { name, target }  (line 193)
+
+ir/proposal.rs:
+  enum ProposalKind  { Structural, FunctionBody, SchemaEvolution }  (line 11)
+  struct Proposal  { id, kind, goal, nodes, apis, edges, status }  (line 20)
+  struct ProposalGoal  { id, description }  (line 33)
+  struct ProposedNode  { id, name, module, kind }  (line 40)
+  struct ProposedApi  { trait_id, functions }  (line 49)
+  struct ProposedEdge  { from, to, rationale }  (line 56)
+  enum ProposedNodeKind  { Module, Struct, Trait }  (line 64)
+  enum ProposalStatus  { Draft, Submitted, Accepted, Rejected }  (line 72)
+
+ir/errors.rs:
+  struct ErrorArtifact  { id, rule, message }  (line 8)
+
+ir/types.rs:
+  enum Receiver  { None, SelfVal, SelfRef, SelfMutRef }  (line 8)
+  enum Visibility  { Public, Private, PubCrate, PubSuper }  (line 18)
+  enum StructKind  { Normal, Tuple, Unit }  (line 27)
+  enum TypeKind  { Scalar, Struct, Trait, Delta, External, Enum, Generic, Tuple, Slice, FnPtr, Never, SelfType, ImplTrait, DynTrait }  (line 36)
+  enum ScalarType  { F32, F64, I32, U32, Bool }  (line 55)
+  enum RefKind  { None, Ref, MutRef }  (line 65)
+  struct TypeRef  { name, kind, params, ref_kind, lifetime }  (line 73)
+  struct ValuePort  { name, ty }  (line 86)
+
+ingest/fs_walk.rs:
+  struct DiscoveredFile  { absolute, relative }  (line 8)
+  fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, IngestError>  (line 16)
+  fn is_ignored(path: &Path) -> bool  (line 54)
+  fn strip_prefix_components(path: &Path, root: &Path) -> Option<PathBuf>  (line 67)
+  fn map_walkdir_error(err: walkdir::Error) -> IngestError  (line 72)
+
+ingest/mod.rs:
+  struct IngestOptions  { root }  (line 16)
+  impl IngestOptions  { fn new(root: impl Into<PathBuf>) -> Self }  (line 20)
+  enum IngestError  { Io, Parse, UnsupportedFeature }  (line 28)
+  impl From<std::io::Error> for IngestError  { fn from(err: std::io::Error) -> Self }  (line 34)
+  fn ingest_workspace(opts: &IngestOptions) -> Result<CanonicalIr, IngestError>  (line 41)
+  fn _ensure_path_is_dir(path: &Path) -> Result<(), IngestError>  (line 48)
+
+ingest/builder.rs:
+  fn build_ir(
+    root: &Path,
+    parsed: ParsedWorkspace,
+) -> Result<CanonicalIr, IngestError>  (line 16)
+  fn derive_project_name(root: &Path) -> Word  (line 74)
+  struct ModulesBuild  { modules, module_lookup, file_lookup }  (line 82)
+  fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, IngestError>  (line 88)
+  struct ModuleAccumulator  { key, id, name, description, files }  (line 113)
+  impl ModuleAccumulator  { fn new(key: &str) -> Self, fn add_file(&mut self, path: &std::path::Path), fn into_module(self) -> Module }  (line 121)
+  fn slugify(value: &str) -> String  (line 161)
+  fn to_pascal_case(input: &str) -> String  (line 177)
+  fn module_key(file: &ParsedFile) -> String  (line 199)
+  fn collect_derives(attrs: &[syn::Attribute]) -> Vec<String>  (line 207)
+  fn convert_fields(fields: &syn::Fields) -> (StructKind, Vec<Field>)  (line 226)
+  fn map_visibility(vis: &syn::Visibility) -> Visibility  (line 262)
+  fn word_from_ident(ident: &syn::Ident, fallback: &str) -> Word  (line 281)
+  fn word_from_string(value: &str, fallback: &str) -> Word  (line 285)
+  fn convert_type(ty: &syn::Type) -> TypeRef  (line 291)
+  fn path_type(type_path: &syn::TypePath) -> TypeRef  (line 343)
+  fn type_from_bound(bound: &syn::TypeParamBound) -> Option<TypeRef>  (line 374)
+  fn path_to_string(path: &syn::Path) -> String  (line 393)
+  fn build_structs(
+    parsed: &ParsedWorkspace,
+    module_lookup: &HashMap<String, String>,
+    file_lookup: &HashMap<String, String>,
+) -> Vec<Struct>  (line 400)
+  fn build_traits(
+    parsed: &ParsedWorkspace,
+    module_lookup: &HashMap<String, String>,
+    file_lookup: &HashMap<String, String>,
+) -> Vec<Trait>  (line 427)
+  fn build_impls_and_functions(
+    parsed: &ParsedWorkspace,
+    module_lookup: &HashMap<String, String>,
+    file_lookup: &HashMap<String, String>,
+) -> (Vec<ImplBlock>, Vec<Function>)  (line 448)
+  fn function_from_syn(
+    module_id: &str,
+    file_id: Option<String>,
+    item: &syn::ItemFn,
+    impl_context: Option<(&str, Option<&syn::Path>)>,
+) -> Function  (line 485)
+  fn impl_block_from_syn(
+    module_id: &str,
+    file_id: Option<String>,
+    block: &syn::ItemImpl,
+) -> ImplMapping  (line 542)
+  fn function_from_impl_item(
+    module_id: &str,
+    file_id: Option<String>,
+    method: &syn::ImplItemFn,
+    context: Option<(&str, Option<&syn::Path>)>,
+) -> Function  (line 606)
+  fn struct_from_syn(
+    module_id: &str,
+    file_id: Option<String>,
+    item: &syn::ItemStruct,
+) -> Struct  (line 621)
+  fn trait_from_syn(
+    module_id: &str,
+    file_id: Option<String>,
+    item: &syn::ItemTrait,
+) -> Trait  (line 644)
+  fn trait_fn_from_syn(
+    trait_id: &str,
+    _trait_name: &syn::Ident,
+    item: &syn::TraitItemFn,
+) -> TraitFunction  (line 686)
+  fn convert_generics(generics: &syn::Generics) -> Vec<GenericParam>  (line 703)
+  fn convert_inputs(inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>) -> Vec<ValuePort>  (line 726)
+  fn convert_return_type(ret: &syn::ReturnType) -> Vec<ValuePort>  (line 746)
+  fn convert_receiver(inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>) -> Receiver  (line 765)
+  fn trait_path_to_trait_fn_id(
+    trait_path: &syn::Path,
+    module_id: &str,
+    fn_ident: &syn::Ident,
+) -> String  (line 776)
+  fn trait_path_to_trait_id(path: &syn::Path, module_id: &str) -> String  (line 790)
+  fn type_path_to_struct_id(path: &syn::TypePath, module_id: &str) -> String  (line 799)
+  enum ImplMapping  { Standalone, ImplBlock, Unsupported }  (line 808)
+
+ingest/parser.rs:
+  struct ParsedWorkspace  { files }  (line 10)
+  struct ParsedFile  { path, module_path, ast }  (line 14)
+  impl ParsedFile  { fn path_string(&self) -> String }  (line 20)
+  fn parse_workspace(
+    root: &Path,
+    discovered: &[DiscoveredFile],
+) -> Result<ParsedWorkspace, IngestError>  (line 29)
+  fn infer_module_path(relative: &Path) -> Vec<String>  (line 49)
+
+proof/smt_bridge.rs:
+  struct SmtCertificate  { function_id, proof_hash }  (line 24)
+  enum SmtError  { MissingAst, UnknownOutput, UnsupportedAst, Counterexample, Unknown, Solver, AstDecode }  (line 31)
+  fn attach_function_proofs(ir: &mut CanonicalIr) -> Result<(), SmtError>  (line 65)
+  fn verify_function_postconditions(
+    function: &Function,
+) -> Result<Option<SmtCertificate>, SmtError>  (line 85)
+  fn describe_condition(condition: &Postcondition) -> String  (line 155)
+  fn build_violation(
+    condition: &Postcondition,
+    outputs: &HashMap<String, Int<'ctx>>,
+    ctx: &'ctx Context,
+    function: &Function,
+) -> Result<Bool<'ctx>, SmtError>  (line 163)
+  fn build_input_vars(ctx: &'ctx Context, function: &Function) -> HashMap<String, Int<'ctx>>  (line 183)
+  fn apply_input_bounds(
+    ctx: &'ctx Context,
+    solver: &mut Solver<'ctx>,
+    vars: &HashMap<String, Int<'ctx>>,
+)  (line 194)
+  fn build_output_exprs(
+    ctx: &'ctx Context,
+    vars: &HashMap<String, Int<'ctx>>,
+    ast: &FunctionAst,
+    function: &Function,
+) -> Result<HashMap<String, Int<'ctx>>, SmtError>  (line 207)
+  fn encode_expr(
+    expr: &Expr,
+    ctx: &'ctx Context,
+    vars: &HashMap<String, Int<'ctx>>,
+    function: &Function,
+) -> Result<Int<'ctx>, SmtError>  (line 221)
+  fn encode_literal(
+    value: &Value,
+    ctx: &'ctx Context,
+    function: &Function,
+) -> Result<Int<'ctx>, SmtError>  (line 254)
+
+runtime/ast.rs:
+  struct FunctionAst  { outputs }  (line 17)
+  struct OutputExpr  { name, expr }  (line 22)
+  enum Expr  { Literal, Input, BinOp, FieldAccess, Call, EmitDelta }  (line 29)
+  enum BinOp  { Add, Sub, Mul }  (line 55)
+  enum AstError  { DuplicateOutput }  (line 62)
+  fn compile_function_ast(ast: &FunctionAst) -> Result<FunctionBytecode, AstError>  (line 67)
+  fn compile_expr(expr: &Expr, instructions: &mut Vec<Instruction>) -> Result<(), AstError>  (line 85)
+
+runtime/delta_verifier.rs:
+  struct DeltaVerifier  (line 14)
+  impl DeltaVerifier  { fn verify_application(
+        original_ir: &CanonicalIr,
+        evolved_ir: &CanonicalIr,
+        admission_ids: &[AdmissionId],
+    ) -> Result<VerificationResult, VerificationError>, fn verify_delta_proofs(
+        ir: &CanonicalIr,
+        admission_ids: &[AdmissionId],
+    ) -> Result<(), VerificationError>, fn verify_proof_scope(delta: &Delta, proof: &Proof) -> Result<(), VerificationError>, fn verify_delta_ordering(
+        original_ir: &CanonicalIr,
+        evolved_ir: &CanonicalIr,
+        admission_ids: &[AdmissionId],
+    ) -> Result<(), VerificationError>, fn verify_deltas_applied(
+        original_ir: &CanonicalIr,
+        evolved_ir: &CanonicalIr,
+        admission_ids: &[AdmissionId],
+    ) -> Result<(), VerificationError>, fn create_snapshot(ir: &CanonicalIr) -> Snapshot, fn verify_snapshot(ir: &CanonicalIr, snapshot: &Snapshot) -> bool }  (line 16)
+  fn compute_state_hash(ir: &CanonicalIr) -> String  (line 228)
+  struct VerificationResult  { before_hash, after_hash, verified }  (line 259)
+  struct Snapshot  { state_hash, applied_deltas, modules, structs, traits, functions }  (line 266)
+  enum VerificationError  { UnknownAdmission, UnknownDelta, MissingProof, InvalidProofScope, DeltaCountMismatch, DeltaOrderingViolation, NonMonotonicOrder, DeltaNotApplied, StateHashMismatch }  (line 276)
+
+runtime/executor.rs:
+  trait Executor  (line 14)
+  struct FunctionExecutor  { ir }  (line 25)
+  impl FunctionExecutor<'a>  { fn new(ir: &'a CanonicalIr) -> Self, fn execute_by_id(
+        &self,
+        function_id: &FunctionId,
+        inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, ExecutorError>, fn execute_composition(
+        &self,
+        functions: &[FunctionId],
+        initial_inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<Vec<BTreeMap<String, Value>>, ExecutorError>, fn validate_inputs(
+        &self,
+        function: &Function,
+        inputs: &BTreeMap<String, Value>,
+    ) -> Result<(), ExecutorError> }  (line 29)
+  impl Executor for FunctionExecutor<'a>  { fn execute(
+        &self,
+        function: &Function,
+        inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, ExecutorError> }  (line 116)
+  impl FunctionExecutor<'a>  { fn interpret_bytecode(
+        &self,
+        function: &Function,
+        inputs: &BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, InterpreterError>, fn collect_outputs(
+        &self,
+        function: &Function,
+        stack: &mut Vec<Value>,
+    ) -> Result<BTreeMap<String, Value>, InterpreterError>, fn pop_value(
+        &self,
+        function: &Function,
+        stack: &mut Vec<Value>,
+    ) -> Result<Value, InterpreterError>, fn apply_arithmetic(
+        function: &Function,
+        lhs: Value,
+        rhs: Value,
+        op: ArithmeticOp,
+    ) -> Result<Value, InterpreterError> }  (line 160)
+  enum ExecutorError  { UnknownFunction, MissingInput, TypeMismatch, ContractViolation, Context, Interpreter }  (line 365)
+  enum InterpreterError  { MissingInput, StackUnderflow, BindingNotFound, MissingOutput, MissingReturn, TypeError, UnknownFunction, CallFailed, Context, Bytecode }  (line 391)
+  enum ArithmeticOp  { Add, Sub, Mul }  (line 428)
+
+runtime/bytecode.rs:
+  enum Instruction  { LoadConst, LoadInput, LoadBinding, StoreBinding, FieldAccess, Add, Sub, Mul, Call, EmitDelta, Return }  (line 20)
+  struct FunctionBytecode  { instructions }  (line 36)
+  impl FunctionBytecode  { fn new(instructions: Vec<Instruction>) -> Self, fn from_function(function: &Function) -> Result<Self, BytecodeError>, fn decode(function: &Function, encoded: &str) -> Result<Self, BytecodeError>, fn encode(&self, function: &Function) -> Result<String, BytecodeError> }  (line 40)
+  enum BytecodeError  { MissingBytecode, Decode, Encode, InvalidAst }  (line 94)
+
+runtime/system_interpreter/delta.rs:
+  impl SystemInterpreter<'a>  { fn materialize_delta(
+        &self,
+        value: &DeltaValue,
+        sequence: u64,
+    ) -> Result<Delta, SystemInterpreterError> }  (line 9)
+
+runtime/system_interpreter/mod.rs:
+  struct SystemInterpreter  { ir, executor }  (line 20)
+  impl SystemInterpreter<'a>  { fn new(ir: &'a CanonicalIr) -> Self, fn execute_graph(
+        &self,
+        graph_id: &str,
+        initial_inputs: BTreeMap<String, Value>,
+    ) -> Result<SystemExecutionResult, SystemInterpreterError>, fn execute_inline(
+        &self,
+        graph: &SystemGraph,
+        initial_inputs: BTreeMap<String, Value>,
+    ) -> Result<SystemExecutionResult, SystemInterpreterError>, fn run_graph(
+        &self,
+        graph: &SystemGraph,
+        initial_inputs: BTreeMap<String, Value>,
+    ) -> Result<SystemExecutionResult, SystemInterpreterError>, fn execute_node(
+        &self,
+        node: &SystemNode,
+        inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, SystemInterpreterError>, fn execute_function(
+        &self,
+        function_id: &FunctionId,
+        inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, SystemInterpreterError>, fn execute_gate(
+        &self,
+        function_id: &FunctionId,
+        inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, SystemInterpreterError>, fn execute_persist(
+        &self,
+        function_id: &FunctionId,
+        inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, SystemInterpreterError>, fn execute_materialize(
+        &self,
+        function_id: &FunctionId,
+        inputs: BTreeMap<String, Value>,
+        context: &mut ExecutionContext,
+    ) -> Result<BTreeMap<String, Value>, SystemInterpreterError> }  (line 25)
+  struct SystemExecutionResult  { graph_id, node_results, execution_order, emitted_deltas, proof_artifacts, delta_provenance, events }  (line 188)
+  struct ProofArtifact  { node_id, proof_id, accepted }  (line 199)
+  struct DeltaEmission  { node_id, deltas }  (line 206)
+  enum SystemExecutionEvent  { Validation, NodeExecuted, ProofRecorded, DeltaRecorded }  (line 212)
+  enum SystemInterpreterError  { UnknownGraph, UnknownNode, DuplicateNode, UnknownFunction, NonTotalFunction, MissingOutput, MissingField, OutputTypeMismatch, InvalidEdge, SelfLoop, GateRejected, PersistWithoutDelta, DeltaMaterialization, CycleDetected, Executor }  (line 220)
+
+runtime/system_interpreter/effects.rs:
+  impl SystemInterpreter<'a>  { fn apply_node_effects(
+        &self,
+        node: &SystemNode,
+        outputs: &BTreeMap<String, Value>,
+        emitted_deltas: &[Delta],
+        proofs: &mut Vec<ProofArtifact>,
+        delta_records: &mut Vec<super::DeltaEmission>,
+        events: &mut Vec<SystemExecutionEvent>,
+    ) -> Result<(), SystemInterpreterError>, fn extract_gate_proof(
+        &self,
+        node: &SystemNode,
+        outputs: &BTreeMap<String, Value>,
+    ) -> Result<ProofArtifact, SystemInterpreterError>, fn ensure_struct_output(
+        &self,
+        node: &SystemNode,
+        outputs: &'value BTreeMap<String, Value>,
+        name: &str,
+    ) -> Result<&'value StructValue, SystemInterpreterError>, fn expect_output(
+        &self,
+        node: &SystemNode,
+        outputs: &'value BTreeMap<String, Value>,
+        name: &str,
+    ) -> Result<&'value Value, SystemInterpreterError>, fn expect_struct_field(
+        &self,
+        node: &SystemNode,
+        output_name: &str,
+        value: &'value StructValue,
+        field: &str,
+    ) -> Result<&'value Value, SystemInterpreterError> }  (line 9)
+
+runtime/system_interpreter/planner.rs:
+  impl SystemInterpreter<'a>  { fn index_nodes(
+        graph: &SystemGraph,
+    ) -> Result<HashMap<SystemNodeId, &SystemNode>, SystemInterpreterError>, fn index_functions(&self) -> HashMap<FunctionId, &Function>, fn validate_nodes(
+        &self,
+        node_index: &HashMap<SystemNodeId, &SystemNode>,
+        function_index: &HashMap<FunctionId, &Function>,
+        events: &mut Vec<super::SystemExecutionEvent>,
+    ) -> Result<(), SystemInterpreterError>, fn build_dependency_map(
+        &self,
+        graph: &SystemGraph,
+        node_index: &HashMap<SystemNodeId, &SystemNode>,
+    ) -> Result<HashMap<SystemNodeId, Vec<SystemNodeId>>, SystemInterpreterError>, fn topological_sort(
+        &self,
+        graph: &SystemGraph,
+        dependencies: &HashMap<SystemNodeId, Vec<SystemNodeId>>,
+    ) -> Result<Vec<SystemNodeId>, SystemInterpreterError>, fn visit_node(
+        &self,
+        node_id: &SystemNodeId,
+        dependencies: &HashMap<SystemNodeId, Vec<SystemNodeId>>,
+        visited: &mut HashSet<SystemNodeId>,
+        in_progress: &mut HashSet<SystemNodeId>,
+        sorted: &mut Vec<SystemNodeId>,
+    ) -> Result<(), SystemInterpreterError>, fn gather_inputs(
+        &self,
+        node_id: &SystemNodeId,
+        dependencies: &HashMap<SystemNodeId, Vec<SystemNodeId>>,
+        results: &HashMap<SystemNodeId, BTreeMap<String, Value>>,
+        initial_inputs: &BTreeMap<String, Value>,
+    ) -> BTreeMap<String, Value> }  (line 8)
+
+runtime/context.rs:
+  struct ExecutionContext  { state, emitted_deltas, call_stack, max_call_depth, binding_counter }  (line 15)
+  struct ExecutionState  { inputs, bindings }  (line 31)
+  impl ExecutionContext  { fn new(inputs: BTreeMap<String, Value>) -> Self, fn bind(&mut self, name: impl Into<String>, value: Value) -> Result<(), ContextError>, fn lookup(&self, name: &str) -> Result<&Value, ContextError>, fn emit_delta(&mut self, delta: DeltaValue), fn deltas(&self) -> &[DeltaValue], fn push_call(&mut self, function_id: FunctionId) -> Result<(), ContextError>, fn pop_call(&mut self) -> Result<FunctionId, ContextError>, fn call_stack(&self) -> &[FunctionId], fn create_child(&self) -> Self, fn merge_child(&mut self, child: ExecutionContext), fn bind_scoped(
+        &mut self,
+        function_id: &FunctionId,
+        slot: impl Into<String>,
+        value: Value,
+    ) -> Result<String, ContextError> }  (line 38)
+  impl ExecutionState  { fn get_input(&self, name: &str) -> Result<&Value, ContextError> }  (line 146)
+  enum ContextError  { BindingExists, UnboundName, RecursionDetected, CallStackOverflow, CallStackUnderflow }  (line 155)
+
+runtime/value.rs:
+  enum Value  { Scalar, Struct, Array, Delta, Unit }  (line 16)
+  enum ScalarValue  { F32, F64, I32, U32, Bool }  (line 25)
+  struct StructValue  { type_name, fields }  (line 34)
+  struct DeltaValue  { delta_id, payload_hash }  (line 40)
+  impl Value  { fn kind(&self) -> ValueKind, fn is_compatible_with(&self, type_ref: &TypeRef) -> bool, fn as_scalar(&self) -> Result<&ScalarValue, ValueError>, fn as_struct(&self) -> Result<&StructValue, ValueError>, fn as_delta(&self) -> Result<&DeltaValue, ValueError> }  (line 45)
+  impl ScalarValue  { fn scalar_type(&self) -> ScalarType }  (line 102)
+  enum ValueKind  { Scalar, Struct, Array, Delta, Unit }  (line 115)
+  enum ValueError  { TypeMismatch, FieldNotFound }  (line 124)
+  impl StructValue  { fn new(type_name: impl Into<String>) -> Self, fn with_field(mut self, name: impl Into<String>, value: Value) -> Self, fn get_field(&self, name: &str) -> Result<&Value, ValueError> }  (line 131)
+
+runtime/parallel.rs:
+  struct ParallelJob  { function, inputs }  (line 16)
+  struct ParallelJobResult  { function, outputs, deltas }  (line 23)
+  fn partition_independent_batches(
+    order: &[FunctionId],
+    dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
+) -> Vec<Vec<FunctionId>>  (line 30)
+  fn execute_jobs(
+    jobs: Vec<ParallelJob>,
+    worker: &F,
+) -> Result<Vec<ParallelJobResult>, ExecutorError>  (line 62)
+
+runtime/tick_executor.rs:
+  struct TickExecutor  { ir, function_executor }  (line 18)
+  enum TickExecutionMode  { Sequential, ParallelVerified }  (line 25)
+  impl TickExecutor<'a>  { fn new(ir: &'a CanonicalIr) -> Self, fn execute_tick(&self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError>, fn execute_tick_with_inputs(
+        &self,
+        tick_id: &str,
+        initial_inputs: BTreeMap<String, Value>,
+    ) -> Result<TickExecutionResult, TickExecutorError>, fn execute_tick_with_mode(
+        &self,
+        tick_id: &str,
+        mode: TickExecutionMode,
+    ) -> Result<TickExecutionResult, TickExecutorError>, fn execute_tick_with_mode_and_inputs(
+        &self,
+        tick_id: &str,
+        mode: TickExecutionMode,
+        initial_inputs: BTreeMap<String, Value>,
+    ) -> Result<TickExecutionResult, TickExecutorError>, fn execute_graph(
+        &self,
+        graph: &TickGraph,
+        tick: &Tick,
+        mode: TickExecutionMode,
+        initial_inputs: &BTreeMap<String, Value>,
+    ) -> Result<TickExecutionResult, TickExecutorError>, fn build_dependency_map(&self, graph: &TickGraph) -> HashMap<FunctionId, Vec<FunctionId>>, fn topological_sort(
+        &self,
+        graph: &TickGraph,
+        dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
+    ) -> Result<Vec<FunctionId>, TickExecutorError>, fn visit_node(
+        &self,
+        node: &FunctionId,
+        dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
+        visited: &mut HashSet<FunctionId>,
+        in_progress: &mut HashSet<FunctionId>,
+        sorted: &mut Vec<FunctionId>,
+    ) -> Result<(), TickExecutorError>, fn gather_inputs(
+        &self,
+        function_id: &FunctionId,
+        dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
+        results: &HashMap<FunctionId, BTreeMap<String, Value>>,
+        initial_inputs: &BTreeMap<String, Value>,
+    ) -> Result<BTreeMap<String, Value>, TickExecutorError>, fn execute_parallel(
+        &self,
+        execution_order: &[FunctionId],
+        dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
+        initial_inputs: &BTreeMap<String, Value>,
+    ) -> Result<
+        (
+            HashMap<FunctionId, BTreeMap<String, Value>>,
+            Vec<DeltaValue>,
+        ),
+        TickExecutorError,
+    >, fn verify_parallel_outputs(
+        &self,
+        sequential: &HashMap<FunctionId, BTreeMap<String, Value>>,
+        parallel: &HashMap<FunctionId, BTreeMap<String, Value>>,
+    ) -> Result<(), TickExecutorError>, fn verify_parallel_deltas(
+        &self,
+        sequential: &[DeltaValue],
+        parallel: &[DeltaValue],
+    ) -> Result<(), TickExecutorError> }  (line 30)
+  struct TickExecutionResult  { tick_id, function_results, execution_order, emitted_deltas, sequential_duration, parallel_duration }  (line 361)
+  enum TickExecutorError  { UnknownTick, UnknownGraph, CycleDetected, ParallelMismatch, ParallelDeltaMismatch, Executor }  (line 371)
+
+materialize/file_tree.rs:
+  struct FileTree  { directories, files }  (line 4)
+  impl FileTree  { fn new() -> Self, fn add_directory(&mut self, path: impl Into<String>), fn add_file(&mut self, path: impl Into<String>, contents: impl Into<String>), fn directories(&self) -> &BTreeSet<String>, fn files(&self) -> &BTreeMap<String, FileEntry> }  (line 9)
+  impl Default for FileTree  { fn default() -> Self }  (line 34)
+  struct FileEntry  { contents }  (line 41)
+  impl FileEntry  { fn new(contents: String) -> Self }  (line 45)
+
+materialize/render_cargo.rs:
+  fn render_cargo_toml(project: &Project, dependencies: &[ExternalDependency]) -> String  (line 3)
+
+materialize/render_impl.rs:
+  fn render_impl(
+    block: &ImplBlock,
+    struct_map: &HashMap<&str, &Struct>,
+    trait_map: &HashMap<&str, &Trait>,
+    function_map: &HashMap<&str, &Function>,
+) -> String  (line 5)
+
+materialize/mod.rs:
+  struct MaterializeResult  { tree, file_hashes }  (line 21)
+  fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> MaterializeResult  (line 26)
+  fn finalize_file(
+    tree: &mut FileTree,
+    next_hashes: &mut HashMap<String, String>,
+    previous_hashes: &HashMap<String, String>,
+    path: &str,
+    rendered: String,
+    existing_root: Option<&Path>,
+)  (line 152)
+  fn hash_contents(content: &str) -> String  (line 173)
+  fn apply_preserve_regions(
+    existing_root: Option<&Path>,
+    relative_path: &str,
+    rendered: String,
+) -> String  (line 179)
+  fn splice_preserve_blocks(new_content: &str, existing_content: &str) -> String  (line 194)
+  fn extract_preserve_blocks(content: &str) -> HashMap<String, Vec<String>>  (line 239)
+  fn split_lines_with_endings(content: &str) -> Vec<String>  (line 267)
+  fn parse_preserve_start(line: &str) -> Option<String>  (line 287)
+  fn parse_preserve_end(line: &str) -> Option<String>  (line 291)
+  fn parse_preserve_marker(line: &str, marker: &str) -> Option<String>  (line 295)
+  fn write_file_tree(tree: &FileTree, root: impl AsRef<Path>) -> std::io::Result<()>  (line 302)
+  fn file_stem(name: &str) -> &str  (line 318)
+  impl crate::ir::Module  { fn file_edges_as_pairs(&self) -> Vec<(String, String)> }  (line 322)
+
+materialize/render_trait.rs:
+  fn render_trait(trait_def: &Trait) -> String  (line 7)
+
+materialize/render_fn/ast.rs:
+  fn render_ast_body(ast: &JsonValue, depth: usize) -> String  (line 3)
+  fn indent(depth: usize) -> String  (line 9)
+  fn render_ast_node(node: &JsonValue, depth: usize, out: &mut String)  (line 13)
+  fn render_block(node: &JsonValue, depth: usize, out: &mut String)  (line 34)
+  fn render_let(node: &JsonValue, depth: usize, out: &mut String)  (line 42)
+  fn render_if(node: &JsonValue, depth: usize, out: &mut String)  (line 55)
+  fn render_match(node: &JsonValue, depth: usize, out: &mut String)  (line 71)
+  fn render_while(node: &JsonValue, depth: usize, out: &mut String)  (line 90)
+  fn render_for(node: &JsonValue, depth: usize, out: &mut String)  (line 102)
+  fn render_loop(node: &JsonValue, depth: usize, out: &mut String)  (line 115)
+  fn render_break(node: &JsonValue, depth: usize, out: &mut String)  (line 123)
+  fn render_return(node: &JsonValue, depth: usize, out: &mut String)  (line 134)
+  fn render_assign(node: &JsonValue, depth: usize, out: &mut String)  (line 145)
+  fn render_compound_assign(node: &JsonValue, depth: usize, out: &mut String)  (line 157)
+  fn render_call_stmt(node: &JsonValue, depth: usize, out: &mut String)  (line 170)
+  fn render_literal(node: &JsonValue, depth: usize, out: &mut String)  (line 178)
+  fn render_expression_stmt(node: &JsonValue, depth: usize, out: &mut String)  (line 183)
+  fn render_ast_expr(node: &JsonValue) -> String  (line 190)
+  fn render_call_expr(node: &JsonValue) -> String  (line 219)
+  fn render_method_expr(node: &JsonValue) -> String  (line 229)
+  fn render_binary_expr(node: &JsonValue) -> String  (line 243)
+  fn render_unary_expr(node: &JsonValue) -> String  (line 256)
+  fn render_field_expr(node: &JsonValue) -> String  (line 265)
+  fn render_index_expr(node: &JsonValue) -> String  (line 274)
+  fn render_struct_lit_expr(node: &JsonValue) -> String  (line 286)
+  fn render_tuple_expr(node: &JsonValue) -> String  (line 308)
+  fn render_array_expr(node: &JsonValue) -> String  (line 322)
+  fn render_ref_expr(node: &JsonValue) -> String  (line 331)
+  fn render_range_expr(node: &JsonValue) -> String  (line 343)
+  fn render_cast_expr(node: &JsonValue) -> String  (line 356)
+  fn render_closure_expr(node: &JsonValue) -> String  (line 365)
+
+materialize/render_fn/mod.rs:
+  fn render_type(ty: &TypeRef) -> String  (line 10)
+  fn render_type_core(ty: &TypeRef) -> String  (line 18)
+  fn render_named_type(ty: &TypeRef) -> String  (line 31)
+  fn render_tuple_type(params: &[TypeRef]) -> String  (line 40)
+  fn render_fn_ptr_type(params: &[TypeRef]) -> String  (line 51)
+  fn render_slice_type(ty: &TypeRef) -> String  (line 69)
+  fn apply_ref(inner: String, ref_kind: RefKind, lifetime: Option<&str>) -> String  (line 82)
+  fn lifetime_fragment(lifetime: Option<&str>) -> String  (line 90)
+  fn format_lifetime_param(raw: &str) -> String  (line 105)
+  fn render_impl_dyn_trait(prefix: &str, params: &[TypeRef]) -> String  (line 116)
+  fn render_fn_signature(inputs: &[ValuePort], outputs: &[ValuePort]) -> String  (line 130)
+  fn render_fn_signature_with_receiver(
+    receiver: Receiver,
+    inputs: &[ValuePort],
+    outputs: &[ValuePort],
+    lifetime_params: &[String],
+    generics: &[GenericParam],
+    where_clauses: &[WhereClause],
+) -> String  (line 134)
+  fn render_output_types(outputs: &[ValuePort]) -> Option<String>  (line 175)
+  fn render_generics(
+    lifetime_params: &[String],
+    generics: &[GenericParam],
+) -> String  (line 192)
+  fn render_where_suffix(where_clauses: &[WhereClause]) -> String  (line 214)
+  fn render_impl_function(function: &Function) -> String  (line 235)
+
+materialize/render_module.rs:
+  fn render_file(
+    file_node: &FileNode,
+    module: &crate::ir::Module,
+    ir: &CanonicalIr,
+    struct_map: &HashMap<&str, &Struct>,
+    trait_map: &HashMap<&str, &Trait>,
+    function_map: &HashMap<&str, &Function>,
+    use_lines: &[String],
+) -> String  (line 10)
+  fn render_module(
+    module: &crate::ir::Module,
+    ir: &CanonicalIr,
+    struct_map: &HashMap<&str, &Struct>,
+    trait_map: &HashMap<&str, &Trait>,
+    function_map: &HashMap<&str, &Function>,
+) -> String  (line 71)
+  fn topo_sort_files(
+    files: &[FileNode],
+    edges: &[(String, String)],
+) -> Vec<FileNode>  (line 113)
+  fn render_module_items_block(module: &crate::ir::Module) -> Option<String>  (line 164)
+  fn push_doc_lines(lines: &mut Vec<String>, doc: &str)  (line 212)
+  fn push_module_attributes(lines: &mut Vec<String>, module: &crate::ir::Module)  (line 222)
+  fn collect_incoming_types(ir: &CanonicalIr, module_id: &str) -> Vec<(String, Vec<String>)>  (line 228)
+  fn render_use_block(incoming: &[(String, Vec<String>)]) -> Vec<String>  (line 245)
+  fn normalize_use_prefix(source: &str) -> String  (line 264)
+  fn collect_intramodule_types(
+    module: &crate::ir::Module,
+    current_file_id: &str,
+    ir: &CanonicalIr,
+) -> Vec<String>  (line 272)
+  fn intramodule_use_line(
+    type_name: &str,
+    explicit_file_id: Option<&str>,
+    current_file_id: &str,
+    id_to_stem: &HashMap<String, String>,
+    stem_to_id: &HashMap<String, String>,
+) -> Option<String>  (line 310)
+  fn build_file_maps(
+    module: &crate::ir::Module,
+) -> (HashMap<String, String>, HashMap<String, String>)  (line 330)
+  fn collect_external_uses(
+    module_id: &str,
+    ir: &CanonicalIr,
+    _function_map: &HashMap<&str, &Function>,
+) -> Vec<String>  (line 346)
+  fn collect_external_types(ty: &crate::ir::TypeRef, out: &mut BTreeSet<String>)  (line 360)
+  fn sort_use_lines(mut lines: Vec<String>) -> Vec<String>  (line 372)
+  fn use_line_rank(line: &str) -> u8  (line 385)
+  fn to_snake_case(value: &str) -> String  (line 395)
+  fn file_stem(name: &str) -> &str  (line 418)
+
+materialize/render_struct.rs:
+  fn render_struct(structure: &Struct) -> String  (line 4)
+  fn render_visibility(vis: Visibility) -> &'static str  (line 67)
+  fn render_enum(en: &EnumNode) -> String  (line 76)
+
+proposal.rs:
+  struct ModuleSpec  { id, name }  (line 11)
+  struct StructSpec  { id, name, module }  (line 17)
+  struct TraitSpec  { id, name, module }  (line 24)
+  struct ResolvedProposalNodes  { modules, structs, traits }  (line 31)
+  enum ProposalResolutionError  { MissingModule, MissingIdentifier, DuplicateArtifact, InvalidIdentifier, Word }  (line 38)
+  fn resolve_proposal_nodes(
+    proposal: &Proposal,
+) -> Result<ResolvedProposalNodes, ProposalResolutionError>  (line 51)
+  fn derive_word_from_identifier(identifier: &str) -> Result<Word, ProposalResolutionError>  (line 127)
+  fn slugify_word(word: &Word) -> String  (line 157)
+  fn sanitize_identifier(value: &str) -> String  (line 161)
+  fn determine_module_id(node: &ProposedNode) -> Result<ModuleId, ProposalResolutionError>  (line 174)
+  fn determine_struct_id(
+    node: &ProposedNode,
+    module_id: &str,
+) -> Result<StructId, ProposalResolutionError>  (line 184)
+  fn determine_trait_id(
+    node: &ProposedNode,
+    module_id: &str,
+) -> Result<TraitId, ProposalResolutionError>  (line 198)
+  struct DslModule  { name, imports }  (line 213)
+  struct DslGoal  { name, steps, signature }  (line 219)
+  struct DslProposalArtifacts  { proposal, goal_slug }  (line 226)
+  enum DslProposalError  { MissingModules, MissingGoal, InvalidModule, InvalidGoal, Word }  (line 232)
+  fn create_proposal_from_dsl(source: &str) -> Result<DslProposalArtifacts, DslProposalError>  (line 245)
+  fn parse_module_decl(input: &str) -> Result<DslModule, DslProposalError>  (line 364)
+  fn parse_goal_decl(input: &str) -> Result<DslGoal, DslProposalError>  (line 386)
+  fn canonical_word(input: &str) -> Result<Word, WordError>  (line 407)
+
+observe.rs:
+  fn execution_events_to_observe_deltas(
+    execution: &ExecutionRecord,
+    proof_id: &str,
+) -> Vec<Delta>  (line 3)
+  fn describe_event(execution_id: &str, idx: usize, event: &ExecutionEvent) -> String  (line 28)
+
+main.rs:
+  fn main()  (line 21)
+  fn run() -> Result<(), Box<dyn std::error::Error>>  (line 28)
+  struct Cli  { command }  (line 283)
+  enum Command  { Schema, Validate, IngestStub, Lint, RenderFn, DiffIr, Materialize, ObserveEvents, Decide, SubmitDsl, ExecuteTick, ImportDot, ExportDot, VerifyDot, SubmitFnAst }  (line 289)
+  fn enforce_version_gate(ir: &CanonicalIr) -> Result<(), Box<dyn std::error::Error>>  (line 452)
+  fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 471)
+  fn diff_ir(before: &CanonicalIr, after: &CanonicalIr) -> String  (line 477)
+  fn diff_section(
+    label: &str,
+    before: impl Iterator<Item = String>,
+    after: impl Iterator<Item = String>,
+    lines: &mut Vec<String>,
+)  (line 518)
+  fn violation_severity(rule: CanonRule) -> &'static str  (line 534)
+
+evolution/mod.rs:
+  fn apply_deltas(
+    ir: &CanonicalIr,
+    admission_ids: &[AdmissionId],
+) -> Result<CanonicalIr, EvolutionError>  (line 18)
+  fn enforce_delta_application(delta: &Delta) -> Result<(), EvolutionError>  (line 94)
+  enum EvolutionError  { UnknownAdmission, UnknownJudgment, UnknownDelta, JudgmentNotAccepted, MissingContext, UnknownStruct, UnknownField, UnknownModule, UnknownImpl, UnknownTrait, UnknownTraitFunction, UnknownExecution, UnknownFunction, UnknownEnum, DuplicateArtifact, PayloadHash, Kernel, VerificationFailed }  (line 106)
+
+evolution/kernel_bridge.rs:
+  fn build_proof_registry(proofs: &[Proof]) -> KernelProofRegistry  (line 16)
+  fn build_invariant_registry() -> KernelInvariantRegistry  (line 30)
+  fn build_state_log(
+    ir: &CanonicalIr,
+    deltas: &HashMap<&str, &Delta>,
+) -> Result<StateLog, EvolutionError>  (line 38)
+  fn build_kernel_admission(
+    admission: &DeltaAdmission,
+    deltas: &HashMap<&str, &Delta>,
+) -> Result<KernelAdmission, EvolutionError>  (line 61)
+  fn kernel_delta(delta: &Delta) -> Result<KernelDelta, EvolutionError>  (line 83)
+  fn payload_hash(delta: &Delta) -> Result<String, EvolutionError>  (line 91)
+  fn initial_state_seed(meta: &CanonicalMeta) -> String  (line 97)
+  fn map_proof_scope(scope: crate::ir::ProofScope) -> KernelProofScope  (line 101)
+
+evolution/structural.rs:
+  fn apply_structural_delta(
+    ir: &mut CanonicalIr,
+    delta: &Delta,
+) -> Result<(), EvolutionError>  (line 8)
+  fn rename_module(
+    ir: &mut CanonicalIr,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError>  (line 317)
+  fn rename_struct(
+    ir: &mut CanonicalIr,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError>  (line 359)
+  fn rename_function(
+    ir: &mut CanonicalIr,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError>  (line 383)
+  fn ensure_module_exists(ir: &CanonicalIr, module: &str) -> Result<(), EvolutionError>  (line 412)
+  fn ensure_struct_exists(ir: &CanonicalIr, struct_id: &str) -> Result<(), EvolutionError>  (line 420)
+  fn ensure_field_exists(
+    ir: &CanonicalIr,
+    struct_id: &str,
+    field_name: &str,
+) -> Result<(), EvolutionError>  (line 428)
+  fn ensure_trait_exists(ir: &CanonicalIr, trait_id: &str) -> Result<(), EvolutionError>  (line 448)
+  fn ensure_trait_function_exists(
+    ir: &CanonicalIr,
+    trait_id: &str,
+    trait_fn: &str,
+) -> Result<(), EvolutionError>  (line 456)
+  fn ensure_function_exists(ir: &CanonicalIr, function_id: &str) -> Result<(), EvolutionError>  (line 473)
+
+dot_import.rs:
+  struct DotCluster  { id, label, nodes, intra_edges }  (line 14)
+  struct DotNode  { id, label }  (line 23)
+  struct DotIntraEdge  { from, to }  (line 30)
+  struct DotInterEdge  { from_cluster, to_cluster, imported_types }  (line 37)
+  struct DotGraph  { clusters, inter_edges }  (line 45)
+  enum DotImportError  { Word, NoClusters, UnknownNode, BadClusterLabel }  (line 53)
+  fn parse_dot(source: &str) -> Result<DotGraph, DotImportError>  (line 67)
+  fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, DotImportError>  (line 194)
+  fn dot_graph_to_file_topology(
+    graph: &DotGraph,
+) -> HashMap<String, (Vec<FileNode>, Vec<FileEdge>)>  (line 307)
+  fn dot_graph_to_imported_types(
+    graph: &DotGraph,
+) -> HashMap<(String, String), Vec<String>>  (line 346)
+  fn parse_node_decl(line: &str) -> Option<DotNode>  (line 364)
+  fn parse_edge_line(line: &str) -> Option<(String, String, Vec<String>)>  (line 375)
+  fn extract_attr(line: &str, attr: &str) -> Option<String>  (line 402)
+  fn cluster_label(clusters: &'a [DotCluster], cluster_id: &'a str) -> &'a str  (line 410)
+  fn cluster_label_to_word(label: &str) -> Result<Word, DotImportError>  (line 423)
+  fn slugify(label: &str) -> String  (line 444)
+
+

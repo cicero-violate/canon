@@ -33,7 +33,7 @@ The pipeline currently generates:
 - [x] Tuple: `(a, b, c)`
 - [x] Array literal: `[a, b, c]`
 - [x] Reference / dereference: `&x`, `&mut x`
-- [ ] Closure: `|args| body`
+- [x] Closure: `|args| body`
 - [x] Range: `0..n`, `0..=n`
 - [x] Cast: `x as u64`
 - [x] Question mark operator: `expr?`
@@ -50,36 +50,36 @@ The pipeline currently generates:
 ### 1.3 Type system — TypeRef is too simple
 - [x] Generic types: `Vec<T>`, `Option<T>`, `Result<T, E>`
 - [x] Reference types: `&T`, `&mut T`
-- [ ] Tuple types: `(A, B)`
-- [ ] Slice types: `&[T]`
-- [ ] Function pointer types: `fn(A) -> B`
+- [x] Tuple types: `(A, B)`
+- [x] Slice types: `&[T]`
+- [x] Function pointer types: `fn(A) -> B`
 - [ ] Lifetime annotations: `&'a T`
 - [ ] `Self` type in trait contexts
 
 ### 1.4 Struct features
-- [ ] Tuple structs: `struct Foo(A, B);`
-- [ ] Unit structs: `struct Marker;`
-- [ ] Derive macros: `#[derive(Debug, Clone, ...)]`
-- [ ] `pub(crate)` and `pub(super)` visibility
-- [ ] Doc comments on structs and fields
+- [x] Tuple structs: `struct Foo(A, B);`
+- [x] Unit structs: `struct Marker;`
+- [x] Derive macros: `#[derive(Debug, Clone, ...)]`
+- [x] `pub(crate)` and `pub(super)` visibility
+- [x] Doc comments on structs and fields
 
 ### 1.5 Trait features
-- [ ] Default method bodies in traits
-- [ ] Associated types: `type Output;`
-- [ ] Associated constants: `const N: usize;`
-- [ ] Trait bounds: `T: Trait + OtherTrait`
-- [ ] Supertrait declarations: `trait Foo: Bar`
-- [ ] Generic trait parameters: `trait Foo<T>`
+- [x] Default method bodies in traits
+- [x] Associated types: `type Output;`
+- [x] Associated constants: `const N: usize;`
+- [x] Trait bounds: `T: Trait + OtherTrait`
+- [x] Supertrait declarations: `trait Foo: Bar`
+- [x] Generic trait parameters: `trait Foo<T>`
 
 ### 1.6 Function features
 - [x] `self`, `&self`, `&mut self` receiver — Receiver enum on Function and FunctionSignature
 - [ ] Default parameter values (via wrapper fns)
-- [ ] `async fn` flag on Function
-- [ ] `unsafe fn` flag on Function
-- [ ] Generic parameters on functions: `fn foo<T: Trait>(x: T)`
-- [ ] Where clauses: `where T: Debug`
+- [x] `async fn` flag on Function
+- [x] `unsafe fn` flag on Function
+- [x] Generic parameters on functions: `fn foo<T: Trait>(x: T)`
+- [x] Where clauses: `where T: Debug`
 - [ ] Variadic inputs (via slice type)
-- [ ] Doc comments on functions
+- [x] Doc comments on functions
 
 ### 1.7 Enum support — entirely missing
 - [x] `DeltaPayload::AddEnum` / `AddEnumVariant` variants in ir.rs
@@ -90,23 +90,23 @@ The pipeline currently generates:
 - [x] `check_enums` in `validate/check_artifacts.rs`
 
 ### 1.8 Module-level items missing
-- [ ] `use` re-exports: `pub use crate::foo::Bar;`
-- [ ] Module-level constants: `pub const MAX: usize = 100;`
-- [ ] Module-level statics
-- [ ] Type aliases: `type Result<T> = std::result::Result<T, Error>;`
-- [ ] Attribute macros on modules: `#![allow(dead_code)]`
+- [x] `use` re-exports: `pub use crate::foo::Bar;`
+- [x] Module-level constants: `pub const MAX: usize = 100;`
+- [x] Module-level statics
+- [x] Type aliases: `type Result<T> = std::result::Result<T, Error>;`
+- [x] Attribute macros on modules: `#![allow(dead_code)]`
 
 ---
 
 ## 2. Delta pipeline gaps
 
 ### 2.1 Missing DeltaPayload variants
-- [ ] `UpdateFunctionInputs { function_id, inputs }` — change a function's input ports
-- [ ] `UpdateFunctionOutputs { function_id, outputs }` — change output ports
-- [ ] `UpdateStructVisibility { struct_id, visibility }`
-- [ ] `AddEnumVariant { enum_id, variant }`
-- [ ] `RemoveField { struct_id, field_name }` — with proof requirement
-- [ ] `RenameArtifact { kind, old_id, new_id }` — rename with full ref-update
+- [x] `UpdateFunctionInputs { function_id, inputs }` — change a function's input ports
+- [x] `UpdateFunctionOutputs { function_id, outputs }` — change output ports
+- [x] `UpdateStructVisibility { struct_id, visibility }`
+- [x] `AddEnumVariant { enum_id, variant }`
+- [x] `RemoveField { struct_id, field_name }` — with proof requirement
+- [x] `RenameArtifact { kind, old_id, new_id }` — rename with full ref-update
 
 ### 2.2 auto_accept_fn_ast structural flaw (Gap 1)
 - [x] `ProposalKind` enum added: `Structural | FunctionBody | SchemaEvolution`
@@ -123,18 +123,18 @@ The pipeline currently generates:
 - [ ] `Function.file_id: Option<String>` field in IR pointing to a FileNode id
 
 ### 3.2 Imports
-- [ ] Emit `use super::...` for intra-module cross-file references
-- [ ] Emit `use crate::...` for intra-crate cross-module references
-- [ ] Emit `use ::external_crate::...` for external dependencies
-- [ ] Deduplicate use statements per file
+- [x] Emit `use super::...` for intra-module cross-file references
+- [x] Emit `use crate::...` for intra-crate cross-module references
+- [x] Emit `use ::external_crate::...` for external dependencies
+- [x] Deduplicate use statements per file
 
 ### 3.3 Formatting
 - [ ] Run `rustfmt` on emitted files if available on PATH
 - [ ] Configurable indentation (spaces vs tabs)
 
 ### 3.4 Incremental materialization
-- [ ] Only re-emit files whose content has changed (hash-based)
-- [ ] Preserve hand-edited regions via `// canon:preserve` marker comments
+- [x] Only re-emit files whose content has changed (hash-based)
+- [x] Preserve hand-edited regions via `// canon:preserve` marker comments
 
 ---
 
@@ -161,10 +161,10 @@ The pipeline currently generates:
 
 ## 5. Validation gaps
 
-- [ ] Validate `FileNode.id` uniqueness within a Module
-- [ ] Validate `FileEdge` references point to declared `FileNode` ids
-- [ ] Validate `imported_types` on ModuleEdge are non-empty strings
-- [ ] Validate AST node `kind` field is a known value when present
+- [x] Validate `FileNode.id` uniqueness within a Module
+- [x] Validate `FileEdge` references point to declared `FileNode` ids
+- [x] Validate `imported_types` on ModuleEdge are non-empty strings
+- [x] Validate AST node `kind` field is a known value when present
 - [ ] Validate `FunctionMetadata.ast` is a valid AST shape (optional deep check)
 - [ ] Validate enum ids once enums are added
 
@@ -173,10 +173,10 @@ The pipeline currently generates:
 ## 6. CLI gaps
 
 - [ ] `canon verify-dot` — round-trip fidelity check (see 4.1)
-- [ ] `canon diff-ir <old.json> <new.json>` — show what changed between two IRs
-- [ ] `canon render-fn <ir.json> --fn-id <id>` — print a single function body to stdout
+- [x] `canon diff-ir <old.json> <new.json>` — show what changed between two IRs
+- [x] `canon render-fn <ir.json> --fn-id <id>` — print a single function body to stdout
 - [ ] `canon graph <ir.json>` — print module DAG as DOT to stdout (alias for export-dot)
-- [ ] `canon lint <ir.json>` — validate + print suggestions, not just errors
+- [x] `canon lint <ir.json>` — validate + print suggestions, not just errors
 
 ---
 
@@ -192,9 +192,9 @@ The pipeline currently generates:
 - [ ] 8. Incremental materialization
 
 Next session — natural starting points:
-Priority 8: Incremental materialization — hash-based re-emit, // canon:preserve regions (section 3.4)
-Section 1.4/1.5: Struct and trait features — derive macros, pub(crate), associated types, default method bodies, supertraits
-Section 1.6: Function features — async fn, unsafe fn, generics on functions, where clauses
-Section 1.8: Module-level items — pub use, pub const, type aliases
-Section 2.1: Delta pipeline gaps — UpdateFunctionInputs, UpdateFunctionOutputs, UpdateStructVisibility, RemoveField
-Section 3.2: Import deduplication — use super::, use crate::, use ::external_crate::
+- Lifetime annotations on references and `Self` type handling (1.3)
+- Variadic inputs support (1.6)
+- DOT parser robustness improvements (4.2)
+- `rustfmt` integration for emitted files (3.3)
+- File-placement materialization polish (3.1)
+- CLI polish: `canon graph` command (section 6)

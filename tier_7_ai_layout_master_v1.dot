@@ -1,0 +1,107 @@
+digraph Tier7AI {
+
+    rankdir=LR;
+    node [shape=box, style=rounded];
+
+    // ================= INFRA =================
+    N1  [label="infra_core::distributed_runtime"];
+    N2  [label="infra_core::scheduler"];
+    N3  [label="infra_core::resource_allocator"];
+
+    // ================= DATA =================
+    N4  [label="data_system::ingestion_pipeline"];
+    N5  [label="data_system::validation_engine"];
+    N6  [label="data_system::feature_store"];
+
+    // ================= MODEL =================
+    N7  [label="model_core::foundation_model"];
+    N8  [label="model_core::multimodal_encoder"];
+    N9  [label="model_core::decoder_stack"];
+
+    // ================= MEMORY =================
+    N10 [label="memory_system::vector_memory"];
+    N11 [label="memory_system::episodic_memory"];
+    N12 [label="memory_system::long_term_store"];
+
+    // ================= REASONING =================
+    N13 [label="reasoning_engine::symbolic_reasoner"];
+    N14 [label="reasoning_engine::neural_reasoner"];
+    N15 [label="reasoning_engine::planner"];
+
+    // ================= ALIGNMENT =================
+    N16 [label="alignment_core::reward_model"];
+    N17 [label="alignment_core::constitutional_filter"];
+
+    // ================= AGENT =================
+    N18 [label="agent_system::tool_executor"];
+    N19 [label="agent_system::world_model"];
+
+    // ================= CONTROL =================
+    N20 [label="control_system::policy_engine"];
+    N21 [label="control_system::monitoring"];
+
+    // ================= SAFETY =================
+    N22 [label="safety_layer::anomaly_detection"];
+    N23 [label="safety_layer::sandbox_env"];
+
+    // ================= INTERFACE =================
+    N24 [label="interface_layer::api_gateway"];
+    N25 [label="interface_layer::multimodal_io"];
+
+    // ================= EVALUATION =================
+    N26 [label="evaluation::benchmark_runner"];
+    N27 [label="evaluation::red_team"];
+
+    // ================= SELF IMPROVEMENT =================
+    N28 [label="self_improvement::auto_trainer"];
+    N29 [label="self_improvement::architecture_search"];
+
+    // ================= EDGES =================
+
+    // Infra
+    N1 -> N2;
+    N2 -> N3;
+    N3 -> N10;
+
+    // Data Flow
+    N4 -> N5;
+    N5 -> N6;
+    N6 -> N12;
+
+    // Interface to Model
+    N24 -> N7;
+    N25 -> N8;
+    N8  -> N9;
+    N7  -> N15;
+    N9  -> N15;
+
+    // Memory
+    N10 -> N11;
+    N11 -> N15;
+    N12 -> N11;
+
+    // Reasoning
+    N13 -> N15;
+    N14 -> N15;
+    N19 -> N13;
+    N15 -> N18;
+
+    // Alignment
+    N16 -> N7;
+    N17 -> N18;
+    N27 -> N16;
+    N26 -> N27;
+
+    // Agent Loop
+    N18 -> N19;
+
+    // Control & Safety
+    N22 -> N20;
+    N20 -> N18;
+    N21 -> N22;
+    N23 -> N18;
+
+    // Self Improvement
+    N28 -> N7;
+    N29 -> N28;
+}

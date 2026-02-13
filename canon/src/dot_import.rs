@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::ir::{
-    FileEdge, FileNode, ModuleEdge, ModuleId, Proposal, ProposalGoal, ProposalStatus,
-    ProposedApi, ProposedEdge, ProposedNode, ProposedNodeKind, Word, WordError,
+    FileEdge, FileNode, Proposal, ProposalGoal, ProposalStatus, ProposedApi, ProposedEdge,
+    ProposedNode, ProposedNodeKind, Word, WordError,
 };
 
 // ── parser types ────────────────────────────────────────────────────────────
@@ -289,6 +289,7 @@ pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, D
 
     Ok(Proposal {
         id: format!("proposal.dot.{goal_slug}"),
+        kind: crate::ir::ProposalKind::Structural,
         goal: ProposalGoal {
             id: goal_word,
             description: format!("Imported from DOT: {goal}"),
@@ -342,9 +343,7 @@ pub fn dot_graph_to_file_topology(
 
 /// Extract `imported_types` per `(from_module_id, to_module_id)` pair,
 /// ready to be patched onto `ModuleEdge` entries after acceptance.
-pub fn dot_graph_to_imported_types(
-    graph: &DotGraph,
-) -> HashMap<(String, String), Vec<String>> {
+pub fn dot_graph_to_imported_types(graph: &DotGraph) -> HashMap<(String, String), Vec<String>> {
     let mut out: HashMap<(String, String), Vec<String>> = HashMap::new();
 
     for inter in &graph.inter_edges {
@@ -379,7 +378,10 @@ fn parse_edge_line(line: &str) -> Option<(String, String, Vec<String>)> {
     let rest = line[arrow + 2..].trim();
 
     let (to_raw, label_str) = if let Some(bracket) = rest.find('[') {
-        (&rest[..bracket], extract_attr(rest, "label").unwrap_or_default())
+        (
+            &rest[..bracket],
+            extract_attr(rest, "label").unwrap_or_default(),
+        )
     } else {
         (rest, String::new())
     };

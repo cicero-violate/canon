@@ -1,0 +1,227 @@
+digraph Tier7_Master_DAG {
+
+    rankdir=LR;
+    compound=true;
+    node [shape=box, style=rounded];
+
+    /* =======================================================
+       FOUNDATION
+       ======================================================= */
+
+    subgraph cluster_foundation {
+        label="Foundation";
+        style=rounded;
+
+        canonical_ir;
+        delta_system;
+        cost_model;
+        vector_semantics;
+    }
+
+    /* =======================================================
+       KERNEL
+       ======================================================= */
+
+    subgraph cluster_kernel {
+        label="kernel";
+        style=rounded;
+
+        k_state      [label="state.rs"];
+        k_delta      [label="delta.rs"];
+        k_invariant  [label="invariant.rs"];
+        k_apply      [label="apply.rs"];
+        k_hash       [label="hash.rs"];
+        k_error      [label="error.rs"];
+    }
+
+    k_state     -> k_invariant;
+    k_delta     -> k_apply;
+    k_invariant -> k_apply;
+    k_apply     -> k_hash;
+    k_hash      -> k_error;
+
+    /* =======================================================
+       MEMORY
+       ======================================================= */
+
+    subgraph cluster_memory {
+        label="memory_engine";
+        style=rounded;
+
+        m_primitives [label="primitives.rs"];
+        m_delta      [label="delta_store.rs"];
+        m_epoch      [label="epoch.rs"];
+        m_ledger     [label="ledger.rs"];
+        m_merkle     [label="merkle.rs"];
+        m_snapshot   [label="snapshot.rs"];
+    }
+
+    m_primitives -> m_delta;
+    m_delta      -> m_epoch;
+    m_epoch      -> m_ledger;
+    m_ledger     -> m_merkle;
+    m_merkle     -> m_snapshot;
+
+    /* =======================================================
+       JUDGMENT
+       ======================================================= */
+
+    subgraph cluster_judgment {
+        label="judgment";
+        style=rounded;
+
+        j_evidence  [label="evidence.rs"];
+        j_radius    [label="radius.rs"];
+        j_risk      [label="risk_model.rs"];
+        j_decision  [label="decision.rs"];
+        j_token     [label="judgment_token.rs"];
+        j_audit     [label="audit.rs"];
+    }
+
+    j_evidence -> j_radius;
+    j_radius   -> j_risk;
+    j_risk     -> j_decision;
+    j_decision -> j_token;
+    j_token    -> j_audit;
+
+    /* =======================================================
+       PLANNER
+       ======================================================= */
+
+    subgraph cluster_planner {
+        label="planner";
+        style=rounded;
+
+        p_goal        [label="goal.rs"];
+        p_intent      [label="intent.rs"];
+        p_selector    [label="selector.rs"];
+        p_resolver    [label="resolver.rs"];
+        p_constraints [label="constraint_graph.rs"];
+        p_solver      [label="dependency_solver.rs"];
+        p_plan        [label="plan.rs"];
+    }
+
+    p_goal        -> p_intent;
+    p_intent      -> p_selector;
+    p_selector    -> p_resolver;
+    p_resolver    -> p_constraints;
+    p_constraints -> p_solver;
+    p_solver      -> p_plan;
+
+    /* =======================================================
+       EXECUTION
+       ======================================================= */
+
+    subgraph cluster_execution {
+        label="execution_engine";
+        style=rounded;
+
+        e_action     [label="action.rs"];
+        e_interp     [label="interpreter.rs"];
+        e_executor   [label="executor.rs"];
+        e_sandbox    [label="sandbox.rs"];
+        e_result     [label="result.rs"];
+    }
+
+    e_action   -> e_interp;
+    e_interp   -> e_executor;
+    e_executor -> e_sandbox;
+    e_sandbox  -> e_result;
+
+    /* =======================================================
+       OTHER CRATES
+       ======================================================= */
+
+    graph_engine;
+    capability_registry;
+    policy_engine;
+    learning_engine;
+    governance;
+    lint_engine;
+    proof_system;
+    lean_gate;
+    runtime;
+    scheduler;
+    host_controller;
+    gpu_pipeline;
+    observation_engine;
+    orchestration;
+    api_layer;
+    cli;
+    snapshot_system;
+
+    /* =======================================================
+       CRATE DEPENDENCIES
+       ======================================================= */
+
+    /* Foundation → Core */
+
+    canonical_ir -> k_state;
+    delta_system -> k_delta;
+
+    k_hash -> m_primitives;
+
+    /* Kernel → Memory */
+
+    k_apply -> m_delta;
+
+    /* Memory → Proof */
+
+    m_snapshot -> proof_system;
+    proof_system -> lean_gate;
+
+    /* Governance */
+
+    proof_system -> governance;
+    m_ledger     -> governance;
+    lint_engine  -> governance;
+    governance   -> j_decision;
+
+    /* Judgment → Planner */
+
+    j_token -> p_goal;
+    cost_model -> j_radius;
+    vector_semantics -> p_selector;
+
+    /* Planner Dependencies */
+
+    canonical_ir      -> p_resolver;
+    graph_engine      -> p_selector;
+    capability_registry -> p_resolver;
+    policy_engine     -> p_constraints;
+
+    /* Planner → Execution */
+
+    p_plan -> e_action;
+
+    /* Execution → Runtime */
+
+    runtime -> e_executor;
+    k_state -> runtime;
+
+    /* Execution → Host/GPU */
+
+    e_executor -> host_controller;
+    e_executor -> gpu_pipeline;
+
+    /* Scheduler */
+
+    scheduler -> e_executor;
+    orchestration -> scheduler;
+
+    /* Observation + Learning */
+
+    e_result -> observation_engine;
+    observation_engine -> learning_engine;
+    learning_engine -> p_goal;
+
+    /* Snapshot System */
+
+    m_snapshot -> snapshot_system;
+
+    /* API + CLI */
+
+    api_layer -> orchestration;
+    api_layer -> p_goal;
+    cli -> api_layer;
+}

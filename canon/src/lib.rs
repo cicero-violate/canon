@@ -1,11 +1,12 @@
 pub mod decision;
-pub mod dot_import;
 pub mod dot_export;
+pub mod dot_import;
 pub mod evolution;
 pub mod gpu;
+pub mod ingest;
 pub mod ir;
+pub mod layout;
 pub mod materialize;
-pub mod memory;
 pub mod observe;
 pub mod patch_protocol;
 pub mod proof;
@@ -21,13 +22,19 @@ pub use decision::{
 };
 pub use decision::{AutoAcceptDotError, auto_accept_dot_proposal};
 pub use decision::{AutoAcceptFnAstError, auto_accept_fn_ast};
+pub use dot_export::verify_dot;
 pub use evolution::{EvolutionError, apply_deltas};
 pub use gpu::{
     codegen::{GpuProgram, flatten_ports, generate_shader},
     dispatch::{GpuExecutor, GpuExecutorError},
 };
 pub use ir::{CanonicalIr, PipelineStage};
-pub use materialize::{FileEntry, FileTree, materialize, write_file_tree};
+pub use layout::{
+    LayoutAssignment, LayoutGraph, LayoutMap, LayoutModule, LayoutNode, LayoutStrategy,
+};
+pub use materialize::{
+    FileEntry, FileTree, MaterializeResult, materialize, render_impl_function, write_file_tree,
+};
 pub use observe::execution_events_to_observe_deltas;
 pub use patch_protocol::{
     ApprovedPatchRegistry, PatchApplier, PatchDecision, PatchError, PatchGate, PatchMetadata,

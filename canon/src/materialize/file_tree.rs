@@ -19,7 +19,8 @@ impl FileTree {
     }
 
     pub fn add_file(&mut self, path: impl Into<String>, contents: impl Into<String>) {
-        self.files.insert(path.into(), FileEntry::new(contents.into()));
+        self.files
+            .insert(path.into(), FileEntry::new(contents.into()));
     }
 
     pub fn directories(&self) -> &BTreeSet<String> {

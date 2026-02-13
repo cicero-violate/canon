@@ -1,10 +1,14 @@
 use std::collections::HashMap;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
+
+use sha2::{Digest, Sha256};
 
 use crate::ir::{CanonicalIr, Function, Struct, Trait};
+use render_module::render_file;
 
 pub use self::file_tree::{FileEntry, FileTree};
+pub use self::render_fn::render_impl_function;
 
 mod file_tree;
 mod render_cargo;
@@ -14,17 +18,22 @@ mod render_module;
 mod render_struct;
 mod render_trait;
 
-pub fn materialize(ir: &CanonicalIr) -> FileTree {
+pub struct MaterializeResult {
+    pub tree: FileTree,
+    pub file_hashes: HashMap<String, String>,
+}
+
+pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> MaterializeResult {
     let mut tree = FileTree::new();
     tree.add_directory("src");
+    let mut next_hashes = HashMap::new();
 
     let mut modules: Vec<_> = ir.modules.iter().collect();
     modules.sort_by_key(|m| m.name.as_str());
 
     let struct_map: HashMap<&str, &Struct> =
         ir.structs.iter().map(|s| (s.id.as_str(), s)).collect();
-    let trait_map: HashMap<&str, &Trait> =
-        ir.traits.iter().map(|t| (t.id.as_str(), t)).collect();
+    let trait_map: HashMap<&str, &Trait> = ir.traits.iter().map(|t| (t.id.as_str(), t)).collect();
     let function_map: HashMap<&str, &Function> =
         ir.functions.iter().map(|f| (f.id.as_str(), f)).collect();
 
@@ -36,49 +45,254 @@ pub fn materialize(ir: &CanonicalIr) -> FileTree {
         lib_rs.push_str(&format!("pub mod {};\n", module.name.as_str()));
 
         if module.files.is_empty() {
-            let contents = render_module::render_module(
-                module, ir, &struct_map, &trait_map, &function_map,
+            let contents =
+                render_module::render_module(module, ir, &struct_map, &trait_map, &function_map);
+            finalize_file(
+                &mut tree,
+                &mut next_hashes,
+                &ir.file_hashes,
+                &format!("{module_dir}/mod.rs"),
+                contents,
+                existing_root,
             );
-            tree.add_file(format!("{module_dir}/mod.rs"), contents);
         } else {
-            let ordered = render_module::topo_sort_files(
-                &module.files,
-                &module.file_edges_as_pairs(),
-            );
+            let ordered =
+                render_module::topo_sort_files(&module.files, &module.file_edges_as_pairs());
             let incoming = render_module::collect_incoming_types(ir, &module.id);
+            let use_lines = render_module::render_use_block(&incoming);
 
-            let mut mod_rs = String::from("// Derived from Canonical IR. Do not edit.\n\n");
+            let mut mod_sections = vec!["// Derived from Canonical IR. Do not edit.".to_owned()];
+            if !module.attributes.is_empty() {
+                let attrs = module
+                    .attributes
+                    .iter()
+                    .map(|attr| format!("#![{}]", attr))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                mod_sections.push(attrs);
+            }
+            if let Some(items) = render_module::render_module_items_block(module) {
+                mod_sections.push(items);
+            }
+            let mut submods = Vec::new();
             for f in &ordered {
                 let stem = file_stem(&f.name);
                 if stem != "lib" && stem != "mod" {
-                    mod_rs.push_str(&format!("pub mod {};\n", stem));
+                    submods.push(format!("pub mod {};", stem));
                 }
             }
-            tree.add_file(format!("{module_dir}/mod.rs"), mod_rs);
+            if !submods.is_empty() {
+                mod_sections.push(submods.join("\n"));
+            }
+            let mod_rs = mod_sections.join("\n\n") + "\n";
+            finalize_file(
+                &mut tree,
+                &mut next_hashes,
+                &ir.file_hashes,
+                &format!("{module_dir}/mod.rs"),
+                mod_rs,
+                existing_root,
+            );
 
+            let empty_use: Vec<String> = Vec::new();
             for (idx, file_node) in ordered.iter().enumerate() {
                 let stem = file_stem(&file_node.name);
                 if stem == "lib" || stem == "mod" {
                     continue;
                 }
-                let use_block = if idx == 0 && !incoming.is_empty() {
-                    render_module::render_use_block(&incoming)
-                } else {
-                    String::new()
-                };
-                let contents = format!(
-                    "// Derived from Canonical IR. Do not edit.\n\n{use_block}// {}\n",
-                    file_node.name
+                let use_block: &[String] = if idx == 0 { &use_lines } else { &empty_use };
+                let contents = render_file(
+                    file_node,
+                    module,
+                    ir,
+                    &struct_map,
+                    &trait_map,
+                    &function_map,
+                    use_block,
                 );
-                tree.add_file(format!("{module_dir}/{}", file_node.name), contents);
+                finalize_file(
+                    &mut tree,
+                    &mut next_hashes,
+                    &ir.file_hashes,
+                    &format!("{module_dir}/{}", file_node.name),
+                    contents,
+                    existing_root,
+                );
             }
         }
     }
 
-    tree.add_file("src/lib.rs", lib_rs);
+    finalize_file(
+        &mut tree,
+        &mut next_hashes,
+        &ir.file_hashes,
+        "src/lib.rs",
+        lib_rs,
+        existing_root,
+    );
     let cargo = render_cargo::render_cargo_toml(&ir.project, &ir.dependencies);
-    tree.add_file("Cargo.toml", cargo);
-    tree
+    finalize_file(
+        &mut tree,
+        &mut next_hashes,
+        &ir.file_hashes,
+        "Cargo.toml",
+        cargo,
+        existing_root,
+    );
+    MaterializeResult {
+        tree,
+        file_hashes: next_hashes,
+    }
+}
+
+fn finalize_file(
+    tree: &mut FileTree,
+    next_hashes: &mut HashMap<String, String>,
+    previous_hashes: &HashMap<String, String>,
+    path: &str,
+    rendered: String,
+    existing_root: Option<&Path>,
+) {
+    let content = apply_preserve_regions(existing_root, path, rendered);
+    let hash = hash_contents(&content);
+    next_hashes.insert(path.to_owned(), hash.clone());
+    let unchanged = previous_hashes
+        .get(path)
+        .map(|prev| prev == &hash)
+        .unwrap_or(false);
+    if unchanged {
+        return;
+    }
+    tree.add_file(path.to_owned(), content);
+}
+
+fn hash_contents(content: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn apply_preserve_regions(
+    existing_root: Option<&Path>,
+    relative_path: &str,
+    rendered: String,
+) -> String {
+    let Some(root) = existing_root else {
+        return rendered;
+    };
+    let existing_path = root.join(relative_path);
+    let Ok(existing) = fs::read_to_string(&existing_path) else {
+        return rendered;
+    };
+    splice_preserve_blocks(&rendered, &existing)
+}
+
+fn splice_preserve_blocks(new_content: &str, existing_content: &str) -> String {
+    let preserved = extract_preserve_blocks(existing_content);
+    if preserved.is_empty() {
+        return new_content.to_owned();
+    }
+    let new_lines = split_lines_with_endings(new_content);
+    let mut out = Vec::new();
+    let mut idx = 0;
+    while idx < new_lines.len() {
+        let line = new_lines[idx].clone();
+        idx += 1;
+        if let Some(label) = parse_preserve_start(&line) {
+            out.push(line);
+            let mut block = Vec::new();
+            let mut closed = false;
+            while idx < new_lines.len() {
+                let candidate = new_lines[idx].clone();
+                idx += 1;
+                if let Some(end_label) = parse_preserve_end(&candidate) {
+                    if end_label == label {
+                        if let Some(existing_block) = preserved.get(&label) {
+                            out.extend(existing_block.clone());
+                        } else {
+                            out.extend(block.clone());
+                        }
+                        out.push(candidate);
+                        closed = true;
+                        break;
+                    } else {
+                        block.push(candidate);
+                    }
+                } else {
+                    block.push(candidate);
+                }
+            }
+            if !closed {
+                out.extend(block);
+            }
+        } else {
+            out.push(line);
+        }
+    }
+    out.concat()
+}
+
+fn extract_preserve_blocks(content: &str) -> HashMap<String, Vec<String>> {
+    let mut blocks = HashMap::new();
+    let lines = split_lines_with_endings(content);
+    let mut idx = 0;
+    while idx < lines.len() {
+        let line = lines[idx].clone();
+        idx += 1;
+        if let Some(label) = parse_preserve_start(&line) {
+            let mut block = Vec::new();
+            while idx < lines.len() {
+                let candidate = lines[idx].clone();
+                idx += 1;
+                if let Some(end_label) = parse_preserve_end(&candidate) {
+                    if end_label == label {
+                        blocks.insert(label.clone(), block);
+                        break;
+                    } else {
+                        block.push(candidate);
+                    }
+                } else {
+                    block.push(candidate);
+                }
+            }
+        }
+    }
+    blocks
+}
+
+fn split_lines_with_endings(content: &str) -> Vec<String> {
+    if content.is_empty() {
+        return Vec::new();
+    }
+    let mut lines: Vec<String> = content
+        .split_inclusive('\n')
+        .map(|line| line.to_string())
+        .collect();
+    if !content.ends_with('\n') {
+        let remainder = content
+            .rsplit_once('\n')
+            .map(|(_, trailing)| trailing)
+            .unwrap_or(content);
+        if remainder != lines.last().map(|s| s.as_str()).unwrap_or("") {
+            lines.push(remainder.to_string());
+        }
+    }
+    lines
+}
+
+fn parse_preserve_start(line: &str) -> Option<String> {
+    parse_preserve_marker(line, "// canon:preserve:start")
+}
+
+fn parse_preserve_end(line: &str) -> Option<String> {
+    parse_preserve_marker(line, "// canon:preserve:end")
+}
+
+fn parse_preserve_marker(line: &str, marker: &str) -> Option<String> {
+    let trimmed = line.trim();
+    trimmed
+        .strip_prefix(marker)
+        .map(|rest| rest.trim().to_string())
 }
 
 pub fn write_file_tree(tree: &FileTree, root: impl AsRef<Path>) -> std::io::Result<()> {

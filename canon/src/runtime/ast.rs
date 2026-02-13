@@ -27,7 +27,9 @@ pub struct OutputExpr {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Expr {
-    Literal { value: Value },
+    Literal {
+        value: Value,
+    },
     Input {
         name: String,
     },

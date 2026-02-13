@@ -1,0 +1,128 @@
+digraph Tier7_Crate_DAG {
+
+    rankdir=LR;
+    node [shape=box, style=rounded];
+
+    /* ===== Foundation Layer ===== */
+
+    canonical_ir;
+    delta_system;
+    cost_model;
+    vector_semantics;
+
+    /* ===== Deterministic Core ===== */
+
+    kernel;
+    memory_engine;
+    snapshot_system;
+    proof_system;
+
+    /* ===== Governance + Judgment ===== */
+
+    governance;
+    lint_engine;
+    judgment;
+    lean_gate;
+
+    /* ===== Intelligence Layer ===== */
+
+    graph_engine;
+    capability_registry;
+    planner;
+    policy_engine;
+    learning_engine;
+
+    /* ===== Execution Layer ===== */
+
+    runtime;
+    execution_engine;
+    scheduler;
+    host_controller;
+    gpu_pipeline;
+
+    /* ===== Coordination Layer ===== */
+
+    orchestration;
+    observation_engine;
+
+    /* ===== Interface Layer ===== */
+
+    api_layer;
+    cli;
+
+
+    /* ==============================
+       FOUNDATION DEPENDENCIES
+       ============================== */
+
+    canonical_ir -> kernel;
+    delta_system -> kernel;
+    cost_model -> judgment;
+    vector_semantics -> planner;
+
+    canonical_ir -> graph_engine;
+    canonical_ir -> planner;
+
+    /* ==============================
+       CORE DEPENDENCIES
+       ============================== */
+
+    kernel -> memory_engine;
+    delta_system -> memory_engine;
+    kernel -> snapshot_system;
+    snapshot_system -> proof_system;
+
+    proof_system -> lean_gate;
+
+    /* ==============================
+       GOVERNANCE + JUDGMENT
+       ============================== */
+
+    governance -> judgment;
+    lint_engine -> governance;
+    proof_system -> governance;
+    memory_engine -> governance;
+
+    judgment -> planner;
+
+    /* ==============================
+       INTELLIGENCE LAYER
+       ============================== */
+
+    graph_engine -> planner;
+    capability_registry -> planner;
+    policy_engine -> planner;
+
+    planner -> execution_engine;
+
+    learning_engine -> planner;
+    observation_engine -> learning_engine;
+
+    /* ==============================
+       EXECUTION LAYER
+       ============================== */
+
+    runtime -> execution_engine;
+    execution_engine -> host_controller;
+    execution_engine -> gpu_pipeline;
+
+    scheduler -> execution_engine;
+
+    kernel -> runtime;
+
+    /* ==============================
+       COORDINATION
+       ============================== */
+
+    execution_engine -> observation_engine;
+    orchestration -> scheduler;
+
+    /* ==============================
+       INTERFACE
+       ============================== */
+
+    api_layer -> orchestration;
+    api_layer -> planner;
+
+    cli -> api_layer;
+}

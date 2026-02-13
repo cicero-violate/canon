@@ -1,0 +1,75 @@
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+use super::{
+    ids::{
+        DeltaId, ExecutionRecordId, FunctionId, JudgmentId, JudgmentPredicateId, LoopPolicyId,
+        PlanId, TickEpochId, TickGraphId, TickId,
+    },
+    word::Word,
+};
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct LoopPolicy {
+    pub id: LoopPolicyId,
+    pub graph: TickGraphId,
+    pub continuation: JudgmentPredicateId,
+    pub max_ticks: Option<u64>,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct Tick {
+    pub id: TickId,
+    pub graph: TickGraphId,
+    pub input_state: Vec<DeltaId>,
+    pub output_deltas: Vec<DeltaId>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct TickEpoch {
+    pub id: TickEpochId,
+    pub ticks: Vec<TickId>,
+    pub parent_epoch: Option<TickEpochId>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct Plan {
+    pub id: PlanId,
+    pub judgment: JudgmentId,
+    pub steps: Vec<FunctionId>,
+    pub expected_deltas: Vec<DeltaId>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct ExecutionRecord {
+    pub id: ExecutionRecordId,
+    pub tick: TickId,
+    pub plan: PlanId,
+    pub outcome_deltas: Vec<DeltaId>,
+    #[serde(default)]
+    pub errors: Vec<ExecutionError>,
+    #[serde(default)]
+    pub events: Vec<ExecutionEvent>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct ExecutionError {
+    pub code: Word,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ExecutionEvent {
+    Stdout { text: String },
+    Stderr { text: String },
+    Artifact { path: String, hash: String },
+    Error { code: Word, message: String },
+}

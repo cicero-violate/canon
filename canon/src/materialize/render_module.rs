@@ -1,9 +1,71 @@
-use std::collections::{HashMap, VecDeque};
-use crate::ir::{CanonicalIr, FileNode, Function, Struct, Trait};
+use super::render_fn::render_type;
 use super::render_impl::render_impl;
-use super::render_struct::render_struct;
+use super::render_struct::{render_struct, render_visibility};
 use super::render_trait::render_trait;
+use crate::ir::{CanonicalIr, FileNode, Function, Struct, Trait, TypeKind};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
+/// Render a single named file within a module that has explicit FileNode topology.
+/// Emits all impls (and their functions) whose functions are assigned to this file_id.
+pub fn render_file(
+    file_node: &FileNode,
+    module: &crate::ir::Module,
+    ir: &CanonicalIr,
+    struct_map: &HashMap<&str, &Struct>,
+    trait_map: &HashMap<&str, &Trait>,
+    function_map: &HashMap<&str, &Function>,
+    use_lines: &[String],
+) -> String {
+    let mut lines = Vec::new();
+    lines.push("// Derived from Canonical IR. Do not edit.".to_owned());
+    push_module_attributes(&mut lines, module);
+    let mut combined_use_lines = collect_intramodule_types(module, file_node.id.as_str(), ir);
+    combined_use_lines.extend_from_slice(use_lines);
+    combined_use_lines.extend(collect_external_uses(&module.id, ir, function_map));
+    let combined_use_lines = sort_use_lines(combined_use_lines);
+    if !combined_use_lines.is_empty() {
+        lines.push(combined_use_lines.join("\n"));
+    }
+
+    // structs assigned to this file
+    let mut structs: Vec<_> = ir
+        .structs
+        .iter()
+        .filter(|s| s.module == module.id)
+        .collect();
+    structs.sort_by_key(|s| s.name.as_str());
+    for s in &structs {
+        lines.push(render_struct(s));
+    }
+
+    // traits assigned to this file (heuristic: same sort order)
+    let mut traits: Vec<_> = ir.traits.iter().filter(|t| t.module == module.id).collect();
+    traits.sort_by_key(|t| t.name.as_str());
+    for t in &traits {
+        lines.push(render_trait(t));
+    }
+
+    // impls whose functions are assigned to this file_id
+    let mut impls: Vec<_> = ir
+        .impl_blocks
+        .iter()
+        .filter(|block| {
+            block.module == module.id
+                && block.functions.iter().any(|binding| {
+                    function_map
+                        .get(binding.function.as_str())
+                        .and_then(|f| f.file_id.as_deref())
+                        == Some(file_node.id.as_str())
+                })
+        })
+        .collect();
+    impls.sort_by_key(|i| i.id.as_str());
+    for block in impls {
+        lines.push(render_impl(block, struct_map, trait_map, function_map));
+    }
+
+    lines.join("\n\n") + "\n"
+}
 pub fn render_module(
     module: &crate::ir::Module,
     ir: &CanonicalIr,
@@ -13,8 +75,23 @@ pub fn render_module(
 ) -> String {
     let mut lines = Vec::new();
     lines.push("// Derived from Canonical IR. Do not edit.".to_owned());
+    push_module_attributes(&mut lines, module);
+    let incoming = collect_incoming_types(ir, &module.id);
+    let mut use_lines = render_use_block(&incoming);
+    use_lines.extend(collect_external_uses(&module.id, ir, function_map));
+    let use_lines = sort_use_lines(use_lines);
+    if !use_lines.is_empty() {
+        lines.push(use_lines.join("\n"));
+    }
+    if let Some(items) = render_module_items_block(module) {
+        lines.push(items);
+    }
 
-    let mut structs: Vec<_> = ir.structs.iter().filter(|s| s.module == module.id).collect();
+    let mut structs: Vec<_> = ir
+        .structs
+        .iter()
+        .filter(|s| s.module == module.id)
+        .collect();
     structs.sort_by_key(|s| s.name.as_str());
     for s in structs {
         lines.push(render_struct(s));
@@ -26,7 +103,11 @@ pub fn render_module(
         lines.push(render_trait(t));
     }
 
-    let mut impls: Vec<_> = ir.impl_blocks.iter().filter(|i| i.module == module.id).collect();
+    let mut impls: Vec<_> = ir
+        .impl_blocks
+        .iter()
+        .filter(|i| i.module == module.id)
+        .collect();
     impls.sort_by_key(|i| i.id.as_str());
     for block in impls {
         lines.push(render_impl(block, struct_map, trait_map, function_map));
@@ -35,12 +116,8 @@ pub fn render_module(
     lines.join("\n\n") + "\n"
 }
 
-pub fn topo_sort_files(
-    files: &[FileNode],
-    edges: &[(String, String)],
-) -> Vec<FileNode> {
-    let mut in_degree: HashMap<String, usize> =
-        files.iter().map(|f| (f.id.clone(), 0)).collect();
+pub fn topo_sort_files(files: &[FileNode], edges: &[(String, String)]) -> Vec<FileNode> {
+    let mut in_degree: HashMap<String, usize> = files.iter().map(|f| (f.id.clone(), 0)).collect();
     let mut adj: HashMap<String, Vec<String>> = HashMap::new();
 
     for (from, to) in edges {
@@ -76,14 +153,77 @@ pub fn topo_sort_files(
         }
     }
 
-    let seen: std::collections::HashSet<String> =
-        result.iter().map(|f| f.id.clone()).collect();
+    let seen: std::collections::HashSet<String> = result.iter().map(|f| f.id.clone()).collect();
     for file in files {
         if !seen.contains(&file.id) {
             result.push(file.clone());
         }
     }
     result
+}
+
+pub fn render_module_items_block(module: &crate::ir::Module) -> Option<String> {
+    let mut lines = Vec::new();
+    if !module.pub_uses.is_empty() {
+        for item in &module.pub_uses {
+            lines.push(format!("pub use {};", item.path));
+        }
+    }
+    if !module.constants.is_empty() {
+        for constant in &module.constants {
+            lines.push(format!(
+                "pub const {}: {} = {};",
+                constant.name,
+                render_type(&constant.ty),
+                constant.value_expr
+            ));
+        }
+    }
+    if !module.statics.is_empty() {
+        for item in &module.statics {
+            if let Some(doc) = &item.doc {
+                push_doc_lines(&mut lines, doc);
+            }
+            let mut_kw = if item.mutable { "mut " } else { "" };
+            lines.push(format!(
+                "{}static {mut_kw}{}: {} = {};",
+                render_visibility(item.visibility),
+                item.name,
+                render_type(&item.ty),
+                item.value_expr
+            ));
+        }
+    }
+    if !module.type_aliases.is_empty() {
+        for alias in &module.type_aliases {
+            lines.push(format!(
+                "pub type {} = {};",
+                alias.name,
+                render_type(&alias.target)
+            ));
+        }
+    }
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
+    }
+}
+
+fn push_doc_lines(lines: &mut Vec<String>, doc: &str) {
+    for line in doc.lines() {
+        if line.trim().is_empty() {
+            lines.push("///".to_owned());
+        } else {
+            lines.push(format!("/// {}", line));
+        }
+    }
+}
+
+fn push_module_attributes(lines: &mut Vec<String>, module: &crate::ir::Module) {
+    for attr in &module.attributes {
+        lines.push(format!("#![{}]", attr));
+    }
 }
 
 pub fn collect_incoming_types(ir: &CanonicalIr, module_id: &str) -> Vec<(String, Vec<String>)> {
@@ -103,19 +243,179 @@ pub fn collect_incoming_types(ir: &CanonicalIr, module_id: &str) -> Vec<(String,
     out
 }
 
-pub fn render_use_block(incoming: &[(String, Vec<String>)]) -> String {
-    let mut out = String::new();
+pub fn render_use_block(incoming: &[(String, Vec<String>)]) -> Vec<String> {
+    let mut lines = BTreeSet::new();
     for (source, types) in incoming {
-        let slug: String = source
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
-            .collect();
-        if types.len() == 1 {
-            out.push_str(&format!("use{}::{};\n", slug, types[0]));
+        if types.is_empty() {
+            continue;
+        }
+        let prefix = normalize_use_prefix(source);
+        let mut uniq = types.clone();
+        uniq.sort();
+        uniq.dedup();
+        if uniq.len() == 1 {
+            lines.insert(format!("use {prefix}::{};", uniq[0]));
         } else {
-            out.push_str(&format!("use {}::{{{}}};\n", slug, types.join(", ")));
+            lines.insert(format!("use {prefix}::{{{}}};", uniq.join(", ")));
         }
     }
-    out.push('\n');
+    lines.into_iter().collect()
+}
+
+fn normalize_use_prefix(source: &str) -> String {
+    if source.starts_with("::") || source.starts_with("crate::") || source.starts_with("super::") {
+        source.to_owned()
+    } else {
+        format!("crate::{source}")
+    }
+}
+
+fn collect_intramodule_types(
+    module: &crate::ir::Module,
+    current_file_id: &str,
+    ir: &CanonicalIr,
+) -> Vec<String> {
+    if module.files.is_empty() {
+        return Vec::new();
+    }
+    let (id_to_stem, stem_to_id) = build_file_maps(module);
+    if id_to_stem.is_empty() {
+        return Vec::new();
+    }
+    let mut lines = BTreeSet::new();
+    for structure in ir.structs.iter().filter(|s| s.module == module.id) {
+        if let Some(line) = intramodule_use_line(
+            structure.name.as_str(),
+            structure.file_id.as_deref(),
+            current_file_id,
+            &id_to_stem,
+            &stem_to_id,
+        ) {
+            lines.insert(line);
+        }
+    }
+    for tr in ir.traits.iter().filter(|t| t.module == module.id) {
+        if let Some(line) = intramodule_use_line(
+            tr.name.as_str(),
+            tr.file_id.as_deref(),
+            current_file_id,
+            &id_to_stem,
+            &stem_to_id,
+        ) {
+            lines.insert(line);
+        }
+    }
+    lines.into_iter().collect()
+}
+
+fn intramodule_use_line(
+    type_name: &str,
+    explicit_file_id: Option<&str>,
+    current_file_id: &str,
+    id_to_stem: &HashMap<String, String>,
+    stem_to_id: &HashMap<String, String>,
+) -> Option<String> {
+    let target_file_id = if let Some(id) = explicit_file_id {
+        id.to_owned()
+    } else {
+        let guess = to_snake_case(type_name);
+        stem_to_id.get(&guess).cloned()?
+    };
+    if target_file_id == current_file_id {
+        return None;
+    }
+    let stem = id_to_stem.get(&target_file_id)?;
+    Some(format!("use super::{stem}::{type_name};"))
+}
+
+fn build_file_maps(
+    module: &crate::ir::Module,
+) -> (HashMap<String, String>, HashMap<String, String>) {
+    let mut id_to_stem = HashMap::new();
+    let mut stem_to_id = HashMap::new();
+    for file in &module.files {
+        let stem = file_stem(&file.name);
+        if stem == "mod" {
+            continue;
+        }
+        id_to_stem.insert(file.id.clone(), stem.to_owned());
+        stem_to_id.insert(stem.to_owned(), file.id.clone());
+    }
+    (id_to_stem, stem_to_id)
+}
+
+fn collect_external_uses(
+    module_id: &str,
+    ir: &CanonicalIr,
+    _function_map: &HashMap<&str, &Function>,
+) -> Vec<String> {
+    let mut lines = BTreeSet::new();
+    for function in ir.functions.iter().filter(|f| f.module == module_id) {
+        for port in function.inputs.iter().chain(function.outputs.iter()) {
+            collect_external_types(&port.ty, &mut lines);
+        }
+    }
+    lines.into_iter().collect()
+}
+
+fn collect_external_types(ty: &crate::ir::TypeRef, out: &mut BTreeSet<String>) {
+    if ty.kind == TypeKind::External {
+        let path = ty.name.as_str();
+        if !path.is_empty() {
+            out.insert(format!("use {};", path));
+        }
+    }
+    for param in &ty.params {
+        collect_external_types(param, out);
+    }
+}
+
+fn sort_use_lines(mut lines: Vec<String>) -> Vec<String> {
+    if lines.is_empty() {
+        return lines;
+    }
+    lines.sort_by(|a, b| {
+        use_line_rank(a)
+            .cmp(&use_line_rank(b))
+            .then_with(|| a.cmp(b))
+    });
+    lines.dedup();
+    lines
+}
+
+fn use_line_rank(line: &str) -> u8 {
+    if line.starts_with("use super::") {
+        0
+    } else if line.starts_with("use crate::") {
+        1
+    } else {
+        2
+    }
+}
+
+fn to_snake_case(value: &str) -> String {
+    let mut out = String::new();
+    let mut prev_is_lowercase_or_digit = false;
+    for ch in value.chars() {
+        if ch.is_ascii_uppercase() {
+            if prev_is_lowercase_or_digit {
+                out.push('_');
+            }
+            out.extend(ch.to_lowercase());
+            prev_is_lowercase_or_digit = false;
+        } else {
+            if ch.is_ascii_digit() && !prev_is_lowercase_or_digit {
+                // keep digits grouped with previous uppercase sequences
+            } else if ch.is_ascii_digit() && prev_is_lowercase_or_digit {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+            prev_is_lowercase_or_digit = ch.is_ascii_alphanumeric();
+        }
+    }
     out
+}
+
+fn file_stem(name: &str) -> &str {
+    name.trim_end_matches(".rs")
 }

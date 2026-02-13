@@ -10,14 +10,21 @@ fn parse_system_pipeline_ast() {
     let functions = ir.get("functions").and_then(JsonValue::as_array).unwrap();
     for function in functions {
         let function_id = function.get("id").and_then(JsonValue::as_str).unwrap();
-        if function.get("metadata").and_then(|m| m.get("ast")).is_some() {
-            let ast_value = function.get("metadata").unwrap().get("ast").unwrap().clone();
+        if function
+            .get("metadata")
+            .and_then(|m| m.get("ast"))
+            .is_some()
+        {
+            let ast_value = function
+                .get("metadata")
+                .unwrap()
+                .get("ast")
+                .unwrap()
+                .clone();
             serde_json::from_value::<FunctionAst>(ast_value.clone()).unwrap_or_else(|err| {
                 panic!(
                     "failed to parse AST for {}: {}. json={}",
-                    function_id,
-                    err,
-                    ast_value
+                    function_id, err, ast_value
                 );
             });
         }

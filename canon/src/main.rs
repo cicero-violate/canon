@@ -1,19 +1,21 @@
+use std::collections::BTreeSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 
+use canon::auto_accept_dot_proposal;
+use canon::auto_accept_fn_ast;
+use canon::dot_export::export_dot;
+use canon::verify_dot;
 use canon::{
-    CanonicalIr, ProposalAcceptanceInput, accept_proposal, auto_accept_dsl_proposal,
+    CanonRule, CanonicalIr, ProposalAcceptanceInput, accept_proposal, auto_accept_dsl_proposal,
     execution_events_to_observe_deltas, generate_schema,
     ir::ExecutionRecord,
-    materialize,
+    materialize, render_impl_function,
     runtime::{TickExecutionMode, TickExecutor},
     validate_ir, write_file_tree,
 };
-use canon::dot_export::export_dot;
-use canon::auto_accept_dot_proposal;
-use canon::auto_accept_fn_ast;
 
 fn main() {
     if let Err(err) = run() {
@@ -29,6 +31,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let schema = generate_schema(pretty)?;
             println!("{schema}");
         }
+        Command::IngestStub => {
+            todo!("CLI wiring after ING-001");
+        }
         Command::Validate { path } => {
             let data = fs::read(&path)?;
             let ir: CanonicalIr = serde_json::from_slice(&data)?;
@@ -36,13 +41,53 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             enforce_version_gate(&ir)?;
             println!("Validation passed: `{}` satisfies Canon.", path.display());
         }
+        Command::Lint { ir } => {
+            let ir_doc = load_ir_from_path(&ir)?;
+            match validate_ir(&ir_doc) {
+                Ok(()) => {
+                    println!("INFO  [C-LINT] `{}` passed lint.", ir.display());
+                }
+                Err(errs) => {
+                    for violation in errs.violations() {
+                        let severity = violation_severity(violation.rule());
+                        println!(
+                            "{}  [{}] {}",
+                            severity,
+                            violation.rule().code(),
+                            violation.detail()
+                        );
+                    }
+                    return Err("lint found violations".into());
+                }
+            }
+        }
+        Command::RenderFn { ir, fn_id } => {
+            let ir_doc = load_ir_from_path(&ir)?;
+            let function = ir_doc
+                .functions
+                .iter()
+                .find(|f| f.id == fn_id)
+                .ok_or_else(|| format!("unknown function: {fn_id}"))?;
+            let rendered = render_impl_function(function);
+            println!("{rendered}");
+        }
+        Command::DiffIr { before, after } => {
+            let before_ir = load_ir_from_path(&before)?;
+            let after_ir = load_ir_from_path(&after)?;
+            let diff = diff_ir(&before_ir, &after_ir);
+            if diff.trim().is_empty() {
+                println!("No differences detected.");
+            } else {
+                println!("{diff}");
+            }
+        }
         Command::Materialize { ir, out_dir } => {
             let data = fs::read(&ir)?;
             let ir_doc: CanonicalIr = serde_json::from_slice(&data)?;
             validate_ir(&ir_doc)?;
             enforce_version_gate(&ir_doc)?;
-            let tree = materialize(&ir_doc);
-            write_file_tree(&tree, &out_dir)?;
+            let mat = materialize(&ir_doc, Some(&out_dir));
+            write_file_tree(&mat.tree, &out_dir)?;
             println!(
                 "Materialized Canon from `{}` into `{}`.",
                 ir.display(),
@@ -88,13 +133,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 tick_id: tick.clone(),
                 rationale: rationale.clone(),
             };
-            let result = accept_proposal(&ir_doc, input)?;
+            let mut result = accept_proposal(&ir_doc, input)?;
             validate_ir(&result.ir)?;
             enforce_version_gate(&result.ir)?;
+            let mat = materialize(&result.ir, Some(&materialize_dir));
+            write_file_tree(&mat.tree, &materialize_dir)?;
+            result.ir.file_hashes = mat.file_hashes;
             let rendered = serde_json::to_string_pretty(&result.ir)?;
             fs::write(&output_ir, rendered)?;
-            let tree = materialize(&result.ir);
-            write_file_tree(&tree, &materialize_dir)?;
             println!(
                 "Accepted proposal `{}` via judgment `{}` ({} deltas).",
                 proposal,
@@ -111,13 +157,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let ir_bytes = fs::read(&ir)?;
             let ir_doc: CanonicalIr = serde_json::from_slice(&ir_bytes)?;
             let dsl_source = fs::read_to_string(&dsl_file)?;
-            let acceptance = auto_accept_dsl_proposal(&ir_doc, &dsl_source)?;
+            let mut acceptance = auto_accept_dsl_proposal(&ir_doc, &dsl_source)?;
             validate_ir(&acceptance.ir)?;
             enforce_version_gate(&acceptance.ir)?;
+            let mat = materialize(&acceptance.ir, Some(&materialize_dir));
+            write_file_tree(&mat.tree, &materialize_dir)?;
+            acceptance.ir.file_hashes = mat.file_hashes;
             let rendered = serde_json::to_string_pretty(&acceptance.ir)?;
             fs::write(&output_ir, rendered)?;
-            let tree = materialize(&acceptance.ir);
-            write_file_tree(&tree, &materialize_dir)?;
             println!(
                 "DSL `{}` auto-accepted via `{}` ({} deltas).",
                 dsl_file.display(),
@@ -160,13 +207,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let ir_bytes = fs::read(&ir)?;
             let ir_doc: CanonicalIr = serde_json::from_slice(&ir_bytes)?;
             let dot_source = fs::read_to_string(&dot_file)?;
-            let acceptance = auto_accept_dot_proposal(&ir_doc, &dot_source, &goal)?;
+            let mut acceptance = auto_accept_dot_proposal(&ir_doc, &dot_source, &goal)?;
             validate_ir(&acceptance.ir)?;
             enforce_version_gate(&acceptance.ir)?;
+            let mat = materialize(&acceptance.ir, Some(&materialize_dir));
+            write_file_tree(&mat.tree, &materialize_dir)?;
+            acceptance.ir.file_hashes = mat.file_hashes;
             let rendered = serde_json::to_string_pretty(&acceptance.ir)?;
             fs::write(&output_ir, rendered)?;
-            let tree = materialize(&acceptance.ir);
-            write_file_tree(&tree, &materialize_dir)?;
             println!(
                 "DOT `{}` imported via judgment `{}` ({} deltas).",
                 dot_file.display(),
@@ -183,6 +231,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(&output, &dot)?;
             println!("Exported DOT to `{}`.", output.display());
         }
+        Command::VerifyDot { ir, original } => {
+            let data = fs::read(&ir)?;
+            let ir_doc: CanonicalIr = serde_json::from_slice(&data)?;
+            validate_ir(&ir_doc)?;
+            enforce_version_gate(&ir_doc)?;
+            let dot_src = fs::read_to_string(&original)?;
+            verify_dot(&ir_doc, &dot_src)
+                .map_err(|e| format!("DOT round-trip verification failed:\n{e}"))?;
+            println!(
+                "DOT round-trip verified: `{}` matches IR `{}`.",
+                original.display(),
+                ir.display()
+            );
+        }
         Command::SubmitFnAst {
             ir,
             function_id,
@@ -194,13 +256,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let ir_doc: CanonicalIr = serde_json::from_slice(&ir_bytes)?;
             let ast_bytes = fs::read(&ast_file)?;
             let ast: serde_json::Value = serde_json::from_slice(&ast_bytes)?;
-            let acceptance = auto_accept_fn_ast(&ir_doc, &function_id, ast)?;
+            let mut acceptance = auto_accept_fn_ast(&ir_doc, &function_id, ast)?;
             validate_ir(&acceptance.ir)?;
             enforce_version_gate(&acceptance.ir)?;
+            let mat = materialize(&acceptance.ir, Some(&materialize_dir));
+            write_file_tree(&mat.tree, &materialize_dir)?;
+            acceptance.ir.file_hashes = mat.file_hashes;
             let rendered = serde_json::to_string_pretty(&acceptance.ir)?;
             fs::write(&output_ir, rendered)?;
-            let tree = materialize(&acceptance.ir);
-            write_file_tree(&tree, &materialize_dir)?;
             println!(
                 "AST for `{}` accepted via judgment `{}` ({} deltas).",
                 function_id,
@@ -232,6 +295,32 @@ enum Command {
     Validate {
         /// Path to the canonical IR JSON document.
         path: PathBuf,
+    },
+    /// Placeholder for future ingest CLI (hidden).
+    #[command(hide = true)]
+    IngestStub,
+    /// Lint a canonical IR document and print violations with severity tags.
+    Lint {
+        /// Path to the canonical IR JSON document.
+        ir: PathBuf,
+    },
+    /// Render a function implementation to stdout.
+    RenderFn {
+        /// Path to the canonical IR JSON document.
+        #[arg(long)]
+        ir: PathBuf,
+        /// Identifier of the function to render.
+        #[arg(long = "fn-id")]
+        fn_id: String,
+    },
+    /// Show set differences between two canonical IR documents.
+    DiffIr {
+        /// Path to the "before" canonical IR JSON document.
+        #[arg(long)]
+        before: PathBuf,
+        /// Path to the "after" canonical IR JSON document.
+        #[arg(long)]
+        after: PathBuf,
     },
     /// Materialize a validated Canonical IR into a source tree.
     Materialize {
@@ -331,6 +420,14 @@ enum Command {
         /// Output path for the emitted `.dot` file.
         output: PathBuf,
     },
+    /// Verify that a DOT file round-trips faithfully through the IR.
+    VerifyDot {
+        /// Path to the canonical IR JSON document.
+        ir: PathBuf,
+        /// Path to the original `.dot` file to compare against.
+        #[arg(long)]
+        original: PathBuf,
+    },
     /// Submit a JSON AST file as the body of an existing function.
     SubmitFnAst {
         /// Path to the canonical IR JSON document.
@@ -366,5 +463,94 @@ fn enforce_version_gate(ir: &CanonicalIr) -> Result<(), Box<dyn std::error::Erro
             ir.version_contract.current, runtime_version
         )
         .into())
+    }
+}
+
+fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
+    let data = fs::read(path)?;
+    let ir = serde_json::from_slice(&data)?;
+    Ok(ir)
+}
+
+fn diff_ir(before: &CanonicalIr, after: &CanonicalIr) -> String {
+    let mut lines = Vec::new();
+    diff_section(
+        "module",
+        before.modules.iter().map(|m| m.id.as_str().to_owned()),
+        after.modules.iter().map(|m| m.id.as_str().to_owned()),
+        &mut lines,
+    );
+    diff_section(
+        "struct",
+        before.structs.iter().map(|s| s.id.as_str().to_owned()),
+        after.structs.iter().map(|s| s.id.as_str().to_owned()),
+        &mut lines,
+    );
+    diff_section(
+        "enum",
+        before.enums.iter().map(|e| e.id.as_str().to_owned()),
+        after.enums.iter().map(|e| e.id.as_str().to_owned()),
+        &mut lines,
+    );
+    diff_section(
+        "trait",
+        before.traits.iter().map(|t| t.id.as_str().to_owned()),
+        after.traits.iter().map(|t| t.id.as_str().to_owned()),
+        &mut lines,
+    );
+    diff_section(
+        "function",
+        before.functions.iter().map(|f| f.id.as_str().to_owned()),
+        after.functions.iter().map(|f| f.id.as_str().to_owned()),
+        &mut lines,
+    );
+    diff_section(
+        "delta",
+        before.deltas.iter().map(|d| d.id.as_str().to_owned()),
+        after.deltas.iter().map(|d| d.id.as_str().to_owned()),
+        &mut lines,
+    );
+    lines.join("\n")
+}
+
+fn diff_section(
+    label: &str,
+    before: impl Iterator<Item = String>,
+    after: impl Iterator<Item = String>,
+    lines: &mut Vec<String>,
+) {
+    let before_set: BTreeSet<String> = before.collect();
+    let after_set: BTreeSet<String> = after.collect();
+    for item in before_set.difference(&after_set) {
+        lines.push(format!("- {:<8} {}", label, item));
+    }
+    for item in after_set.difference(&before_set) {
+        lines.push(format!("+ {:<8} {}", label, item));
+    }
+}
+
+fn violation_severity(rule: CanonRule) -> &'static str {
+    match rule {
+        CanonRule::ModuleDag
+        | CanonRule::ModuleSelfImport
+        | CanonRule::CallGraphPublicApis
+        | CanonRule::CallGraphRespectsDag
+        | CanonRule::CallGraphAcyclic
+        | CanonRule::TickGraphAcyclic
+        | CanonRule::TickGraphEdgesDeclared
+        | CanonRule::TickRoot
+        | CanonRule::DeltaProofs
+        | CanonRule::ProofScope
+        | CanonRule::VersionEvolution
+        | CanonRule::DeltaPipeline
+        | CanonRule::DeltaAppendOnly
+        | CanonRule::ExecutionBoundary
+        | CanonRule::AdmissionBridge => "ERROR",
+        CanonRule::FunctionContracts
+        | CanonRule::ProposalDeclarative
+        | CanonRule::LearningDeclarations
+        | CanonRule::TickEpochs
+        | CanonRule::PlanArtifacts => "WARN",
+        _ => "INFO",
     }
 }

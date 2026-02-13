@@ -1,17 +1,138 @@
+use crate::dot_import::{DotGraph, DotImportError, parse_dot};
 use crate::ir::CanonicalIr;
+use std::collections::{BTreeMap, BTreeSet};
+
+// ── round-trip verification ───────────────────────────────────────────────────
+
+#[derive(Debug)]
+pub struct DotVerifyError {
+    pub mismatches: Vec<String>,
+}
+
+impl std::fmt::Display for DotVerifyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for m in &self.mismatches {
+            writeln!(f, "  - {m}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for DotVerifyError {}
+
+/// Parse `original_dot`, export `ir` to DOT, parse that, then compare
+/// cluster ids, per-cluster node ids, and inter-cluster edges (order-insensitive).
+pub fn verify_dot(ir: &CanonicalIr, original_dot: &str) -> Result<(), DotVerifyError> {
+    let a: DotGraph = match parse_dot(original_dot) {
+        Ok(g) => g,
+        Err(e) => {
+            return Err(DotVerifyError {
+                mismatches: vec![format!("parse original: {e}")],
+            });
+        }
+    };
+    let exported = export_dot(ir);
+    let b: DotGraph = match parse_dot(&exported) {
+        Ok(g) => g,
+        Err(e) => {
+            return Err(DotVerifyError {
+                mismatches: vec![format!("parse export: {e}")],
+            });
+        }
+    };
+
+    let mut mismatches = Vec::new();
+
+    // cluster id sets
+    let ca: BTreeSet<&str> = a.clusters.iter().map(|c| c.id.as_str()).collect();
+    let cb: BTreeSet<&str> = b.clusters.iter().map(|c| c.id.as_str()).collect();
+    for id in ca.difference(&cb) {
+        mismatches.push(format!(
+            "cluster `{id}` present in original but not in export"
+        ));
+    }
+    for id in cb.difference(&ca) {
+        mismatches.push(format!(
+            "cluster `{id}` present in export but not in original"
+        ));
+    }
+
+    // per-cluster node id sets
+    let na: BTreeMap<&str, BTreeSet<&str>> = a
+        .clusters
+        .iter()
+        .map(|c| {
+            (
+                c.id.as_str(),
+                c.nodes.iter().map(|n| n.id.as_str()).collect(),
+            )
+        })
+        .collect();
+    let nb: BTreeMap<&str, BTreeSet<&str>> = b
+        .clusters
+        .iter()
+        .map(|c| {
+            (
+                c.id.as_str(),
+                c.nodes.iter().map(|n| n.id.as_str()).collect(),
+            )
+        })
+        .collect();
+    for (cid, nodes_a) in &na {
+        if let Some(nodes_b) = nb.get(cid) {
+            for n in nodes_a.difference(nodes_b) {
+                mismatches.push(format!(
+                    "cluster `{cid}`: node `{n}` in original but not export"
+                ));
+            }
+            for n in nodes_b.difference(nodes_a) {
+                mismatches.push(format!(
+                    "cluster `{cid}`: node `{n}` in export but not original"
+                ));
+            }
+        }
+    }
+
+    // inter-cluster edges (order-insensitive, imported_types sorted)
+    type EdgeKey = (String, String, Vec<String>);
+    let edge_set = |g: &DotGraph| -> BTreeSet<EdgeKey> {
+        g.inter_edges
+            .iter()
+            .map(|e| {
+                let mut types = e.imported_types.clone();
+                types.sort();
+                (e.from_cluster.clone(), e.to_cluster.clone(), types)
+            })
+            .collect()
+    };
+    let ea = edge_set(&a);
+    let eb = edge_set(&b);
+    for e in ea.difference(&eb) {
+        mismatches.push(format!(
+            "edge `{}`->`{}` {:?} in original but not export",
+            e.0, e.1, e.2
+        ));
+    }
+    for e in eb.difference(&ea) {
+        mismatches.push(format!(
+            "edge `{}`->`{}` {:?} in export but not original",
+            e.0, e.1, e.2
+        ));
+    }
+
+    if mismatches.is_empty() {
+        Ok(())
+    } else {
+        Err(DotVerifyError { mismatches })
+    }
+}
 
 // ── color palette ────────────────────────────────────────────────────────────
 // Derived deterministically from module id hash so new crates get a stable
 // color and the original DOT palette is preserved for known crates.
 
 const PALETTE: &[&str] = &[
-    "#0055aa",
-    "#884400",
-    "#006600",
-    "#aa6600",
-    "#880088",
-    "#aa0000",
-    "#005555",
+    "#0055aa", "#884400", "#006600", "#aa6600", "#880088", "#aa0000", "#005555",
 ];
 
 fn edge_color(module_id: &str) -> &'static str {
@@ -45,20 +166,14 @@ pub fn export_dot(ir: &CanonicalIr) -> String {
     for module in &ir.modules {
         let cluster_id = cluster_id_of(&module.id);
         out.push_str(&format!("    subgraph {} {{\n", cluster_id));
-        out.push_str(&format!(
-            "        label=\"{}\";\n",
-            module.name.as_str()
-        ));
+        out.push_str(&format!("        label=\"{}\";\n", module.name.as_str()));
         out.push_str("        style=rounded; color=\"#333333\";\n\n");
 
         if module.files.is_empty() {
             // no file topology — emit a single placeholder node so the
             // cluster is visible and round-trips cleanly
             let node_id = format!("{}_lib", cluster_id);
-            out.push_str(&format!(
-                "        {} [label=\"lib.rs\"];\n",
-                node_id
-            ));
+            out.push_str(&format!("        {} [label=\"lib.rs\"];\n", node_id));
         } else {
             for file in &module.files {
                 out.push_str(&format!(
@@ -133,10 +248,7 @@ fn lib_node(module: &crate::ir::Module) -> Option<String> {
     // find a file that is never a `from` in file_edges — it is the sink
     let froms: std::collections::HashSet<&str> =
         module.file_edges.iter().map(|e| e.from.as_str()).collect();
-    let sink = module
-        .files
-        .iter()
-        .find(|f| !froms.contains(f.id.as_str()));
+    let sink = module.files.iter().find(|f| !froms.contains(f.id.as_str()));
     sink.map(|f| sanitize_node_id(&f.id))
 }
 
@@ -147,10 +259,7 @@ fn entry_node(module: &crate::ir::Module) -> Option<String> {
     }
     let tos: std::collections::HashSet<&str> =
         module.file_edges.iter().map(|e| e.to.as_str()).collect();
-    let source = module
-        .files
-        .iter()
-        .find(|f| !tos.contains(f.id.as_str()));
+    let source = module.files.iter().find(|f| !tos.contains(f.id.as_str()));
     source.map(|f| sanitize_node_id(&f.id))
 }
 
@@ -160,7 +269,13 @@ fn cluster_id_of(module_id: &str) -> String {
 
 fn sanitize_node_id(id: &str) -> String {
     id.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 

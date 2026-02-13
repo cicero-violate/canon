@@ -1,0 +1,1 @@
+For your agent specifically — wiring Z3 into CargoCheck as a deeper layer that verifies the contracts of generated functions, not just their syntax, is a realistic near-term addition. The LLM generates the function, SMT verifies the contract, UNSAT spawns a FixCompileError-style recovery node with the counterexample injected as context.

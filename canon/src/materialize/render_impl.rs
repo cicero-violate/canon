@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use crate::ir::{Function, ImplBlock, Struct, Trait};
 use super::render_fn::render_impl_function;
+use crate::ir::{Function, ImplBlock, Struct, Trait};
+use std::collections::HashMap;
 
 pub fn render_impl(
     block: &ImplBlock,
