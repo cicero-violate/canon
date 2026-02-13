@@ -7,7 +7,8 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::ir::{CanonicalIr, FunctionId, TickGraph};
-use crate::ir::{PredictionRecord, RewardRecord};
+use crate::ir::RewardRecord;
+use crate::ir::world_model::PredictionRecord;
 
 // Layer 2: PredictionRecord used for post-execution reconciliation.
 use crate::runtime::context::ExecutionContext;
@@ -184,8 +185,9 @@ impl<'a> TickExecutor<'a> {
         self.ir.reward_deltas.push(RewardRecord {
             id: format!("reward-{}", result.tick_id),
             tick: result.tick_id.clone(),
-            execution: None,
-            delta: result.reward,
+            execution: String::new(),
+            delta: Some(result.reward),
+            reward: result.reward,
         });
 
         Ok(result)
