@@ -53,7 +53,7 @@ fn is_ignored(path: &Path) -> bool {
     for component in path.components() {
         if let Component::Normal(name) = component {
             if let Some(seg) = name.to_str() {
-                if seg.starts_with('.') || matches!(seg, "target" | "tests" | "examples") {
+                if matches!(seg, "target" | "tests" | "examples") {
                     return true;
                 }
             }
