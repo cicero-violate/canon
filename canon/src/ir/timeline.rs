@@ -56,6 +56,10 @@ pub struct ExecutionRecord {
     pub errors: Vec<ExecutionError>,
     #[serde(default)]
     pub events: Vec<ExecutionEvent>,
+    /// Scalar utility U(s_t) computed after this execution.
+    /// None until the reward computation pass has run.
+    #[serde(default)]
+    pub reward: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

@@ -31,6 +31,7 @@ pub enum CanonRule {
     ExecutionBoundary,
     AdmissionBridge,
     FunctionAst,
+    RewardMonotonicity,
 }
 
 impl CanonRule {
@@ -67,6 +68,7 @@ impl CanonRule {
             CanonRule::ExecutionBoundary => "Rules 46-55",
             CanonRule::AdmissionBridge => "Rules 53-69",
             CanonRule::FunctionAst => "Rule 27",
+            CanonRule::RewardMonotonicity => "Rule F1",
         }
     }
 
@@ -116,6 +118,9 @@ impl CanonRule {
             }
             CanonRule::FunctionAst => {
                 "UpdateFunctionAst delta must reference an existing function."
+            }
+            CanonRule::RewardMonotonicity => {
+                "Reward must not decrease by more than the declared slack across consecutive ticks."
             }
         }
     }

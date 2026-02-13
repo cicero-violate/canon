@@ -19,6 +19,8 @@ use super::{
     timeline::{ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch},
     word::Word,
 };
+use super::reward::RewardRecord;
+use super::world_model::WorldModel;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
@@ -57,6 +59,12 @@ pub struct CanonicalIr {
     pub dependencies: Vec<ExternalDependency>,
     #[serde(default)]
     pub file_hashes: HashMap<String, String>,
+    /// Append-only reward log: one RewardRecord per tick execution.
+    #[serde(default)]
+    pub reward_deltas: Vec<RewardRecord>,
+    /// Predictive world model (Layer 2).
+    #[serde(default)]
+    pub world_model: WorldModel,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

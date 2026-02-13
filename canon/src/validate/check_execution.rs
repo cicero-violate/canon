@@ -9,6 +9,7 @@ pub fn check<'a>(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Vi
     check_plans(ir, idx, violations);
     check_executions(ir, idx, violations);
     check_gpu(ir, idx, violations);
+    check_reward_monotonicity(ir, violations);
 }
 
 fn check_epochs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
@@ -149,6 +150,27 @@ fn check_executions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violat
                     format!("execution `{}` captured unknown delta `{d}`", exec.id),
                 ));
             }
+        }
+    }
+}
+
+fn check_reward_monotonicity(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
+    // Enforce r_t >= r_{t-1} - epsilon across the append-only reward log.
+    // Slack epsilon is fixed at 0.0 for Layer F; will be parameterised in Layer L.
+    const EPSILON: f64 = 0.0;
+    let records = &ir.reward_deltas;
+    for i in 1..records.len() {
+        let prev = records[i - 1].reward;
+        let curr = records[i].reward;
+        if curr < prev - EPSILON {
+            violations.push(Violation::new(
+                CanonRule::RewardMonotonicity,
+                format!(
+                    "reward dropped from {prev:.6} to {curr:.6} between records `{}` and `{}`",
+                    records[i - 1].id,
+                    records[i].id,
+                ),
+            ));
         }
     }
 }

@@ -61,6 +61,8 @@ impl SemanticIrBuilder {
             errors: Vec::new(),
             dependencies: Vec::new(),
             file_hashes: std::collections::HashMap::new(),
+            reward_deltas: Vec::new(),
+            world_model: crate::ir::world_model::WorldModel::new(),
         }
     }
 }

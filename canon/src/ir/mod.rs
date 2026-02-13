@@ -16,7 +16,7 @@ mod reward;
 mod timeline;
 mod types;
 mod word;
-mod world_model;
+pub mod world_model;
 
 pub use admission::{AppliedDeltaRecord, DeltaAdmission};
 pub use artifacts::{

@@ -311,6 +311,12 @@ pub(super) fn apply_structural_delta(
             }
             target.variants.push(variant.clone());
         }
+        Some(DeltaPayload::RecordReward { record }) => {
+            if ir.reward_deltas.iter().any(|r| r.id == record.id) {
+                return Err(EvolutionError::DuplicateArtifact(record.id.clone()));
+            }
+            ir.reward_deltas.push(record.clone());
+        }
         _ => {}
     }
     Ok(())

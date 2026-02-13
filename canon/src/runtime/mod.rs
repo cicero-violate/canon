@@ -10,6 +10,8 @@ pub mod executor;
 pub mod parallel;
 pub mod system_interpreter;
 pub mod tick_executor;
+pub mod reward;
+pub mod rollout;
 pub mod value;
 
 pub use ast::{BinOp, Expr, FunctionAst, OutputExpr, compile_function_ast};

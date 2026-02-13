@@ -14,6 +14,12 @@ use crate::runtime::parallel::{
 };
 use crate::runtime::value::{DeltaValue, Value};
 
+fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
+    // Layer 1 (Foundation): deterministic scalar utility.
+    // Minimal rule: U = (# emitted deltas)
+    emitted.len() as f64
+}
+
 /// Executes a tick graph in topological order.
 pub struct TickExecutor<'a> {
     ir: &'a CanonicalIr,
@@ -138,6 +144,7 @@ impl<'a> TickExecutor<'a> {
             function_results: results,
             execution_order,
             emitted_deltas: context.deltas().to_vec(),
+            reward: compute_reward_from_deltas(context.deltas()),
             sequential_duration,
             parallel_duration,
         })
@@ -363,6 +370,7 @@ pub struct TickExecutionResult {
     pub function_results: HashMap<FunctionId, BTreeMap<String, Value>>,
     pub execution_order: Vec<FunctionId>,
     pub emitted_deltas: Vec<DeltaValue>,
+    pub reward: f64,
     pub sequential_duration: Duration,
     pub parallel_duration: Option<Duration>,
 }
