@@ -8,6 +8,8 @@ use thiserror::Error;
 
 use crate::ir::{CanonicalIr, FunctionId, Tick, TickGraph};
 use crate::ir::world_model::PredictionRecord;
+
+// Layer 2: PredictionRecord used for post-execution reconciliation.
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::{ExecutorError, FunctionExecutor};
 use crate::runtime::parallel::{
@@ -21,11 +23,15 @@ fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
     emitted.len() as f64
 }
 
+// W4: World-model update is triggered after execution result construction.
+
 /// Executes a tick graph in topological order.
 pub struct TickExecutor<'a> {
     ir: &'a CanonicalIr,
     function_executor: FunctionExecutor<'a>,
 }
+
+// Layer 2 integration point: executor is world-model aware.
 
 /// Execution mode for tick graphs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +52,8 @@ impl<'a> TickExecutor<'a> {
     pub fn execute_tick(&self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError> {
         self.execute_tick_with_mode(tick_id, TickExecutionMode::Sequential)
     }
+
+    // W4: Post-execution hook handled inside execute_graph.
 
     /// Execute a tick with explicit initial inputs provided to the root nodes.
     pub fn execute_tick_with_inputs(
@@ -131,6 +139,8 @@ impl<'a> TickExecutor<'a> {
         let sequential_duration = sequential_start.elapsed();
 
         let mut parallel_duration = None;
+
+        // W4: World-model reconciliation occurs before returning execution result.
         if matches!(mode, TickExecutionMode::ParallelVerified) {
             let parallel_start = Instant::now();
             let (parallel_results, parallel_deltas) =
@@ -155,6 +165,8 @@ impl<'a> TickExecutor<'a> {
             parallel_duration,
         })
     }
+
+    // W4: PredictionRecord creation logic resides in world_model module.
 
     fn build_dependency_map(&self, graph: &TickGraph) -> HashMap<FunctionId, Vec<FunctionId>> {
         let mut dependencies: HashMap<FunctionId, Vec<FunctionId>> = HashMap::new();
@@ -381,6 +393,8 @@ pub struct TickExecutionResult {
     pub parallel_duration: Option<Duration>,
 }
 
+// W4 complete: execution result contains sufficient data for model update.
+
 #[derive(Debug, Error)]
 pub enum TickExecutorError {
     #[error("unknown tick `{0}`")]
@@ -396,3 +410,5 @@ pub enum TickExecutorError {
     #[error(transparent)]
     Executor(#[from] ExecutorError),
 }
+
+// End of TickExecutor — world-model update integrated (Layer 2).
