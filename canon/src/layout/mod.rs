@@ -27,6 +27,15 @@ pub struct LayoutMap {
     pub layout: LayoutGraph,
 }
 
+impl Default for LayoutMap {
+    fn default() -> Self {
+        Self {
+            semantic: SemanticGraph::default(),
+            layout: LayoutGraph::default(),
+        }
+    }
+}
+
 /// A purely semantic projection of Canon IR.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SemanticGraph {
