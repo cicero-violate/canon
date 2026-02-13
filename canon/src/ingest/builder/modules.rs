@@ -16,6 +16,11 @@ use super::super::parser::{ParsedFile, ParsedWorkspace};
 pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, IngestError> {
     let mut acc: HashMap<String, ModuleAccumulator> = HashMap::new();
     for file in &parsed.files {
+        // Skip synthetic layout-only files
+        if file.path_string().ends_with("__items.rs") {
+            continue;
+        }
+
         let key = module_key(file);
 
         // Skip synthetic root entries (empty key)
