@@ -14,15 +14,15 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::RwLock;
-use sha2::{Digest, Sha256};
-use serde::{Deserialize, Serialize};
 use bincode;
 use hex;
+use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
-    delta::{Delta, DeltaError},
     delta::delta_validation::validate_delta,
+    delta::{Delta, DeltaError},
     epoch::EpochCell,
     graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
     page::{PageAllocator, PageAllocatorConfig, PageLocation},

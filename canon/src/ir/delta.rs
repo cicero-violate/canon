@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
+use super::reward::RewardRecord;
 use super::{
     artifacts::{EnumVariant, Field, TraitFunction},
     functions::FunctionSignature,
@@ -10,7 +11,6 @@ use super::{
     types::{ValuePort, Visibility},
     word::Word,
 };
-use super::reward::RewardRecord;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]

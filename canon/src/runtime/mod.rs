@@ -8,11 +8,11 @@ pub mod context;
 pub mod delta_verifier;
 pub mod executor;
 pub mod parallel;
-pub mod system_interpreter;
-pub mod tick_executor;
+pub mod planner;
 pub mod reward;
 pub mod rollout;
-pub mod planner;
+pub mod system_interpreter;
+pub mod tick_executor;
 pub mod value;
 
 pub use ast::{BinOp, Expr, FunctionAst, OutputExpr, compile_function_ast};

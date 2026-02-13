@@ -8,4 +8,3 @@ pub fn compute_reward(_ir: &CanonicalIr, record: &ExecutionRecord) -> f64 {
     let penalties = record.errors.len() as f64;
     positive - penalties
 }
-

@@ -1,7 +1,7 @@
 mod cli;
 mod commands;
-mod io_utils;
 mod diff;
+mod io_utils;
 mod version_gate;
 
 use clap::Parser;

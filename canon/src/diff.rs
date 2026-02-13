@@ -1,5 +1,5 @@
-use std::collections::BTreeSet;
 use canon::CanonicalIr;
+use std::collections::BTreeSet;
 
 pub fn diff_ir(before: &CanonicalIr, after: &CanonicalIr) -> String {
     let mut lines = Vec::new();
@@ -33,4 +33,3 @@ fn diff_section(
         lines.push(format!("+ {:<8} {}", label, item));
     }
 }
-

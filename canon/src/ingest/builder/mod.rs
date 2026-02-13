@@ -5,13 +5,12 @@ use crate::layout::{LayoutMap, SemanticGraph};
 use super::IngestError;
 use super::parser::ParsedWorkspace;
 
+pub(crate) mod ast_lower;
 pub(crate) mod edges;
 pub(crate) mod functions;
-pub(crate) mod ast_lower;
 pub(crate) mod layout;
 pub(crate) mod modules;
 pub(crate) mod types;
-
 
 pub(crate) struct ModulesBuild {
     pub modules: Vec<crate::ir::Module>,
@@ -37,10 +36,17 @@ pub(crate) fn build_layout_map(
         let file_id = format!("file.{}", {
             let mut out = String::new();
             for ch in path.chars() {
-                if ch.is_ascii_alphanumeric() { out.push(ch.to_ascii_lowercase()); }
-                else { out.push('_'); }
+                if ch.is_ascii_alphanumeric() {
+                    out.push(ch.to_ascii_lowercase());
+                } else {
+                    out.push('_');
+                }
             }
-            if out.is_empty() { "root".to_string() } else { out }
+            if out.is_empty() {
+                "root".to_string()
+            } else {
+                out
+            }
         });
         let mk = modules::module_key(file);
         if let Some(module_id) = module_lookup.get(&mk) {
@@ -51,8 +57,12 @@ pub(crate) fn build_layout_map(
     let structs = functions::build_structs(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
     let enums = functions::build_enums(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
     let traits = functions::build_traits(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
-    let (impl_blocks, fns) =
-        functions::build_impls_and_functions(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
+    let (impl_blocks, fns) = functions::build_impls_and_functions(
+        &parsed,
+        &module_lookup,
+        &file_lookup,
+        &mut layout_acc,
+    );
     let call_edges = edges::build_call_edges(&parsed, &module_lookup, &fns);
     let semantic = SemanticGraph {
         modules,

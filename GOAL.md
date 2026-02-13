@@ -31,6 +31,7 @@ Modify planner to optimize expected reward, not just correctness.
 Add search depth parameter.
 Implement candidate action scoring via simulated rollouts.
 Record planner decision rationale with utility estimate.
+Surface plan/execution wiring in the timeline IR and verify it with a planner fixture that drives ticks/rewards.
 
 Learning Layer
 

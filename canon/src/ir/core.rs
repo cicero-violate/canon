@@ -2,6 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use super::reward::RewardRecord;
+use super::world_model::WorldModel;
 use super::{
     admission::{AppliedDeltaRecord, DeltaAdmission},
     artifacts::{EnumNode, ImplBlock, Module, ModuleEdge, Struct, Trait},
@@ -19,8 +21,6 @@ use super::{
     timeline::{ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch},
     word::Word,
 };
-use super::reward::RewardRecord;
-use super::world_model::WorldModel;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]

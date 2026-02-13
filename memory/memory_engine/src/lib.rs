@@ -18,5 +18,8 @@ pub mod tlog;
 pub mod proofs;
 
 pub use delta::Delta;
-pub use memory_engine::{CanonicalState, MemoryEngine, MemoryEngineConfig, MemoryEngineError, AdmissionError, CommitError, StateSlice};
+pub use memory_engine::{
+    AdmissionError, CanonicalState, CommitError, MemoryEngine, MemoryEngineConfig,
+    MemoryEngineError, StateSlice,
+};
 pub use tlog::{TlogEntry, TlogManager};

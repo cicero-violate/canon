@@ -4,15 +4,14 @@ use crate::ir::{
     ConstItem, Module, ModuleEdge, PubUseItem, StaticItem, TypeAlias, Visibility, Word,
 };
 
+use super::super::parser::{ParsedFile, ParsedWorkspace};
 use super::IngestError;
 use super::ModulesBuild;
 use super::edges::AliasBinding;
 use super::types::{
-    attribute_to_string, collect_doc_string, convert_type, expr_to_string, map_visibility,
-    render_use_item, slugify, to_pascal_case, word_from_ident,
-    flatten_use_tree, resolve_use_entry,
+    attribute_to_string, collect_doc_string, convert_type, expr_to_string, flatten_use_tree,
+    map_visibility, render_use_item, resolve_use_entry, slugify, to_pascal_case, word_from_ident,
 };
-use super::super::parser::{ParsedFile, ParsedWorkspace};
 pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, IngestError> {
     let mut acc: HashMap<String, ModuleAccumulator> = HashMap::new();
     for file in &parsed.files {
@@ -71,8 +70,7 @@ pub(crate) fn build_module_edges(
                     &mut entries,
                 );
                 for entry in entries {
-                    let Some((source_key, imported)) =
-                        resolve_use_entry(&entry, &module_key)
+                    let Some((source_key, imported)) = resolve_use_entry(&entry, &module_key)
                     else {
                         continue;
                     };
@@ -188,8 +186,7 @@ pub(crate) struct ModuleAccumulator {
 
 impl ModuleAccumulator {
     pub fn new(key: &str) -> Self {
-        let name =
-            Word::new(to_pascal_case(key)).unwrap_or_else(|_| Word::new("Module").unwrap());
+        let name = Word::new(to_pascal_case(key)).unwrap_or_else(|_| Word::new("Module").unwrap());
         let id = format!("module.{}", slugify(key));
         let description = format!("Ingested module `{key}`");
         Self {
@@ -255,10 +252,7 @@ impl ModuleAccumulator {
                         name: item_static.ident.to_string(),
                         ty: convert_type(&item_static.ty),
                         value_expr: expr_to_string(&item_static.expr),
-                        mutable: matches!(
-                            item_static.mutability,
-                            syn::StaticMutability::Mut(_)
-                        ),
+                        mutable: matches!(item_static.mutability, syn::StaticMutability::Mut(_)),
                         doc,
                         visibility: map_visibility(&item_static.vis),
                     });

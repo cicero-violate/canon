@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "canon", about = "Canonical IR schema + validator", version)]
@@ -10,19 +10,40 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    Schema { #[arg(long)] pretty: bool },
-    Validate { path: PathBuf },
-    Ingest {
-        #[arg(long)] src: PathBuf,
-        #[arg(long = "semantic-out")] semantic_out: PathBuf,
-        #[arg(long = "layout-out")] layout_out: Option<PathBuf>,
+    Schema {
+        #[arg(long)]
+        pretty: bool,
     },
-    Lint { ir: PathBuf },
-    RenderFn { #[arg(long)] ir: PathBuf, #[arg(long = "fn-id")] fn_id: String },
-    DiffIr { #[arg(long)] before: PathBuf, #[arg(long)] after: PathBuf },
+    Validate {
+        path: PathBuf,
+    },
+    Ingest {
+        #[arg(long)]
+        src: PathBuf,
+        #[arg(long = "semantic-out")]
+        semantic_out: PathBuf,
+        #[arg(long = "layout-out")]
+        layout_out: Option<PathBuf>,
+    },
+    Lint {
+        ir: PathBuf,
+    },
+    RenderFn {
+        #[arg(long)]
+        ir: PathBuf,
+        #[arg(long = "fn-id")]
+        fn_id: String,
+    },
+    DiffIr {
+        #[arg(long)]
+        before: PathBuf,
+        #[arg(long)]
+        after: PathBuf,
+    },
     Materialize {
         ir: PathBuf,
-        #[arg(long)] layout: Option<PathBuf>,
+        #[arg(long)]
+        layout: Option<PathBuf>,
         out_dir: PathBuf,
     },
     ObserveEvents {
@@ -31,19 +52,25 @@ pub enum Command {
         output: PathBuf,
     },
     ExecuteTick {
-        #[arg(long)] ir: PathBuf,
-        #[arg(long)] tick: String,
-        #[arg(long)] parallel: bool,
+        #[arg(long)]
+        ir: PathBuf,
+        #[arg(long)]
+        tick: String,
+        #[arg(long)]
+        parallel: bool,
     },
     ExportDot {
         ir: PathBuf,
-        #[arg(long)] layout: Option<PathBuf>,
+        #[arg(long)]
+        layout: Option<PathBuf>,
         output: PathBuf,
     },
     VerifyDot {
         ir: PathBuf,
-        #[arg(long)] layout: Option<PathBuf>,
-        #[arg(long)] original: PathBuf,
+        #[arg(long)]
+        layout: Option<PathBuf>,
+        #[arg(long)]
+        original: PathBuf,
     },
 }
 
@@ -53,4 +80,3 @@ pub enum LayoutStrategyArg {
     SingleFile,
     PerType,
 }
-

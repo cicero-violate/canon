@@ -3,9 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ir::{CanonicalIr, Module};
 use thiserror::Error;
 
-use super::{
-    enforce_routing_completeness, layout_node_key, LayoutGraph, LayoutNode,
-};
+use super::{LayoutGraph, LayoutNode, enforce_routing_completeness, layout_node_key};
 
 #[derive(Debug, Error)]
 #[error("layout validation failed:\n{message}")]
@@ -30,8 +28,7 @@ pub fn validate_layout(
 
     let file_lookup = build_file_lookup(layout);
     let module_maps = build_module_maps(ir);
-    let assigned_nodes =
-        validate_routing(ir, layout, &file_lookup, &module_maps, &mut violations);
+    let assigned_nodes = validate_routing(ir, layout, &file_lookup, &module_maps, &mut violations);
 
     enforce_routing_completeness(
         "struct",
@@ -223,4 +220,3 @@ fn validate_routing(
 
     assigned_nodes
 }
-

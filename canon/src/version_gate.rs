@@ -18,4 +18,3 @@ pub fn enforce_version_gate(ir: &CanonicalIr) -> Result<(), Box<dyn std::error::
         .into())
     }
 }
-

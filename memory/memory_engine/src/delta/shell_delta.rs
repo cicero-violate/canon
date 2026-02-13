@@ -37,7 +37,12 @@ impl From<serde_json::Error> for ShellDeltaError {
 }
 
 impl ShellDelta {
-    pub fn new(shell_id: u64, epoch: u64, command: impl Into<String>, state_hash: impl Into<String>) -> Self {
+    pub fn new(
+        shell_id: u64,
+        epoch: u64,
+        command: impl Into<String>,
+        state_hash: impl Into<String>,
+    ) -> Self {
         Self {
             shell_id,
             epoch,

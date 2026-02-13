@@ -37,7 +37,6 @@ pub use layout::{
 pub use materialize::{
     FileEntry, FileTree, MaterializeResult, materialize, render_impl_function, write_file_tree,
 };
-pub use semantic_builder::SemanticIrBuilder;
 pub use observe::execution_events_to_observe_deltas;
 pub use patch_protocol::{
     ApprovedPatchRegistry, PatchApplier, PatchDecision, PatchError, PatchGate, PatchMetadata,
@@ -46,6 +45,7 @@ pub use patch_protocol::{
 pub use proof::smt_bridge::{
     SmtCertificate, SmtError, attach_function_proofs, verify_function_postconditions,
 };
+pub use semantic_builder::SemanticIrBuilder;
 // pub use proof_object::{
 //     ProofArtifact as CanonProofArtifact, ProofObject, ProofResult, evaluate_proof_object,
 // };

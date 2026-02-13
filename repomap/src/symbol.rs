@@ -52,23 +52,55 @@ impl Symbol {
                 if fields.is_empty() {
                     format!("  struct {}  (line {})", name, line)
                 } else {
-                    format!("  struct {}  {{ {} }}  (line {})", name, fields.join(", "), line)
+                    format!(
+                        "  struct {}  {{ {} }}  (line {})",
+                        name,
+                        fields.join(", "),
+                        line
+                    )
                 }
             }
-            Symbol::Enum { name, variants, line } => {
-                format!("  enum {}  {{ {} }}  (line {})", name, variants.join(", "), line)
+            Symbol::Enum {
+                name,
+                variants,
+                line,
+            } => {
+                format!(
+                    "  enum {}  {{ {} }}  (line {})",
+                    name,
+                    variants.join(", "),
+                    line
+                )
             }
-            Symbol::Trait { name, methods, line } => {
+            Symbol::Trait {
+                name,
+                methods,
+                line,
+            } => {
                 if methods.is_empty() {
                     format!("  trait {}  (line {})", name, line)
                 } else {
-                    format!("  trait {}  {{ {} }}  (line {})", name, methods.join(", "), line)
+                    format!(
+                        "  trait {}  {{ {} }}  (line {})",
+                        name,
+                        methods.join(", "),
+                        line
+                    )
                 }
             }
-            Symbol::Function { name: _, signature, line } => {
+            Symbol::Function {
+                name: _,
+                signature,
+                line,
+            } => {
                 format!("  {}  (line {})", signature, line)
             }
-            Symbol::Impl { type_name, trait_name, methods, line } => {
+            Symbol::Impl {
+                type_name,
+                trait_name,
+                methods,
+                line,
+            } => {
                 let header = match trait_name {
                     Some(t) => format!("impl {} for {}", t, type_name),
                     None => format!("impl {}", type_name),
@@ -76,7 +108,12 @@ impl Symbol {
                 if methods.is_empty() {
                     format!("  {}  (line {})", header, line)
                 } else {
-                    format!("  {}  {{ {} }}  (line {})", header, methods.join(", "), line)
+                    format!(
+                        "  {}  {{ {} }}  (line {})",
+                        header,
+                        methods.join(", "),
+                        line
+                    )
                 }
             }
             Symbol::TypeAlias { name, line } => {

@@ -13,14 +13,14 @@
 
 use crate::delta::Delta;
 use crate::memory_engine::CanonicalState;
-use crate::proofs::AdmissionProof;
 use crate::primitives::Hash;
+use crate::proofs::AdmissionProof;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufReader, BufWriter, Read, Write, ErrorKind};
+use std::io::{self, BufReader, BufWriter, ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
 /// Compute a stable content hash for a delta

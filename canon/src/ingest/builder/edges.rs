@@ -4,9 +4,9 @@ use syn::visit::{self, Visit};
 
 use crate::ir::{CallEdge, Function, Visibility};
 
+use super::super::parser::ParsedWorkspace;
 use super::modules::{collect_use_aliases, module_key};
 use super::types::module_segments_from_key;
-use super::super::parser::ParsedWorkspace;
 use super::types::slugify;
 
 // ── Shared data structures ────────────────────────────────────────────────────
@@ -59,7 +59,9 @@ pub(crate) fn build_call_edges(
     let mut discovered: BTreeSet<(String, String)> = BTreeSet::new();
     for file in &parsed.files {
         let mk = module_key(file);
-        let Some(_module_id) = module_lookup.get(&mk) else { continue };
+        let Some(_module_id) = module_lookup.get(&mk) else {
+            continue;
+        };
         let module_segments = module_segments_from_key(&mk);
         let alias_map = collect_use_aliases(file, &mk, module_lookup);
         for item in &file.ast.items {
@@ -152,9 +154,7 @@ struct CallCollector<'a> {
 impl<'ast, 'a> Visit<'ast> for CallCollector<'a> {
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         if let Some(path) = extract_call_path(&node.func) {
-            if let Some(entry) =
-                resolve_function_path(self.module_segments, path, self.functions)
-            {
+            if let Some(entry) = resolve_function_path(self.module_segments, path, self.functions) {
                 if entry.visibility == Visibility::Public && entry.id != self.caller_id {
                     self.discovered
                         .insert((self.caller_id.to_owned(), entry.id.clone()));
@@ -163,11 +163,9 @@ impl<'ast, 'a> Visit<'ast> for CallCollector<'a> {
                 if let Some(segment) = path.segments.first() {
                     let name = segment.ident.to_string();
                     if let Some(binding) = self.aliases.get(&name) {
-                        let key =
-                            (binding.module_key.clone(), binding.function_slug.clone());
+                        let key = (binding.module_key.clone(), binding.function_slug.clone());
                         if let Some(entry) = self.functions.get(&key) {
-                            if entry.visibility == Visibility::Public
-                                && entry.id != self.caller_id
+                            if entry.visibility == Visibility::Public && entry.id != self.caller_id
                             {
                                 self.discovered
                                     .insert((self.caller_id.to_owned(), entry.id.clone()));

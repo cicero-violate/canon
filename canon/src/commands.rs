@@ -6,8 +6,9 @@ use crate::io_utils::*;
 use crate::version_gate::enforce_version_gate;
 
 use canon::{
-    generate_schema, validate_ir, render_impl_function,
+    generate_schema, render_impl_function,
     runtime::{TickExecutionMode, TickExecutor},
+    validate_ir,
 };
 
 pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
@@ -45,7 +46,11 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", diff_ir(&a, &b));
         }
 
-        Command::Materialize { ir, layout, out_dir } => {
+        Command::Materialize {
+            ir,
+            layout,
+            out_dir,
+        } => {
             let ir_doc = load_ir_or_semantic(&ir)?;
             validate_ir(&ir_doc)?;
             enforce_version_gate(&ir_doc)?;
@@ -56,12 +61,16 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
 
         Command::Ingest { .. } => {
             // Destructure so the compiler enforces all fields are handled.
-            let Command::Ingest { src, semantic_out, layout_out } = cmd else {
+            let Command::Ingest {
+                src,
+                semantic_out,
+                layout_out,
+            } = cmd
+            else {
                 unreachable!()
             };
-            let layout_map = canon::ingest::ingest_workspace(
-                &canon::ingest::IngestOptions::new(src),
-            )?;
+            let layout_map =
+                canon::ingest::ingest_workspace(&canon::ingest::IngestOptions::new(src))?;
             let semantic_json = serde_json::to_string_pretty(&layout_map.semantic)?;
             fs::write(&semantic_out, &semantic_json)?;
             println!("Semantic IR written to `{}`.", semantic_out.display());
@@ -99,7 +108,11 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
             fs::write(output, dot)?;
         }
 
-        Command::VerifyDot { ir, layout, original } => {
+        Command::VerifyDot {
+            ir,
+            layout,
+            original,
+        } => {
             let ir_doc = load_ir(&ir)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
             let dot = fs::read_to_string(original)?;

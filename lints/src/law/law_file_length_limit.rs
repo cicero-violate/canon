@@ -92,12 +92,14 @@ pub fn reset_cache() {
 }
 
 fn resolve_workspace_prefix() -> String {
-    let candidate = env::var("CANON_WORKSPACE_ROOT").map(PathBuf::from).unwrap_or_else(|_| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .expect("lints crate must have parent workspace directory")
-            .to_path_buf()
-    });
+    let candidate = env::var("CANON_WORKSPACE_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .expect("lints crate must have parent workspace directory")
+                .to_path_buf()
+        });
 
     let canonical = candidate
         .canonicalize()

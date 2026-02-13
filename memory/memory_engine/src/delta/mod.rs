@@ -6,5 +6,5 @@ pub mod delta_validation;
 
 pub use delta::Delta;
 pub use delta_types::{DeltaError, Source};
-pub use shell_delta::{ShellDelta, ShellDeltaError};
 pub use delta_validation::validate_delta;
+pub use shell_delta::{ShellDelta, ShellDeltaError};

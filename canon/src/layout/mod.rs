@@ -17,7 +17,7 @@ mod strategies;
 mod validation;
 
 pub use strategies::{OriginalLayoutStrategy, PerTypeLayoutStrategy, SingleFileLayoutStrategy};
-pub use validation::{validate_layout, LayoutValidationError};
+pub use validation::{LayoutValidationError, validate_layout};
 
 /// Container that pairs the semantic and layout graphs used during
 /// ingestion/materialization.

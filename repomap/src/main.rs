@@ -7,9 +7,7 @@ use std::path::Path;
 fn main() {
     // Default: scan the current directory.
     // Pass a path as first argument to scan a different directory.
-    let target = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| ".".to_string());
+    let target = std::env::args().nth(1).unwrap_or_else(|| ".".to_string());
 
     let root = Path::new(&target);
 

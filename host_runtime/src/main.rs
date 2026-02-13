@@ -4,8 +4,8 @@ mod state_io;
 mod verify_flow;
 
 use crate::shell_flow::run_shell_flow;
-use crate::verify_flow::{parse_cli_mode, run_system_flow, CliMode};
-use anyhow::{anyhow, Result};
+use crate::verify_flow::{CliMode, parse_cli_mode, run_system_flow};
+use anyhow::{Result, anyhow};
 use std::path::PathBuf;
 
 fn main() -> Result<()> {

@@ -2,7 +2,11 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use canon::{layout::{LayoutGraph, SemanticGraph}, semantic_builder::SemanticIrBuilder, CanonicalIr};
+use canon::{
+    CanonicalIr,
+    layout::{LayoutGraph, SemanticGraph},
+    semantic_builder::SemanticIrBuilder,
+};
 
 pub fn load_ir(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
     let data = fs::read(path)?;
@@ -20,10 +24,7 @@ pub fn load_ir_or_semantic(path: &Path) -> Result<CanonicalIr, Box<dyn std::erro
     }
     // Fall back to SemanticGraph (produced by canon ingest).
     let semantic: SemanticGraph = serde_json::from_slice(&data)?;
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("canon");
+    let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("canon");
     // Strip everything from the first dot so "canon.semantic" → "canon",
     // since Word rejects strings containing punctuation.
     let base_name = name.split('.').next().unwrap_or("canon");

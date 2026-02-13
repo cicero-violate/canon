@@ -4,7 +4,7 @@ use rustc_lint::{LateContext, LateLintPass};
 use serde_json;
 
 use crate::classify::classify_item;
-use crate::law::{enforce_file_length, reset_cache, FILE_TOO_LONG};
+use crate::law::{FILE_TOO_LONG, enforce_file_length, reset_cache};
 use crate::policy::API_TRAITS_ONLY;
 use crate::signal::{LINT_SIGNALS, LintSignal};
 
@@ -73,5 +73,4 @@ impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
 
         // Signal-only; no human-facing lint emission
     }
-
 }

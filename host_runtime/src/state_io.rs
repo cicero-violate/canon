@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use hex;
 use host_state_controller::{RunReceipt, StateController};
-use memory_engine::delta::shell_delta::ShellDelta;
 use memory_engine::delta::Delta;
+use memory_engine::delta::shell_delta::ShellDelta;
 use memory_engine::{CanonicalState, TlogEntry, TlogManager};
 use serde_json::json;
 use sha2::{Digest, Sha256};

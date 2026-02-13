@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
 use crate::extractor::extract_symbols;
 use crate::symbol::Symbol;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 /// One file's worth of extracted symbols.
 pub struct FileMap {

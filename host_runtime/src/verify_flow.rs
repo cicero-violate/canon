@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::env;
 use std::path::Path;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use canon::ir::{CanonicalIr, SystemGraph};
 use canon::runtime::value::ScalarValue;
 use canon::runtime::{SystemExecutionEvent, SystemExecutionResult, SystemInterpreter, Value};
 use hex;
 
-use crate::shell_flow::{parse_shell_mode, ShellOptions};
+use crate::shell_flow::{ShellOptions, parse_shell_mode};
 use crate::state_io::{gate_and_commit, load_state, resolve_fixture_path};
 
 #[derive(Debug)]
@@ -65,7 +65,13 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
     let graph = select_system_graph(&ir)?;
     let execution = interpreter.execute_graph(&graph.id, inputs)?;
     report_execution(&execution)?;
-    gate_and_commit(repo_root, &mut state, &graph.id, &execution.emitted_deltas, None)?;
+    gate_and_commit(
+        repo_root,
+        &mut state,
+        &graph.id,
+        &execution.emitted_deltas,
+        None,
+    )?;
     Ok(())
 }
 

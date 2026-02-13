@@ -1,5 +1,5 @@
-use tree_sitter::{Node, Parser};
 use crate::symbol::Symbol;
+use tree_sitter::{Node, Parser};
 
 /// Extract a text slice from source bytes given a node.
 fn node_text<'a>(node: Node, src: &'a [u8]) -> &'a str {
@@ -8,8 +8,7 @@ fn node_text<'a>(node: Node, src: &'a [u8]) -> &'a str {
 
 /// Find a direct named child with a given field name and return its text.
 fn field_text<'a>(node: Node, field: &str, src: &'a [u8]) -> Option<&'a str> {
-    node.child_by_field_name(field)
-        .map(|n| node_text(n, src))
+    node.child_by_field_name(field).map(|n| node_text(n, src))
 }
 
 /// Extract the bare function signature: `fn name(params) -> ret`
@@ -82,9 +81,7 @@ fn extract_top_level(root: Node, src: &[u8]) -> Vec<Symbol> {
 
         match node.kind() {
             "struct_item" => {
-                let name = field_text(node, "name", src)
-                    .unwrap_or("?")
-                    .to_string();
+                let name = field_text(node, "name", src).unwrap_or("?").to_string();
                 let fields = node
                     .child_by_field_name("body")
                     .map(|b| collect_struct_fields(b, src))
@@ -93,53 +90,59 @@ fn extract_top_level(root: Node, src: &[u8]) -> Vec<Symbol> {
             }
 
             "enum_item" => {
-                let name = field_text(node, "name", src)
-                    .unwrap_or("?")
-                    .to_string();
+                let name = field_text(node, "name", src).unwrap_or("?").to_string();
                 let variants = node
                     .child_by_field_name("body")
                     .map(|b| collect_enum_variants(b, src))
                     .unwrap_or_default();
-                symbols.push(Symbol::Enum { name, variants, line });
+                symbols.push(Symbol::Enum {
+                    name,
+                    variants,
+                    line,
+                });
             }
 
             "trait_item" => {
-                let name = field_text(node, "name", src)
-                    .unwrap_or("?")
-                    .to_string();
+                let name = field_text(node, "name", src).unwrap_or("?").to_string();
                 let methods = node
                     .child_by_field_name("body")
                     .map(|b| collect_methods(b, src))
                     .unwrap_or_default();
-                symbols.push(Symbol::Trait { name, methods, line });
+                symbols.push(Symbol::Trait {
+                    name,
+                    methods,
+                    line,
+                });
             }
 
             "function_item" => {
-                let name = field_text(node, "name", src)
-                    .unwrap_or("?")
-                    .to_string();
+                let name = field_text(node, "name", src).unwrap_or("?").to_string();
                 let signature = fn_signature(node, src);
-                symbols.push(Symbol::Function { name, signature, line });
+                symbols.push(Symbol::Function {
+                    name,
+                    signature,
+                    line,
+                });
             }
 
             "impl_item" => {
                 // `impl Trait for Type` or plain `impl Type`
-                let type_name = field_text(node, "type", src)
-                    .unwrap_or("?")
-                    .to_string();
-                let trait_name = field_text(node, "trait", src)
-                    .map(|s| s.to_string());
+                let type_name = field_text(node, "type", src).unwrap_or("?").to_string();
+                let trait_name = field_text(node, "trait", src).map(|s| s.to_string());
                 let methods = node
                     .child_by_field_name("body")
                     .map(|b| collect_methods(b, src))
                     .unwrap_or_default();
-                symbols.push(Symbol::Impl { type_name, trait_name, methods, line });
+                symbols.push(Symbol::Impl {
+                    type_name,
+                    trait_name,
+                    methods,
+                    line,
+                });
             }
 
             "type_item" => {
-                let name = field_text(node, "name", src)
-                    .unwrap_or("?")
-                    .to_string();
+                let name = field_text(node, "name", src).unwrap_or("?").to_string();
                 symbols.push(Symbol::TypeAlias { name, line });
             }
 

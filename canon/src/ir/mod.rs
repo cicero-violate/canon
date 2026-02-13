@@ -45,10 +45,10 @@ pub use proposal::{
     Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
     ProposedNodeKind,
 };
+pub use reward::{RewardRecord, UtilityKind};
 pub use timeline::{
     ExecutionError, ExecutionEvent, ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch,
 };
-pub use reward::{RewardRecord, UtilityKind};
 pub use types::{
     Receiver, RefKind, ScalarType, StructKind, TypeKind, TypeRef, ValuePort, Visibility,
 };

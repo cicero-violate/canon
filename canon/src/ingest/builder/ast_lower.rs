@@ -4,7 +4,7 @@
 //! Every node carries a `"kind"` discriminant matching the whitelist in
 //! `validate/check_artifacts.rs::check_ast_node_kinds`.
 
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 
 /// Entry point: lower a full function body block.
 /// Returns `None` when the block has no statements (so `metadata.ast`
@@ -42,10 +42,7 @@ fn lower_stmt(stmt: &syn::Stmt) -> Option<JsonValue> {
 fn lower_let(local: &syn::Local) -> JsonValue {
     let name = pat_to_string(&local.pat);
     let mutable = pat_is_mut(&local.pat);
-    let value = local
-        .init
-        .as_ref()
-        .map(|init| lower_expr(&init.expr));
+    let value = local.init.as_ref().map(|init| lower_expr(&init.expr));
     match value {
         Some(v) => json!({
             "kind": "let",
@@ -146,9 +143,7 @@ pub(crate) fn lower_expr(expr: &syn::Expr) -> JsonValue {
             let body = lower_block(&a.block);
             json!({ "kind": "closure", "params": [], "body": body, "async": true })
         }
-        syn::Expr::Unsafe(u) => {
-            lower_block_stmts(&u.block)
-        }
+        syn::Expr::Unsafe(u) => lower_block_stmts(&u.block),
         _ => json!({ "kind": "lit", "value": "()" }),
     }
 }
@@ -157,13 +152,13 @@ pub(crate) fn lower_expr(expr: &syn::Expr) -> JsonValue {
 
 fn lower_lit(l: &syn::ExprLit) -> JsonValue {
     let value = match &l.lit {
-        syn::Lit::Int(i)   => i.base10_digits().to_owned(),
+        syn::Lit::Int(i) => i.base10_digits().to_owned(),
         syn::Lit::Float(f) => f.base10_digits().to_owned(),
-        syn::Lit::Bool(b)  => b.value.to_string(),
-        syn::Lit::Str(s)   => format!("\"{}\"", s.value()),
-        syn::Lit::Char(c)  => format!("'{}'", c.value()),
-        syn::Lit::Byte(b)  => format!("{}", b.value()),
-        _                  => "()".to_owned(),
+        syn::Lit::Bool(b) => b.value.to_string(),
+        syn::Lit::Str(s) => format!("\"{}\"", s.value()),
+        syn::Lit::Char(c) => format!("'{}'", c.value()),
+        syn::Lit::Byte(b) => format!("{}", b.value()),
+        _ => "()".to_owned(),
     };
     json!({ "kind": "lit", "value": value })
 }
@@ -177,24 +172,24 @@ fn lower_binary(b: &syn::ExprBinary) -> JsonValue {
 
 fn bin_op_to_kind(op: &syn::BinOp) -> (&'static str, &'static str) {
     match op {
-        syn::BinOp::Add(_)    => ("bin", "+"),
-        syn::BinOp::Sub(_)    => ("bin", "-"),
-        syn::BinOp::Mul(_)    => ("bin", "*"),
-        syn::BinOp::Div(_)    => ("bin", "/"),
-        syn::BinOp::Rem(_)    => ("bin", "%"),
+        syn::BinOp::Add(_) => ("bin", "+"),
+        syn::BinOp::Sub(_) => ("bin", "-"),
+        syn::BinOp::Mul(_) => ("bin", "*"),
+        syn::BinOp::Div(_) => ("bin", "/"),
+        syn::BinOp::Rem(_) => ("bin", "%"),
         syn::BinOp::BitAnd(_) => ("bin", "&"),
-        syn::BinOp::BitOr(_)  => ("bin", "|"),
+        syn::BinOp::BitOr(_) => ("bin", "|"),
         syn::BinOp::BitXor(_) => ("bin", "^"),
-        syn::BinOp::Shl(_)    => ("bin", "<<"),
-        syn::BinOp::Shr(_)    => ("bin", ">>"),
-        syn::BinOp::Eq(_)     => ("cmp", "=="),
-        syn::BinOp::Ne(_)     => ("cmp", "!="),
-        syn::BinOp::Lt(_)     => ("cmp", "<"),
-        syn::BinOp::Le(_)     => ("cmp", "<="),
-        syn::BinOp::Gt(_)     => ("cmp", ">"),
-        syn::BinOp::Ge(_)     => ("cmp", ">="),
-        syn::BinOp::And(_)    => ("logical", "&&"),
-        syn::BinOp::Or(_)     => ("logical", "||"),
+        syn::BinOp::Shl(_) => ("bin", "<<"),
+        syn::BinOp::Shr(_) => ("bin", ">>"),
+        syn::BinOp::Eq(_) => ("cmp", "=="),
+        syn::BinOp::Ne(_) => ("cmp", "!="),
+        syn::BinOp::Lt(_) => ("cmp", "<"),
+        syn::BinOp::Le(_) => ("cmp", "<="),
+        syn::BinOp::Gt(_) => ("cmp", ">"),
+        syn::BinOp::Ge(_) => ("cmp", ">="),
+        syn::BinOp::And(_) => ("logical", "&&"),
+        syn::BinOp::Or(_) => ("logical", "||"),
         syn::BinOp::AddAssign(_) => ("bin", "+="),
         syn::BinOp::SubAssign(_) => ("bin", "-="),
         syn::BinOp::MulAssign(_) => ("bin", "*="),
@@ -206,10 +201,10 @@ fn bin_op_to_kind(op: &syn::BinOp) -> (&'static str, &'static str) {
 
 fn lower_unary(u: &syn::ExprUnary) -> JsonValue {
     let op = match &u.op {
-        syn::UnOp::Not(_)   => "!",
-        syn::UnOp::Neg(_)   => "-",
+        syn::UnOp::Not(_) => "!",
+        syn::UnOp::Neg(_) => "-",
         syn::UnOp::Deref(_) => "*",
-        _                   => "?",
+        _ => "?",
     };
     let expr = lower_expr(&u.expr);
     json!({ "kind": "unary", "op": op, "expr": expr })
@@ -245,14 +240,18 @@ fn lower_index(i: &syn::ExprIndex) -> JsonValue {
 
 fn lower_struct_lit(s: &syn::ExprStruct) -> JsonValue {
     let name = path_to_str(&s.path);
-    let fields: Vec<JsonValue> = s.fields.iter().map(|fv| {
-        let fname = match &fv.member {
-            syn::Member::Named(i) => i.to_string(),
-            syn::Member::Unnamed(i) => i.index.to_string(),
-        };
-        let fvalue = lower_expr(&fv.expr);
-        json!({ "name": fname, "value": fvalue })
-    }).collect();
+    let fields: Vec<JsonValue> = s
+        .fields
+        .iter()
+        .map(|fv| {
+            let fname = match &fv.member {
+                syn::Member::Named(i) => i.to_string(),
+                syn::Member::Unnamed(i) => i.index.to_string(),
+            };
+            let fvalue = lower_expr(&fv.expr);
+            json!({ "name": fname, "value": fvalue })
+        })
+        .collect();
     json!({ "kind": "struct_lit", "name": name, "fields": fields })
 }
 
@@ -319,12 +318,16 @@ fn lower_loop(l: &syn::ExprLoop) -> JsonValue {
 
 fn lower_match(m: &syn::ExprMatch) -> JsonValue {
     let expr = lower_expr(&m.expr);
-    let arms: Vec<JsonValue> = m.arms.iter().map(|arm| {
-        let pattern = pat_to_string(&arm.pat);
-        let body = lower_expr(&arm.body);
-        let guard = arm.guard.as_ref().map(|(_, g)| lower_expr(g));
-        json!({ "pattern": pattern, "body": body, "guard": guard })
-    }).collect();
+    let arms: Vec<JsonValue> = m
+        .arms
+        .iter()
+        .map(|arm| {
+            let pattern = pat_to_string(&arm.pat);
+            let body = lower_expr(&arm.body);
+            let guard = arm.guard.as_ref().map(|(_, g)| lower_expr(g));
+            json!({ "pattern": pattern, "body": body, "guard": guard })
+        })
+        .collect();
     json!({ "kind": "match", "expr": expr, "arms": arms })
 }
 
@@ -410,25 +413,25 @@ fn pat_to_string(pat: &syn::Pat) -> String {
         }
         syn::Pat::Struct(s) => {
             let name = path_to_str(&s.path);
-            let fields: Vec<_> = s.fields.iter().map(|f| {
-                match &f.member {
+            let fields: Vec<_> = s
+                .fields
+                .iter()
+                .map(|f| match &f.member {
                     syn::Member::Named(i) => i.to_string(),
                     syn::Member::Unnamed(i) => i.index.to_string(),
-                }
-            }).collect();
+                })
+                .collect();
             format!("{} {{ {} }}", name, fields.join(", "))
         }
         syn::Pat::Path(p) => path_to_str(&p.path),
-        syn::Pat::Lit(l) => {
-            match &l.lit {
-                syn::Lit::Int(i) => i.base10_digits().to_owned(),
-                syn::Lit::Str(s) => format!("\"{}\"", s.value()),
-                syn::Lit::Bool(b) => b.value.to_string(),
-                syn::Lit::Char(c) => format!("'{}'", c.value()),
-                syn::Lit::Byte(b) => b.value().to_string(),
-                _ => "_".to_owned(),
-            }
-        }
+        syn::Pat::Lit(l) => match &l.lit {
+            syn::Lit::Int(i) => i.base10_digits().to_owned(),
+            syn::Lit::Str(s) => format!("\"{}\"", s.value()),
+            syn::Lit::Bool(b) => b.value.to_string(),
+            syn::Lit::Char(c) => format!("'{}'", c.value()),
+            syn::Lit::Byte(b) => b.value().to_string(),
+            _ => "_".to_owned(),
+        },
         syn::Pat::Range(_) => "_..=_".to_owned(),
         syn::Pat::Reference(r) => {
             let inner = pat_to_string(&r.pat);

@@ -4,17 +4,17 @@ use crate::ir::{
     EnumNode, EnumVariant, EnumVariantFields, Field, Function, FunctionContract, ImplBlock,
     ImplFunctionBinding, Struct, Trait, TraitFunction, Word,
 };
-use crate::layout::{LayoutNode};
+use crate::layout::LayoutNode;
 
-use super::layout::LayoutAccumulator;
 use super::super::parser::ParsedWorkspace;
+use super::ast_lower;
+use super::layout::LayoutAccumulator;
+use super::modules::module_key;
 use super::types::{
     collect_derives, collect_doc_string, convert_fields, convert_generics, convert_inputs,
     convert_receiver, convert_return_type, convert_type, map_visibility, path_to_string, slugify,
     word_from_ident, word_from_string,
 };
-use super::modules::module_key;
-use super::ast_lower;
 
 // ── Top-level builders ────────────────────────────────────────────────────────
 
@@ -27,7 +27,9 @@ pub(crate) fn build_structs(
     let mut structs = Vec::new();
     for file in &parsed.files {
         let mk = module_key(file);
-        let Some(module_id) = module_lookup.get(&mk) else { continue };
+        let Some(module_id) = module_lookup.get(&mk) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Struct(item_struct) = item {
@@ -49,7 +51,9 @@ pub(crate) fn build_enums(
     let mut enums = Vec::new();
     for file in &parsed.files {
         let mk = module_key(file);
-        let Some(module_id) = module_lookup.get(&mk) else { continue };
+        let Some(module_id) = module_lookup.get(&mk) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Enum(item_enum) = item {
@@ -71,7 +75,9 @@ pub(crate) fn build_traits(
     let mut traits = Vec::new();
     for file in &parsed.files {
         let mk = module_key(file);
-        let Some(module_id) = module_lookup.get(&mk) else { continue };
+        let Some(module_id) = module_lookup.get(&mk) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Trait(trait_item) = item {
@@ -94,7 +100,9 @@ pub(crate) fn build_impls_and_functions(
     let mut functions = Vec::new();
     for file in &parsed.files {
         let mk = module_key(file);
-        let Some(module_id) = module_lookup.get(&mk) else { continue };
+        let Some(module_id) = module_lookup.get(&mk) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for syn_item in &file.ast.items {
             match syn_item {
@@ -103,30 +111,24 @@ pub(crate) fn build_impls_and_functions(
                     layout.assign(LayoutNode::Function(function.id.clone()), file_id.clone());
                     functions.push(function);
                 }
-                syn::Item::Impl(impl_block) => {
-                    match impl_block_from_syn(module_id, impl_block) {
-                        ImplMapping::Standalone(funcs) => {
-                            for function in funcs {
-                                layout.assign(
-                                    LayoutNode::Function(function.id.clone()),
-                                    file_id.clone(),
-                                );
-                                functions.push(function);
-                            }
+                syn::Item::Impl(impl_block) => match impl_block_from_syn(module_id, impl_block) {
+                    ImplMapping::Standalone(funcs) => {
+                        for function in funcs {
+                            layout
+                                .assign(LayoutNode::Function(function.id.clone()), file_id.clone());
+                            functions.push(function);
                         }
-                        ImplMapping::ImplBlock(block, funcs) => {
-                            for function in funcs {
-                                layout.assign(
-                                    LayoutNode::Function(function.id.clone()),
-                                    file_id.clone(),
-                                );
-                                functions.push(function);
-                            }
-                            impls.push(block);
-                        }
-                        ImplMapping::Unsupported => {}
                     }
-                }
+                    ImplMapping::ImplBlock(block, funcs) => {
+                        for function in funcs {
+                            layout
+                                .assign(LayoutNode::Function(function.id.clone()), file_id.clone());
+                            functions.push(function);
+                        }
+                        impls.push(block);
+                    }
+                    ImplMapping::Unsupported => {}
+                },
                 _ => {}
             }
         }
@@ -162,10 +164,7 @@ pub(crate) fn function_from_syn(
         if impl_id.is_empty() {
             format!("function.{mod_slug}.{fn_slug}")
         } else {
-            let struct_slug = impl_id
-                .splitn(4, '.')
-                .nth(2)
-                .unwrap_or("unknown");
+            let struct_slug = impl_id.splitn(4, '.').nth(2).unwrap_or("unknown");
             format!("function.{mod_slug}.{struct_slug}.{fn_slug}")
         }
     };
@@ -205,15 +204,16 @@ pub(crate) fn function_from_syn(
     }
 }
 
-pub(crate) fn impl_block_from_syn(
-    module_id: &str,
-    block: &syn::ItemImpl,
-) -> ImplMapping {
+pub(crate) fn impl_block_from_syn(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
     let Some((_, trait_path, _)) = &block.trait_ else {
         let mut standalone = Vec::new();
         let self_ty_slug = match block.self_ty.as_ref() {
             syn::Type::Path(p) => slugify(
-                &p.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default()
+                &p.path
+                    .segments
+                    .last()
+                    .map(|s| s.ident.to_string())
+                    .unwrap_or_default(),
             ),
             _ => "unknown".to_owned(),
         };
@@ -244,14 +244,10 @@ pub(crate) fn impl_block_from_syn(
     let mut functions = Vec::new();
     for item in &block.items {
         if let syn::ImplItem::Fn(method) = item {
-            let function = function_from_impl_item(
-                module_id,
-                method,
-                Some((&impl_id, Some(trait_path))),
-            );
+            let function =
+                function_from_impl_item(module_id, method, Some((&impl_id, Some(trait_path))));
             let fn_id = function.id.clone();
-            let trait_fn_id =
-                trait_path_to_trait_fn_id(trait_path, module_id, &method.sig.ident);
+            let trait_fn_id = trait_path_to_trait_fn_id(trait_path, module_id, &method.sig.ident);
             bindings.push(ImplFunctionBinding {
                 trait_fn: trait_fn_id,
                 function: fn_id,
@@ -338,10 +334,7 @@ pub(crate) fn enum_variant_from_syn(variant: &syn::Variant) -> EnumVariant {
     EnumVariant { name, fields }
 }
 
-pub(crate) fn struct_from_syn(
-    module_id: &str,
-    item: &syn::ItemStruct,
-) -> Struct {
+pub(crate) fn struct_from_syn(module_id: &str, item: &syn::ItemStruct) -> Struct {
     let name = word_from_ident(&item.ident, "Struct");
     let visibility = map_visibility(&item.vis);
     let derives = collect_derives(&item.attrs);
@@ -363,10 +356,7 @@ pub(crate) fn struct_from_syn(
     }
 }
 
-pub(crate) fn trait_from_syn(
-    module_id: &str,
-    item: &syn::ItemTrait,
-) -> Trait {
+pub(crate) fn trait_from_syn(module_id: &str, item: &syn::ItemTrait) -> Trait {
     let name = word_from_ident(&item.ident, "Trait");
     let visibility = map_visibility(&item.vis);
     let trait_slug = slugify(&item.ident.to_string());
