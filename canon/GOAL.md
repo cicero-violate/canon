@@ -17,7 +17,7 @@ The `canon` IR already provides:
 
 | #  | Task                                                                  | IR Target                     | Notes                              |
 |----+-----------------------------------------------------------------------+-------------------------------+------------------------------------|
-| F1 | Define `UtilityFunction` struct with explicit scalar formula          | `ir/utility.rs` (new)         | Must be serializable and versioned |
+| F1 | Define `UtilityFunction` struct with explicit scalar formula          | `ir/utility.rs` (new)         | Must be serializable and versioned | DONE
 | F2 | Add `reward: f64` field to `ExecutionRecord`                          | `ir/timeline.rs`              | Logged after every tick            |
 | F3 | Add `reward_deltas: Vec<RewardDelta>` to `CanonicalIr`                | `ir/core.rs`                  | Append-only, delta-tracked         |
 | F4 | Implement `compute_reward()` in `runtime/tick_executor.rs`            | Runs post-tick                | Returns `f64`, stored on record    |
