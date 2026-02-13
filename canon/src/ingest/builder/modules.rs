@@ -145,9 +145,19 @@ pub(crate) fn collect_use_aliases(
 
 pub(crate) fn module_key(file: &ParsedFile) -> String {
     if file.module_path.is_empty() {
-        "crate".to_owned()
+        return String::new();
+    }
+
+    let mut path = file.module_path.clone();
+
+    if path.last().map(|s| s == "__items").unwrap_or(false) {
+        path.pop();
+    }
+
+    if path.is_empty() {
+        String::new()
     } else {
-        file.module_path.join("::")
+        path.join("::")
     }
 }
 
