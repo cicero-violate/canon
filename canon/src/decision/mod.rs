@@ -1,4 +1,4 @@
-mod accept;
+pub mod accept;
 mod auto_dot;
 mod auto_dsl;
 mod auto_fn_ast;

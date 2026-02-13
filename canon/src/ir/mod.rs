@@ -4,11 +4,13 @@ mod core;
 mod delta;
 mod errors;
 mod functions;
+pub mod goals;
 mod gpu;
 mod graphs;
 mod ids;
 mod judgment;
 mod learning;
+mod policy;
 mod project;
 mod proofs;
 mod proposal;
@@ -31,6 +33,7 @@ pub use functions::{
     DeltaRef, Function, FunctionContract, FunctionMetadata, FunctionSignature, GenericParam,
     Postcondition, WhereClause,
 };
+pub use goals::{GoalDriftMetric, GoalMutation, GoalMutationStatus};
 pub use gpu::{GpuFunction, GpuProperties, VectorPort};
 pub use graphs::{
     CallEdge, SystemEdge, SystemEdgeKind, SystemGraph, SystemNode, SystemNodeKind, TickEdge,
@@ -39,6 +42,7 @@ pub use graphs::{
 pub use ids::*; // EnumId now included
 pub use judgment::{Judgment, JudgmentDecision, JudgmentPredicate};
 pub use learning::Learning;
+pub use policy::PolicyParameters;
 pub use project::{ExternalDependency, Project};
 pub use proofs::{Proof, ProofArtifact, ProofScope};
 pub use proposal::{

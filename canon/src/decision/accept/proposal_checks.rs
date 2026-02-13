@@ -20,10 +20,7 @@ pub(super) fn enforce_proposal_ready(proposal: &Proposal) -> Result<(), AcceptPr
     Ok(())
 }
 
-pub(super) fn ensure_proof_exists(
-    ir: &CanonicalIr,
-    proof_id: &str,
-) -> Result<(), AcceptProposalError> {
+pub fn ensure_proof_exists(ir: &CanonicalIr, proof_id: &str) -> Result<(), AcceptProposalError> {
     if ir.proofs.iter().any(|proof| proof.id == proof_id) {
         Ok(())
     } else {

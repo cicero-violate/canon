@@ -10,11 +10,13 @@ use super::{
     delta::Delta,
     errors::ErrorArtifact,
     functions::Function,
+    goals::GoalMutation,
     gpu::GpuFunction,
     graphs::{CallEdge, SystemGraph, TickGraph},
-    ids::ProofId,
+    ids::{PolicyParameterId, ProofId},
     judgment::{Judgment, JudgmentPredicate},
     learning::Learning,
+    policy::PolicyParameters,
     project::{ExternalDependency, Project},
     proofs::Proof,
     proposal::Proposal,
@@ -44,6 +46,8 @@ pub struct CanonicalIr {
     pub loop_policies: Vec<LoopPolicy>,
     pub ticks: Vec<Tick>,
     pub tick_epochs: Vec<TickEpoch>,
+    #[serde(default)]
+    pub policy_parameters: Vec<PolicyParameters>,
     pub plans: Vec<Plan>,
     pub executions: Vec<ExecutionRecord>,
     pub admissions: Vec<DeltaAdmission>,
@@ -65,6 +69,8 @@ pub struct CanonicalIr {
     /// Predictive world model (Layer 2).
     #[serde(default)]
     pub world_model: WorldModel,
+    #[serde(default)]
+    pub goal_mutations: Vec<GoalMutation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

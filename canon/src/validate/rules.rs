@@ -32,6 +32,9 @@ pub enum CanonRule {
     AdmissionBridge,
     FunctionAst,
     RewardMonotonicity,
+    RewardCollapseDetected,
+    GoalMutationRequiresJudgment,
+    GoalMutationInvariantMissing,
 }
 
 impl CanonRule {
@@ -69,6 +72,9 @@ impl CanonRule {
             CanonRule::AdmissionBridge => "Rules 53-69",
             CanonRule::FunctionAst => "Rule 27",
             CanonRule::RewardMonotonicity => "Rule F1",
+            CanonRule::RewardCollapseDetected => "Rule L1",
+            CanonRule::GoalMutationRequiresJudgment => "Rule G1",
+            CanonRule::GoalMutationInvariantMissing => "Rule G2",
         }
     }
 
@@ -121,6 +127,15 @@ impl CanonRule {
             }
             CanonRule::RewardMonotonicity => {
                 "Reward must not decrease by more than the declared slack across consecutive ticks."
+            }
+            CanonRule::RewardCollapseDetected => {
+                "Reward collapse beyond epsilon is not permitted across epochs."
+            }
+            CanonRule::GoalMutationRequiresJudgment => {
+                "Accepted goal mutations must reference a judgment."
+            }
+            CanonRule::GoalMutationInvariantMissing => {
+                "Goal mutations must cite existing invariant proofs."
             }
         }
     }

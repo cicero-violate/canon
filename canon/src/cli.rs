@@ -72,6 +72,17 @@ pub enum Command {
         #[arg(long)]
         original: PathBuf,
     },
+    SubmitDsl {
+        dsl: PathBuf,
+        #[arg(long)]
+        ir: PathBuf,
+        #[arg(long)]
+        layout: Option<PathBuf>,
+        #[arg(long = "output-ir")]
+        output_ir: PathBuf,
+        #[arg(long = "materialize-dir")]
+        materialize_dir: PathBuf,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]

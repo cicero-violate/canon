@@ -1,7 +1,7 @@
-use crate::ir::{Field, GenericParam, Receiver, StructKind, TypeKind, TypeRef, ValuePort, Word};
 use super::strings::{word_from_ident, word_from_string};
 use super::types::convert_type;
 use super::visibility::map_visibility;
+use crate::ir::{Field, GenericParam, Receiver, StructKind, TypeKind, TypeRef, ValuePort, Word};
 
 pub(crate) fn convert_fields(fields: &syn::Fields) -> (StructKind, Vec<Field>) {
     match fields {

@@ -8,6 +8,7 @@ use super::{
     },
     word::Word,
 };
+use crate::ir::PolicyParameters;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +38,18 @@ pub struct TickEpoch {
     // W5: Aggregate entropy reduction H_τ = Σ log ε_t across ticks in epoch
     #[serde(default)]
     pub entropy_reduction: f64,
+    #[serde(default)]
+    pub policy_snapshot: Option<PolicySnapshot>,
+}
+
+/// Snapshot captured at epoch boundaries.
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct PolicySnapshot {
+    pub epoch: TickEpochId,
+    pub parameters: PolicyParameters,
+    pub reward_at_snapshot: f64,
+    pub delta_ids: Vec<DeltaId>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

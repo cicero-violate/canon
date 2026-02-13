@@ -6,7 +6,9 @@ use crate::io_utils::*;
 use crate::version_gate::enforce_version_gate;
 
 use canon::{
-    generate_schema, render_impl_function,
+    generate_schema,
+    layout::LayoutGraph,
+    render_impl_function,
     runtime::{TickExecutionMode, TickExecutor},
     validate_ir,
 };
@@ -57,6 +59,30 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
             canon::materialize(&ir_doc, &layout_doc, Some(&out_dir));
             println!("Materialized into `{}`.", out_dir.display());
+        }
+
+        Command::SubmitDsl {
+            dsl,
+            ir,
+            layout,
+            output_ir,
+            materialize_dir,
+        } => {
+            let ir_doc = load_ir(&ir)?;
+            let layout_doc = if let Some(layout_path) = layout {
+                load_layout(layout_path)?
+            } else {
+                LayoutGraph::default()
+            };
+            let dsl_source = fs::read_to_string(&dsl)?;
+            let acceptance = canon::auto_accept_dsl_proposal(&ir_doc, &layout_doc, &dsl_source)?;
+            let evolved_json = serde_json::to_string_pretty(&acceptance.ir)?;
+            fs::write(&output_ir, evolved_json)?;
+            canon::materialize(&acceptance.ir, &acceptance.layout, Some(&materialize_dir));
+            println!(
+                "DSL proposal accepted; evolved IR written to `{}`.",
+                output_ir.display()
+            );
         }
 
         Command::Ingest { .. } => {

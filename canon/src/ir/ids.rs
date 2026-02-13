@@ -25,3 +25,5 @@ pub type ProofId = String;
 pub type ErrorId = String;
 pub type GpuFunctionId = String;
 pub type RewardRecordId = String;
+pub type PolicyParameterId = String;
+pub type GoalMutationId = String;

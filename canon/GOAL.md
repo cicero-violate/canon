@@ -27,14 +27,14 @@ The `canon` IR already provides:
 
 ### Layer 2 — World Model: Predictive State
 
-| #  | Task                                                                    | IR Target                          | Notes                                 |
-|----+-------------------------------------------------------------------------+------------------------------------+---------------------------------------|
-| W1 | Define `WorldModel` struct with state snapshot + prediction head        | `ir/world_model.rs` (new)          | Stores $\hat{s}_{t+k}$ rollouts       |
-| W2 | Add `PredictionRecord` — stores $\hat{s}$ vs $s$, computes $\epsilon_t$ | `ir/world_model.rs`                | Per-tick                              | DONE
-| W3 | Implement multi-step rollout in `runtime/rollout.rs` (new)              | Calls `TickExecutor` speculatively | Depth-limited                         | 
-| W4 | Add world-model update step post-execution                              | `runtime/tick_executor.rs`         | Updates `WorldModel` in `CanonicalIr` | DONE
-|    | ✔ Prediction reconciliation wired through `PredictionRecord`            |                                    | Verified build passes                 |
-| W5 | Track entropy reduction $H_\tau$ per epoch                              | `ir/timeline.rs` (`TickEpoch`)     | Aggregate of $\log \epsilon_t$        |
+| #  | Task                                                                    | IR Target                          | Notes                                 | Status |
+|----|-------------------------------------------------------------------------|------------------------------------|---------------------------------------|--------|
+| W1 | Define `WorldModel` struct with state snapshot + prediction head        | `ir/world_model.rs` (new)          | Stores $\hat{s}_{t+k}$ rollouts       | DONE |
+| W2 | Add `PredictionRecord` — stores $\hat{s}$ vs $s$, computes $\epsilon_t$ | `ir/world_model.rs`                | Per-tick                              | DONE |
+| W3 | Implement multi-step rollout in `runtime/rollout.rs` (new)              | Calls `TickExecutor` speculatively | Depth-limited                         | DONE |
+| W4 | Add world-model update step post-execution                              | `runtime/tick_executor.rs`         | Updates `WorldModel` in `CanonicalIr` | DONE |
+|    | ✔ Prediction reconciliation wired through `PredictionRecord`            |                                    | Verified build passes                 | DONE |
+| W5 | Track entropy reduction $H_\tau$ per epoch                              | `ir/timeline.rs` (`TickEpoch`)     | Aggregate of $\log \epsilon_t$        | DONE |
 
 <!-- Progress marker: W4 fully integrated, reward logging wired, executor mutability refactored. -->
 
@@ -42,12 +42,12 @@ The `canon` IR already provides:
 
 ### Layer 3 — Planning: Reward-Optimizing Search
 
-| #  | Task                                                                         | IR Target                            | Notes                              |
-|----+------------------------------------------------------------------------------+--------------------------------------+------------------------------------|
-| P1 | Add `search_depth: u32` and `utility_estimate: f64` to `Plan`                | `ir/timeline.rs`                     | Replaces correctness-only planning |
-| P2 | Implement candidate action scoring via rollout in `runtime/planner.rs` (new) | Scores $\mathbb{E}[R]$ per candidate | Uses `WorldModel`                  |
-| P3 | Record planner decision rationale with utility estimate on `Plan`            | `ir/timeline.rs`                     | Full audit trail                   |
-| P4 | Integrate planner into `TickExecutor` pre-execution step                     | `runtime/tick_executor.rs`           | Plan selection before dispatch     |
+| #  | Task                                                                         | IR Target                            | Notes                              | Status |
+|----|------------------------------------------------------------------------------|--------------------------------------+------------------------------------|--------|
+| P1 | Add `search_depth: u32` and `utility_estimate: f64` to `Plan`                | `ir/timeline.rs`                     | Replaces correctness-only planning | DONE |
+| P2 | Implement candidate action scoring via rollout in `runtime/planner.rs` (new) | Scores $\mathbb{E}[R]$ per candidate | Uses `WorldModel`                  | DONE |
+| P3 | Record planner decision rationale with utility estimate on `Plan`            | `ir/timeline.rs`                     | Full audit trail                   | DONE |
+| P4 | Integrate planner into `TickExecutor` pre-execution step                     | `runtime/tick_executor.rs`           | Plan selection before dispatch     | DONE |
 
 ---
 

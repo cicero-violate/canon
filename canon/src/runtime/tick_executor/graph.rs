@@ -31,7 +31,13 @@ pub(super) fn topological_sort(
 
     for node in &graph.nodes {
         if !visited.contains(node) {
-            visit_node(node, dependencies, &mut visited, &mut in_progress, &mut sorted)?;
+            visit_node(
+                node,
+                dependencies,
+                &mut visited,
+                &mut in_progress,
+                &mut sorted,
+            )?;
         }
     }
 

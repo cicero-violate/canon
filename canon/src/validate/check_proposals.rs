@@ -9,6 +9,7 @@ pub fn check<'a>(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Vi
     check_proposals(ir, idx, violations);
     check_judgments(ir, idx, violations);
     check_learning(ir, idx, violations);
+    check_goal_mutations(ir, idx, violations);
 }
 
 fn check_proposals(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
@@ -155,6 +156,28 @@ fn check_learning(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violatio
                 CanonRule::LearningDeclarations,
                 format!("learning `{}` must include proof_object_hash", item.id),
             ));
+        }
+    }
+}
+
+fn check_goal_mutations(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
+    for mutation in &ir.goal_mutations {
+        if mutation.status == GoalMutationStatus::Accepted && mutation.judgment_id.is_none() {
+            violations.push(Violation::new(
+                CanonRule::GoalMutationRequiresJudgment,
+                format!("goal mutation `{}` lacks a judgment reference", mutation.id),
+            ));
+        }
+        for proof_id in &mutation.invariant_proof_ids {
+            if idx.proofs.get(proof_id.as_str()).is_none() {
+                violations.push(Violation::new(
+                    CanonRule::GoalMutationInvariantMissing,
+                    format!(
+                        "goal mutation `{}` references unknown proof `{}`",
+                        mutation.id, proof_id
+                    ),
+                ));
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
+use super::strings::{path_to_string, word_from_string};
 use crate::ir::{RefKind, TypeKind, TypeRef, Word};
-use super::strings::{word_from_string, path_to_string};
 
 pub(crate) fn convert_type(ty: &syn::Type) -> TypeRef {
     match ty {

@@ -10,6 +10,7 @@ pub fn check<'a>(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Vi
     check_executions(ir, idx, violations);
     check_gpu(ir, idx, violations);
     check_reward_monotonicity(ir, violations);
+    check_reward_collapse(ir, violations);
 }
 
 fn check_epochs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
@@ -164,7 +165,7 @@ fn check_reward_monotonicity(ir: &CanonicalIr, violations: &mut Vec<Violation>) 
         let curr = records[i].reward;
         if curr < prev - EPSILON {
             violations.push(Violation::new(
-                CanonRule::RewardMonotonicity,
+                CanonRule::RewardCollapseDetected,
                 format!(
                     "reward dropped from {prev:.6} to {curr:.6} between records `{}` and `{}`",
                     records[i - 1].id,
@@ -212,6 +213,29 @@ fn check_gpu(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
                 CanonRule::GpuLawfulMath,
                 format!("gpu kernel `{}` violates the math-only contract", gpu.id),
             ));
+        }
+    }
+}
+
+fn check_reward_collapse(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
+    const EPSILON: f64 = 0.05;
+    let mut prev = None;
+    for epoch in &ir.tick_epochs {
+        if let Some(snapshot) = &epoch.policy_snapshot {
+            if let Some(last_reward) = prev {
+                let delta = snapshot.reward_at_snapshot - last_reward;
+                if delta < -EPSILON {
+                    violations.push(Violation::new(
+                        CanonRule::RewardMonotonicity,
+                        format!(
+                            "reward collapsed from {last_reward:.4} to {curr:.4} across epoch `{}`",
+                            epoch.id,
+                            curr = snapshot.reward_at_snapshot,
+                        ),
+                    ));
+                }
+            }
+            prev = Some(snapshot.reward_at_snapshot);
         }
     }
 }

@@ -63,6 +63,8 @@ impl SemanticIrBuilder {
             file_hashes: std::collections::HashMap::new(),
             reward_deltas: Vec::new(),
             world_model: crate::ir::world_model::WorldModel::new(),
+            policy_parameters: Vec::new(),
+            goal_mutations: Vec::new(),
         }
     }
 }

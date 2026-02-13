@@ -33,7 +33,8 @@ pub(super) fn reconcile_prediction(
             .unwrap_or_else(|| "observed".to_owned()),
     };
 
-    ir.world_model.record_prediction(record.clone(), actual_snapshot);
+    ir.world_model
+        .record_prediction(record.clone(), actual_snapshot);
 
     let entropy = (record.error.max(1e-6_f64)).ln();
     update_epoch_entropy(ir, &result.tick_id, entropy);

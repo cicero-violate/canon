@@ -2,11 +2,13 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+use crate::CanonicalIr;
 use crate::ir::FunctionId;
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::FunctionExecutor;
-use crate::CanonicalIr;
-use crate::runtime::parallel::{ParallelJob, ParallelJobResult, execute_jobs, partition_independent_batches};
+use crate::runtime::parallel::{
+    ParallelJob, ParallelJobResult, execute_jobs, partition_independent_batches,
+};
 use crate::runtime::value::{DeltaValue, Value};
 
 use super::graph::gather_inputs;
@@ -41,19 +43,20 @@ pub(super) fn execute_parallel(
             });
         }
 
-        let worker = |function_id: &FunctionId,
-                      inputs: BTreeMap<String, Value>|
-         -> Result<ParallelJobResult, crate::runtime::executor::ExecutorError> {
-            let mut local_context = ExecutionContext::new(initial_inputs.clone());
-            let function_executor = FunctionExecutor::new(ir);
-            let outputs =
-                function_executor.execute_by_id(function_id, inputs, &mut local_context)?;
-            Ok(ParallelJobResult {
-                function: function_id.clone(),
-                outputs,
-                deltas: local_context.deltas().to_vec(),
-            })
-        };
+        let worker =
+            |function_id: &FunctionId,
+             inputs: BTreeMap<String, Value>|
+             -> Result<ParallelJobResult, crate::runtime::executor::ExecutorError> {
+                let mut local_context = ExecutionContext::new(initial_inputs.clone());
+                let function_executor = FunctionExecutor::new(ir);
+                let outputs =
+                    function_executor.execute_by_id(function_id, inputs, &mut local_context)?;
+                Ok(ParallelJobResult {
+                    function: function_id.clone(),
+                    outputs,
+                    deltas: local_context.deltas().to_vec(),
+                })
+            };
 
         let batch_results = execute_jobs(jobs, &worker).map_err(TickExecutorError::Executor)?;
         let mut batch_delta_map: HashMap<FunctionId, Vec<DeltaValue>> = HashMap::new();

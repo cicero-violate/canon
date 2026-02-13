@@ -9,6 +9,7 @@ pub mod delta_verifier;
 pub mod executor;
 pub mod parallel;
 pub mod planner;
+pub mod policy_updater;
 pub mod reward;
 pub mod rollout;
 pub mod system_interpreter;
@@ -20,6 +21,7 @@ pub use bytecode::{FunctionBytecode, Instruction};
 pub use context::{ExecutionContext, ExecutionState};
 pub use delta_verifier::{DeltaVerifier, Snapshot, VerificationError, VerificationResult};
 pub use executor::{Executor, ExecutorError, FunctionExecutor};
+pub use policy_updater::{PolicyUpdateError, PolicyUpdater, update_policy};
 pub use system_interpreter::{
     DeltaEmission, ProofArtifact, SystemExecutionEvent, SystemExecutionResult, SystemInterpreter,
     SystemInterpreterError,

@@ -22,7 +22,7 @@ use self::{
 };
 
 mod delta_emitter;
-mod proposal_checks;
+pub mod proposal_checks;
 
 #[derive(Debug, Clone)]
 pub struct ProposalAcceptanceInput {

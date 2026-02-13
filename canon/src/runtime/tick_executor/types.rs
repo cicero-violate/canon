@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 use thiserror::Error;
 
-use crate::ir::{DeltaId, FunctionId};
 use crate::ir::world_model::StateSnapshot;
+use crate::ir::{DeltaId, FunctionId};
 use crate::runtime::executor::ExecutorError;
 use crate::runtime::value::{DeltaValue, Value};
 

@@ -1,22 +1,18 @@
 //! Planning, finalization, and judgment registration.
 
 use crate::CanonicalIr;
+use crate::ir::world_model::PredictionHead;
 use crate::ir::{
     DeltaId, ExecutionRecord, Judgment, JudgmentDecision, JudgmentPredicate, Plan, Proposal,
     ProposalGoal, ProposalKind, ProposalStatus, RewardRecord, Word,
 };
-use crate::ir::world_model::PredictionHead;
 use crate::runtime::planner::Planner;
 
 use super::types::{
     PlanContext, PredictionContext, TickExecutionResult, default_predicted_snapshot,
 };
 
-pub(super) fn plan_tick(
-    ir: &mut CanonicalIr,
-    tick_id: &str,
-    skip_planning: bool,
-) -> PlanContext {
+pub(super) fn plan_tick(ir: &mut CanonicalIr, tick_id: &str, skip_planning: bool) -> PlanContext {
     if skip_planning {
         return PlanContext::default();
     }
@@ -63,8 +59,14 @@ pub(super) fn finalize_execution(
     planning_depth: u32,
     predicted_deltas: Vec<DeltaId>,
 ) {
-    let exec_id =
-        register_plan_and_execution(ir, tick_id, result, planned_utility, planning_depth, predicted_deltas);
+    let exec_id = register_plan_and_execution(
+        ir,
+        tick_id,
+        result,
+        planned_utility,
+        planning_depth,
+        predicted_deltas,
+    );
     let actual = result.reward;
     let delta = actual - planned_utility;
     let previous_reward = ir.reward_deltas.last().map(|record| record.reward);
@@ -141,7 +143,11 @@ fn ensure_planning_judgment(ir: &mut CanonicalIr) -> String {
         return judgment.id.clone();
     }
     let proposal_id = "proposal.planner".to_owned();
-    if ir.proposals.iter().all(|proposal| proposal.id != proposal_id) {
+    if ir
+        .proposals
+        .iter()
+        .all(|proposal| proposal.id != proposal_id)
+    {
         ir.proposals.push(Proposal {
             id: proposal_id.clone(),
             kind: ProposalKind::Structural,

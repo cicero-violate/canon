@@ -302,6 +302,8 @@ mod tests {
             // --- Added for planning integration ---
             reward_deltas: Vec::new(),
             world_model: Default::default(),
+            policy_parameters: Vec::new(),
+            goal_mutations: Vec::new(),
         }
     }
 
