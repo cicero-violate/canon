@@ -140,6 +140,11 @@ impl<'a> TickExecutor<'a> {
             self.verify_parallel_deltas(context.deltas(), &parallel_deltas)?;
         }
 
+        // W4 — World-model update step post-execution
+        // NOTE: CanonicalIr is currently held immutably by TickExecutor.
+        // WorldModel mutation requires an explicit mutable integration point.
+        // This hook marks the post-execution update boundary.
+
         Ok(TickExecutionResult {
             tick_id: tick.id.clone(),
             function_results: results,
