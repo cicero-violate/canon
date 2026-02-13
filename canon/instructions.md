@@ -4,7 +4,7 @@ Canon needs a Rust source ingestor per the self-replication plan. This session k
 
 ## Goals
 1. Create a new crate module `ingest` under `canon/src/ingest/`.
-2. Define the public API surface the CLI will eventually call (`ingest::parse_workspace(root: &Path) -> Result<CanonicalIr>`).
+2. Define the public API surface the CLI will eventually call (`ingest::parse_workspace(root: &Path) -> Result<LayoutMap>`).
 3. Stub the internal components (filesystem walker, Rust parser adapter, IR builder) with TODO comments tied to DAG nodes from `TODO_self_replicate_DAG.md`.
 
 ## Tasks

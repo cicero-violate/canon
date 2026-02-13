@@ -10,7 +10,7 @@ mod parser;
 
 use std::path::{Path, PathBuf};
 
-use crate::CanonicalIr;
+use crate::layout::LayoutMap;
 
 /// Options that control workspace ingestion.
 pub struct IngestOptions {
@@ -37,12 +37,12 @@ impl From<std::io::Error> for IngestError {
     }
 }
 
-/// Entry point for converting an existing workspace into Canonical IR.
-pub fn ingest_workspace(opts: &IngestOptions) -> Result<CanonicalIr, IngestError> {
+/// Entry point for converting an existing workspace into semantic + layout graphs.
+pub fn ingest_workspace(opts: &IngestOptions) -> Result<LayoutMap, IngestError> {
     let files = fs_walk::discover_source_files(&opts.root)?;
     let parsed = parser::parse_workspace(&opts.root, &files)?;
-    let ir = builder::build_ir(&opts.root, parsed)?;
-    Ok(ir)
+    let layout_map = builder::build_layout_map(&opts.root, parsed)?;
+    Ok(layout_map)
 }
 
 fn _ensure_path_is_dir(path: &Path) -> Result<(), IngestError> {

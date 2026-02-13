@@ -4,92 +4,98 @@ use std::path::Path;
 use quote::ToTokens;
 
 use crate::ir::{
-    CallEdge, CanonicalIr, CanonicalMeta, ConstItem, EnumNode, EnumVariant, EnumVariantFields,
-    Field, FileNode, Function, FunctionContract, GenericParam, ImplBlock, ImplFunctionBinding,
-    Language, Module, ModuleEdge, Project, PubUseItem, Receiver, StaticItem, Struct, StructKind,
-    Trait, TraitFunction, TypeAlias, TypeKind, TypeRef, ValuePort, VersionContract, Visibility,
-    Word,
+    CallEdge, ConstItem, EnumNode, EnumVariant, EnumVariantFields, Field, FileNode, Function,
+    FunctionContract, GenericParam, ImplBlock, ImplFunctionBinding, Module, ModuleEdge, PubUseItem,
+    Receiver, StaticItem, Struct, StructKind, Trait, TraitFunction, TypeAlias, TypeKind, TypeRef,
+    ValuePort, Visibility, Word,
+};
+use crate::layout::{
+    LayoutAssignment, LayoutFile, LayoutGraph, LayoutMap, LayoutModule, LayoutNode, SemanticGraph,
 };
 
 use super::IngestError;
 use super::parser::{ParsedFile, ParsedWorkspace};
 use syn::visit::{self, Visit};
 
-/// Convert parsed files into a starter `CanonicalIr`.
-///
-/// TODO(ING-001): Populate structs, traits, impls, functions, and edges.
-pub(crate) fn build_ir(root: &Path, parsed: ParsedWorkspace) -> Result<CanonicalIr, IngestError> {
-    let project_name = derive_project_name(root);
+/// Convert parsed files into semantic + layout graphs.
+pub(crate) fn build_layout_map(
+    _root: &Path,
+    parsed: ParsedWorkspace,
+) -> Result<LayoutMap, IngestError> {
     let ModulesBuild {
         modules,
         module_lookup,
         file_lookup,
     } = build_modules(&parsed)?;
     let module_edges = build_module_edges(&parsed, &module_lookup);
-    let structs = build_structs(&parsed, &module_lookup, &file_lookup);
-    let enums = build_enums(&parsed, &module_lookup);
-    let traits = build_traits(&parsed, &module_lookup, &file_lookup);
-    let (impl_blocks, functions) = build_impls_and_functions(&parsed, &module_lookup, &file_lookup);
+    let mut layout_acc = LayoutAccumulator::default();
+    let structs = build_structs(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
+    let enums = build_enums(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
+    let traits = build_traits(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
+    let (impl_blocks, functions) =
+        build_impls_and_functions(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
     let call_edges = build_call_edges(&parsed, &module_lookup, &functions);
-    let ir = CanonicalIr {
-        meta: CanonicalMeta {
-            version: "0.0.0-ingest".to_owned(),
-            law_revision: Word::new("CanonIngest").expect("valid law word"),
-            description: format!("Ingested workspace `{}`", root.display()),
-        },
-        version_contract: VersionContract {
-            current: "0.0.0-ingest".to_owned(),
-            compatible_with: vec![],
-            migration_proofs: vec![],
-        },
-        project: Project {
-            name: project_name,
-            version: "0.0.0".to_owned(),
-            language: Language::Rust,
-        },
+    let semantic = SemanticGraph {
         modules,
-        module_edges,
         structs,
         enums,
         traits,
-        impl_blocks,
+        impls: impl_blocks,
         functions,
+        module_edges,
         call_edges,
         tick_graphs: Vec::new(),
         system_graphs: Vec::new(),
-        loop_policies: Vec::new(),
-        ticks: Vec::new(),
-        tick_epochs: Vec::new(),
-        plans: Vec::new(),
-        executions: Vec::new(),
-        admissions: Vec::new(),
-        applied_deltas: Vec::new(),
-        gpu_functions: Vec::new(),
-        proposals: Vec::new(),
-        judgments: Vec::new(),
-        judgment_predicates: Vec::new(),
-        deltas: Vec::new(),
-        proofs: Vec::new(),
-        learning: Vec::new(),
-        errors: Vec::new(),
-        dependencies: Vec::new(),
-        file_hashes: HashMap::new(),
     };
-    Ok(ir)
-}
-
-fn derive_project_name(root: &Path) -> Word {
-    let stem = root
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("CanonProject");
-    Word::new(to_pascal_case(stem)).unwrap_or_else(|_| Word::new("CanonProject").unwrap())
+    let layout = layout_acc.into_graph(&semantic.modules);
+    Ok(LayoutMap { semantic, layout })
 }
 
 struct ModulesBuild {
     modules: Vec<Module>,
     module_lookup: HashMap<String, String>,
     file_lookup: HashMap<String, String>,
+}
+
+#[derive(Default)]
+struct LayoutAccumulator {
+    assignments: Vec<LayoutAssignment>,
+}
+
+impl LayoutAccumulator {
+    fn assign(&mut self, node: LayoutNode, file_id: Option<String>) {
+        if let Some(file_id) = file_id {
+            self.assignments.push(LayoutAssignment {
+                node,
+                file_id,
+                rationale: "ING-001: inferred from source".to_owned(),
+            });
+        }
+    }
+
+    fn into_graph(self, modules: &[Module]) -> LayoutGraph {
+        let layout_modules = modules
+            .iter()
+            .map(|module| LayoutModule {
+                id: module.id.clone(),
+                name: module.name.clone(),
+                files: module
+                    .files
+                    .iter()
+                    .map(|file| LayoutFile {
+                        id: file.id.clone(),
+                        path: file.name.clone(),
+                        use_block: Vec::new(),
+                    })
+                    .collect(),
+                imports: Vec::new(),
+            })
+            .collect();
+        LayoutGraph {
+            modules: layout_modules,
+            routing: self.assignments,
+        }
+    }
 }
 
 fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, IngestError> {
@@ -807,6 +813,7 @@ fn build_structs(
     parsed: &ParsedWorkspace,
     module_lookup: &HashMap<String, String>,
     file_lookup: &HashMap<String, String>,
+    layout: &mut LayoutAccumulator,
 ) -> Vec<Struct> {
     let mut structs = Vec::new();
     for file in &parsed.files {
@@ -817,23 +824,33 @@ fn build_structs(
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Struct(item_struct) = item {
-                structs.push(struct_from_syn(module_id, file_id.clone(), item_struct));
+                let structure = struct_from_syn(module_id, file_id.clone(), item_struct);
+                layout.assign(LayoutNode::Struct(structure.id.clone()), file_id.clone());
+                structs.push(structure);
             }
         }
     }
     structs
 }
 
-fn build_enums(parsed: &ParsedWorkspace, module_lookup: &HashMap<String, String>) -> Vec<EnumNode> {
+fn build_enums(
+    parsed: &ParsedWorkspace,
+    module_lookup: &HashMap<String, String>,
+    file_lookup: &HashMap<String, String>,
+    layout: &mut LayoutAccumulator,
+) -> Vec<EnumNode> {
     let mut enums = Vec::new();
     for file in &parsed.files {
         let module_key = module_key(file);
         let Some(module_id) = module_lookup.get(&module_key) else {
             continue;
         };
+        let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Enum(item_enum) = item {
-                enums.push(enum_from_syn(module_id, item_enum));
+                let enum_node = enum_from_syn(module_id, item_enum);
+                layout.assign(LayoutNode::Enum(enum_node.id.clone()), file_id.clone());
+                enums.push(enum_node);
             }
         }
     }
@@ -844,6 +861,7 @@ fn build_traits(
     parsed: &ParsedWorkspace,
     module_lookup: &HashMap<String, String>,
     file_lookup: &HashMap<String, String>,
+    layout: &mut LayoutAccumulator,
 ) -> Vec<Trait> {
     let mut traits = Vec::new();
     for file in &parsed.files {
@@ -854,7 +872,9 @@ fn build_traits(
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Trait(trait_item) = item {
-                traits.push(trait_from_syn(module_id, file_id.clone(), trait_item));
+                let tr = trait_from_syn(module_id, file_id.clone(), trait_item);
+                layout.assign(LayoutNode::Trait(tr.id.clone()), file_id.clone());
+                traits.push(tr);
             }
         }
     }
@@ -865,6 +885,7 @@ fn build_impls_and_functions(
     parsed: &ParsedWorkspace,
     module_lookup: &HashMap<String, String>,
     file_lookup: &HashMap<String, String>,
+    layout: &mut LayoutAccumulator,
 ) -> (Vec<ImplBlock>, Vec<Function>) {
     let mut impls = Vec::new();
     let mut functions = Vec::new();
@@ -877,15 +898,29 @@ fn build_impls_and_functions(
         for syn_item in &file.ast.items {
             match syn_item {
                 syn::Item::Fn(item_fn) => {
-                    functions.push(function_from_syn(module_id, file_id.clone(), item_fn, None));
+                    let function = function_from_syn(module_id, file_id.clone(), item_fn, None);
+                    layout.assign(LayoutNode::Function(function.id.clone()), file_id.clone());
+                    functions.push(function);
                 }
                 syn::Item::Impl(impl_block) => {
                     match impl_block_from_syn(module_id, file_id.clone(), impl_block) {
                         ImplMapping::Standalone(funcs) => {
-                            functions.extend(funcs);
+                            for function in funcs {
+                                layout.assign(
+                                    LayoutNode::Function(function.id.clone()),
+                                    file_id.clone(),
+                                );
+                                functions.push(function);
+                            }
                         }
                         ImplMapping::ImplBlock(block, funcs) => {
-                            functions.extend(funcs);
+                            for function in funcs {
+                                layout.assign(
+                                    LayoutNode::Function(function.id.clone()),
+                                    file_id.clone(),
+                                );
+                                functions.push(function);
+                            }
                             impls.push(block);
                         }
                         ImplMapping::Unsupported => {}

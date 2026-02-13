@@ -1,5 +1,7 @@
 # Self-Replication Work DAG
 
+**Goal:** Refactor Canon so `CanonicalIr` is purely semantic while all filesystem/module/file routing moves into a standalone `LayoutMap`, enabling arbitrary isomorphic reshaping of projects.
+
 This document restates the blockers from `TODO_self_replicate.md` as a dependency graph so we can schedule incremental agents against the work.
 
 ## Legend
@@ -29,21 +31,34 @@ This document restates the blockers from `TODO_self_replicate.md` as a dependenc
    - Drop `file_id` (and similar) from `Function`, `Struct`, `Trait`, `Enum`, etc.; ensure identity is NodeId-only.
    - Update constructors/evolution/renderers accordingly.
    - *Depends on LAY-002 definitions*.
+   - _Exit criteria_: no type in `crate::ir` exposes filesystem-derived fields.
 
-5. `[ ]` **LAY-004: ING emits `(SemanticGraph, LayoutGraph)`**
-   - Refactor ingestion to separate layout data (`LayoutGraph`) from semantic data (`SemanticGraph`).
+5. `[x]` **LAY-004: ING emits `(SemanticGraph, LayoutGraph)`**
+   - Refactor ingestion to return a `LayoutMap { semantic, layout }` instead of `CanonicalIr`.
+   - Serialize layout metadata separately (`layout_map.json`) so CLI/tests can diff each half independently.
    - Preserve original `use` statements only in `LayoutGraph`.
    - *Depends on LAY-003*.
+   - _Status_: `ingest_workspace` now returns `LayoutMap` and builder populates per-node routing assignments.
 
-6. `[ ]` **LAY-005: Materializer consumes both graphs**
-   - `materialize(&SemanticGraph, &LayoutGraph)` plus `LayoutStrategy` implementations.
-   - Implement `Original`, `SingleFile`, `PerTypeFile` strategies.
+6. `[ ]` **SEM-001: CanonicalIr builder consumes SemanticGraph**
+   - Introduce `SemanticIrBuilder` that converts a `SemanticGraph` into `CanonicalIr` for validators/evolution.
+   - Ensure `validate_ir` and evolution paths read only semantic data while layout consumers read `LayoutGraph`.
    - *Depends on LAY-004*.
 
-7. `[ ]` **LAY-006: Layout invariants + tests**
+7. `[ ]` **LAY-005: Materializer consumes both graphs**
+   - `materialize(&SemanticGraph, &LayoutGraph)` plus `LayoutStrategy` implementations.
+   - Implement `Original`, `SingleFile`, `PerTypeFile` strategies.
+   - *Depends on SEM-001*.
+
+8. `[ ]` **LAY-006: Layout invariants + tests**
    - Ensure `ingest(materialize(G, L)).semantic == G.semantic` for each strategy.
    - Add `canon layout --strategy ...` harness and debug diff.
    - *Depends on LAY-005*.
+
+9. `[ ]` **LAY-007: Layout serialization + CLI plumbing**
+   - Extend CLI/serde surface so `LayoutGraph` persists alongside the semantic IR.
+   - `canon ingest` exports both halves; `canon materialize` accepts `--layout foo.layout.json` overrides.
+   - *Depends on LAY-006*.
 
 2. `[x]` **TYP-001: Lifetime parameters on functions**
    - Add `lifetime_params: Vec<String>` to `Function` / `FunctionSignature`.
