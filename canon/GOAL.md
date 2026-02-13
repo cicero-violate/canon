@@ -36,6 +36,8 @@ The `canon` IR already provides:
 |    | ✔ Prediction reconciliation wired through `PredictionRecord`            |                                    | Verified build passes                 |
 | W5 | Track entropy reduction $H_\tau$ per epoch                              | `ir/timeline.rs` (`TickEpoch`)     | Aggregate of $\log \epsilon_t$        |
 
+<!-- Progress marker: W4 fully integrated, reward logging wired, executor mutability refactored. -->
+
 ---
 
 ### Layer 3 — Planning: Reward-Optimizing Search
