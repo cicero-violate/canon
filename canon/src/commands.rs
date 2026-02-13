@@ -14,7 +14,8 @@ use crate::verify_dot;
 use crate::version_gate::enforce_version_gate;
 use crate::write_file_tree;
 use crate::dot_export;
-use crate::io_utils::{load_ir, load_layout, resolve_layout};
+use crate::io_utils::{load_ir, load_layout, resolve_layout, load_ir_or_semantic};
+// use crate::io_utils::load_ir_or_semantic
 
 pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
