@@ -328,11 +328,9 @@ impl<'a> TickExecutor<'a> {
                           inputs: BTreeMap<String, Value>|
              -> Result<ParallelJobResult, ExecutorError> {
                 let mut local_context = ExecutionContext::new(initial_inputs.clone());
-                let outputs = self.function_executor.execute_by_id(
-                    function_id,
-                    inputs,
-                    &mut local_context,
-                )?;
+                let function_executor = FunctionExecutor::new(self.ir);
+                let outputs = function_executor
+                    .execute_by_id(function_id, inputs, &mut local_context)?;
                 Ok(ParallelJobResult {
                     function: function_id.clone(),
                     outputs,
