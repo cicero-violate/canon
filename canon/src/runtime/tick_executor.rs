@@ -6,8 +6,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
-use crate::ir::{CanonicalIr, FunctionId, Tick, TickGraph};
-use crate::ir::world_model::PredictionRecord;
+use crate::ir::{CanonicalIr, FunctionId, TickGraph};
+use crate::ir::{PredictionRecord, RewardRecord};
 
 // Layer 2: PredictionRecord used for post-execution reconciliation.
 use crate::runtime::context::ExecutionContext;
@@ -28,7 +28,6 @@ fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
 /// Executes a tick graph in topological order.
 pub struct TickExecutor<'a> {
     ir: &'a mut CanonicalIr,
-    function_executor: FunctionExecutor<'a>,
 }
 
 // Layer 2 integration point: executor is world-model aware.
@@ -42,11 +41,7 @@ pub enum TickExecutionMode {
 
 impl<'a> TickExecutor<'a> {
     pub fn new(ir: &'a mut CanonicalIr) -> Self {
-        let fe = FunctionExecutor::new(ir);
-        Self {
-            ir,
-            function_executor: fe,
-        }
+        Self { ir }
     }
 
     /// Execute a tick by its ID.
@@ -99,7 +94,10 @@ impl<'a> TickExecutor<'a> {
             .find(|g| g.id == tick.graph)
             .ok_or_else(|| TickExecutorError::UnknownGraph(tick.graph.clone()))?;
 
-        self.execute_graph(graph, tick, mode, &initial_inputs)
+        let graph_cloned = graph.clone();
+        let tick_id_owned = tick.id.clone();
+
+        self.execute_graph(&graph_cloned, &tick_id_owned, mode, &initial_inputs)
     }
 
     /// Execute a tick graph in topological order.
@@ -107,7 +105,7 @@ impl<'a> TickExecutor<'a> {
     fn execute_graph(
         &mut self,
         graph: &TickGraph,
-        tick: &Tick,
+        tick_id: &str,
         mode: TickExecutionMode,
         initial_inputs: &BTreeMap<String, Value>,
     ) -> Result<TickExecutionResult, TickExecutorError> {
@@ -123,14 +121,15 @@ impl<'a> TickExecutor<'a> {
         // Execute functions in order
         let mut results = HashMap::new();
         let sequential_start = Instant::now();
+        let mut function_executor = FunctionExecutor::new(self.ir);
+
         for function_id in &execution_order {
             // Gather inputs from previous function outputs
             let inputs =
                 self.gather_inputs(function_id, &dependencies, &results, initial_inputs)?;
 
             // Execute function
-            let outputs = self
-                .function_executor
+            let outputs = function_executor
                 .execute_by_id(function_id, inputs, &mut context)
                 .map_err(TickExecutorError::Executor)?;
 
@@ -157,7 +156,7 @@ impl<'a> TickExecutor<'a> {
         // This hook marks the post-execution update boundary.
 
         let result = TickExecutionResult {
-            tick_id: tick.id.clone(),
+            tick_id: tick_id.to_string(),
             function_results: results,
             execution_order,
             emitted_deltas: context.deltas().to_vec(),
@@ -167,14 +166,26 @@ impl<'a> TickExecutor<'a> {
         };
 
         // --- World Model Reconciliation (W4) ---
-        self.ir
-            .world_model
-            .reconcile(&result.tick_id, &result.emitted_deltas, result.reward);
+        let actual_delta_ids: Vec<_> = result
+            .emitted_deltas
+            .iter()
+            .map(|d| d.delta_id.clone())
+            .collect();
+
+        let record = PredictionRecord::new(
+            result.tick_id.clone(),
+            Vec::new(),
+            actual_delta_ids,
+        );
+
+        self.ir.world_model.record_prediction(record);
 
         // --- Reward Logging ---
-        self.ir.reward_deltas.push(crate::ir::reward::RewardRecord {
-            tick_id: result.tick_id.clone(),
-            reward: result.reward,
+        self.ir.reward_deltas.push(RewardRecord {
+            id: format!("reward-{}", result.tick_id),
+            tick: result.tick_id.clone(),
+            execution: None,
+            delta: result.reward,
         });
 
         Ok(result)

@@ -40,7 +40,8 @@ impl<'a> RolloutEngine<'a> {
             });
         }
 
-        let executor = TickExecutor::new(self.ir);
+        let mut ir_clone = self.ir.clone();
+        let mut executor = TickExecutor::new(&mut ir_clone);
 
         let mut total_reward = 0.0;
         let mut predicted_deltas = Vec::new();
