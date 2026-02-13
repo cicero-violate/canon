@@ -30,7 +30,7 @@ The `canon` IR already provides:
 | #  | Task                                                                    | IR Target                          | Notes                                 |
 |----+-------------------------------------------------------------------------+------------------------------------+---------------------------------------|
 | W1 | Define `WorldModel` struct with state snapshot + prediction head        | `ir/world_model.rs` (new)          | Stores $\hat{s}_{t+k}$ rollouts       |
-| W2 | Add `PredictionRecord` — stores $\hat{s}$ vs $s$, computes $\epsilon_t$ | `ir/world_model.rs`                | Per-tick                              |
+| W2 | Add `PredictionRecord` — stores $\hat{s}$ vs $s$, computes $\epsilon_t$ | `ir/world_model.rs`                | Per-tick                              | DONE
 | W3 | Implement multi-step rollout in `runtime/rollout.rs` (new)              | Calls `TickExecutor` speculatively | Depth-limited                         |
 | W4 | Add world-model update step post-execution                              | `runtime/tick_executor.rs`         | Updates `WorldModel` in `CanonicalIr` |
 | W5 | Track entropy reduction $H_\tau$ per epoch                              | `ir/timeline.rs` (`TickEpoch`)     | Aggregate of $\log \epsilon_t$        |
