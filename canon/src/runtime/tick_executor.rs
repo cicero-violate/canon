@@ -48,12 +48,25 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick by its ID.
     pub fn execute_tick(&mut self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError> {
-        // Layer 3 — planning pre-pass (depth = 1 baseline)
+        // Layer 3 — multi-depth planning pre-pass
         let planner = Planner::new(&*self.ir);
-        let _utility_estimate =
-            planner.score_tick(tick_id, 1, BTreeMap::new());
+        let (planned_utility, planning_depth) =
+            planner.search_best_depth(tick_id, 3, BTreeMap::new());
 
-        self.execute_tick_with_mode(tick_id, TickExecutionMode::Sequential)
+        let result =
+            self.execute_tick_with_mode(tick_id, TickExecutionMode::Sequential)?;
+
+        // Compare planned vs actual
+        let actual = result.reward;
+        let delta = actual - planned_utility;
+
+        // Log comparison
+        println!(
+            "[planner] tick={} planned={} actual={} delta={}",
+            tick_id, planned_utility, actual, delta
+        );
+
+        Ok(result)
     }
 
     // W4: Post-execution hook handled inside execute_graph.

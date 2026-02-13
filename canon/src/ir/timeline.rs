@@ -66,6 +66,14 @@ pub struct ExecutionRecord {
     /// None until the reward computation pass has run.
     #[serde(default)]
     pub reward: Option<f64>,
+
+    /// Utility predicted by planner before execution.
+    #[serde(default)]
+    pub planned_utility: Option<f64>,
+
+    /// Search depth used by planner.
+    #[serde(default)]
+    pub planning_depth: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

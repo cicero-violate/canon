@@ -25,5 +25,25 @@ impl<'a> Planner<'a> {
             Err(_) => f64::NEG_INFINITY,
         }
     }
-}
 
+    /// Evaluate multiple depths and return best (utility, depth)
+    pub fn search_best_depth(
+        &self,
+        tick_id: &str,
+        max_depth: u32,
+        inputs: BTreeMap<String, Value>,
+    ) -> (f64, u32) {
+        let mut best = f64::NEG_INFINITY;
+        let mut best_depth = 0;
+
+        for depth in 1..=max_depth {
+            let score = self.score_tick(tick_id, depth, inputs.clone());
+            if score > best {
+                best = score;
+                best_depth = depth;
+            }
+        }
+
+        (best, best_depth)
+    }
+}
