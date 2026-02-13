@@ -34,6 +34,8 @@ pub struct TickEpoch {
     pub id: TickEpochId,
     pub ticks: Vec<TickId>,
     pub parent_epoch: Option<TickEpochId>,
+    // W5: Aggregate entropy reduction H_τ = Σ log ε_t across ticks in epoch
+    pub entropy_reduction: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
