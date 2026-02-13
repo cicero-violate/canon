@@ -19,9 +19,9 @@ The `canon` IR already provides:
 |----+-----------------------------------------------------------------------+-------------------------------+------------------------------------|
 | F1 | Define `UtilityFunction` struct with explicit scalar formula          | `ir/utility.rs` (new)         | Must be serializable and versioned | DONE
 | F2 | Add `reward: f64` field to `ExecutionRecord`                          | `ir/timeline.rs`              | Logged after every tick            |
-| F3 | Add `reward_deltas: Vec<RewardDelta>` to `CanonicalIr`                | `ir/core.rs`                  | Append-only, delta-tracked         |
-| F4 | Implement `compute_reward()` in `runtime/tick_executor.rs`            | Runs post-tick                | Returns `f64`, stored on record    |
-| F5 | Add `MonotonicityCheck` — enforce $U(s_{t+1}) \geq U(s_t) - \epsilon$ | `validate/check_execution.rs` | New rule in `CanonRule`            |
+| F3 | Add `reward_deltas: Vec<RewardDelta>` to `CanonicalIr`                | `ir/core.rs`                  | Append-only, delta-tracked         | DONE
+| F4 | Implement `compute_reward()` in `runtime/tick_executor.rs`            | Runs post-tick                | Returns `f64`, stored on record    | DONE
+| F5 | Add `MonotonicityCheck` — enforce $U(s_{t+1}) \geq U(s_t) - \epsilon$ | `validate/check_execution.rs` | New rule in `CanonRule`            | DONE
 
 ---
 
@@ -78,5 +78,3 @@ The `canon` IR already provides:
 | X2 | Schema evolution — all new structs need `#[derive(JsonSchema)]`             | Required for `validate` + `ingest`                                                           |
 | X3 | `delta_emitter.rs` — new `DeltaPayload` variants for each new artifact type | `ir/delta.rs`                                                                                |
 | X4 | `repomap` — currently at 632 symbols; expect +80–120 new symbols            | Monitor token budget                                                                         |
-
-
