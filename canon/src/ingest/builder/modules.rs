@@ -17,6 +17,12 @@ pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, In
     let mut acc: HashMap<String, ModuleAccumulator> = HashMap::new();
     for file in &parsed.files {
         let key = module_key(file);
+
+        // Skip synthetic root entries (empty key)
+        if key.is_empty() {
+            continue;
+        }
+
         acc.entry(key.clone())
             .or_insert_with(|| ModuleAccumulator::new(&key))
             .add_file(file);
