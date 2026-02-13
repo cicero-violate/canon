@@ -153,12 +153,24 @@ pub(crate) fn function_from_syn(
     } else {
         (String::new(), None)
     };
+    // Disambiguate impl method IDs by injecting the struct slug.
+    // impl_id: "impl.<module>.<struct>.<trait>" → extract segment 2.
+    // Free functions get no prefix; their names are unique within a module.
+    let fn_id = {
+        let fn_slug = slugify(&item.sig.ident.to_string());
+        let mod_slug = slugify(module_id);
+        if impl_id.is_empty() {
+            format!("function.{mod_slug}.{fn_slug}")
+        } else {
+            let struct_slug = impl_id
+                .splitn(4, '.')
+                .nth(2)
+                .unwrap_or("unknown");
+            format!("function.{mod_slug}.{struct_slug}.{fn_slug}")
+        }
+    };
     Function {
-        id: format!(
-            "function.{}.{}",
-            slugify(module_id),
-            slugify(&item.sig.ident.to_string())
-        ),
+        id: fn_id,
         name,
         module: module_id.to_owned(),
         impl_id,
@@ -199,12 +211,19 @@ pub(crate) fn impl_block_from_syn(
 ) -> ImplMapping {
     let Some((_, trait_path, _)) = &block.trait_ else {
         let mut standalone = Vec::new();
+        let self_ty_slug = match block.self_ty.as_ref() {
+            syn::Type::Path(p) => slugify(
+                &p.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default()
+            ),
+            _ => "unknown".to_owned(),
+        };
+        let standalone_impl_id = format!("impl.{}.{}.standalone", slugify(module_id), self_ty_slug);
         for item in &block.items {
             if let syn::ImplItem::Fn(method) = item {
                 standalone.push(function_from_impl_item(
                     module_id,
                     method,
-                    None,
+                    Some((&standalone_impl_id, None)),
                 ));
             }
         }

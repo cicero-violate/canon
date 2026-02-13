@@ -46,7 +46,7 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Command::Materialize { ir, layout, out_dir } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_or_semantic(&ir)?;
             validate_ir(&ir_doc)?;
             enforce_version_gate(&ir_doc)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
