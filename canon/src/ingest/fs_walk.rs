@@ -42,11 +42,9 @@ pub(crate) fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, 
             relative,
         });
     }
+    // Allow empty src directories (needed for materialize → ingest roundtrip tests)
     if files.is_empty() {
-        return Err(IngestError::UnsupportedFeature(format!(
-            "ING-001: no Rust files found under `{}`",
-            src_root.display()
-        )));
+        return Ok(Vec::new());
     }
     Ok(files)
 }
