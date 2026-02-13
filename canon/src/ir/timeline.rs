@@ -45,6 +45,10 @@ pub struct Plan {
     pub judgment: JudgmentId,
     pub steps: Vec<FunctionId>,
     pub expected_deltas: Vec<DeltaId>,
+    #[serde(default)]
+    pub search_depth: u32,
+    #[serde(default)]
+    pub utility_estimate: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
