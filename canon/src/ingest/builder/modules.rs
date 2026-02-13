@@ -156,7 +156,7 @@ pub(crate) fn collect_use_aliases(
 
 pub(crate) fn module_key(file: &ParsedFile) -> String {
     if file.module_path.is_empty() {
-        return String::new();
+        return "crate".to_owned();
     }
 
     let mut path = file.module_path.clone();

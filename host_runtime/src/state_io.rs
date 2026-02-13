@@ -208,6 +208,7 @@ mod tests {
     use memory_engine::delta::delta_types::Source;
     use memory_engine::epoch::Epoch;
     use memory_engine::primitives::{DeltaID, PageID};
+    use serde::Deserialize;
     use tempfile::TempDir;
 
     fn sample_delta(id: u64) -> Delta {
