@@ -1,17 +1,20 @@
 use std::fs;
 
+use crate::auto_accept_dsl_proposal;
 use crate::cli::Command;
 use crate::diff::diff_ir;
-use crate::io_utils::*;
+use crate::ingest::{self, IngestOptions};
+use crate::layout::LayoutGraph;
+use crate::materialize::materialize;
+use crate::render_impl_function;
+use crate::runtime::{TickExecutionMode, TickExecutor};
+use crate::schema::generate_schema;
+use crate::validate::validate_ir;
+use crate::verify_dot;
 use crate::version_gate::enforce_version_gate;
-
-use canon::{
-    generate_schema,
-    layout::LayoutGraph,
-    render_impl_function,
-    runtime::{TickExecutionMode, TickExecutor},
-    validate_ir,
-};
+use crate::write_file_tree;
+use crate::dot_export;
+use crate::io_utils::load_ir;
 
 pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
@@ -57,7 +60,8 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
             validate_ir(&ir_doc)?;
             enforce_version_gate(&ir_doc)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
-            canon::materialize(&ir_doc, &layout_doc, Some(&out_dir));
+            let output = materialize(&ir_doc, &layout_doc, Some(&out_dir));
+            write_file_tree(&output.tree, &out_dir)?;
             println!("Materialized into `{}`.", out_dir.display());
         }
 
@@ -75,10 +79,11 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
                 LayoutGraph::default()
             };
             let dsl_source = fs::read_to_string(&dsl)?;
-            let acceptance = canon::auto_accept_dsl_proposal(&ir_doc, &layout_doc, &dsl_source)?;
+            let acceptance = auto_accept_dsl_proposal(&ir_doc, &layout_doc, &dsl_source)?;
             let evolved_json = serde_json::to_string_pretty(&acceptance.ir)?;
             fs::write(&output_ir, evolved_json)?;
-            canon::materialize(&acceptance.ir, &acceptance.layout, Some(&materialize_dir));
+            let output = materialize(&acceptance.ir, &acceptance.layout, Some(&materialize_dir));
+            write_file_tree(&output.tree, &materialize_dir)?;
             println!(
                 "DSL proposal accepted; evolved IR written to `{}`.",
                 output_ir.display()
@@ -86,7 +91,6 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Command::Ingest { .. } => {
-            // Destructure so the compiler enforces all fields are handled.
             let Command::Ingest {
                 src,
                 semantic_out,
@@ -95,8 +99,7 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
             else {
                 unreachable!()
             };
-            let layout_map =
-                canon::ingest::ingest_workspace(&canon::ingest::IngestOptions::new(src))?;
+            let layout_map = ingest::ingest_workspace(&IngestOptions::new(src))?;
             let semantic_json = serde_json::to_string_pretty(&layout_map.semantic)?;
             fs::write(&semantic_out, &semantic_json)?;
             println!("Semantic IR written to `{}`.", semantic_out.display());
@@ -130,7 +133,7 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
         Command::ExportDot { ir, layout, output } => {
             let ir_doc = load_ir(&ir)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
-            let dot = canon::dot_export::export_dot(&ir_doc, &layout_doc);
+            let dot = dot_export::export_dot(&ir_doc, &layout_doc);
             fs::write(output, dot)?;
         }
 
@@ -142,7 +145,7 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
             let ir_doc = load_ir(&ir)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
             let dot = fs::read_to_string(original)?;
-            canon::verify_dot(&ir_doc, &layout_doc, &dot)?;
+            verify_dot(&ir_doc, &layout_doc, &dot)?;
             println!("DOT verified.");
         }
     }
