@@ -82,7 +82,7 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
         Command::ExecuteTick { ir, tick, parallel } => {
             let ir_doc = load_ir(&ir)?;
             validate_ir(&ir_doc)?;
-            let exec = TickExecutor::new(&ir_doc);
+            let exec = TickExecutor::new(&mut ir_doc);
             let mode = if parallel {
                 TickExecutionMode::ParallelVerified
             } else {
