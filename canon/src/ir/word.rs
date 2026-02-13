@@ -9,7 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use thiserror::Error;
 
-pub const WORD_PATTERN: &str = "^[A-Za-z][A-Za-z0-9]*$";
+pub const WORD_PATTERN: &str = "^[a-z][a-z0-9_]*$";
 
 static WORD_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(WORD_PATTERN).expect("Canonical word pattern must compile"));
