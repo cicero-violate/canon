@@ -35,6 +35,7 @@ pub struct TickEpoch {
     pub ticks: Vec<TickId>,
     pub parent_epoch: Option<TickEpochId>,
     // W5: Aggregate entropy reduction H_τ = Σ log ε_t across ticks in epoch
+    #[serde(default)]
     pub entropy_reduction: f64,
 }
 
