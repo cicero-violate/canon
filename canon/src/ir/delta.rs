@@ -10,6 +10,7 @@ use super::{
     types::{ValuePort, Visibility},
     word::Word,
 };
+use super::reward::RewardRecord;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
@@ -120,5 +121,11 @@ pub enum DeltaPayload {
         kind: String,
         old_id: String,
         new_id: String,
+    },
+    RecordReward {
+        record: RewardRecord,
+    },
+    RecordReward {
+        record: RewardRecord,
     },
 }
