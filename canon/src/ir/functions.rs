@@ -31,8 +31,6 @@ pub struct Function {
     pub generics: Vec<GenericParam>,
     #[serde(default)]
     pub where_clauses: Vec<WhereClause>,
-    #[serde(default)]
-    pub file_id: Option<String>,
     pub inputs: Vec<ValuePort>,
     pub outputs: Vec<ValuePort>,
     pub deltas: Vec<DeltaRef>,

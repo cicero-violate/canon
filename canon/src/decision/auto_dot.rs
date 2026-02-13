@@ -1,11 +1,14 @@
+use std::collections::HashSet;
+
 use thiserror::Error;
 
 use crate::{
     dot_import::{
         DotImportError, dot_graph_to_file_topology, dot_graph_to_imported_types,
-        dot_graph_to_proposal, parse_dot,
+        dot_graph_to_proposal, dot_graph_to_routing_hints, parse_dot,
     },
     ir::CanonicalIr,
+    layout::{LayoutGraph, LayoutNode, apply_topology_to_layout},
     proposal::sanitize_identifier,
 };
 
@@ -32,6 +35,7 @@ pub enum AutoAcceptDotError {
 /// imported_types onto the resulting IR — all in one call.
 pub fn auto_accept_dot_proposal(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     dot_source: &str,
     goal: &str,
 ) -> Result<ProposalAcceptance, AutoAcceptDotError> {
@@ -54,6 +58,7 @@ pub fn auto_accept_dot_proposal(
 
     let mut acceptance = accept_proposal(
         &working,
+        layout,
         ProposalAcceptanceInput {
             proposal_id,
             proof_id: DSL_PROOF_ID.to_string(),
@@ -65,14 +70,8 @@ pub fn auto_accept_dot_proposal(
         },
     )?;
 
-    // patch file topology
     let topology = dot_graph_to_file_topology(&graph);
-    for module in acceptance.ir.modules.iter_mut() {
-        if let Some((files, file_edges)) = topology.get(&module.id) {
-            module.files = files.clone();
-            module.file_edges = file_edges.clone();
-        }
-    }
+    let routing_hints = dot_graph_to_routing_hints(&graph);
 
     // patch imported_types
     let type_map = dot_graph_to_imported_types(&graph);
@@ -82,5 +81,42 @@ pub fn auto_accept_dot_proposal(
         }
     }
 
+    apply_topology_to_layout(&mut acceptance.layout, &acceptance.ir.modules, topology);
+    apply_routing_hints(&mut acceptance.layout, &routing_hints);
+
     Ok(acceptance)
+}
+
+fn apply_routing_hints(
+    layout: &mut LayoutGraph,
+    hints: &std::collections::HashMap<String, String>,
+) {
+    if hints.is_empty() {
+        return;
+    }
+    let mut known_files: HashSet<&str> = HashSet::new();
+    for module in &layout.modules {
+        for file in &module.files {
+            known_files.insert(file.id.as_str());
+        }
+    }
+    for assignment in &mut layout.routing {
+        let node_id = layout_node_id(&assignment.node);
+        if let Some(file_id) = hints.get(node_id) {
+            if known_files.contains(file_id.as_str()) {
+                assignment.file_id = file_id.clone();
+                assignment.rationale = "LAY-005: DOT routing hint".to_owned();
+            }
+        }
+    }
+}
+
+fn layout_node_id(node: &LayoutNode) -> &str {
+    match node {
+        LayoutNode::Struct(id) => id.as_str(),
+        LayoutNode::Enum(id) => id.as_str(),
+        LayoutNode::Trait(id) => id.as_str(),
+        LayoutNode::Impl(id) => id.as_str(),
+        LayoutNode::Function(id) => id.as_str(),
+    }
 }

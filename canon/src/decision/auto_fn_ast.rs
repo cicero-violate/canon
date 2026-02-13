@@ -6,6 +6,7 @@ use crate::{
         CanonicalIr, Delta, DeltaKind, DeltaPayload, PipelineStage, Proposal, ProposalGoal,
         ProposalKind, ProposalStatus, ProposedApi, ProposedNode, ProposedNodeKind,
     },
+    layout::LayoutGraph,
     proposal::{derive_word_from_identifier, sanitize_identifier},
 };
 
@@ -29,6 +30,7 @@ pub enum AutoAcceptFnAstError {
 /// and auto-accept it, returning the evolved IR with the new function body.
 pub fn auto_accept_fn_ast(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     function_id: &str,
     ast: JsonValue,
 ) -> Result<ProposalAcceptance, AutoAcceptFnAstError> {
@@ -104,6 +106,7 @@ pub fn auto_accept_fn_ast(
 
     let mut acceptance = accept_proposal(
         &working,
+        layout,
         ProposalAcceptanceInput {
             proposal_id,
             proof_id: DSL_PROOF_ID.to_string(),

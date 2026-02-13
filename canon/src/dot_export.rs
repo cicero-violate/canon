@@ -1,5 +1,6 @@
-use crate::dot_import::{DotGraph, DotImportError, parse_dot};
+use crate::dot_import::{DotGraph, parse_dot};
 use crate::ir::CanonicalIr;
+use crate::layout::{LayoutGraph, LayoutModule};
 use std::collections::{BTreeMap, BTreeSet};
 
 // ── round-trip verification ───────────────────────────────────────────────────
@@ -22,7 +23,11 @@ impl std::error::Error for DotVerifyError {}
 
 /// Parse `original_dot`, export `ir` to DOT, parse that, then compare
 /// cluster ids, per-cluster node ids, and inter-cluster edges (order-insensitive).
-pub fn verify_dot(ir: &CanonicalIr, original_dot: &str) -> Result<(), DotVerifyError> {
+pub fn verify_dot(
+    ir: &CanonicalIr,
+    layout: &LayoutGraph,
+    original_dot: &str,
+) -> Result<(), DotVerifyError> {
     let a: DotGraph = match parse_dot(original_dot) {
         Ok(g) => g,
         Err(e) => {
@@ -31,7 +36,7 @@ pub fn verify_dot(ir: &CanonicalIr, original_dot: &str) -> Result<(), DotVerifyE
             });
         }
     };
-    let exported = export_dot(ir);
+    let exported = export_dot(ir, layout);
     let b: DotGraph = match parse_dot(&exported) {
         Ok(g) => g,
         Err(e) => {
@@ -149,7 +154,7 @@ fn edge_color(module_id: &str) -> &'static str {
 ///
 /// Round-trip guarantee: the output can be parsed by `dot_import::parse_dot`
 /// and will recover the same modules, file topology, and inter-module edges.
-pub fn export_dot(ir: &CanonicalIr) -> String {
+pub fn export_dot(ir: &CanonicalIr, layout: &LayoutGraph) -> String {
     let mut out = String::new();
 
     out.push_str("digraph ");
@@ -169,29 +174,23 @@ pub fn export_dot(ir: &CanonicalIr) -> String {
         out.push_str(&format!("        label=\"{}\";\n", module.name.as_str()));
         out.push_str("        style=rounded; color=\"#333333\";\n\n");
 
-        if module.files.is_empty() {
+        let layout_module = layout.modules.iter().find(|m| m.id == module.id);
+        if layout_module.map(|m| m.files.is_empty()).unwrap_or(true) {
             // no file topology — emit a single placeholder node so the
             // cluster is visible and round-trips cleanly
             let node_id = format!("{}_lib", cluster_id);
             out.push_str(&format!("        {} [label=\"lib.rs\"];\n", node_id));
         } else {
-            for file in &module.files {
+            let layout_module = layout_module.expect("layout module missing");
+            for file in &layout_module.files {
                 out.push_str(&format!(
                     "        {} [label=\"{}\"];\n",
                     sanitize_node_id(&file.id),
-                    file.name
+                    file.path
                 ));
             }
 
             out.push('\n');
-
-            for edge in &module.file_edges {
-                out.push_str(&format!(
-                    "        {} -> {};\n",
-                    sanitize_node_id(&edge.from),
-                    sanitize_node_id(&edge.to)
-                ));
-            }
         }
 
         out.push_str("    }\n\n");
@@ -199,8 +198,8 @@ pub fn export_dot(ir: &CanonicalIr) -> String {
 
     // ── inter-module edges ───────────────────────────────────────────────────
     for edge in &ir.module_edges {
-        let from_module = ir.modules.iter().find(|m| m.id == edge.source);
-        let to_module = ir.modules.iter().find(|m| m.id == edge.target);
+        let from_module = layout.modules.iter().find(|m| m.id == edge.source);
+        let to_module = layout.modules.iter().find(|m| m.id == edge.target);
 
         let from_node = from_module
             .and_then(|m| lib_node(m))
@@ -241,26 +240,13 @@ pub fn export_dot(ir: &CanonicalIr) -> String {
 
 /// The lib node is the last file in the intra-edge sink order —
 /// i.e. the node with no outgoing intra edges (the natural export surface).
-fn lib_node(module: &crate::ir::Module) -> Option<String> {
-    if module.files.is_empty() {
-        return None;
-    }
-    // find a file that is never a `from` in file_edges — it is the sink
-    let froms: std::collections::HashSet<&str> =
-        module.file_edges.iter().map(|e| e.from.as_str()).collect();
-    let sink = module.files.iter().find(|f| !froms.contains(f.id.as_str()));
-    sink.map(|f| sanitize_node_id(&f.id))
+fn lib_node(module: &LayoutModule) -> Option<String> {
+    module.files.last().map(|f| sanitize_node_id(&f.id))
 }
 
 /// The entry node is the first file — the one that is never a `to`.
-fn entry_node(module: &crate::ir::Module) -> Option<String> {
-    if module.files.is_empty() {
-        return None;
-    }
-    let tos: std::collections::HashSet<&str> =
-        module.file_edges.iter().map(|e| e.to.as_str()).collect();
-    let source = module.files.iter().find(|f| !tos.contains(f.id.as_str()));
-    source.map(|f| sanitize_node_id(&f.id))
+fn entry_node(module: &LayoutModule) -> Option<String> {
+    module.files.first().map(|f| sanitize_node_id(&f.id))
 }
 
 fn cluster_id_of(module_id: &str) -> String {

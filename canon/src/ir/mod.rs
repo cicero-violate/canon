@@ -3,7 +3,6 @@ mod artifacts;
 mod core;
 mod delta;
 mod errors;
-mod files;
 mod functions;
 mod gpu;
 mod graphs;
@@ -26,7 +25,6 @@ pub use artifacts::{
 pub use core::{CanonicalIr, CanonicalMeta, Language, PipelineStage, VersionContract};
 pub use delta::{Delta, DeltaKind, DeltaPayload};
 pub use errors::ErrorArtifact;
-pub use files::{FileEdge, FileNode};
 pub use functions::{
     DeltaRef, Function, FunctionContract, FunctionMetadata, FunctionSignature, GenericParam,
     Postcondition, WhereClause,

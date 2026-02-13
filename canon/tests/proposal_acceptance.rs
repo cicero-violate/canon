@@ -1,11 +1,15 @@
 use canon::{
     CanonicalIr, ProposalAcceptanceInput, accept_proposal,
     ir::{
-        Proposal, ProposalGoal, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
-        ProposedNodeKind, Word,
+        Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge,
+        ProposedNode, ProposedNodeKind, Word,
     },
 };
 use std::path::PathBuf;
+
+#[path = "support.rs"]
+mod support;
+use support::default_layout_for;
 
 fn load_fixture() -> CanonicalIr {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -37,6 +41,7 @@ fn make_proposal() -> Proposal {
             id: Word::new("FutureGoal").expect("word"),
             description: "Advance Canon structure.".to_string(),
         },
+        kind: ProposalKind::Structural,
         nodes: vec![
             make_node(
                 Some("module.future"),
@@ -73,6 +78,7 @@ fn make_proposal() -> Proposal {
 #[test]
 fn accept_proposal_generates_structural_artifacts() {
     let mut ir = load_fixture();
+    let layout = default_layout_for(&ir);
     ir.proposals.push(make_proposal());
     let predicate = ir
         .judgment_predicates
@@ -83,6 +89,7 @@ fn accept_proposal_generates_structural_artifacts() {
     let tick = ir.ticks.first().expect("tick").id.clone();
     let acceptance = accept_proposal(
         &ir,
+        &layout,
         ProposalAcceptanceInput {
             proposal_id: "proposal.future".to_string(),
             proof_id: "proof.law".to_string(),

@@ -2,6 +2,7 @@ use thiserror::Error;
 
 use crate::{
     ir::CanonicalIr,
+    layout::LayoutGraph,
     proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl},
 };
 
@@ -23,6 +24,7 @@ pub enum AutoAcceptDslError {
 
 pub fn auto_accept_dsl_proposal(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     dsl_source: &str,
 ) -> Result<ProposalAcceptance, AutoAcceptDslError> {
     let DslProposalArtifacts {
@@ -40,6 +42,7 @@ pub fn auto_accept_dsl_proposal(
     let admission = format!("admission.dsl.{goal_slug}");
     let acceptance = accept_proposal(
         &working,
+        layout,
         ProposalAcceptanceInput {
             proposal_id,
             proof_id: DSL_PROOF_ID.to_string(),

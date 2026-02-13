@@ -5,6 +5,7 @@ use std::path::Path;
 use sha2::{Digest, Sha256};
 
 use crate::ir::{CanonicalIr, Function, Struct, Trait};
+use crate::layout::LayoutGraph;
 use render_module::render_file;
 
 pub use self::file_tree::{FileEntry, FileTree};
@@ -23,7 +24,11 @@ pub struct MaterializeResult {
     pub file_hashes: HashMap<String, String>,
 }
 
-pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> MaterializeResult {
+pub fn materialize(
+    ir: &CanonicalIr,
+    layout: &LayoutGraph,
+    existing_root: Option<&Path>,
+) -> MaterializeResult {
     let mut tree = FileTree::new();
     tree.add_directory("src");
     let mut next_hashes = HashMap::new();
@@ -44,9 +49,16 @@ pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> Materializ
         tree.add_directory(module_dir.clone());
         lib_rs.push_str(&format!("pub mod {};\n", module.name.as_str()));
 
-        if module.files.is_empty() {
-            let contents =
-                render_module::render_module(module, ir, &struct_map, &trait_map, &function_map);
+        let layout_module = layout.modules.iter().find(|m| m.id == module.id);
+        if layout_module.map(|m| m.files.is_empty()).unwrap_or(true) {
+            let contents = render_module::render_module(
+                module,
+                layout,
+                ir,
+                &struct_map,
+                &trait_map,
+                &function_map,
+            );
             finalize_file(
                 &mut tree,
                 &mut next_hashes,
@@ -56,8 +68,8 @@ pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> Materializ
                 existing_root,
             );
         } else {
-            let ordered =
-                render_module::topo_sort_files(&module.files, &module.file_edges_as_pairs());
+            let layout_module = layout_module.expect("layout module missing");
+            let ordered = render_module::topo_sort_layout_files(&layout_module.files);
             let incoming = render_module::collect_incoming_types(ir, &module.id);
             let use_lines = render_module::render_use_block(&incoming);
 
@@ -76,7 +88,7 @@ pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> Materializ
             }
             let mut submods = Vec::new();
             for f in &ordered {
-                let stem = file_stem(&f.name);
+                let stem = file_stem(&f.path);
                 if stem != "lib" && stem != "mod" {
                     submods.push(format!("pub mod {};", stem));
                 }
@@ -96,7 +108,7 @@ pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> Materializ
 
             let empty_use: Vec<String> = Vec::new();
             for (idx, file_node) in ordered.iter().enumerate() {
-                let stem = file_stem(&file_node.name);
+                let stem = file_stem(&file_node.path);
                 if stem == "lib" || stem == "mod" {
                     continue;
                 }
@@ -105,6 +117,7 @@ pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> Materializ
                     file_node,
                     module,
                     ir,
+                    layout,
                     &struct_map,
                     &trait_map,
                     &function_map,
@@ -114,7 +127,7 @@ pub fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> Materializ
                     &mut tree,
                     &mut next_hashes,
                     &ir.file_hashes,
-                    &format!("{module_dir}/{}", file_node.name),
+                    &format!("{module_dir}/{}", file_node.path),
                     contents,
                     existing_root,
                 );
@@ -313,13 +326,4 @@ pub fn write_file_tree(tree: &FileTree, root: impl AsRef<Path>) -> std::io::Resu
 
 fn file_stem(name: &str) -> &str {
     name.trim_end_matches(".rs")
-}
-
-impl crate::ir::Module {
-    pub fn file_edges_as_pairs(&self) -> Vec<(String, String)> {
-        self.file_edges
-            .iter()
-            .map(|e| (e.from.clone(), e.to.clone()))
-            .collect()
-    }
 }

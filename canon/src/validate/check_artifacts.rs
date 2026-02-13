@@ -7,7 +7,6 @@ use std::collections::{HashMap, HashSet};
 
 pub fn check<'a>(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>) {
     check_version_proofs(ir, idx, violations);
-    check_module_files(ir, violations);
     check_module_edges(ir, violations);
     check_structs(ir, idx, violations);
     check_enums(ir, idx, violations);
@@ -29,47 +28,6 @@ fn check_version_proofs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Vi
                 CanonRule::VersionEvolution,
                 format!("version migration proof `{proof_id}` was not found"),
             )),
-        }
-    }
-}
-
-fn check_module_files(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
-    for module in &ir.modules {
-        let mut seen = HashSet::new();
-        for file in &module.files {
-            if !seen.insert(file.id.as_str()) {
-                violations.push(Violation::new(
-                    CanonRule::ExplicitArtifacts,
-                    format!(
-                        "module `{}` declares duplicate file node id `{}`",
-                        module.name, file.id
-                    ),
-                ));
-            }
-        }
-        if module.file_edges.is_empty() {
-            continue;
-        }
-        let declared: HashSet<&str> = module.files.iter().map(|f| f.id.as_str()).collect();
-        for edge in &module.file_edges {
-            if !declared.contains(edge.from.as_str()) {
-                violations.push(Violation::new(
-                    CanonRule::ExplicitArtifacts,
-                    format!(
-                        "module `{}` references unknown file node `{}` in file edge",
-                        module.name, edge.from
-                    ),
-                ));
-            }
-            if !declared.contains(edge.to.as_str()) {
-                violations.push(Violation::new(
-                    CanonRule::ExplicitArtifacts,
-                    format!(
-                        "module `{}` references unknown file node `{}` in file edge",
-                        module.name, edge.to
-                    ),
-                ));
-            }
         }
     }
 }

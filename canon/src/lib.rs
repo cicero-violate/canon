@@ -14,6 +14,7 @@ pub mod proof;
 mod proposal;
 pub mod runtime;
 pub mod schema;
+mod semantic_builder;
 pub mod validate;
 
 pub use decision::{
@@ -31,6 +32,7 @@ pub use gpu::{
 pub use ir::{CanonicalIr, PipelineStage};
 pub use layout::{
     LayoutAssignment, LayoutGraph, LayoutMap, LayoutModule, LayoutNode, LayoutStrategy,
+    OriginalLayoutStrategy, PerTypeLayoutStrategy, SemanticGraph, SingleFileLayoutStrategy,
 };
 pub use materialize::{
     FileEntry, FileTree, MaterializeResult, materialize, render_impl_function, write_file_tree,
@@ -43,6 +45,7 @@ pub use patch_protocol::{
 pub use proof::smt_bridge::{
     SmtCertificate, SmtError, attach_function_proofs, verify_function_postconditions,
 };
+pub use semantic_builder::SemanticIrBuilder;
 // pub use proof_object::{
 //     ProofArtifact as CanonProofArtifact, ProofObject, ProofResult, evaluate_proof_object,
 // };

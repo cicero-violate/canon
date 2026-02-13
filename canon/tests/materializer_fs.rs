@@ -3,6 +3,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
+#[path = "support.rs"]
+mod support;
+use support::default_layout_for;
+
 fn load_fixture(name: &str) -> CanonicalIr {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
@@ -15,9 +19,10 @@ fn load_fixture(name: &str) -> CanonicalIr {
 #[test]
 fn writes_file_tree_to_disk() {
     let ir = load_fixture("valid_ir.json");
-    let tree = materialize(&ir);
+    let layout = default_layout_for(&ir);
+    let result = materialize(&ir, &layout, None);
     let dir = tempdir().expect("tempdir");
-    write_file_tree(&tree, dir.path()).expect("write succeeds");
+    write_file_tree(&result.tree, dir.path()).expect("write succeeds");
 
     let lib_path = dir.path().join("src/lib.rs");
     let core_path = dir.path().join("src/Core/mod.rs");
@@ -33,7 +38,7 @@ fn writes_file_tree_to_disk() {
     assert!(core_contents.contains("impl Compute for State"));
 
     let round_trip = read_tree(dir.path());
-    assert_eq!(tree, round_trip, "file tree must round-trip exactly");
+    assert_eq!(result.tree, round_trip, "file tree must round-trip exactly");
 }
 
 fn read_tree(root: &Path) -> FileTree {

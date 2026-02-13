@@ -2,15 +2,17 @@ use super::render_fn::render_type;
 use super::render_impl::render_impl;
 use super::render_struct::{render_struct, render_visibility};
 use super::render_trait::render_trait;
-use crate::ir::{CanonicalIr, FileNode, Function, Struct, Trait, TypeKind};
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use crate::ir::{CanonicalIr, Function, Struct, Trait, TypeKind};
+use crate::layout::{LayoutFile, LayoutGraph, LayoutModule, LayoutNode};
+use std::collections::{BTreeSet, HashMap};
 
 /// Render a single named file within a module that has explicit FileNode topology.
 /// Emits all impls (and their functions) whose functions are assigned to this file_id.
 pub fn render_file(
-    file_node: &FileNode,
+    file_node: &LayoutFile,
     module: &crate::ir::Module,
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     struct_map: &HashMap<&str, &Struct>,
     trait_map: &HashMap<&str, &Trait>,
     function_map: &HashMap<&str, &Function>,
@@ -19,7 +21,8 @@ pub fn render_file(
     let mut lines = Vec::new();
     lines.push("// Derived from Canonical IR. Do not edit.".to_owned());
     push_module_attributes(&mut lines, module);
-    let mut combined_use_lines = collect_intramodule_types(module, file_node.id.as_str(), ir);
+    let mut combined_use_lines =
+        collect_intramodule_types(module, file_node.id.as_str(), layout, ir);
     combined_use_lines.extend_from_slice(use_lines);
     combined_use_lines.extend(collect_external_uses(&module.id, ir, function_map));
     let combined_use_lines = sort_use_lines(combined_use_lines);
@@ -28,10 +31,12 @@ pub fn render_file(
     }
 
     // structs assigned to this file
+    let layout_file_id = file_node.id.as_str();
     let mut structs: Vec<_> = ir
         .structs
         .iter()
         .filter(|s| s.module == module.id)
+        .filter(|s| struct_layout_file(layout, s.id.as_str()) == Some(layout_file_id))
         .collect();
     structs.sort_by_key(|s| s.name.as_str());
     for s in &structs {
@@ -39,24 +44,26 @@ pub fn render_file(
     }
 
     // traits assigned to this file (heuristic: same sort order)
-    let mut traits: Vec<_> = ir.traits.iter().filter(|t| t.module == module.id).collect();
+    let mut traits: Vec<_> = ir
+        .traits
+        .iter()
+        .filter(|t| t.module == module.id)
+        .filter(|t| trait_layout_file(layout, t.id.as_str()) == Some(layout_file_id))
+        .collect();
     traits.sort_by_key(|t| t.name.as_str());
     for t in &traits {
         lines.push(render_trait(t));
     }
 
-    // impls whose functions are assigned to this file_id
+    let layout_file_id = file_node.id.as_str();
     let mut impls: Vec<_> = ir
         .impl_blocks
         .iter()
+        .filter(|block| block.module == module.id)
         .filter(|block| {
-            block.module == module.id
-                && block.functions.iter().any(|binding| {
-                    function_map
-                        .get(binding.function.as_str())
-                        .and_then(|f| f.file_id.as_deref())
-                        == Some(file_node.id.as_str())
-                })
+            block.functions.iter().any(|binding| {
+                function_layout_file(layout, binding.function.as_str()) == Some(layout_file_id)
+            })
         })
         .collect();
     impls.sort_by_key(|i| i.id.as_str());
@@ -68,6 +75,7 @@ pub fn render_file(
 }
 pub fn render_module(
     module: &crate::ir::Module,
+    _layout: &LayoutGraph,
     ir: &CanonicalIr,
     struct_map: &HashMap<&str, &Struct>,
     trait_map: &HashMap<&str, &Trait>,
@@ -116,49 +124,9 @@ pub fn render_module(
     lines.join("\n\n") + "\n"
 }
 
-pub fn topo_sort_files(files: &[FileNode], edges: &[(String, String)]) -> Vec<FileNode> {
-    let mut in_degree: HashMap<String, usize> = files.iter().map(|f| (f.id.clone(), 0)).collect();
-    let mut adj: HashMap<String, Vec<String>> = HashMap::new();
-
-    for (from, to) in edges {
-        adj.entry(from.clone()).or_default().push(to.clone());
-        *in_degree.entry(to.clone()).or_insert(0) += 1;
-    }
-
-    let mut queue: VecDeque<String> = in_degree
-        .iter()
-        .filter(|(_, d)| **d == 0)
-        .map(|(id, _)| id.clone())
-        .collect();
-    queue.make_contiguous().sort();
-
-    let id_to_file: HashMap<String, FileNode> =
-        files.iter().map(|f| (f.id.clone(), f.clone())).collect();
-
-    let mut result = Vec::new();
-    while let Some(id) = queue.pop_front() {
-        if let Some(file) = id_to_file.get(&id) {
-            result.push(file.clone());
-        }
-        if let Some(neighbors) = adj.get(&id) {
-            let mut next = neighbors.clone();
-            next.sort();
-            for nb in next {
-                let deg = in_degree.entry(nb.clone()).or_insert(0);
-                *deg = deg.saturating_sub(1);
-                if *deg == 0 {
-                    queue.push_back(nb);
-                }
-            }
-        }
-    }
-
-    let seen: std::collections::HashSet<String> = result.iter().map(|f| f.id.clone()).collect();
-    for file in files {
-        if !seen.contains(&file.id) {
-            result.push(file.clone());
-        }
-    }
+pub fn topo_sort_layout_files(files: &[LayoutFile]) -> Vec<LayoutFile> {
+    let mut result: Vec<_> = files.to_vec();
+    result.sort_by(|a, b| a.id.cmp(&b.id));
     result
 }
 
@@ -273,12 +241,16 @@ fn normalize_use_prefix(source: &str) -> String {
 fn collect_intramodule_types(
     module: &crate::ir::Module,
     current_file_id: &str,
+    layout: &LayoutGraph,
     ir: &CanonicalIr,
 ) -> Vec<String> {
-    if module.files.is_empty() {
+    let Some(layout_module) = layout.modules.iter().find(|m| m.id == module.id) else {
+        return Vec::new();
+    };
+    if layout_module.files.is_empty() {
         return Vec::new();
     }
-    let (id_to_stem, stem_to_id) = build_file_maps(module);
+    let (id_to_stem, stem_to_id) = build_file_maps(layout_module);
     if id_to_stem.is_empty() {
         return Vec::new();
     }
@@ -286,7 +258,7 @@ fn collect_intramodule_types(
     for structure in ir.structs.iter().filter(|s| s.module == module.id) {
         if let Some(line) = intramodule_use_line(
             structure.name.as_str(),
-            structure.file_id.as_deref(),
+            struct_layout_file(layout, structure.id.as_str()),
             current_file_id,
             &id_to_stem,
             &stem_to_id,
@@ -297,7 +269,7 @@ fn collect_intramodule_types(
     for tr in ir.traits.iter().filter(|t| t.module == module.id) {
         if let Some(line) = intramodule_use_line(
             tr.name.as_str(),
-            tr.file_id.as_deref(),
+            trait_layout_file(layout, tr.id.as_str()),
             current_file_id,
             &id_to_stem,
             &stem_to_id,
@@ -328,13 +300,11 @@ fn intramodule_use_line(
     Some(format!("use super::{stem}::{type_name};"))
 }
 
-fn build_file_maps(
-    module: &crate::ir::Module,
-) -> (HashMap<String, String>, HashMap<String, String>) {
+fn build_file_maps(module: &LayoutModule) -> (HashMap<String, String>, HashMap<String, String>) {
     let mut id_to_stem = HashMap::new();
     let mut stem_to_id = HashMap::new();
     for file in &module.files {
-        let stem = file_stem(&file.name);
+        let stem = file_stem(&file.path);
         if stem == "mod" {
             continue;
         }
@@ -418,4 +388,27 @@ fn to_snake_case(value: &str) -> String {
 
 fn file_stem(name: &str) -> &str {
     name.trim_end_matches(".rs")
+}
+fn function_layout_file<'a>(layout: &'a LayoutGraph, function_id: &str) -> Option<&'a str> {
+    layout
+        .routing
+        .iter()
+        .find(|assign| matches!(assign.node, LayoutNode::Function(ref id) if id == function_id))
+        .map(|assign| assign.file_id.as_str())
+}
+
+fn struct_layout_file<'a>(layout: &'a LayoutGraph, struct_id: &str) -> Option<&'a str> {
+    layout
+        .routing
+        .iter()
+        .find(|assign| matches!(assign.node, LayoutNode::Struct(ref id) if id == struct_id))
+        .map(|assign| assign.file_id.as_str())
+}
+
+fn trait_layout_file<'a>(layout: &'a LayoutGraph, trait_id: &str) -> Option<&'a str> {
+    layout
+        .routing
+        .iter()
+        .find(|assign| matches!(assign.node, LayoutNode::Trait(ref id) if id == trait_id))
+        .map(|assign| assign.file_id.as_str())
 }

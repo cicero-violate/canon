@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
 use super::{
-    files::{FileEdge, FileNode},
     functions::{DeltaRef, GenericParam},
     ids::{EnumId, FunctionId, ImplId, ModuleId, StructId, TraitFunctionId, TraitId},
     types::{StructKind, TypeRef, ValuePort, Visibility},
@@ -17,10 +16,6 @@ pub struct Module {
     pub name: Word,
     pub visibility: Visibility,
     pub description: String,
-    #[serde(default)]
-    pub files: Vec<FileNode>,
-    #[serde(default)]
-    pub file_edges: Vec<FileEdge>,
     #[serde(default)]
     pub pub_uses: Vec<PubUseItem>,
     #[serde(default)]
@@ -53,8 +48,6 @@ pub struct Struct {
     pub module: ModuleId,
     pub visibility: Visibility,
     #[serde(default)]
-    pub file_id: Option<String>,
-    #[serde(default)]
     pub derives: Vec<String>,
     #[serde(default)]
     pub doc: Option<String>,
@@ -81,8 +74,6 @@ pub struct Trait {
     pub name: Word,
     pub module: ModuleId,
     pub visibility: Visibility,
-    #[serde(default)]
-    pub file_id: Option<String>,
     #[serde(default)]
     pub generic_params: Vec<GenericParam>,
     pub functions: Vec<TraitFunction>,

@@ -24,8 +24,6 @@ pub(super) fn apply_structural_delta(
                 name: name.clone(),
                 visibility: *visibility,
                 description: description.clone(),
-                files: Vec::new(),
-                file_edges: Vec::new(),
                 pub_uses: Vec::new(),
                 constants: Vec::new(),
                 type_aliases: Vec::new(),
@@ -47,7 +45,6 @@ pub(super) fn apply_structural_delta(
                 name: name.clone(),
                 module: module.clone(),
                 visibility: Visibility::Private,
-                file_id: None,
                 derives: Vec::new(),
                 doc: None,
                 kind: StructKind::Normal,
@@ -114,7 +111,6 @@ pub(super) fn apply_structural_delta(
                 name: name.clone(),
                 module: module.clone(),
                 visibility: Visibility::Private,
-                file_id: None,
                 generic_params: Vec::new(),
                 supertraits: Vec::new(),
                 associated_types: Vec::new(),
@@ -168,14 +164,12 @@ pub(super) fn apply_structural_delta(
                 .ok_or_else(|| EvolutionError::UnknownImpl(impl_id.clone()))?;
             let trait_id = ir.impl_blocks[block_index].trait_id.clone();
             let module = ir.impl_blocks[block_index].module.clone();
-            let file_id = format!("file:{}", module);
             ensure_trait_function_exists(ir, &trait_id, &signature.trait_function)?;
             ir.functions.push(crate::ir::Function {
                 receiver: crate::ir::Receiver::None,
                 id: function_id.clone(),
                 name: signature.name.clone(),
                 module,
-                file_id: Some(file_id),
                 impl_id: impl_id.clone(),
                 trait_function: signature.trait_function.clone(),
                 visibility: signature.visibility,

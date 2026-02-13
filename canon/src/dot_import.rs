@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::ir::{
-    FileEdge, FileNode, Proposal, ProposalGoal, ProposalStatus, ProposedApi, ProposedEdge,
-    ProposedNode, ProposedNodeKind, Word, WordError,
+    Proposal, ProposalGoal, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
+    ProposedNodeKind, Word, WordError,
 };
+use crate::layout::LayoutFile;
 
 // ── parser types ────────────────────────────────────────────────────────────
 
@@ -301,13 +302,10 @@ pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, D
     })
 }
 
-/// Convert a `DotGraph` into the flat IR types needed to populate
-/// `Module.files`, `Module.file_edges`, and `ModuleEdge.imported_types`
-/// after the proposal has been accepted.
-pub fn dot_graph_to_file_topology(
-    graph: &DotGraph,
-) -> HashMap<String, (Vec<FileNode>, Vec<FileEdge>)> {
-    let mut out: HashMap<String, (Vec<FileNode>, Vec<FileEdge>)> = HashMap::new();
+/// Convert a `DotGraph` into the `LayoutGraph` structures (`LayoutModule` +
+/// `LayoutFile` lists) that describe the filesystem topology for each module.
+pub fn dot_graph_to_file_topology(graph: &DotGraph) -> HashMap<String, Vec<LayoutFile>> {
+    let mut out: HashMap<String, Vec<LayoutFile>> = HashMap::new();
 
     for cluster in &graph.clusters {
         let label = if cluster.label.is_empty() {
@@ -317,28 +315,66 @@ pub fn dot_graph_to_file_topology(
         };
         let module_id = format!("module.{}", slugify(label));
 
-        let files: Vec<FileNode> = cluster
+        let files: Vec<LayoutFile> = cluster
             .nodes
             .iter()
-            .map(|n| FileNode {
+            .map(|n| LayoutFile {
                 id: n.id.clone(),
-                name: n.label.clone(),
+                path: n.label.clone(),
+                use_block: Vec::new(),
             })
             .collect();
 
-        let file_edges: Vec<FileEdge> = cluster
-            .intra_edges
-            .iter()
-            .map(|e| FileEdge {
-                from: e.from.clone(),
-                to: e.to.clone(),
-            })
-            .collect();
-
-        out.insert(module_id, (files, file_edges));
+        out.insert(module_id, files);
     }
 
     out
+}
+
+/// Extract routing hints that map trait ids (and their functions) to the
+/// files defined in each module cluster. These hints are best-effort: if a
+/// module’s file slug matches the imported type slug, we treat that as a
+/// request to render the trait + functions in that file.
+pub fn dot_graph_to_routing_hints(graph: &DotGraph) -> HashMap<String, String> {
+    let mut module_files: HashMap<String, HashMap<String, String>> = HashMap::new();
+
+    for cluster in &graph.clusters {
+        let label = if cluster.label.is_empty() {
+            &cluster.id
+        } else {
+            &cluster.label
+        };
+        let module_slug = slugify(label);
+        let mut file_lookup = HashMap::new();
+        for node in &cluster.nodes {
+            let stem = slugify(file_stem(&node.label));
+            if !stem.is_empty() {
+                file_lookup.insert(stem, node.id.clone());
+            }
+        }
+        module_files.insert(module_slug, file_lookup);
+    }
+
+    let mut hints = HashMap::new();
+    for inter in &graph.inter_edges {
+        let to_label = cluster_label(&graph.clusters, &inter.to_cluster);
+        let module_slug = slugify(to_label);
+        let Some(file_map) = module_files.get(&module_slug) else {
+            continue;
+        };
+        for type_label in &inter.imported_types {
+            let trait_slug = slugify(type_label);
+            let Some(file_id) = file_map.get(&trait_slug) else {
+                continue;
+            };
+            let trait_id = format!("trait.{module_slug}.{trait_slug}");
+            hints.entry(trait_id).or_insert_with(|| file_id.clone());
+            let fn_id = format!("trait_fn.{module_slug}.{trait_slug}");
+            hints.entry(fn_id).or_insert_with(|| file_id.clone());
+        }
+    }
+
+    hints
 }
 
 /// Extract `imported_types` per `(from_module_id, to_module_id)` pair,
@@ -453,4 +489,12 @@ fn slugify(label: &str) -> String {
             }
         })
         .collect()
+}
+
+fn file_stem(label: &str) -> &str {
+    let trimmed = label.trim();
+    trimmed
+        .strip_suffix(".mod.rs")
+        .or_else(|| trimmed.strip_suffix(".rs"))
+        .unwrap_or(trimmed)
 }

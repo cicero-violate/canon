@@ -1,18 +1,19 @@
 dot_export.rs:
-  struct DotVerifyError  { mismatches }  (line 8)
-  impl std::fmt::Display for DotVerifyError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 12)
-  impl std::error::Error for DotVerifyError  (line 21)
+  struct DotVerifyError  { mismatches }  (line 9)
+  impl std::fmt::Display for DotVerifyError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 13)
+  impl std::error::Error for DotVerifyError  (line 22)
   fn verify_dot(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     original_dot: &str,
-) -> Result<(), DotVerifyError>  (line 25)
-  fn edge_color(module_id: &str) -> &'static str  (line 104)
-  fn export_dot(ir: &CanonicalIr) -> String  (line 118)
-  fn lib_node(module: &crate::ir::Module) -> Option<String>  (line 216)
-  fn entry_node(module: &crate::ir::Module) -> Option<String>  (line 231)
-  fn cluster_id_of(module_id: &str) -> String  (line 244)
-  fn sanitize_node_id(id: &str) -> String  (line 248)
-  fn slugify(s: &str) -> String  (line 254)
+) -> Result<(), DotVerifyError>  (line 26)
+  fn edge_color(module_id: &str) -> &'static str  (line 143)
+  fn export_dot(ir: &CanonicalIr, layout: &LayoutGraph) -> String  (line 157)
+  fn lib_node(module: &LayoutModule) -> Option<String>  (line 243)
+  fn entry_node(module: &LayoutModule) -> Option<String>  (line 248)
+  fn cluster_id_of(module_id: &str) -> String  (line 252)
+  fn sanitize_node_id(id: &str) -> String  (line 256)
+  fn slugify(s: &str) -> String  (line 268)
 
 gpu/dispatch.rs:
   struct GpuExecutor  { device, queue }  (line 12)
@@ -68,10 +69,10 @@ schema.rs:
 validate/error.rs:
   struct Violation  { rule, detail }  (line 5)
   impl Violation  { fn new(rule: CanonRule, detail: impl Into<String>) -> Self, fn rule(&self) -> CanonRule, fn detail(&self) -> &str }  (line 10)
-  struct ValidationErrors  { violations }  (line 25)
-  impl ValidationErrors  { fn new(violations: Vec<Violation>) -> Self, fn violations(&self) -> &[Violation] }  (line 29)
-  impl fmt::Display for ValidationErrors  { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result }  (line 39)
-  impl std::error::Error for ValidationErrors  (line 49)
+  struct ValidationErrors  { violations }  (line 28)
+  impl ValidationErrors  { fn new(violations: Vec<Violation>) -> Self, fn violations(&self) -> &[Violation] }  (line 32)
+  impl fmt::Display for ValidationErrors  { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result }  (line 42)
+  impl std::error::Error for ValidationErrors  (line 62)
 
 validate/mod.rs:
   fn validate_ir(ir: &CanonicalIr) -> Result<(), ValidationErrors>  (line 16)
@@ -79,9 +80,9 @@ validate/mod.rs:
 validate/check_deltas.rs:
   fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 6)
   fn check_deltas(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 13)
-  fn check_struct_history(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 101)
-  fn check_admissions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 111)
-  fn check_applied_records(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 131)
+  fn check_struct_history(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 135)
+  fn check_admissions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 151)
+  fn check_applied_records(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 186)
 
 validate/rules.rs:
   enum CanonRule  { ExplicitArtifacts, ModuleDag, ModuleSelfImport, ImplBinding, ExecutionOnlyInImpl, FunctionContracts, EffectsAreDeltas, DeltaProofs, DeltaAppendOnly, CallGraphPublicApis, CallGraphRespectsDag, CallGraphAcyclic, TickGraphAcyclic, TickGraphEdgesDeclared, LoopContinuationJudgment, GpuLawfulMath, ProposalDeclarative, JudgmentDecisions, LearningDeclarations, TraitVerbs, TickRoot, ProjectEnvelope, ExternalDependencies, DeltaPipeline, ProofScope, VersionEvolution, TickEpochs, PlanArtifacts, ExecutionBoundary, AdmissionBridge, FunctionAst }  (line 2)
@@ -89,25 +90,22 @@ validate/rules.rs:
 
 validate/helpers.rs:
   struct Indexes  { modules, structs, traits, impls, functions, deltas, proofs, predicates, judgments, admissions, tick_graphs, ticks, epochs, plans, proposals }  (line 6)
-  fn build_indexes(
-    ir: &'a CanonicalIr,
-    violations: &mut Vec<Violation>,
-) -> Indexes<'a>  (line 24)
+  fn build_indexes(ir: &'a CanonicalIr, violations: &mut Vec<Violation>) -> Indexes<'a>  (line 24)
   fn index_by_id(
     items: &'a [T],
     id_fn: F,
     rule: CanonRule,
     kind: &str,
     violations: &mut Vec<Violation>,
-) -> HashMap<&'a str, &'a T>  (line 47)
-  fn pipeline_stage_allows(stage: PipelineStage, kind: DeltaKind) -> bool  (line 67)
-  fn proof_scope_allows(kind: DeltaKind, scope: ProofScope) -> bool  (line 77)
+) -> HashMap<&'a str, &'a T>  (line 134)
+  fn pipeline_stage_allows(stage: PipelineStage, kind: DeltaKind) -> bool  (line 157)
+  fn proof_scope_allows(kind: DeltaKind, scope: ProofScope) -> bool  (line 170)
   fn module_has_permission(
     from: &'a str,
     to: &'a str,
     adjacency: &HashMap<&'a str, Vec<&'a str>>,
     cache: &mut HashMap<&'a str, std::collections::HashSet<&'a str>>,
-) -> bool  (line 86)
+) -> bool  (line 179)
 
 validate/check_project.rs:
   fn check(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 6)
@@ -124,45 +122,40 @@ validate/check_graphs.rs:
     idx: &Indexes<'a>,
     module_adj: &HashMap<&'a str, Vec<&'a str>>,
     violations: &mut Vec<Violation>,
-)  (line 44)
-  fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 78)
-  fn check_loop_policies(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 110)
+)  (line 55)
+  fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 123)
+  fn check_loop_policies(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 178)
 
 validate/check_artifacts.rs:
-  fn check(
-    ir: &'a CanonicalIr,
-    idx: &Indexes<'a>,
-    violations: &mut Vec<Violation>,
-)  (line 8)
-  fn check_version_proofs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 24)
-  fn check_module_files(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 34)
-  fn check_module_edges(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 67)
-  fn check_structs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 83)
-  fn check_enums(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 105)
-  fn check_traits(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 116)
-  fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 141)
-  fn check_ast_node_kinds(ir: &CanonicalIr, _: &Indexes, violations: &mut Vec<Violation>)  (line 180)
+  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 8)
+  fn check_version_proofs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 19)
+  fn check_module_edges(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 35)
+  fn check_structs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 51)
+  fn check_enums(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 79)
+  fn check_traits(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 90)
+  fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 127)
+  fn check_ast_node_kinds(ir: &CanonicalIr, _: &Indexes, violations: &mut Vec<Violation>)  (line 216)
   fn validate_ast_node(
     value: &JsonValue,
     function_id: &str,
     allowed: &HashSet<&str>,
     violations: &mut Vec<Violation>,
-)  (line 226)
-  fn check_functions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 255)
+)  (line 262)
+  fn check_functions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 291)
 
 validate/check_proposals.rs:
   fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 8)
   fn check_proposals(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 14)
-  fn check_judgments(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 57)
-  fn check_learning(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 68)
+  fn check_judgments(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 113)
+  fn check_learning(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 136)
 
 validate/check_execution.rs:
   fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 6)
   fn check_epochs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 14)
-  fn check_ticks(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 42)
-  fn check_plans(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 60)
-  fn check_executions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 82)
-  fn check_gpu(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 98)
+  fn check_ticks(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 58)
+  fn check_plans(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 88)
+  fn check_executions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 125)
+  fn check_gpu(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 156)
 
 decision/bootstrap.rs:
   fn ensure_dsl_proof(ir: &mut CanonicalIr)  (line 5)
@@ -170,19 +163,21 @@ decision/bootstrap.rs:
   fn ensure_dsl_tick(ir: &mut CanonicalIr) -> Result<(), ()>  (line 35)
 
 decision/auto_dsl.rs:
-  enum AutoAcceptDslError  { Proposal, Accept, MissingTickGraph }  (line 15)
+  enum AutoAcceptDslError  { Proposal, Accept, MissingTickGraph }  (line 16)
   fn auto_accept_dsl_proposal(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     dsl_source: &str,
-) -> Result<ProposalAcceptance, AutoAcceptDslError>  (line 24)
+) -> Result<ProposalAcceptance, AutoAcceptDslError>  (line 25)
 
 decision/auto_fn_ast.rs:
-  enum AutoAcceptFnAstError  { Accept, UnknownFunction, MissingTickGraph }  (line 19)
+  enum AutoAcceptFnAstError  { Accept, UnknownFunction, MissingTickGraph }  (line 20)
   fn auto_accept_fn_ast(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     function_id: &str,
     ast: JsonValue,
-) -> Result<ProposalAcceptance, AutoAcceptFnAstError>  (line 30)
+) -> Result<ProposalAcceptance, AutoAcceptFnAstError>  (line 31)
 
 decision/accept/proposal_checks.rs:
   fn enforce_proposal_ready(proposal: &Proposal) -> Result<(), AcceptProposalError>  (line 10)
@@ -214,13 +209,25 @@ decision/accept/proposal_checks.rs:
 ) -> Result<(), AcceptProposalError>  (line 84)
 
 decision/accept/mod.rs:
-  struct ProposalAcceptanceInput  { proposal_id, proof_id, predicate_id, judgment_id, admission_id, tick_id, rationale }  (line 24)
-  struct ProposalAcceptance  { ir, delta_ids, judgment_id, admission_id }  (line 35)
-  enum AcceptProposalError  { UnknownProposal, InvalidProposalStatus, IncompleteProposal, UnknownProof, UnknownPredicate, UnknownTick, DuplicateJudgment, DuplicateAdmission, DuplicateDelta, NoDeltas, UnknownModule, UnknownTrait, EmptyApi, ArtifactExists, Resolution, Evolution, Word, Proof }  (line 43)
+  struct ProposalAcceptanceInput  { proposal_id, proof_id, predicate_id, judgment_id, admission_id, tick_id, rationale }  (line 28)
+  struct ProposalAcceptance  { ir, layout, delta_ids, judgment_id, admission_id }  (line 39)
+  enum AcceptProposalError  { UnknownProposal, InvalidProposalStatus, IncompleteProposal, UnknownProof, UnknownPredicate, UnknownTick, DuplicateJudgment, DuplicateAdmission, DuplicateDelta, NoDeltas, UnknownModule, UnknownTrait, EmptyApi, ArtifactExists, Resolution, Evolution, Word, Proof }  (line 48)
   fn accept_proposal(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     input: ProposalAcceptanceInput,
-) -> Result<ProposalAcceptance, AcceptProposalError>  (line 85)
+) -> Result<ProposalAcceptance, AcceptProposalError>  (line 90)
+  fn sync_layout_modules(layout: &mut LayoutGraph, ir: &CanonicalIr)  (line 156)
+  fn apply_layout_deltas(layout: &mut LayoutGraph, ir: &CanonicalIr, deltas: &[Delta])  (line 174)
+  fn ensure_layout_module(layout: &mut LayoutGraph, module_id: &str, module_name: &Word)  (line 228)
+  fn ensure_assignment(
+    layout: &mut LayoutGraph,
+    module_id: &str,
+    node: LayoutNode,
+    ir: &CanonicalIr,
+)  (line 244)
+  fn default_file_id(module_id: &str) -> String  (line 278)
+  fn slugify(value: &str) -> String  (line 282)
 
 decision/accept/delta_emitter.rs:
   fn emit_deltas(
@@ -256,12 +263,18 @@ decision/accept/delta_emitter.rs:
   fn sorted_edges(edges: &[ProposedEdge]) -> Vec<ProposedEdge>  (line 286)
 
 decision/auto_dot.rs:
-  enum AutoAcceptDotError  { Import, Accept, Empty, MissingTickGraph }  (line 19)
+  enum AutoAcceptDotError  { Import, Accept, Empty, MissingTickGraph }  (line 22)
   fn auto_accept_dot_proposal(
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     dot_source: &str,
     goal: &str,
-) -> Result<ProposalAcceptance, AutoAcceptDotError>  (line 33)
+) -> Result<ProposalAcceptance, AutoAcceptDotError>  (line 36)
+  fn apply_routing_hints(
+    layout: &mut LayoutGraph,
+    hints: &std::collections::HashMap<String, String>,
+)  (line 90)
+  fn layout_node_id(node: &LayoutNode) -> &str  (line 114)
 
 ir/timeline.rs:
   struct LoopPolicy  { id, graph, continuation, max_ticks, description }  (line 14)
@@ -273,9 +286,9 @@ ir/timeline.rs:
   enum ExecutionEvent  { Stdout, Stderr, Artifact, Error }  (line 70)
 
 ir/delta.rs:
-  struct Delta  { id, kind, stage, append_only, proof, description, related_function, payload, proof_object_hash }  (line 18)
-  enum DeltaKind  { State, Io, Structure, History }  (line 33)
-  enum DeltaPayload  { AddModule, AddStruct, AddField, AddTrait, AddTraitFunction, AddImpl, AddFunction, AddModuleEdge, AddCallEdge, AttachExecutionEvent, UpdateFunctionAst, AddEnum, AddEnumVariant, UpdateFunctionInputs, UpdateFunctionOutputs, UpdateStructVisibility, RemoveField, RenameArtifact }  (line 42)
+  struct Delta  { id, kind, stage, append_only, proof, description, related_function, payload, proof_object_hash }  (line 16)
+  enum DeltaKind  { State, Io, Structure, History }  (line 31)
+  enum DeltaPayload  { AddModule, AddStruct, AddField, AddTrait, AddTraitFunction, AddImpl, AddFunction, AddModuleEdge, AddCallEdge, AttachExecutionEvent, UpdateFunctionAst, AddEnum, AddEnumVariant, UpdateFunctionInputs, UpdateFunctionOutputs, UpdateStructVisibility, RemoveField, RenameArtifact }  (line 40)
 
 ir/word.rs:
   struct Word  (line 18)
@@ -285,10 +298,6 @@ ir/word.rs:
   impl Serialize for Word  { fn serialize(&self, serializer: S) -> Result<S::Ok, S::Error> }  (line 47)
   impl Deserialize<'de> for Word  { fn deserialize(deserializer: D) -> Result<Self, D::Error> }  (line 56)
   impl JsonSchema for Word  { fn schema_name() -> String, fn json_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema }  (line 66)
-
-ir/files.rs:
-  struct FileNode  { id, name }  (line 6)
-  struct FileEdge  { from, to }  (line 13)
 
 ir/proofs.rs:
   struct Proof  { id, invariant, scope, evidence, proof_object_hash }  (line 8)
@@ -333,14 +342,14 @@ ir/ids.rs:
   type GpuFunctionId  (line 26)
 
 ir/functions.rs:
-  struct Function  { id, name, module, impl_id, trait_function, visibility, doc, lifetime_params, receiver, is_async, is_unsafe, generics, where_clauses, file_id, inputs, outputs, deltas, contract, metadata }  (line 13)
-  struct DeltaRef  { delta, description }  (line 46)
-  struct FunctionContract  { total, deterministic, explicit_inputs, explicit_outputs, effects_are_deltas }  (line 53)
-  struct FunctionMetadata  { bytecode_b64, ast, postconditions }  (line 63)
-  enum Postcondition  { NonNegative }  (line 74)
-  struct FunctionSignature  { name, receiver, is_async, is_unsafe, lifetime_params, generics, where_clauses, doc, inputs, outputs, visibility, trait_function }  (line 80)
-  struct GenericParam  { name, bounds }  (line 104)
-  struct WhereClause  { ty, bounds }  (line 112)
+  struct Function  { id, name, module, impl_id, trait_function, visibility, doc, lifetime_params, receiver, is_async, is_unsafe, generics, where_clauses, inputs, outputs, deltas, contract, metadata }  (line 13)
+  struct DeltaRef  { delta, description }  (line 44)
+  struct FunctionContract  { total, deterministic, explicit_inputs, explicit_outputs, effects_are_deltas }  (line 51)
+  struct FunctionMetadata  { bytecode_b64, ast, postconditions }  (line 61)
+  enum Postcondition  { NonNegative }  (line 72)
+  struct FunctionSignature  { name, receiver, is_async, is_unsafe, lifetime_params, generics, where_clauses, doc, inputs, outputs, visibility, trait_function }  (line 78)
+  struct GenericParam  { name, bounds }  (line 102)
+  struct WhereClause  { ty, bounds }  (line 110)
 
 ir/gpu.rs:
   struct GpuFunction  { id, function, inputs, outputs, properties }  (line 12)
@@ -372,23 +381,23 @@ ir/graphs.rs:
   enum SystemEdgeKind  { Control, Data }  (line 70)
 
 ir/artifacts.rs:
-  struct Module  { id, name, visibility, description, files, file_edges, pub_uses, constants, type_aliases, statics, attributes }  (line 15)
-  struct ModuleEdge  { source, target, rationale, imported_types }  (line 38)
-  struct Struct  { id, name, module, visibility, file_id, derives, doc, kind, fields, history }  (line 50)
-  struct Field  { name, ty, visibility, doc }  (line 69)
-  struct Trait  { id, name, module, visibility, file_id, generic_params, functions, supertraits, associated_types, associated_consts }  (line 79)
-  struct TraitFunction  { id, name, inputs, outputs, default_body }  (line 99)
-  struct ImplBlock  { id, module, struct_id, trait_id, functions }  (line 110)
-  struct ImplFunctionBinding  { trait_fn, function }  (line 120)
-  struct EnumNode  { id, name, module, visibility, variants, history }  (line 127)
-  struct EnumVariant  { name, fields }  (line 138)
-  struct AssociatedType  { name }  (line 145)
-  struct AssociatedConst  { name, ty }  (line 151)
-  enum EnumVariantFields  { Unit, Tuple, Struct }  (line 158)
-  struct PubUseItem  { path }  (line 166)
-  struct ConstItem  { name, ty, value_expr }  (line 172)
-  struct StaticItem  { name, ty, value_expr, mutable, doc, visibility }  (line 180)
-  struct TypeAlias  { name, target }  (line 193)
+  struct Module  { id, name, visibility, description, pub_uses, constants, type_aliases, statics, attributes }  (line 14)
+  struct ModuleEdge  { source, target, rationale, imported_types }  (line 33)
+  struct Struct  { id, name, module, visibility, derives, doc, kind, fields, history }  (line 45)
+  struct Field  { name, ty, visibility, doc }  (line 62)
+  struct Trait  { id, name, module, visibility, generic_params, functions, supertraits, associated_types, associated_consts }  (line 72)
+  struct TraitFunction  { id, name, inputs, outputs, default_body }  (line 90)
+  struct ImplBlock  { id, module, struct_id, trait_id, functions }  (line 101)
+  struct ImplFunctionBinding  { trait_fn, function }  (line 111)
+  struct EnumNode  { id, name, module, visibility, variants, history }  (line 118)
+  struct EnumVariant  { name, fields }  (line 129)
+  struct AssociatedType  { name }  (line 136)
+  struct AssociatedConst  { name, ty }  (line 142)
+  enum EnumVariantFields  { Unit, Tuple, Struct }  (line 149)
+  struct PubUseItem  { path }  (line 157)
+  struct ConstItem  { name, ty, value_expr }  (line 163)
+  struct StaticItem  { name, ty, value_expr, mutable, doc, visibility }  (line 171)
+  struct TypeAlias  { name, target }  (line 184)
 
 ir/proposal.rs:
   enum ProposalKind  { Structural, FunctionBody, SchemaEvolution }  (line 11)
@@ -425,90 +434,147 @@ ingest/mod.rs:
   impl IngestOptions  { fn new(root: impl Into<PathBuf>) -> Self }  (line 20)
   enum IngestError  { Io, Parse, UnsupportedFeature }  (line 28)
   impl From<std::io::Error> for IngestError  { fn from(err: std::io::Error) -> Self }  (line 34)
-  fn ingest_workspace(opts: &IngestOptions) -> Result<CanonicalIr, IngestError>  (line 41)
+  fn ingest_workspace(opts: &IngestOptions) -> Result<LayoutMap, IngestError>  (line 41)
   fn _ensure_path_is_dir(path: &Path) -> Result<(), IngestError>  (line 48)
 
 ingest/builder.rs:
-  fn build_ir(
-    root: &Path,
+  fn build_layout_map(
+    _root: &Path,
     parsed: ParsedWorkspace,
-) -> Result<CanonicalIr, IngestError>  (line 16)
-  fn derive_project_name(root: &Path) -> Word  (line 74)
-  struct ModulesBuild  { modules, module_lookup, file_lookup }  (line 82)
-  fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, IngestError>  (line 88)
-  struct ModuleAccumulator  { key, id, name, description, files }  (line 113)
-  impl ModuleAccumulator  { fn new(key: &str) -> Self, fn add_file(&mut self, path: &std::path::Path), fn into_module(self) -> Module }  (line 121)
-  fn slugify(value: &str) -> String  (line 161)
-  fn to_pascal_case(input: &str) -> String  (line 177)
-  fn module_key(file: &ParsedFile) -> String  (line 199)
-  fn collect_derives(attrs: &[syn::Attribute]) -> Vec<String>  (line 207)
-  fn convert_fields(fields: &syn::Fields) -> (StructKind, Vec<Field>)  (line 226)
-  fn map_visibility(vis: &syn::Visibility) -> Visibility  (line 262)
-  fn word_from_ident(ident: &syn::Ident, fallback: &str) -> Word  (line 281)
-  fn word_from_string(value: &str, fallback: &str) -> Word  (line 285)
-  fn convert_type(ty: &syn::Type) -> TypeRef  (line 291)
-  fn path_type(type_path: &syn::TypePath) -> TypeRef  (line 343)
-  fn type_from_bound(bound: &syn::TypeParamBound) -> Option<TypeRef>  (line 374)
-  fn path_to_string(path: &syn::Path) -> String  (line 393)
+) -> Result<LayoutMap, IngestError>  (line 21)
+  struct ModulesBuild  { modules, module_lookup, file_lookup }  (line 54)
+  struct LayoutAccumulator  { assignments, module_files, path_lookup }  (line 61)
+  impl LayoutAccumulator  { fn assign(&mut self, node: LayoutNode, file_id: Option<String>), fn register_file(&mut self, module_id: &str, path: &str) -> String, fn into_graph(self, modules: &[Module]) -> LayoutGraph }  (line 67)
+  fn build_modules(
+    parsed: &ParsedWorkspace,
+    layout: &mut LayoutAccumulator,
+) -> Result<ModulesBuild, IngestError>  (line 124)
+  fn build_module_edges(
+    parsed: &ParsedWorkspace,
+    module_lookup: &HashMap<String, String>,
+) -> Vec<ModuleEdge>  (line 151)
+  fn collect_use_aliases(
+    file: &ParsedFile,
+    module_key: &str,
+    module_lookup: &HashMap<String, String>,
+) -> HashMap<String, AliasBinding>  (line 205)
+  struct ModuleAccumulator  { key, id, name, description, pub_uses, constants, type_aliases, statics, attributes }  (line 253)
+  struct UseEntry  { segments, alias, is_glob, leading_colon }  (line 266)
+  struct FunctionLookupEntry  { id, visibility }  (line 274)
+  struct AliasBinding  { module_key, function_slug }  (line 280)
+  impl ModuleAccumulator  { fn new(key: &str) -> Self, fn add_file(&mut self, file: &ParsedFile, layout: &mut LayoutAccumulator) -> String, fn collect_attributes(&mut self, attrs: &[syn::Attribute]), fn collect_items(&mut self, items: &[syn::Item]), fn into_module(self) -> Module }  (line 285)
+  fn slugify(value: &str) -> String  (line 381)
+  fn to_pascal_case(input: &str) -> String  (line 397)
+  fn module_key(file: &ParsedFile) -> String  (line 419)
+  fn render_use_item(item: &syn::ItemUse) -> String  (line 427)
+  fn use_tree_to_string(tree: &syn::UseTree) -> String  (line 436)
+  fn flatten_use_tree(
+    prefix: Vec<String>,
+    tree: &syn::UseTree,
+    leading_colon: bool,
+    acc: &mut Vec<UseEntry>,
+)  (line 460)
+  fn resolve_use_entry(entry: &UseEntry, module_key: &str) -> Option<(String, String)>  (line 508)
+  fn module_segments_from_key(key: &str) -> Vec<String>  (line 576)
+  fn attribute_to_string(attr: &syn::Attribute) -> Option<String>  (line 584)
+  fn collect_doc_string(attrs: &[syn::Attribute]) -> Option<String>  (line 604)
+  fn expr_to_string(expr: &syn::Expr) -> String  (line 625)
+  fn collect_derives(attrs: &[syn::Attribute]) -> Vec<String>  (line 629)
+  fn convert_fields(fields: &syn::Fields) -> (StructKind, Vec<Field>)  (line 648)
+  fn map_visibility(vis: &syn::Visibility) -> Visibility  (line 684)
+  fn word_from_ident(ident: &syn::Ident, fallback: &str) -> Word  (line 703)
+  fn word_from_string(value: &str, fallback: &str) -> Word  (line 707)
+  fn convert_type(ty: &syn::Type) -> TypeRef  (line 713)
+  fn path_type(type_path: &syn::TypePath) -> TypeRef  (line 769)
+  fn type_from_bound(bound: &syn::TypeParamBound) -> Option<TypeRef>  (line 800)
+  fn path_to_string(path: &syn::Path) -> String  (line 823)
   fn build_structs(
     parsed: &ParsedWorkspace,
     module_lookup: &HashMap<String, String>,
     file_lookup: &HashMap<String, String>,
-) -> Vec<Struct>  (line 400)
+    layout: &mut LayoutAccumulator,
+) -> Vec<Struct>  (line 830)
+  fn build_enums(
+    parsed: &ParsedWorkspace,
+    module_lookup: &HashMap<String, String>,
+    file_lookup: &HashMap<String, String>,
+    layout: &mut LayoutAccumulator,
+) -> Vec<EnumNode>  (line 854)
   fn build_traits(
     parsed: &ParsedWorkspace,
     module_lookup: &HashMap<String, String>,
     file_lookup: &HashMap<String, String>,
-) -> Vec<Trait>  (line 427)
+    layout: &mut LayoutAccumulator,
+) -> Vec<Trait>  (line 878)
   fn build_impls_and_functions(
     parsed: &ParsedWorkspace,
     module_lookup: &HashMap<String, String>,
     file_lookup: &HashMap<String, String>,
-) -> (Vec<ImplBlock>, Vec<Function>)  (line 448)
+    layout: &mut LayoutAccumulator,
+) -> (Vec<ImplBlock>, Vec<Function>)  (line 902)
+  fn build_call_edges(
+    parsed: &ParsedWorkspace,
+    module_lookup: &HashMap<String, String>,
+    functions: &[Function],
+) -> Vec<CallEdge>  (line 948)
   fn function_from_syn(
     module_id: &str,
-    file_id: Option<String>,
     item: &syn::ItemFn,
     impl_context: Option<(&str, Option<&syn::Path>)>,
-) -> Function  (line 485)
-  fn impl_block_from_syn(
-    module_id: &str,
-    file_id: Option<String>,
-    block: &syn::ItemImpl,
-) -> ImplMapping  (line 542)
+) -> Function  (line 1029)
+  fn impl_block_from_syn(module_id: &str, block: &syn::ItemImpl) -> ImplMapping  (line 1084)
   fn function_from_impl_item(
     module_id: &str,
-    file_id: Option<String>,
     method: &syn::ImplItemFn,
     context: Option<(&str, Option<&syn::Path>)>,
-) -> Function  (line 606)
-  fn struct_from_syn(
-    module_id: &str,
-    file_id: Option<String>,
-    item: &syn::ItemStruct,
-) -> Struct  (line 621)
-  fn trait_from_syn(
-    module_id: &str,
-    file_id: Option<String>,
-    item: &syn::ItemTrait,
-) -> Trait  (line 644)
+) -> Function  (line 1135)
+  fn enum_from_syn(module_id: &str, item: &syn::ItemEnum) -> EnumNode  (line 1149)
+  fn enum_variant_from_syn(variant: &syn::Variant) -> EnumVariant  (line 1166)
+  fn struct_from_syn(module_id: &str, item: &syn::ItemStruct) -> Struct  (line 1199)
+  fn trait_from_syn(module_id: &str, item: &syn::ItemTrait) -> Trait  (line 1221)
   fn trait_fn_from_syn(
     trait_id: &str,
     _trait_name: &syn::Ident,
     item: &syn::TraitItemFn,
-) -> TraitFunction  (line 686)
-  fn convert_generics(generics: &syn::Generics) -> Vec<GenericParam>  (line 703)
-  fn convert_inputs(inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>) -> Vec<ValuePort>  (line 726)
-  fn convert_return_type(ret: &syn::ReturnType) -> Vec<ValuePort>  (line 746)
-  fn convert_receiver(inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>) -> Receiver  (line 765)
+) -> TraitFunction  (line 1258)
+  fn convert_generics(generics: &syn::Generics) -> Vec<GenericParam>  (line 1275)
+  fn convert_inputs(
+    inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
+) -> Vec<ValuePort>  (line 1298)
+  fn convert_return_type(ret: &syn::ReturnType) -> Vec<ValuePort>  (line 1320)
+  fn convert_receiver(
+    inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
+) -> Receiver  (line 1339)
   fn trait_path_to_trait_fn_id(
     trait_path: &syn::Path,
     module_id: &str,
     fn_ident: &syn::Ident,
-) -> String  (line 776)
-  fn trait_path_to_trait_id(path: &syn::Path, module_id: &str) -> String  (line 790)
-  fn type_path_to_struct_id(path: &syn::TypePath, module_id: &str) -> String  (line 799)
-  enum ImplMapping  { Standalone, ImplBlock, Unsupported }  (line 808)
+) -> String  (line 1352)
+  fn trait_path_to_trait_id(path: &syn::Path, module_id: &str) -> String  (line 1366)
+  fn type_path_to_struct_id(path: &syn::TypePath, module_id: &str) -> String  (line 1375)
+  enum ImplMapping  { Standalone, ImplBlock, Unsupported }  (line 1384)
+  fn lookup_function_id(
+    module_key: &str,
+    ident: &syn::Ident,
+    functions: &HashMap<(String, String), FunctionLookupEntry>,
+) -> Option<String>  (line 1390)
+  fn collect_calls_in_block(
+    block: &syn::Block,
+    module_segments: &[String],
+    caller_id: &str,
+    functions: &HashMap<(String, String), FunctionLookupEntry>,
+    aliases: &HashMap<String, AliasBinding>,
+    discovered: &mut BTreeSet<(String, String)>,
+)  (line 1401)
+  struct CallCollector  { caller_id, module_segments, functions, aliases, discovered }  (line 1419)
+  impl Visit<'ast> for CallCollector<'a>  { fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) }  (line 1427)
+  fn extract_call_path(expr: &syn::Expr) -> Option<&syn::Path>  (line 1455)
+  fn resolve_function_path(
+    module_segments: &[String],
+    path: &syn::Path,
+    functions: &'a HashMap<(String, String), FunctionLookupEntry>,
+) -> Option<&'a FunctionLookupEntry>  (line 1465)
+  fn function_name_slug(function: &Function) -> Option<String>  (line 1523)
 
 ingest/parser.rs:
   struct ParsedWorkspace  { files }  (line 10)
@@ -518,7 +584,7 @@ ingest/parser.rs:
     root: &Path,
     discovered: &[DiscoveredFile],
 ) -> Result<ParsedWorkspace, IngestError>  (line 29)
-  fn infer_module_path(relative: &Path) -> Vec<String>  (line 49)
+  fn infer_module_path(relative: &Path) -> Vec<String>  (line 48)
 
 proof/smt_bridge.rs:
   struct SmtCertificate  { function_id, proof_hash }  (line 24)
@@ -562,13 +628,13 @@ runtime/ast.rs:
   struct FunctionAst  { outputs }  (line 17)
   struct OutputExpr  { name, expr }  (line 22)
   enum Expr  { Literal, Input, BinOp, FieldAccess, Call, EmitDelta }  (line 29)
-  enum BinOp  { Add, Sub, Mul }  (line 55)
-  enum AstError  { DuplicateOutput }  (line 62)
-  fn compile_function_ast(ast: &FunctionAst) -> Result<FunctionBytecode, AstError>  (line 67)
-  fn compile_expr(expr: &Expr, instructions: &mut Vec<Instruction>) -> Result<(), AstError>  (line 85)
+  enum BinOp  { Add, Sub, Mul }  (line 57)
+  enum AstError  { DuplicateOutput }  (line 64)
+  fn compile_function_ast(ast: &FunctionAst) -> Result<FunctionBytecode, AstError>  (line 69)
+  fn compile_expr(expr: &Expr, instructions: &mut Vec<Instruction>) -> Result<(), AstError>  (line 87)
 
 runtime/delta_verifier.rs:
-  struct DeltaVerifier  (line 14)
+  struct DeltaVerifier  (line 12)
   impl DeltaVerifier  { fn verify_application(
         original_ir: &CanonicalIr,
         evolved_ir: &CanonicalIr,
@@ -584,11 +650,11 @@ runtime/delta_verifier.rs:
         original_ir: &CanonicalIr,
         evolved_ir: &CanonicalIr,
         admission_ids: &[AdmissionId],
-    ) -> Result<(), VerificationError>, fn create_snapshot(ir: &CanonicalIr) -> Snapshot, fn verify_snapshot(ir: &CanonicalIr, snapshot: &Snapshot) -> bool }  (line 16)
-  fn compute_state_hash(ir: &CanonicalIr) -> String  (line 228)
-  struct VerificationResult  { before_hash, after_hash, verified }  (line 259)
-  struct Snapshot  { state_hash, applied_deltas, modules, structs, traits, functions }  (line 266)
-  enum VerificationError  { UnknownAdmission, UnknownDelta, MissingProof, InvalidProofScope, DeltaCountMismatch, DeltaOrderingViolation, NonMonotonicOrder, DeltaNotApplied, StateHashMismatch }  (line 276)
+    ) -> Result<(), VerificationError>, fn create_snapshot(ir: &CanonicalIr) -> Snapshot, fn verify_snapshot(ir: &CanonicalIr, snapshot: &Snapshot) -> bool }  (line 14)
+  fn compute_state_hash(ir: &CanonicalIr) -> String  (line 226)
+  struct VerificationResult  { before_hash, after_hash, verified }  (line 257)
+  struct Snapshot  { state_hash, applied_deltas, modules, structs, traits, functions }  (line 264)
+  enum VerificationError  { UnknownAdmission, UnknownDelta, MissingProof, InvalidProofScope, DeltaCountMismatch, DeltaOrderingViolation, NonMonotonicOrder, DeltaNotApplied, StateHashMismatch }  (line 274)
 
 runtime/executor.rs:
   trait Executor  (line 14)
@@ -690,11 +756,11 @@ runtime/system_interpreter/mod.rs:
         inputs: BTreeMap<String, Value>,
         context: &mut ExecutionContext,
     ) -> Result<BTreeMap<String, Value>, SystemInterpreterError> }  (line 25)
-  struct SystemExecutionResult  { graph_id, node_results, execution_order, emitted_deltas, proof_artifacts, delta_provenance, events }  (line 188)
-  struct ProofArtifact  { node_id, proof_id, accepted }  (line 199)
-  struct DeltaEmission  { node_id, deltas }  (line 206)
-  enum SystemExecutionEvent  { Validation, NodeExecuted, ProofRecorded, DeltaRecorded }  (line 212)
-  enum SystemInterpreterError  { UnknownGraph, UnknownNode, DuplicateNode, UnknownFunction, NonTotalFunction, MissingOutput, MissingField, OutputTypeMismatch, InvalidEdge, SelfLoop, GateRejected, PersistWithoutDelta, DeltaMaterialization, CycleDetected, Executor }  (line 220)
+  struct SystemExecutionResult  { graph_id, node_results, execution_order, emitted_deltas, proof_artifacts, delta_provenance, events }  (line 186)
+  struct ProofArtifact  { node_id, proof_id, accepted }  (line 197)
+  struct DeltaEmission  { node_id, deltas }  (line 204)
+  enum SystemExecutionEvent  { Validation, NodeExecuted, ProofRecorded, DeltaRecorded }  (line 210)
+  enum SystemInterpreterError  { UnknownGraph, UnknownNode, DuplicateNode, UnknownFunction, NonTotalFunction, MissingOutput, MissingField, OutputTypeMismatch, InvalidEdge, SelfLoop, GateRejected, PersistWithoutDelta, DeltaMaterialization, CycleDetected, Executor }  (line 230)
 
 runtime/system_interpreter/effects.rs:
   impl SystemInterpreter<'a>  { fn apply_node_effects(
@@ -858,9 +924,13 @@ runtime/tick_executor.rs:
 materialize/file_tree.rs:
   struct FileTree  { directories, files }  (line 4)
   impl FileTree  { fn new() -> Self, fn add_directory(&mut self, path: impl Into<String>), fn add_file(&mut self, path: impl Into<String>, contents: impl Into<String>), fn directories(&self) -> &BTreeSet<String>, fn files(&self) -> &BTreeMap<String, FileEntry> }  (line 9)
-  impl Default for FileTree  { fn default() -> Self }  (line 34)
-  struct FileEntry  { contents }  (line 41)
-  impl FileEntry  { fn new(contents: String) -> Self }  (line 45)
+  impl Default for FileTree  { fn default() -> Self }  (line 35)
+  struct FileEntry  { contents }  (line 42)
+  impl FileEntry  { fn new(contents: String) -> Self }  (line 46)
+
+materialize/layout_renderer.rs:
+  struct LayoutLookup  { files, routing, modules }  (line 7)
+  impl LayoutLookup<'a>  { fn new(graph: &'a LayoutGraph) -> Self, fn file_for_function(&self, function: &Function) -> Option<&LayoutFile>, fn files_for_module(&self, module_id: &str) -> Vec<&LayoutFile>, fn assignment_for_struct(&self, structure: &Struct) -> Option<&LayoutAssignment>, fn assignment_for_trait(&self, tr: &Trait) -> Option<&LayoutAssignment> }  (line 13)
 
 materialize/render_cargo.rs:
   fn render_cargo_toml(project: &Project, dependencies: &[ExternalDependency]) -> String  (line 3)
@@ -874,8 +944,12 @@ materialize/render_impl.rs:
 ) -> String  (line 5)
 
 materialize/mod.rs:
-  struct MaterializeResult  { tree, file_hashes }  (line 21)
-  fn materialize(ir: &CanonicalIr, existing_root: Option<&Path>) -> MaterializeResult  (line 26)
+  struct MaterializeResult  { tree, file_hashes }  (line 22)
+  fn materialize(
+    ir: &CanonicalIr,
+    layout: &LayoutGraph,
+    existing_root: Option<&Path>,
+) -> MaterializeResult  (line 27)
   fn finalize_file(
     tree: &mut FileTree,
     next_hashes: &mut HashMap<String, String>,
@@ -883,25 +957,24 @@ materialize/mod.rs:
     path: &str,
     rendered: String,
     existing_root: Option<&Path>,
-)  (line 152)
-  fn hash_contents(content: &str) -> String  (line 173)
+)  (line 161)
+  fn hash_contents(content: &str) -> String  (line 182)
   fn apply_preserve_regions(
     existing_root: Option<&Path>,
     relative_path: &str,
     rendered: String,
-) -> String  (line 179)
-  fn splice_preserve_blocks(new_content: &str, existing_content: &str) -> String  (line 194)
-  fn extract_preserve_blocks(content: &str) -> HashMap<String, Vec<String>>  (line 239)
-  fn split_lines_with_endings(content: &str) -> Vec<String>  (line 267)
-  fn parse_preserve_start(line: &str) -> Option<String>  (line 287)
-  fn parse_preserve_end(line: &str) -> Option<String>  (line 291)
-  fn parse_preserve_marker(line: &str, marker: &str) -> Option<String>  (line 295)
-  fn write_file_tree(tree: &FileTree, root: impl AsRef<Path>) -> std::io::Result<()>  (line 302)
-  fn file_stem(name: &str) -> &str  (line 318)
-  impl crate::ir::Module  { fn file_edges_as_pairs(&self) -> Vec<(String, String)> }  (line 322)
+) -> String  (line 188)
+  fn splice_preserve_blocks(new_content: &str, existing_content: &str) -> String  (line 203)
+  fn extract_preserve_blocks(content: &str) -> HashMap<String, Vec<String>>  (line 248)
+  fn split_lines_with_endings(content: &str) -> Vec<String>  (line 276)
+  fn parse_preserve_start(line: &str) -> Option<String>  (line 296)
+  fn parse_preserve_end(line: &str) -> Option<String>  (line 300)
+  fn parse_preserve_marker(line: &str, marker: &str) -> Option<String>  (line 304)
+  fn write_file_tree(tree: &FileTree, root: impl AsRef<Path>) -> std::io::Result<()>  (line 311)
+  fn file_stem(name: &str) -> &str  (line 327)
 
 materialize/render_trait.rs:
-  fn render_trait(trait_def: &Trait) -> String  (line 7)
+  fn render_trait(trait_def: &Trait) -> String  (line 5)
 
 materialize/render_fn/ast.rs:
   fn render_ast_body(ast: &JsonValue, depth: usize) -> String  (line 3)
@@ -909,45 +982,45 @@ materialize/render_fn/ast.rs:
   fn render_ast_node(node: &JsonValue, depth: usize, out: &mut String)  (line 13)
   fn render_block(node: &JsonValue, depth: usize, out: &mut String)  (line 34)
   fn render_let(node: &JsonValue, depth: usize, out: &mut String)  (line 42)
-  fn render_if(node: &JsonValue, depth: usize, out: &mut String)  (line 55)
-  fn render_match(node: &JsonValue, depth: usize, out: &mut String)  (line 71)
-  fn render_while(node: &JsonValue, depth: usize, out: &mut String)  (line 90)
-  fn render_for(node: &JsonValue, depth: usize, out: &mut String)  (line 102)
-  fn render_loop(node: &JsonValue, depth: usize, out: &mut String)  (line 115)
-  fn render_break(node: &JsonValue, depth: usize, out: &mut String)  (line 123)
-  fn render_return(node: &JsonValue, depth: usize, out: &mut String)  (line 134)
-  fn render_assign(node: &JsonValue, depth: usize, out: &mut String)  (line 145)
-  fn render_compound_assign(node: &JsonValue, depth: usize, out: &mut String)  (line 157)
-  fn render_call_stmt(node: &JsonValue, depth: usize, out: &mut String)  (line 170)
-  fn render_literal(node: &JsonValue, depth: usize, out: &mut String)  (line 178)
-  fn render_expression_stmt(node: &JsonValue, depth: usize, out: &mut String)  (line 183)
-  fn render_ast_expr(node: &JsonValue) -> String  (line 190)
-  fn render_call_expr(node: &JsonValue) -> String  (line 219)
-  fn render_method_expr(node: &JsonValue) -> String  (line 229)
-  fn render_binary_expr(node: &JsonValue) -> String  (line 243)
-  fn render_unary_expr(node: &JsonValue) -> String  (line 256)
-  fn render_field_expr(node: &JsonValue) -> String  (line 265)
-  fn render_index_expr(node: &JsonValue) -> String  (line 274)
-  fn render_struct_lit_expr(node: &JsonValue) -> String  (line 286)
-  fn render_tuple_expr(node: &JsonValue) -> String  (line 308)
-  fn render_array_expr(node: &JsonValue) -> String  (line 322)
-  fn render_ref_expr(node: &JsonValue) -> String  (line 331)
-  fn render_range_expr(node: &JsonValue) -> String  (line 343)
-  fn render_cast_expr(node: &JsonValue) -> String  (line 356)
-  fn render_closure_expr(node: &JsonValue) -> String  (line 365)
+  fn render_if(node: &JsonValue, depth: usize, out: &mut String)  (line 58)
+  fn render_match(node: &JsonValue, depth: usize, out: &mut String)  (line 74)
+  fn render_while(node: &JsonValue, depth: usize, out: &mut String)  (line 93)
+  fn render_for(node: &JsonValue, depth: usize, out: &mut String)  (line 105)
+  fn render_loop(node: &JsonValue, depth: usize, out: &mut String)  (line 118)
+  fn render_break(node: &JsonValue, depth: usize, out: &mut String)  (line 126)
+  fn render_return(node: &JsonValue, depth: usize, out: &mut String)  (line 137)
+  fn render_assign(node: &JsonValue, depth: usize, out: &mut String)  (line 148)
+  fn render_compound_assign(node: &JsonValue, depth: usize, out: &mut String)  (line 160)
+  fn render_call_stmt(node: &JsonValue, depth: usize, out: &mut String)  (line 173)
+  fn render_literal(node: &JsonValue, depth: usize, out: &mut String)  (line 177)
+  fn render_expression_stmt(node: &JsonValue, depth: usize, out: &mut String)  (line 182)
+  fn render_ast_expr(node: &JsonValue) -> String  (line 189)
+  fn render_call_expr(node: &JsonValue) -> String  (line 218)
+  fn render_method_expr(node: &JsonValue) -> String  (line 236)
+  fn render_binary_expr(node: &JsonValue) -> String  (line 258)
+  fn render_unary_expr(node: &JsonValue) -> String  (line 271)
+  fn render_field_expr(node: &JsonValue) -> String  (line 280)
+  fn render_index_expr(node: &JsonValue) -> String  (line 289)
+  fn render_struct_lit_expr(node: &JsonValue) -> String  (line 301)
+  fn render_tuple_expr(node: &JsonValue) -> String  (line 326)
+  fn render_array_expr(node: &JsonValue) -> String  (line 344)
+  fn render_ref_expr(node: &JsonValue) -> String  (line 358)
+  fn render_range_expr(node: &JsonValue) -> String  (line 370)
+  fn render_cast_expr(node: &JsonValue) -> String  (line 386)
+  fn render_closure_expr(node: &JsonValue) -> String  (line 395)
 
 materialize/render_fn/mod.rs:
-  fn render_type(ty: &TypeRef) -> String  (line 10)
-  fn render_type_core(ty: &TypeRef) -> String  (line 18)
-  fn render_named_type(ty: &TypeRef) -> String  (line 31)
-  fn render_tuple_type(params: &[TypeRef]) -> String  (line 40)
-  fn render_fn_ptr_type(params: &[TypeRef]) -> String  (line 51)
-  fn render_slice_type(ty: &TypeRef) -> String  (line 69)
-  fn apply_ref(inner: String, ref_kind: RefKind, lifetime: Option<&str>) -> String  (line 82)
-  fn lifetime_fragment(lifetime: Option<&str>) -> String  (line 90)
-  fn format_lifetime_param(raw: &str) -> String  (line 105)
-  fn render_impl_dyn_trait(prefix: &str, params: &[TypeRef]) -> String  (line 116)
-  fn render_fn_signature(inputs: &[ValuePort], outputs: &[ValuePort]) -> String  (line 130)
+  fn render_type(ty: &TypeRef) -> String  (line 12)
+  fn render_type_core(ty: &TypeRef) -> String  (line 20)
+  fn render_named_type(ty: &TypeRef) -> String  (line 33)
+  fn render_tuple_type(params: &[TypeRef]) -> String  (line 47)
+  fn render_fn_ptr_type(params: &[TypeRef]) -> String  (line 62)
+  fn render_slice_type(ty: &TypeRef) -> String  (line 80)
+  fn apply_ref(inner: String, ref_kind: RefKind, lifetime: Option<&str>) -> String  (line 93)
+  fn lifetime_fragment(lifetime: Option<&str>) -> String  (line 101)
+  fn format_lifetime_param(raw: &str) -> String  (line 116)
+  fn render_impl_dyn_trait(prefix: &str, params: &[TypeRef]) -> String  (line 127)
+  fn render_fn_signature(inputs: &[ValuePort], outputs: &[ValuePort]) -> String  (line 141)
   fn render_fn_signature_with_receiver(
     receiver: Receiver,
     inputs: &[ValuePort],
@@ -955,72 +1028,70 @@ materialize/render_fn/mod.rs:
     lifetime_params: &[String],
     generics: &[GenericParam],
     where_clauses: &[WhereClause],
-) -> String  (line 134)
-  fn render_output_types(outputs: &[ValuePort]) -> Option<String>  (line 175)
-  fn render_generics(
-    lifetime_params: &[String],
-    generics: &[GenericParam],
-) -> String  (line 192)
-  fn render_where_suffix(where_clauses: &[WhereClause]) -> String  (line 214)
-  fn render_impl_function(function: &Function) -> String  (line 235)
+) -> String  (line 145)
+  fn render_output_types(outputs: &[ValuePort]) -> Option<String>  (line 186)
+  fn render_generics(lifetime_params: &[String], generics: &[GenericParam]) -> String  (line 201)
+  fn render_where_suffix(where_clauses: &[WhereClause]) -> String  (line 220)
+  fn render_impl_function(function: &Function) -> String  (line 241)
 
 materialize/render_module.rs:
   fn render_file(
-    file_node: &FileNode,
+    file_node: &LayoutFile,
     module: &crate::ir::Module,
     ir: &CanonicalIr,
+    layout: &LayoutGraph,
     struct_map: &HashMap<&str, &Struct>,
     trait_map: &HashMap<&str, &Trait>,
     function_map: &HashMap<&str, &Function>,
     use_lines: &[String],
-) -> String  (line 10)
+) -> String  (line 11)
   fn render_module(
     module: &crate::ir::Module,
+    _layout: &LayoutGraph,
     ir: &CanonicalIr,
     struct_map: &HashMap<&str, &Struct>,
     trait_map: &HashMap<&str, &Trait>,
     function_map: &HashMap<&str, &Function>,
-) -> String  (line 71)
-  fn topo_sort_files(
-    files: &[FileNode],
-    edges: &[(String, String)],
-) -> Vec<FileNode>  (line 113)
-  fn render_module_items_block(module: &crate::ir::Module) -> Option<String>  (line 164)
-  fn push_doc_lines(lines: &mut Vec<String>, doc: &str)  (line 212)
-  fn push_module_attributes(lines: &mut Vec<String>, module: &crate::ir::Module)  (line 222)
-  fn collect_incoming_types(ir: &CanonicalIr, module_id: &str) -> Vec<(String, Vec<String>)>  (line 228)
-  fn render_use_block(incoming: &[(String, Vec<String>)]) -> Vec<String>  (line 245)
-  fn normalize_use_prefix(source: &str) -> String  (line 264)
+) -> String  (line 76)
+  fn topo_sort_layout_files(files: &[LayoutFile]) -> Vec<LayoutFile>  (line 127)
+  fn render_module_items_block(module: &crate::ir::Module) -> Option<String>  (line 133)
+  fn push_doc_lines(lines: &mut Vec<String>, doc: &str)  (line 181)
+  fn push_module_attributes(lines: &mut Vec<String>, module: &crate::ir::Module)  (line 191)
+  fn collect_incoming_types(ir: &CanonicalIr, module_id: &str) -> Vec<(String, Vec<String>)>  (line 197)
+  fn render_use_block(incoming: &[(String, Vec<String>)]) -> Vec<String>  (line 214)
+  fn normalize_use_prefix(source: &str) -> String  (line 233)
   fn collect_intramodule_types(
     module: &crate::ir::Module,
     current_file_id: &str,
+    layout: &LayoutGraph,
     ir: &CanonicalIr,
-) -> Vec<String>  (line 272)
+) -> Vec<String>  (line 241)
   fn intramodule_use_line(
     type_name: &str,
     explicit_file_id: Option<&str>,
     current_file_id: &str,
     id_to_stem: &HashMap<String, String>,
     stem_to_id: &HashMap<String, String>,
-) -> Option<String>  (line 310)
-  fn build_file_maps(
-    module: &crate::ir::Module,
-) -> (HashMap<String, String>, HashMap<String, String>)  (line 330)
+) -> Option<String>  (line 283)
+  fn build_file_maps(module: &LayoutModule) -> (HashMap<String, String>, HashMap<String, String>)  (line 303)
   fn collect_external_uses(
     module_id: &str,
     ir: &CanonicalIr,
     _function_map: &HashMap<&str, &Function>,
-) -> Vec<String>  (line 346)
-  fn collect_external_types(ty: &crate::ir::TypeRef, out: &mut BTreeSet<String>)  (line 360)
-  fn sort_use_lines(mut lines: Vec<String>) -> Vec<String>  (line 372)
-  fn use_line_rank(line: &str) -> u8  (line 385)
-  fn to_snake_case(value: &str) -> String  (line 395)
-  fn file_stem(name: &str) -> &str  (line 418)
+) -> Vec<String>  (line 317)
+  fn collect_external_types(ty: &crate::ir::TypeRef, out: &mut BTreeSet<String>)  (line 331)
+  fn sort_use_lines(mut lines: Vec<String>) -> Vec<String>  (line 343)
+  fn use_line_rank(line: &str) -> u8  (line 356)
+  fn to_snake_case(value: &str) -> String  (line 366)
+  fn file_stem(name: &str) -> &str  (line 389)
+  fn function_layout_file(layout: &'a LayoutGraph, function_id: &str) -> Option<&'a str>  (line 392)
+  fn struct_layout_file(layout: &'a LayoutGraph, struct_id: &str) -> Option<&'a str>  (line 400)
+  fn trait_layout_file(layout: &'a LayoutGraph, trait_id: &str) -> Option<&'a str>  (line 408)
 
 materialize/render_struct.rs:
   fn render_struct(structure: &Struct) -> String  (line 4)
-  fn render_visibility(vis: Visibility) -> &'static str  (line 67)
-  fn render_enum(en: &EnumNode) -> String  (line 76)
+  fn render_visibility(vis: Visibility) -> &'static str  (line 73)
+  fn render_enum(en: &EnumNode) -> String  (line 82)
 
 proposal.rs:
   struct ModuleSpec  { id, name }  (line 11)
@@ -1052,6 +1123,66 @@ proposal.rs:
   fn parse_goal_decl(input: &str) -> Result<DslGoal, DslProposalError>  (line 386)
   fn canonical_word(input: &str) -> Result<Word, WordError>  (line 407)
 
+layout/mod.rs:
+  struct LayoutMap  { semantic, layout }  (line 23)
+  struct SemanticGraph  { modules, structs, enums, traits, impls, functions, module_edges, call_edges, tick_graphs, system_graphs }  (line 30)
+  struct LayoutGraph  { modules, routing }  (line 45)
+  struct LayoutModule  { id, name, files, imports }  (line 52)
+  struct LayoutFile  { id, path, use_block }  (line 60)
+  struct LayoutAssignment  { node, file_id, rationale }  (line 68)
+  struct LayoutImport  { from, to, symbols }  (line 75)
+  enum LayoutNode  { Struct, Enum, Trait, Impl, Function }  (line 83)
+  trait LayoutStrategy  { fn description(&self) -> &'static str }  (line 92)
+  trait LayoutCleaner  (line 101)
+  fn apply_topology_to_layout(
+    layout: &mut LayoutGraph,
+    modules: &[Module],
+    topology: HashMap<String, Vec<LayoutFile>>,
+)  (line 106)
+  struct LayoutValidationError  { message }  (line 132)
+  impl LayoutValidationError  { fn new(lines: Vec<String>) -> Self }  (line 136)
+  fn validate_layout(
+    ir: &CanonicalIr,
+    layout: &LayoutGraph,
+) -> Result<(), LayoutValidationError>  (line 144)
+  fn layout_node_key(node: &LayoutNode) -> (&str, &'static str)  (line 297)
+  fn enforce_routing_completeness(
+    label: &'static str,
+    ids: impl Iterator<Item = &'a str>,
+    assigned: &HashSet<String>,
+    violations: &mut Vec<String>,
+)  (line 307)
+
+layout/strategies.rs:
+  struct OriginalLayoutStrategy  { base }  (line 8)
+  impl OriginalLayoutStrategy  { fn new(base: LayoutGraph) -> Self }  (line 12)
+  impl LayoutStrategy for OriginalLayoutStrategy  { fn name(&self) -> &'static str, fn description(&self) -> &'static str, fn plan(&self, _semantic: &SemanticGraph) -> LayoutGraph }  (line 18)
+  struct SingleFileLayoutStrategy  (line 33)
+  impl LayoutStrategy for SingleFileLayoutStrategy  { fn name(&self) -> &'static str, fn description(&self) -> &'static str, fn plan(&self, semantic: &SemanticGraph) -> LayoutGraph }  (line 35)
+  struct PerTypeLayoutStrategy  (line 74)
+  impl LayoutStrategy for PerTypeLayoutStrategy  { fn name(&self) -> &'static str, fn description(&self) -> &'static str, fn plan(&self, semantic: &SemanticGraph) -> LayoutGraph }  (line 76)
+  fn route_all_nodes(
+    semantic: &SemanticGraph,
+    module_id: &str,
+    file_id: &str,
+    rationale: &str,
+    routing: &mut Vec<LayoutAssignment>,
+)  (line 194)
+  fn ensure_named_file(
+    files: &mut Vec<LayoutFile>,
+    named_files: &mut HashMap<String, String>,
+    module_id: &str,
+    slug: &str,
+    path: String,
+) -> String  (line 258)
+  fn default_file_id(module_id: &str) -> String  (line 278)
+  fn sanitize_module(module_id: &str) -> String  (line 282)
+  fn slugify(value: &str) -> String  (line 295)
+
+semantic_builder.rs:
+  struct SemanticIrBuilder  { meta, project }  (line 7)
+  impl SemanticIrBuilder  { fn new(name: &str) -> Self, fn build(&self, semantic: SemanticGraph) -> CanonicalIr }  (line 12)
+
 observe.rs:
   fn execution_events_to_observe_deltas(
     execution: &ExecutionRecord,
@@ -1060,27 +1191,51 @@ observe.rs:
   fn describe_event(execution_id: &str, idx: usize, event: &ExecutionEvent) -> String  (line 28)
 
 main.rs:
-  fn main()  (line 21)
-  fn run() -> Result<(), Box<dyn std::error::Error>>  (line 28)
-  struct Cli  { command }  (line 283)
-  enum Command  { Schema, Validate, IngestStub, Lint, RenderFn, DiffIr, Materialize, ObserveEvents, Decide, SubmitDsl, ExecuteTick, ImportDot, ExportDot, VerifyDot, SubmitFnAst }  (line 289)
-  fn enforce_version_gate(ir: &CanonicalIr) -> Result<(), Box<dyn std::error::Error>>  (line 452)
-  fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 471)
-  fn diff_ir(before: &CanonicalIr, after: &CanonicalIr) -> String  (line 477)
+  fn main()  (line 26)
+  fn run() -> Result<(), Box<dyn std::error::Error>>  (line 33)
+  struct Cli  { command }  (line 397)
+  enum Command  { Schema, Validate, Ingest, Lint, RenderFn, DiffIr, Materialize, ObserveEvents, Decide, SubmitDsl, ExecuteTick, ImportDot, ExportDot, VerifyDot, SubmitFnAst, LayoutPlan }  (line 403)
+  enum LayoutStrategyArg  { Original, SingleFile, PerType }  (line 627)
+  impl std::fmt::Display for LayoutStrategyArg  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 633)
+  fn enforce_version_gate(ir: &CanonicalIr) -> Result<(), Box<dyn std::error::Error>>  (line 647)
+  fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 666)
+  fn write_layout_to_path(
+    path: &Path,
+    layout: &LayoutGraph,
+) -> Result<(), Box<dyn std::error::Error>>  (line 672)
+  fn load_semantic_from_path(path: &Path) -> Result<SemanticGraph, Box<dyn std::error::Error>>  (line 681)
+  fn enforce_layout_valid(
+    ir: &CanonicalIr,
+    layout: &LayoutGraph,
+) -> Result<(), Box<dyn std::error::Error>>  (line 687)
+  fn plan_layout_from_strategy(
+    strategy: LayoutStrategyArg,
+    base_layout: Option<&Path>,
+    semantic: &SemanticGraph,
+) -> Result<LayoutGraph, Box<dyn std::error::Error>>  (line 694)
+  fn resolve_layout_input(arg: Option<&Path>, ir_path: &Path) -> PathBuf  (line 727)
+  fn resolve_layout_output(arg: Option<&Path>, ir_path: &Path) -> PathBuf  (line 732)
+  fn default_layout_path_for(ir_path: &Path) -> PathBuf  (line 737)
+  fn diff_layouts(before: &LayoutGraph, after: &LayoutGraph) -> String  (line 747)
+  fn file_snapshot(module: &canon::layout::LayoutModule) -> Vec<(String, String)>  (line 797)
+  fn routing_snapshot(layout: &LayoutGraph) -> BTreeMap<String, String>  (line 807)
+  fn layout_node_label(node: &LayoutNode) -> String  (line 818)
+  fn load_layout_from_path(path: &Path) -> Result<LayoutGraph, Box<dyn std::error::Error>>  (line 828)
+  fn diff_ir(before: &CanonicalIr, after: &CanonicalIr) -> String  (line 834)
   fn diff_section(
     label: &str,
     before: impl Iterator<Item = String>,
     after: impl Iterator<Item = String>,
     lines: &mut Vec<String>,
-)  (line 518)
-  fn violation_severity(rule: CanonRule) -> &'static str  (line 534)
+)  (line 875)
+  fn violation_severity(rule: CanonRule) -> &'static str  (line 891)
 
 evolution/mod.rs:
   fn apply_deltas(
     ir: &CanonicalIr,
     admission_ids: &[AdmissionId],
-) -> Result<CanonicalIr, EvolutionError>  (line 18)
-  fn enforce_delta_application(delta: &Delta) -> Result<(), EvolutionError>  (line 94)
+) -> Result<CanonicalIr, EvolutionError>  (line 20)
+  fn enforce_delta_application(delta: &Delta) -> Result<(), EvolutionError>  (line 96)
   enum EvolutionError  { UnknownAdmission, UnknownJudgment, UnknownDelta, JudgmentNotAccepted, MissingContext, UnknownStruct, UnknownField, UnknownModule, UnknownImpl, UnknownTrait, UnknownTraitFunction, UnknownExecution, UnknownFunction, UnknownEnum, DuplicateArtifact, PayloadHash, Kernel, VerificationFailed }  (line 106)
 
 evolution/kernel_bridge.rs:
@@ -1104,56 +1259,42 @@ evolution/structural.rs:
     ir: &mut CanonicalIr,
     delta: &Delta,
 ) -> Result<(), EvolutionError>  (line 8)
-  fn rename_module(
-    ir: &mut CanonicalIr,
-    old_id: &str,
-    new_id: &str,
-) -> Result<(), EvolutionError>  (line 317)
-  fn rename_struct(
-    ir: &mut CanonicalIr,
-    old_id: &str,
-    new_id: &str,
-) -> Result<(), EvolutionError>  (line 359)
-  fn rename_function(
-    ir: &mut CanonicalIr,
-    old_id: &str,
-    new_id: &str,
-) -> Result<(), EvolutionError>  (line 383)
-  fn ensure_module_exists(ir: &CanonicalIr, module: &str) -> Result<(), EvolutionError>  (line 412)
-  fn ensure_struct_exists(ir: &CanonicalIr, struct_id: &str) -> Result<(), EvolutionError>  (line 420)
+  fn rename_module(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError>  (line 319)
+  fn rename_struct(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError>  (line 357)
+  fn rename_function(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError>  (line 377)
+  fn ensure_module_exists(ir: &CanonicalIr, module: &str) -> Result<(), EvolutionError>  (line 402)
+  fn ensure_struct_exists(ir: &CanonicalIr, struct_id: &str) -> Result<(), EvolutionError>  (line 410)
   fn ensure_field_exists(
     ir: &CanonicalIr,
     struct_id: &str,
     field_name: &str,
-) -> Result<(), EvolutionError>  (line 428)
-  fn ensure_trait_exists(ir: &CanonicalIr, trait_id: &str) -> Result<(), EvolutionError>  (line 448)
+) -> Result<(), EvolutionError>  (line 418)
+  fn ensure_trait_exists(ir: &CanonicalIr, trait_id: &str) -> Result<(), EvolutionError>  (line 442)
   fn ensure_trait_function_exists(
     ir: &CanonicalIr,
     trait_id: &str,
     trait_fn: &str,
-) -> Result<(), EvolutionError>  (line 456)
-  fn ensure_function_exists(ir: &CanonicalIr, function_id: &str) -> Result<(), EvolutionError>  (line 473)
+) -> Result<(), EvolutionError>  (line 450)
+  fn ensure_function_exists(ir: &CanonicalIr, function_id: &str) -> Result<(), EvolutionError>  (line 467)
 
 dot_import.rs:
-  struct DotCluster  { id, label, nodes, intra_edges }  (line 14)
-  struct DotNode  { id, label }  (line 23)
-  struct DotIntraEdge  { from, to }  (line 30)
-  struct DotInterEdge  { from_cluster, to_cluster, imported_types }  (line 37)
-  struct DotGraph  { clusters, inter_edges }  (line 45)
-  enum DotImportError  { Word, NoClusters, UnknownNode, BadClusterLabel }  (line 53)
-  fn parse_dot(source: &str) -> Result<DotGraph, DotImportError>  (line 67)
-  fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, DotImportError>  (line 194)
-  fn dot_graph_to_file_topology(
-    graph: &DotGraph,
-) -> HashMap<String, (Vec<FileNode>, Vec<FileEdge>)>  (line 307)
-  fn dot_graph_to_imported_types(
-    graph: &DotGraph,
-) -> HashMap<(String, String), Vec<String>>  (line 346)
-  fn parse_node_decl(line: &str) -> Option<DotNode>  (line 364)
-  fn parse_edge_line(line: &str) -> Option<(String, String, Vec<String>)>  (line 375)
-  fn extract_attr(line: &str, attr: &str) -> Option<String>  (line 402)
-  fn cluster_label(clusters: &'a [DotCluster], cluster_id: &'a str) -> &'a str  (line 410)
-  fn cluster_label_to_word(label: &str) -> Result<Word, DotImportError>  (line 423)
-  fn slugify(label: &str) -> String  (line 444)
+  struct DotCluster  { id, label, nodes, intra_edges }  (line 15)
+  struct DotNode  { id, label }  (line 24)
+  struct DotIntraEdge  { from, to }  (line 31)
+  struct DotInterEdge  { from_cluster, to_cluster, imported_types }  (line 38)
+  struct DotGraph  { clusters, inter_edges }  (line 46)
+  enum DotImportError  { Word, NoClusters, UnknownNode, BadClusterLabel }  (line 54)
+  fn parse_dot(source: &str) -> Result<DotGraph, DotImportError>  (line 68)
+  fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, DotImportError>  (line 195)
+  fn dot_graph_to_file_topology(graph: &DotGraph) -> HashMap<String, Vec<LayoutFile>>  (line 307)
+  fn dot_graph_to_routing_hints(graph: &DotGraph) -> HashMap<String, String>  (line 338)
+  fn dot_graph_to_imported_types(graph: &DotGraph) -> HashMap<(String, String), Vec<String>>  (line 382)
+  fn parse_node_decl(line: &str) -> Option<DotNode>  (line 398)
+  fn parse_edge_line(line: &str) -> Option<(String, String, Vec<String>)>  (line 409)
+  fn extract_attr(line: &str, attr: &str) -> Option<String>  (line 439)
+  fn cluster_label(clusters: &'a [DotCluster], cluster_id: &'a str) -> &'a str  (line 447)
+  fn cluster_label_to_word(label: &str) -> Result<Word, DotImportError>  (line 460)
+  fn slugify(label: &str) -> String  (line 481)
+  fn file_stem(label: &str) -> &str  (line 494)
 
 

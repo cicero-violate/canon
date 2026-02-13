@@ -1,6 +1,10 @@
 use canon::{CanonicalIr, materialize};
 use std::path::PathBuf;
 
+#[path = "support.rs"]
+mod support;
+use support::default_layout_for;
+
 fn load_fixture(name: &str) -> CanonicalIr {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
@@ -13,7 +17,9 @@ fn load_fixture(name: &str) -> CanonicalIr {
 #[test]
 fn materializer_builds_module_tree() {
     let ir = load_fixture("valid_ir.json");
-    let tree = materialize(&ir);
+    let layout = default_layout_for(&ir);
+    let result = materialize(&ir, &layout, None);
+    let tree = &result.tree;
     assert!(tree.directories().contains("src"));
     assert!(tree.directories().contains("src/Core"));
     assert!(tree.directories().contains("src/Delta"));
@@ -44,7 +50,9 @@ fn materializer_builds_module_tree() {
 #[test]
 fn materializer_is_deterministic() {
     let ir = load_fixture("valid_ir.json");
-    let tree_a = materialize(&ir);
-    let tree_b = materialize(&ir);
-    assert_eq!(tree_a, tree_b);
+    let layout = default_layout_for(&ir);
+    let a = materialize(&ir, &layout, None);
+    let b = materialize(&ir, &layout, None);
+    assert_eq!(a.tree, b.tree);
+    assert_eq!(a.file_hashes, b.file_hashes);
 }
