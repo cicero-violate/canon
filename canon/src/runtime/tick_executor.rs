@@ -23,7 +23,7 @@ fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
 
 /// Executes a tick graph in topological order.
 pub struct TickExecutor<'a> {
-    ir: &'a mut CanonicalIr,
+    ir: &'a CanonicalIr,
     function_executor: FunctionExecutor<'a>,
 }
 
@@ -35,7 +35,7 @@ pub enum TickExecutionMode {
 }
 
 impl<'a> TickExecutor<'a> {
-    pub fn new(ir: &'a mut CanonicalIr) -> Self {
+    pub fn new(ir: &'a CanonicalIr) -> Self {
         Self {
             ir,
             function_executor: FunctionExecutor::new(ir),
@@ -43,13 +43,13 @@ impl<'a> TickExecutor<'a> {
     }
 
     /// Execute a tick by its ID.
-    pub fn execute_tick(&mut self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError> {
+    pub fn execute_tick(&self, tick_id: &str) -> Result<TickExecutionResult, TickExecutorError> {
         self.execute_tick_with_mode(tick_id, TickExecutionMode::Sequential)
     }
 
     /// Execute a tick with explicit initial inputs provided to the root nodes.
     pub fn execute_tick_with_inputs(
-        &mut self,
+        &self,
         tick_id: &str,
         initial_inputs: BTreeMap<String, Value>,
     ) -> Result<TickExecutionResult, TickExecutorError> {
@@ -62,7 +62,7 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick with an explicit mode (sequential or parallel-verified).
     pub fn execute_tick_with_mode(
-        &mut self,
+        &self,
         tick_id: &str,
         mode: TickExecutionMode,
     ) -> Result<TickExecutionResult, TickExecutorError> {
@@ -71,7 +71,7 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick with an explicit mode and initial inputs.
     pub fn execute_tick_with_mode_and_inputs(
-        &mut self,
+        &self,
         tick_id: &str,
         mode: TickExecutionMode,
         initial_inputs: BTreeMap<String, Value>,
@@ -96,7 +96,7 @@ impl<'a> TickExecutor<'a> {
     /// Execute a tick graph in topological order.
     /// Graph must be acyclic (Canon Line 48).
     fn execute_graph(
-        &mut self,
+        &self,
         graph: &TickGraph,
         tick: &Tick,
         mode: TickExecutionMode,
@@ -140,29 +140,12 @@ impl<'a> TickExecutor<'a> {
             self.verify_parallel_deltas(context.deltas(), &parallel_deltas)?;
         }
 
-        let emitted = context.deltas().to_vec();
-        let reward = compute_reward_from_deltas(&emitted);
-
-        // --- W4: World Model Update ---
-        let actual_delta_ids = emitted
-            .iter()
-            .map(|d| d.id.clone())
-            .collect::<Vec<_>>();
-
-        let prediction = PredictionRecord::new(
-            tick.id.clone(),
-            Vec::new(), // no speculative prediction yet
-            actual_delta_ids,
-        );
-
-        self.ir.world_model.record_prediction(prediction);
-
         Ok(TickExecutionResult {
             tick_id: tick.id.clone(),
             function_results: results,
             execution_order,
-            emitted_deltas: emitted,
-            reward,
+            emitted_deltas: context.deltas().to_vec(),
+            reward: compute_reward_from_deltas(context.deltas()),
             sequential_duration,
             parallel_duration,
         })
