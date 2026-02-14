@@ -1,0 +1,54 @@
+PROJECT LAYOUT REPORT
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Module                         | Struct/Enum/Type          | Trait                | Impl            | Function                                                               | Branch     | State     
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+crate                          | TargetDescriptor          |                      |                 |                                                                        |            |           
+crate                          | DaemonEvent               |                      |                 |                                                                        |            |           
+crate                          | struct ChromeConnection   |                      | ChromeConnec... | connect(chrome_port: u16, conversation_id: Option, new_tab: bool) -... | 7.00       | -0.00     
+                               |                           |                      |                 | send_command(self, method: &str, params: Value) -> Result              | 0.50       | -0.00     
+                               |                           |                      |                 | wait_for_page_load(self, timeout_ms: u64) -> Result                    | 10.30      | -0.00     
+                               |                           |                      |                 | read_event(self) -> Result                                             | 2.50       | -0.00     
+crate                          |                           |                      | N/A             | main()                                                                 | 16.30      | 2.77      
+crate                          |                           |                      | N/A             | run_daemon(chrome_port: u16) -> Result                                 | 18.09      | -0.00     
+crate                          |                           |                      | N/A             | run_messenger(message_text: &str, chrome_port: u16, conversation_id... | 9.00       | -0.00     
+crate                          |                           |                      | N/A             | spawn_local_listener(tx: Sender) -> std::io::Result                    | 8.30       | 0.00      
+crate::_old_working            | TargetDescriptor          |                      |                 |                                                                        |            |           
+crate::_old_working            | struct ChromeConnection   |                      | ChromeConnec... | connect(chrome_port: u16, conversation_id: Option, new_tab: bool) -... | 8.50       | 0.00      
+                               |                           |                      |                 | send_command(self, method: &str, params: Value) -> Result              | 0.50       | -0.00     
+                               |                           |                      |                 | wait_for_page_load(self, timeout_ms: u64) -> Result                    | 10.30      | -0.00     
+                               |                           |                      |                 | read_event(self) -> Result                                             | 2.50       | -0.00     
+crate::_old_working            |                           |                      | N/A             | main()                                                                 | 13.80      | 2.77      
+crate::_old_working            |                           |                      | N/A             | run_messenger(message_text: &str, chrome_port: u16, conversation_id... | 9.00       | -0.00     
+crate::_old_working::incoming  | CapturedMessage           |                      |                 |                                                                        |            |           
+crate::_old_working::incoming  | SseMessage                |                      |                 |                                                                        |            |           
+crate::_old_working::incoming  |                           |                      | N/A             | setup_response_listener(conn: &mut ChromeConnection) -> Result         | 1.00       | -0.00     
+crate::_old_working::incoming  |                           |                      | N/A             | wait_for_response(conn: &mut ChromeConnection, send_timestamp: u64)... | 16.09      | 1.10      
+crate::_old_working::incoming  |                           |                      | N/A             | save_message(msg: &CapturedMessage) -> Result                          | 2.00       | -0.00     
+crate::_old_working::incoming  |                           |                      | N/A             | save_sse_messages(msg: &CapturedMessage) -> Result                     | 11.80      | 0.69      
+crate::_old_working::incoming  |                           |                      | N/A             | extract_sse_messages(events: &Self, fallback_conversation_id: &str)... | 16.80      | 0.69      
+crate::_old_working::incoming  |                           |                      | N/A             | extract_event_message(event: &Value) -> Option                         | 8.00       | -0.00     
+crate::_old_working::incoming  |                           |                      | N/A             | write_json_atomic(path: &PathBuf, value: &Value) -> Result             | 3.50       | -0.00     
+crate::_old_working::incoming  |                           |                      | N/A             | notify_watch_service(conversation_id: &str, message_id: &str)          | 2.00       | -0.00     
+crate::_old_working::outgoing  |                           |                      | N/A             | inject_request_hook(conn: &mut ChromeConnection) -> Result             | 0.50       | -0.00     
+crate::_old_working::outgoing  |                           |                      | N/A             | send_message(conn: &mut ChromeConnection, message_text: &str) -> Re... | 1.00       | -0.00     
+crate::_old_working::outgoing  |                           |                      | N/A             | open_conversation_tab(chrome_port: u16, conversation_id: &str) -> R... | 0.00       | -0.00     
+crate::_old_working::outgoing  |                           |                      | N/A             | open_url_tab(chrome_port: u16, base_url: &str) -> Result               | 4.58       | -0.00     
+crate::_old_working::outgoing  |                           |                      | N/A             | open_conversation_tab_via_browser(chrome_port: u16, url: &str) -> R... | 20.59      | 0.69      
+crate::incoming                | LocalMessage              |                      |                 |                                                                        |            |           
+crate::incoming                | CapturedMessage           |                      |                 |                                                                        |            |           
+crate::incoming                | SseMessage                |                      |                 |                                                                        |            |           
+crate::incoming                |                           |                      | N/A             | setup_response_listener(conn: &mut ChromeConnection) -> Result         | 1.50       | -0.00     
+crate::incoming                |                           |                      | N/A             | wait_for_response(conn: &mut ChromeConnection, send_timestamp: u64,... | 11.30      | -0.00     
+crate::incoming                |                           |                      | N/A             | save_message(msg: &CapturedMessage) -> Result                          | 2.00       | -0.00     
+crate::incoming                |                           |                      | N/A             | save_sse_messages(msg: &CapturedMessage) -> Result                     | 11.80      | 0.69      
+crate::incoming                |                           |                      | N/A             | extract_sse_messages(events: &Self, fallback_conversation_id: &str)... | 16.80      | 0.69      
+crate::incoming                |                           |                      | N/A             | extract_event_message(event: &Value) -> Option                         | 8.00       | -0.00     
+crate::incoming                |                           |                      | N/A             | write_json_atomic(path: &PathBuf, value: &Value) -> Result             | 3.50       | -0.00     
+crate::incoming                |                           |                      | N/A             | notify_watch_service(conversation_id: &str, message_id: &str)          | 2.00       | -0.00     
+crate::incoming                |                           |                      | N/A             | save_message_from_value(value: Value) -> Result                        | 0.00       | -0.00     
+crate::outgoing                |                           |                      | N/A             | inject_request_hook(conn: &mut ChromeConnection) -> Result             | 0.50       | -0.00     
+crate::outgoing                |                           |                      | N/A             | send_message(conn: &mut ChromeConnection, message_text: &str) -> Re... | 1.00       | -0.00     
+crate::outgoing                |                           |                      | N/A             | open_conversation_tab(chrome_port: u16, conversation_id: &str) -> R... | 0.00       | -0.00     
+crate::outgoing                |                           |                      | N/A             | open_url_tab(chrome_port: u16, base_url: &str) -> Result               | 4.58       | -0.00     
+crate::outgoing                |                           |                      | N/A             | open_conversation_tab_via_browser(chrome_port: u16, url: &str) -> R... | 20.59      | 0.69      
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════

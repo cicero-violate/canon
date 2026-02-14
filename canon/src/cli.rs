@@ -125,6 +125,40 @@ pub enum Command {
         #[arg(long)]
         graph: PathBuf,
     },
+
+    /// Run the full Tier 7 agent loop.
+    RunAgent {
+        /// Starting IR path.
+        #[arg(long)]
+        ir: PathBuf,
+        /// Starting layout path (optional, derived from IR if omitted).
+        #[arg(long)]
+        layout: Option<PathBuf>,
+        /// Capability graph path (created as empty if missing).
+        #[arg(long)]
+        graph: PathBuf,
+        /// Seed proposal JSON path (RefactorProposal).
+        #[arg(long)]
+        proposal: PathBuf,
+        /// Write mutated IR here after each successful pipeline run.
+        #[arg(long = "ir-out")]
+        ir_out: PathBuf,
+        /// Write ledger JSON here after each tick.
+        #[arg(long = "ledger-out")]
+        ledger_out: PathBuf,
+        /// Write mutated graph here after each meta-tick.
+        #[arg(long = "graph-out")]
+        graph_out: PathBuf,
+        /// Stop after N ticks (0 = run forever).
+        #[arg(long, default_value = "0")]
+        max_ticks: u64,
+        /// Fire meta-tick every N ticks.
+        #[arg(long, default_value = "10")]
+        meta_tick_interval: u64,
+        /// Update policy every N ticks.
+        #[arg(long, default_value = "5")]
+        policy_update_interval: u64,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]

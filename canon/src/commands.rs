@@ -3,6 +3,7 @@ use std::fs;
 use crate::agent::call::AgentCallOutput;
 use crate::agent::refactor::RefactorProposal;
 use crate::agent::{RewardLedger, run_meta_tick, run_pipeline};
+use crate::agent::runner::{RunnerConfig, run_agent};
 use crate::cli::Command;
 use crate::decision::auto_dsl::auto_accept_dsl_proposal;
 use crate::diff::diff_ir;
@@ -237,6 +238,57 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
                         edge.from, edge.to, edge.proof_confidence
                     );
                 }
+            }
+        }
+
+        Command::RunAgent {
+            ir,
+            layout,
+            graph,
+            proposal,
+            ir_out,
+            ledger_out,
+            graph_out,
+            max_ticks,
+            meta_tick_interval,
+            policy_update_interval,
+        } => {
+            let mut ir_doc = load_ir(&ir)?;
+            let layout_path = resolve_layout(layout, &ir);
+            let mut layout_doc = load_layout(layout_path)?;
+            let mut cap_graph = load_capability_graph(&graph)?;
+            let seed_proposal: RefactorProposal =
+                serde_json::from_slice(&fs::read(&proposal)?)?;
+
+            let mut config = RunnerConfig::new(graph_out, ledger_out, ir_out);
+            config.max_ticks = max_ticks;
+            config.meta_tick_interval = meta_tick_interval;
+            config.policy_update_interval = policy_update_interval;
+
+            let stats = run_agent(
+                &mut ir_doc,
+                &mut layout_doc,
+                &mut cap_graph,
+                seed_proposal,
+                &config,
+            )?;
+
+            println!("Agent run complete — {} ticks", stats.len());
+            println!("{:<6} {:>8} {:>8} {:>10} {:>6} {:>6}",
+                "tick", "nodes", "errors", "reward", "meta", "policy");
+            println!("{}", "-".repeat(52));
+            for s in &stats {
+                println!(
+                    "{:<6} {:>8} {:>8} {:>10} {:>6} {:>6}",
+                    s.tick_number,
+                    s.nodes_called,
+                    s.llm_errors,
+                    s.pipeline_reward
+                        .map(|r| format!("{r:.4}"))
+                        .unwrap_or_else(|| "-".to_string()),
+                    if s.meta_tick_fired { "Y" } else { "-" },
+                    if s.policy_updated { "Y" } else { "-" },
+                );
             }
         }
     }
