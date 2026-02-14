@@ -36,6 +36,9 @@ const RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
 /// How often to poll the filesystem for a new response file.
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
+/// Directory for send marker files (one per call, cleaned up after response).
+const MARKER_DIR: &str = "/tmp/canon_agent_markers";
+
 /// Error type for LLM provider operations.
 #[derive(Debug)]
 pub enum LlmProviderError {
@@ -83,8 +86,17 @@ pub fn call_llm(input: &AgentCallInput) -> Result<AgentCallOutput, LlmProviderEr
     // 2. Send to daemon via Unix socket.
     send_to_daemon(&prompt)?;
 
-    // 3. Poll filesystem for a new response file.
-    let (conversation_id, message_id, response_text) = poll_for_response(send_time)?;
+    // 3. Write a send marker so the poller ignores pre-existing response dirs.
+    let marker_path = write_send_marker(&input.call_id)
+        .map_err(|e| LlmProviderError::Io(e.to_string()))?;
+    let marker_mtime = file_mtime_ms(&marker_path).unwrap_or(send_time);
+
+    // 4. Poll filesystem for a response dir created after the marker.
+    let (conversation_id, message_id, response_text) =
+        poll_for_response(marker_mtime)?;
+
+    // 5. Clean up marker.
+    let _ = fs::remove_file(&marker_path);
 
     // 4. Parse the JSON payload block from responseText.
     let payload = parse_json_block(&response_text)?;
@@ -247,6 +259,12 @@ fn poll_for_response(
                 if !conv_path.is_dir() {
                     continue;
                 }
+                // Skip conversation dirs that existed before the send marker.
+                let conv_mtime = dir_mtime_ms(&conv_path).unwrap_or(0);
+                if conv_mtime < send_time_ms {
+                    continue;
+                }
+
                 let conversation_id = conv_path
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -344,4 +362,30 @@ fn file_mtime_ms(path: &PathBuf) -> Option<u64> {
         .duration_since(UNIX_EPOCH)
         .ok()
         .map(|d| d.as_millis() as u64)
+}
+
+fn dir_mtime_ms(path: &Path) -> Option<u64> {
+    fs::metadata(path)
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64)
+}
+
+/// Writes a zero-byte marker file to MARKER_DIR/<call_id> immediately
+/// before sending to the daemon. The marker's mtime is the lower bound
+/// for response file acceptance — any response dir whose mtime predates
+/// the marker is ignored by the poller.
+fn write_send_marker(call_id: &str) -> std::io::Result<PathBuf> {
+    fs::create_dir_all(MARKER_DIR)?;
+    // Sanitise call_id for use as a filename.
+    let safe_id: String = call_id
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    let path = PathBuf::from(MARKER_DIR).join(safe_id);
+    fs::write(&path, b"")?;
+    Ok(path)
 }
