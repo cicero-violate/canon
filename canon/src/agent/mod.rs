@@ -10,6 +10,7 @@
 pub mod call;
 pub mod capability;
 pub mod dispatcher;
+pub mod meta;
 pub mod pipeline;
 pub mod refactor;
 pub mod reward;
@@ -22,6 +23,10 @@ pub use capability::{
     CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
 };
 pub use dispatcher::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
+pub use meta::{
+    GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, MetaTickError, MetaTickResult,
+    UNDERPERFORM_THRESHOLD, run_meta_tick,
+};
 pub use pipeline::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
 pub use pipeline::record_pipeline_outcome;
 pub use refactor::{RefactorKind, RefactorProposal, RefactorTarget};

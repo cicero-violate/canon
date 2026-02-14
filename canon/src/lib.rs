@@ -64,6 +64,10 @@ pub use agent::{
 };
 pub use agent::build_ir_slice;
 pub use agent::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
+pub use agent::{
+    GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, MetaTickError, MetaTickResult,
+    UNDERPERFORM_THRESHOLD, run_meta_tick,
+};
 pub use agent::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
 pub use agent::record_pipeline_outcome;
 pub use agent::{RefactorKind, RefactorProposal, RefactorTarget};
