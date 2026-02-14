@@ -12,6 +12,7 @@ pub mod capability;
 pub mod dispatcher;
 pub mod pipeline;
 pub mod refactor;
+pub mod reward;
 pub mod slice;
 
 pub use call::{
@@ -22,5 +23,7 @@ pub use capability::{
 };
 pub use dispatcher::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
 pub use pipeline::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
+pub use pipeline::record_pipeline_outcome;
 pub use refactor::{RefactorKind, RefactorProposal, RefactorTarget};
+pub use reward::{NodeOutcome, NodeRewardEntry, RewardLedger};
 pub use slice::build_ir_slice;

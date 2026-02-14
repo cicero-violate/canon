@@ -18,6 +18,7 @@ use crate::{
 
 use super::call::AgentCallOutput;
 use super::refactor::RefactorProposal;
+use super::reward::{NodeOutcome, RewardLedger};
 
 /// Which stage the pipeline is currently at.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,6 +93,8 @@ pub struct PipelineResult {
     pub proposal: RefactorProposal,
     /// Admission id recorded in the IR.
     pub admission_id: String,
+    /// Reward signal from this pipeline run.
+    pub reward: f64,
 }
 
 /// Drives a RefactorProposal through the Observe→Reason→Prove→Judge→Mutate pipeline.
@@ -172,7 +175,24 @@ pub fn run_pipeline(
         layout: next_layout,
         proposal,
         admission_id,
+        reward: 1.0,
     })
+}
+
+/// Records a pipeline result into the ledger and returns the updated
+/// trust threshold for the primary node that drove this pipeline.
+pub fn record_pipeline_outcome(
+    ledger: &mut RewardLedger,
+    node_id: &str,
+    result: Result<&PipelineResult, &PipelineError>,
+) -> f64 {
+    let outcome = match result {
+        Ok(r) => NodeOutcome::Accepted { reward: r.reward },
+        Err(PipelineError::Rejected { .. }) => NodeOutcome::Rejected { penalty: 1.0 },
+        Err(_) => NodeOutcome::Halted { penalty: 0.5 },
+    };
+    ledger.record(node_id, outcome);
+    ledger.trust_threshold_for(node_id)
 }
 
 // --- helpers ---
