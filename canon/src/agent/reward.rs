@@ -13,7 +13,7 @@ use crate::ir::PolicyParameters;
 use crate::runtime::policy_updater::{PolicyUpdateError, update_policy};
 
 /// Outcome of a single pipeline run for a capability node.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum NodeOutcome {
     /// Proposal was accepted and mutation applied.
     Accepted { reward: f64 },
@@ -38,7 +38,7 @@ impl NodeOutcome {
 }
 
 /// Per-node reward history entry.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NodeRewardEntry {
     pub node_id: String,
     pub outcome: NodeOutcome,
@@ -49,7 +49,7 @@ pub struct NodeRewardEntry {
 }
 
 /// Accumulates pipeline outcomes and derives dispatcher trust thresholds.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct RewardLedger {
     /// Per-node reward history, keyed by node_id.
     entries: HashMap<String, NodeRewardEntry>,

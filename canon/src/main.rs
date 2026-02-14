@@ -1,6 +1,8 @@
 mod cli;
 mod commands;
 mod diff;
+mod agent;
+mod gpu;
 mod io_utils;
 mod version_gate;
 mod decision;

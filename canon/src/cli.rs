@@ -83,6 +83,48 @@ pub enum Command {
         #[arg(long = "materialize-dir")]
         materialize_dir: PathBuf,
     },
+
+    /// Drive one refactor pipeline run from CLI (requires pre-staged agent outputs).
+    RunPipeline {
+        #[arg(long)]
+        ir: PathBuf,
+        #[arg(long)]
+        layout: Option<PathBuf>,
+        /// Path to JSON file containing Vec<AgentCallOutput> (one per stage).
+        #[arg(long)]
+        outputs: PathBuf,
+        /// Path to JSON file containing the RefactorProposal.
+        #[arg(long)]
+        proposal: PathBuf,
+        /// Write mutated IR to this path.
+        #[arg(long = "output-ir")]
+        output_ir: PathBuf,
+    },
+
+    /// Fire one meta-tick over the capability graph and print the graph diff.
+    MetaTick {
+        /// Path to capability graph JSON (produced by save_capability_graph).
+        #[arg(long)]
+        graph: PathBuf,
+        /// Path to reward ledger JSON.
+        #[arg(long)]
+        ledger: PathBuf,
+        /// Write mutated graph to this path.
+        #[arg(long = "output-graph")]
+        output_graph: PathBuf,
+    },
+
+    /// Print ranked capability nodes with their EMA rewards.
+    ShowLedger {
+        #[arg(long)]
+        ledger: PathBuf,
+    },
+
+    /// Print capability graph topology (nodes + edges).
+    ShowGraph {
+        #[arg(long)]
+        graph: PathBuf,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]

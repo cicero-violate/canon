@@ -8,6 +8,7 @@ use crate::{
     semantic_builder::SemanticIrBuilder,
 };
 
+use crate::agent::CapabilityGraph;
 pub fn load_ir(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
     let data = fs::read(path)?;
     Ok(serde_json::from_slice(&data)?)
@@ -48,4 +49,36 @@ pub fn default_layout_path_for(ir_path: &Path) -> PathBuf {
     let mut layout_name = stem;
     layout_name.push(".layout.json");
     ir_path.with_file_name(layout_name)
+}
+
+/// Derives the default capability graph path for a given IR path.
+/// e.g. `canon.ir.json` → `canon.graph.json`
+pub fn default_graph_path_for(ir_path: &Path) -> PathBuf {
+    let stem = ir_path
+        .file_stem()
+        .map(|s| s.to_os_string())
+        .unwrap_or_else(|| OsString::from("canonical"));
+    let mut graph_name = stem;
+    graph_name.push(".graph.json");
+    ir_path.with_file_name(graph_name)
+}
+
+/// Loads a CapabilityGraph from disk. Returns a default empty graph if the
+/// file does not exist (first run).
+pub fn load_capability_graph(path: &Path) -> Result<CapabilityGraph, Box<dyn std::error::Error>> {
+    if !path.exists() {
+        return Ok(CapabilityGraph::default());
+    }
+    let data = fs::read(path)?;
+    Ok(serde_json::from_slice(&data)?)
+}
+
+/// Saves a CapabilityGraph to disk as pretty-printed JSON.
+pub fn save_capability_graph(
+    graph: &CapabilityGraph,
+    path: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let json = serde_json::to_string_pretty(graph)?;
+    fs::write(path, json)?;
+    Ok(())
 }

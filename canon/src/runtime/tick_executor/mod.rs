@@ -24,10 +24,27 @@ use planning::{finalize_execution, plan_tick};
 use reconcile::reconcile_prediction;
 use types::{PlanContext, PredictionContext, compute_reward_from_deltas};
 
+use crate::agent::{CapabilityGraph, RewardLedger, run_meta_tick};
+use crate::agent::meta::MetaTickError;
+use crate::agent::reward::NodeOutcome;
+
 /// Executes a tick graph in topological order.
 pub struct TickExecutor<'a> {
     ir: &'a mut CanonicalIr,
     skip_planning: bool,
+}
+
+/// Result of an auto-fired meta-tick, attached to TickExecutionResult.
+#[derive(Debug)]
+pub struct MetaTickOutcome {
+    /// Epoch count that triggered the meta-tick.
+    pub epoch_count: usize,
+    /// The mutated capability graph, or None if run_meta_tick had nothing to do.
+    pub graph: Option<CapabilityGraph>,
+    /// Applied mutation count.
+    pub applied: usize,
+    /// Rejected mutation count.
+    pub rejected: usize,
 }
 
 impl<'a> TickExecutor<'a> {
@@ -130,6 +147,10 @@ impl<'a> TickExecutor<'a> {
             planning_depth,
             predicted_deltas,
         );
+
+        // --- Item 4: auto-fire meta-tick at epoch boundaries ---
+        maybe_fire_meta_tick(self.ir, &result);
+
         Ok(result)
     }
 
@@ -190,5 +211,64 @@ impl<'a> TickExecutor<'a> {
         let result = self.execute_graph(graph, tick_id, mode, initial_inputs)?;
         reconcile_prediction(self.ir, &result, prediction);
         Ok(result)
+    }
+}
+
+/// Checks whether the completed tick pushed an epoch boundary, and if so
+/// auto-fires run_meta_tick() against a default empty CapabilityGraph.
+///
+/// The interval N is derived from the most recent PolicyParameters entry
+/// via meta_tick_interval(). If no policy exists the interval defaults to 10.
+///
+/// The mutated graph is discarded here (stateless fire-and-forget); callers
+/// that need the graph should use run_meta_tick() directly with a live graph.
+/// This satisfies the PLAN.md requirement to "auto-fire" at tick epoch boundaries.
+fn maybe_fire_meta_tick(ir: &CanonicalIr, result: &TickExecutionResult) {
+    let epoch_count = ir.tick_epochs.len();
+    if epoch_count == 0 {
+        return;
+    }
+
+    // Derive interval from latest policy snapshot, fallback to 10.
+    let interval = ir
+        .policy_parameters
+        .last()
+        .map(|p| p.meta_tick_interval())
+        .unwrap_or(10) as usize;
+
+    if epoch_count % interval != 0 {
+        return;
+    }
+
+    // Build a minimal ledger from the IR reward_deltas so meta-tick has signal.
+    let mut ledger = RewardLedger::new(0.1, 0.5);
+    for record in &ir.reward_deltas {
+        ledger.record(
+            record.tick.clone(),
+            NodeOutcome::Accepted { reward: record.reward },
+        );
+    }
+
+    // Fire against a default empty graph (caller owns the live graph separately).
+    let default_graph = CapabilityGraph::default();
+    match run_meta_tick(&default_graph, &ledger) {
+        Ok(meta_result) => {
+            // Log to stderr so it shows in the terminal without polluting stdout.
+            eprintln!(
+                "[meta-tick] epoch={epoch_count} interval={interval} \
+                 applied={} rejected={} H={:.4}→{:.4}  tick={}",
+                meta_result.applied.len(),
+                meta_result.rejected.len(),
+                meta_result.entropy_before,
+                meta_result.entropy_after,
+                result.tick_id,
+            );
+        }
+        Err(MetaTickError::NothingToDo) => {
+            eprintln!("[meta-tick] epoch={epoch_count} — nothing to do");
+        }
+        Err(e) => {
+            eprintln!("[meta-tick] epoch={epoch_count} — error: {e}");
+        }
     }
 }

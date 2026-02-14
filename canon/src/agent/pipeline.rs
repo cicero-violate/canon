@@ -20,6 +20,8 @@ use super::call::AgentCallOutput;
 use super::refactor::RefactorProposal;
 use super::reward::{NodeOutcome, RewardLedger};
 
+use crate::runtime::reward::compute_pipeline_reward;
+
 /// Which stage the pipeline is currently at.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefactorStage {
@@ -170,12 +172,15 @@ pub fn run_pipeline(
     // Sync layout — carry forward existing layout for now.
     let next_layout = layout.clone();
 
+    // --- Compute real reward ---
+    let reward = compute_pipeline_reward(ir, &candidate, None, None);
+
     Ok(PipelineResult {
         ir: candidate,
         layout: next_layout,
         proposal,
         admission_id,
-        reward: 1.0,
+        reward,
     })
 }
 
