@@ -98,4 +98,4 @@ _old/
 docs/
 *.patch
 tests/
-*.tar
+*.tarcanonical.tar
