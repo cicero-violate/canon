@@ -2,7 +2,7 @@ use super::error::Violation;
 use super::helpers::Indexes;
 use super::rules::CanonRule;
 use crate::ir::*;
-use crate::proposal::resolve_proposal_nodes;
+use crate::ir::proposal::resolve_proposal_nodes;
 use std::collections::HashSet;
 
 pub fn check<'a>(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>) {

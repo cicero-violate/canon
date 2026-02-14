@@ -14,7 +14,6 @@ mod materialize;
 mod observe;
 mod patch_protocol;
 mod proof;
-mod proposal;
 mod runtime;
 mod schema;
 mod semantic_builder;

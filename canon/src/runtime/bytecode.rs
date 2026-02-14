@@ -13,35 +13,9 @@ use thiserror::Error;
 use crate::ir::{Function, FunctionId};
 use crate::runtime::ast::{FunctionAst, compile_function_ast};
 use crate::runtime::value::{DeltaValue, Value};
-
-/// Canon bytecode instruction set.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case", tag = "op", content = "args")]
-pub enum Instruction {
-    LoadConst(Value),
-    LoadInput(String),
-    LoadBinding(String),
-    StoreBinding(String),
-    FieldAccess(String),
-    Add,
-    Sub,
-    Mul,
-    Call(FunctionId),
-    EmitDelta(DeltaValue),
-    Return,
-}
-
-/// Serialized bytecode stored alongside Canonical IR.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
-pub struct FunctionBytecode {
-    pub instructions: Vec<Instruction>,
-}
+pub use crate::runtime::bytecode_types::{FunctionBytecode, Instruction};
 
 impl FunctionBytecode {
-    pub fn new(instructions: Vec<Instruction>) -> Self {
-        Self { instructions }
-    }
-
     /// Load bytecode from metadata or compile AST fallback.
     pub fn from_function(function: &Function) -> Result<Self, BytecodeError> {
         if let Some(encoded) = function.metadata.bytecode_b64.as_deref() {

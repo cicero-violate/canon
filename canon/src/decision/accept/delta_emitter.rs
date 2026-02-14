@@ -5,7 +5,7 @@ use crate::{
         Delta, DeltaId, DeltaKind, DeltaPayload, FunctionSignature, PipelineStage, Proposal,
         ProposedEdge, TraitFunction, TypeKind, TypeRef, ValuePort, Visibility, Word,
     },
-    proposal::{
+    ir::proposal::{
         ModuleSpec, ResolvedProposalNodes, StructSpec, TraitSpec, derive_word_from_identifier,
         sanitize_identifier,
     },

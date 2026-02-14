@@ -4,6 +4,7 @@
 
 pub mod ast;
 pub mod bytecode;
+pub mod bytecode_types;
 pub mod context;
 pub mod delta_verifier;
 pub mod executor;
@@ -17,7 +18,7 @@ pub mod tick_executor;
 pub mod value;
 
 pub use ast::{BinOp, Expr, FunctionAst, OutputExpr, compile_function_ast};
-pub use bytecode::{FunctionBytecode, Instruction};
+pub use bytecode_types::{FunctionBytecode, Instruction};
 pub use context::{ExecutionContext, ExecutionState};
 pub use delta_verifier::{DeltaVerifier, Snapshot, VerificationError, VerificationResult};
 pub use executor::{Executor, ExecutorError, FunctionExecutor};

@@ -10,7 +10,7 @@ use crate::{
     },
     layout::{LayoutAssignment, LayoutFile, LayoutGraph, LayoutModule, LayoutNode},
     proof::smt_bridge::{SmtError, attach_function_proofs},
-    proposal::{ProposalResolutionError, resolve_proposal_nodes},
+    ir::proposal::{ProposalResolutionError, resolve_proposal_nodes},
 };
 
 use self::{

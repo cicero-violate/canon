@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::ir::FunctionId;
-use crate::runtime::bytecode::{FunctionBytecode, Instruction};
+use crate::runtime::bytecode_types::{FunctionBytecode, Instruction};
 use crate::runtime::value::{DeltaValue, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

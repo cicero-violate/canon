@@ -1,0 +1,615 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box fontname="monospace" fillcolor=lightblue style=filled];
+  edge [fontname="monospace"];
+
+  subgraph cluster_0 {
+    label="(root)";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n22 [label="ir"];
+    n63 [label="validate"];
+    n66 [label="layout"];
+    n75 [label="schema"];
+    n84 [label="diff"];
+    n85 [label="semantic_builder"];
+    n86 [label="io_utils"];
+    n94 [label="ingest"];
+    n95 [label="version_gate"];
+    n101 [label="materialize"];
+    n102 [label="dot_import"];
+    n103 [label="dot_export"];
+    n106 [label="runtime"];
+    n107 [label="cli"];
+    n108 [label="commands"];
+    n116 [label="evolution"];
+    n119 [label="decision"];
+    n120 [label="proof"];
+    n121 [label="patch_protocol"];
+    n122 [label="observe"];
+    n123 [label="main"];
+    n127 [label="gpu"];
+    n129 [label="lib"];
+  }
+
+  subgraph cluster_1 {
+    label="[cycle: runtime::planner, runtime::tick_executor::planning, runtime::tick_executor, runtime";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n74 [label="[cycle: runtime::planner, runtime::tick_executor::planning, runtime::tick_executor, runtime::rollout]"];
+  }
+
+  subgraph cluster_2 {
+    label="decision";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n67 [label="decision::auto_dsl"];
+    n78 [label="decision::bootstrap"];
+    n109 [label="decision::auto_dot"];
+    n117 [label="decision::accept"];
+    n118 [label="decision::auto_fn_ast"];
+  }
+
+  subgraph cluster_3 {
+    label="decision::accept";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n25 [label="decision::accept::proposal_checks"];
+    n111 [label="decision::accept::delta_emitter"];
+  }
+
+  subgraph cluster_4 {
+    label="evolution";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n26 [label="evolution::goal_mutation"];
+    n114 [label="evolution::structural"];
+    n115 [label="evolution::kernel_bridge"];
+  }
+
+  subgraph cluster_5 {
+    label="evolution::structural";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n32 [label="evolution::structural::guard"];
+    n112 [label="evolution::structural::apply"];
+    n113 [label="evolution::structural::rename"];
+  }
+
+  subgraph cluster_6 {
+    label="gpu";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n124 [label="gpu::codegen"];
+    n125 [label="gpu::dispatch"];
+    n126 [label="gpu::fusion"];
+  }
+
+  subgraph cluster_7 {
+    label="ingest";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n68 [label="ingest::fs_walk"];
+    n87 [label="ingest::parser"];
+    n93 [label="ingest::builder"];
+  }
+
+  subgraph cluster_8 {
+    label="ingest::builder";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n31 [label="ingest::builder::types"];
+    n49 [label="ingest::builder::ast_lower"];
+    n77 [label="ingest::builder::modules"];
+    n88 [label="ingest::builder::edges"];
+    n91 [label="ingest::builder::functions"];
+    n92 [label="ingest::builder::layout"];
+  }
+
+  subgraph cluster_9 {
+    label="ingest::builder::ast_lower";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n46 [label="ingest::builder::ast_lower::pat"];
+    n47 [label="ingest::builder::ast_lower::util"];
+    n48 [label="ingest::builder::ast_lower::expr"];
+  }
+
+  subgraph cluster_10 {
+    label="ingest::builder::functions";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n89 [label="ingest::builder::functions::ids"];
+    n90 [label="ingest::builder::functions::syn_conv"];
+  }
+
+  subgraph cluster_11 {
+    label="ingest::builder::types";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n0 [label="ingest::builder::types::uses"];
+    n27 [label="ingest::builder::types::ports"];
+    n28 [label="ingest::builder::types::strings"];
+    n29 [label="ingest::builder::types::visibility"];
+    n30 [label="ingest::builder::types::types"];
+  }
+
+  subgraph cluster_12 {
+    label="ir";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n1 [label="ir::core"];
+    n2 [label="ir::proofs"];
+    n3 [label="ir::graphs"];
+    n4 [label="ir::artifacts"];
+    n5 [label="ir::errors"];
+    n6 [label="ir::world_model"];
+    n7 [label="ir::gpu"];
+    n8 [label="ir::proposal"];
+    n9 [label="ir::reward"];
+    n10 [label="ir::ids"];
+    n11 [label="ir::goals"];
+    n12 [label="ir::types"];
+    n13 [label="ir::judgment"];
+    n14 [label="ir::admission"];
+    n15 [label="ir::policy"];
+    n16 [label="ir::timeline"];
+    n17 [label="ir::word"];
+    n18 [label="ir::project"];
+    n19 [label="ir::learning"];
+    n20 [label="ir::functions"];
+    n21 [label="ir::delta"];
+  }
+
+  subgraph cluster_13 {
+    label="layout";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n64 [label="layout::strategies"];
+    n65 [label="layout::validation"];
+  }
+
+  subgraph cluster_14 {
+    label="materialize";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n24 [label="materialize::render_trait"];
+    n76 [label="materialize::render_module"];
+    n96 [label="materialize::render_struct"];
+    n97 [label="materialize::render_cargo"];
+    n98 [label="materialize::render_fn"];
+    n99 [label="materialize::file_tree"];
+    n100 [label="materialize::render_impl"];
+    n128 [label="materialize::layout_renderer"];
+  }
+
+  subgraph cluster_15 {
+    label="materialize::render_fn";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n83 [label="materialize::render_fn::ast"];
+  }
+
+  subgraph cluster_16 {
+    label="materialize::render_fn::ast";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n80 [label="materialize::render_fn::ast::expr"];
+    n81 [label="materialize::render_fn::ast::utils"];
+    n82 [label="materialize::render_fn::ast::stmt"];
+  }
+
+  subgraph cluster_17 {
+    label="proof";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n110 [label="proof::smt_bridge"];
+  }
+
+  subgraph cluster_18 {
+    label="runtime";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n33 [label="runtime::value"];
+    n35 [label="runtime::context"];
+    n36 [label="runtime::bytecode_types"];
+    n37 [label="runtime::ast"];
+    n38 [label="runtime::bytecode"];
+    n42 [label="runtime::executor"];
+    n45 [label="runtime::system_interpreter"];
+    n72 [label="runtime::parallel"];
+    n79 [label="runtime::reward"];
+    n104 [label="runtime::policy_updater"];
+    n105 [label="runtime::delta_verifier"];
+  }
+
+  subgraph cluster_19 {
+    label="runtime::executor";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n39 [label="runtime::executor::error"];
+    n40 [label="runtime::executor::interp"];
+    n41 [label="runtime::executor::arith"];
+  }
+
+  subgraph cluster_20 {
+    label="runtime::system_interpreter";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n34 [label="runtime::system_interpreter::delta"];
+    n43 [label="runtime::system_interpreter::effects"];
+    n44 [label="runtime::system_interpreter::planner"];
+  }
+
+  subgraph cluster_21 {
+    label="runtime::tick_executor";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n69 [label="runtime::tick_executor::reconcile"];
+    n70 [label="runtime::tick_executor::types"];
+    n71 [label="runtime::tick_executor::graph"];
+    n73 [label="runtime::tick_executor::parallel"];
+  }
+
+  subgraph cluster_22 {
+    label="validate";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n50 [label="validate::check_project"];
+    n55 [label="validate::check_artifacts"];
+    n56 [label="validate::check_graphs"];
+    n57 [label="validate::error"];
+    n58 [label="validate::rules"];
+    n59 [label="validate::check_execution"];
+    n60 [label="validate::helpers"];
+    n61 [label="validate::check_proposals"];
+    n62 [label="validate::check_deltas"];
+  }
+
+  subgraph cluster_23 {
+    label="validate::check_artifacts";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n23 [label="validate::check_artifacts::functions"];
+    n51 [label="validate::check_artifacts::ast"];
+    n52 [label="validate::check_artifacts::impls"];
+    n53 [label="validate::check_artifacts::type_defs"];
+    n54 [label="validate::check_artifacts::module"];
+  }
+
+  n23 -> n22;
+  n24 -> n22;
+  n26 -> n25;
+  n26 -> n22;
+  n26 -> n11;
+  n31 -> n30;
+  n31 -> n29;
+  n31 -> n28;
+  n31 -> n27;
+  n31 -> n0;
+  n32 -> n22;
+  n45 -> n44;
+  n45 -> n35;
+  n45 -> n43;
+  n45 -> n42;
+  n45 -> n22;
+  n45 -> n33;
+  n45 -> n34;
+  n49 -> n48;
+  n49 -> n47;
+  n49 -> n46;
+  n63 -> n62;
+  n63 -> n61;
+  n63 -> n60;
+  n63 -> n59;
+  n63 -> n58;
+  n63 -> n57;
+  n63 -> n56;
+  n63 -> n55;
+  n63 -> n22;
+  n63 -> n50;
+  n67 -> n66;
+  n67 -> n22;
+  n67 -> n8;
+  n56 -> n22;
+  n30 -> n22;
+  n74 -> n33;
+  n74 -> n22;
+  n74 -> n6;
+  n37 -> n33;
+  n37 -> n22;
+  n37 -> n36;
+  n72 -> n42;
+  n72 -> n33;
+  n72 -> n22;
+  n75 -> n22;
+  n76 -> n66;
+  n76 -> n22;
+  n77 -> n22;
+  n22 -> n21;
+  n22 -> n20;
+  n22 -> n19;
+  n22 -> n18;
+  n22 -> n17;
+  n22 -> n16;
+  n22 -> n10;
+  n22 -> n15;
+  n22 -> n14;
+  n22 -> n13;
+  n22 -> n12;
+  n22 -> n11;
+  n22 -> n9;
+  n22 -> n8;
+  n22 -> n7;
+  n22 -> n6;
+  n22 -> n5;
+  n22 -> n4;
+  n22 -> n3;
+  n22 -> n2;
+  n22 -> n1;
+  n78 -> n22;
+  n59 -> n22;
+  n71 -> n22;
+  n71 -> n33;
+  n79 -> n22;
+  n27 -> n22;
+  n44 -> n22;
+  n44 -> n33;
+  n29 -> n22;
+  n83 -> n82;
+  n83 -> n81;
+  n83 -> n80;
+  n123 -> n116;
+  n123 -> n95;
+  n123 -> n103;
+  n123 -> n102;
+  n123 -> n22;
+  n123 -> n101;
+  n123 -> n122;
+  n123 -> n66;
+  n123 -> n107;
+  n123 -> n121;
+  n123 -> n120;
+  n123 -> n119;
+  n123 -> n106;
+  n123 -> n75;
+  n123 -> n85;
+  n123 -> n63;
+  n123 -> n108;
+  n123 -> n94;
+  n123 -> n86;
+  n123 -> n84;
+  n92 -> n66;
+  n92 -> n22;
+  n98 -> n22;
+  n98 -> n83;
+  n25 -> n22;
+  n25 -> n8;
+  n73 -> n72;
+  n73 -> n33;
+  n73 -> n22;
+  n73 -> n35;
+  n73 -> n42;
+  n110 -> n22;
+  n110 -> n33;
+  n110 -> n37;
+  n36 -> n22;
+  n36 -> n33;
+  n108 -> n107;
+  n108 -> n106;
+  n108 -> n75;
+  n108 -> n94;
+  n108 -> n66;
+  n108 -> n63;
+  n108 -> n84;
+  n108 -> n67;
+  n108 -> n98;
+  n108 -> n103;
+  n108 -> n101;
+  n108 -> n95;
+  n108 -> n86;
+  n116 -> n26;
+  n116 -> n22;
+  n116 -> n105;
+  n116 -> n115;
+  n116 -> n114;
+  n42 -> n41;
+  n42 -> n40;
+  n42 -> n22;
+  n42 -> n39;
+  n42 -> n35;
+  n42 -> n33;
+  n125 -> n124;
+  n70 -> n42;
+  n70 -> n6;
+  n70 -> n22;
+  n70 -> n33;
+  n86 -> n85;
+  n86 -> n66;
+  n91 -> n22;
+  n91 -> n90;
+  n91 -> n89;
+  n91 -> n66;
+  n35 -> n33;
+  n35 -> n22;
+  n102 -> n22;
+  n102 -> n66;
+  n111 -> n8;
+  n111 -> n22;
+  n41 -> n22;
+  n41 -> n33;
+  n103 -> n22;
+  n103 -> n102;
+  n103 -> n66;
+  n100 -> n22;
+  n88 -> n22;
+  n90 -> n22;
+  n104 -> n22;
+  n105 -> n22;
+  n109 -> n8;
+  n109 -> n22;
+  n109 -> n66;
+  n109 -> n102;
+  n127 -> n125;
+  n127 -> n126;
+  n127 -> n124;
+  n74 -> n73;
+  n74 -> n35;
+  n74 -> n71;
+  n74 -> n70;
+  n74 -> n42;
+  n74 -> n69;
+  n60 -> n22;
+  n96 -> n22;
+  n66 -> n65;
+  n66 -> n22;
+  n66 -> n64;
+  n106 -> n79;
+  n106 -> n35;
+  n106 -> n72;
+  n106 -> n74;
+  n106 -> n105;
+  n106 -> n38;
+  n106 -> n33;
+  n106 -> n45;
+  n106 -> n37;
+  n106 -> n36;
+  n106 -> n104;
+  n106 -> n42;
+  n55 -> n54;
+  n55 -> n23;
+  n55 -> n53;
+  n55 -> n22;
+  n55 -> n52;
+  n55 -> n51;
+  n61 -> n22;
+  n61 -> n8;
+  n50 -> n22;
+  n124 -> n22;
+  n124 -> n36;
+  n124 -> n33;
+  n117 -> n22;
+  n117 -> n116;
+  n117 -> n8;
+  n117 -> n111;
+  n117 -> n25;
+  n117 -> n66;
+  n117 -> n110;
+  n128 -> n22;
+  n128 -> n66;
+  n122 -> n22;
+  n129 -> n127;
+  n129 -> n121;
+  n129 -> n120;
+  n129 -> n124;
+  n129 -> n103;
+  n129 -> n84;
+  n129 -> n22;
+  n129 -> n110;
+  n129 -> n86;
+  n129 -> n108;
+  n129 -> n85;
+  n129 -> n8;
+  n129 -> n119;
+  n129 -> n102;
+  n129 -> n66;
+  n129 -> n125;
+  n129 -> n101;
+  n129 -> n106;
+  n129 -> n63;
+  n129 -> n75;
+  n129 -> n116;
+  n129 -> n95;
+  n129 -> n107;
+  n129 -> n122;
+  n129 -> n94;
+  n119 -> n118;
+  n119 -> n117;
+  n119 -> n109;
+  n119 -> n67;
+  n119 -> n78;
+  n43 -> n22;
+  n43 -> n33;
+  n120 -> n110;
+  n115 -> n22;
+  n112 -> n22;
+  n33 -> n22;
+  n94 -> n68;
+  n94 -> n93;
+  n94 -> n87;
+  n94 -> n66;
+  n97 -> n22;
+  n62 -> n22;
+  n28 -> n22;
+  n69 -> n22;
+  n69 -> n6;
+  n118 -> n8;
+  n118 -> n22;
+  n118 -> n66;
+  n85 -> n66;
+  n85 -> n22;
+  n114 -> n113;
+  n114 -> n22;
+  n114 -> n112;
+  n114 -> n32;
+  n93 -> n92;
+  n93 -> n91;
+  n93 -> n31;
+  n93 -> n66;
+  n93 -> n49;
+  n93 -> n88;
+  n93 -> n77;
+  n11 -> n10;
+  n113 -> n22;
+  n34 -> n33;
+  n51 -> n22;
+  n53 -> n22;
+  n40 -> n35;
+  n40 -> n33;
+  n40 -> n22;
+  n40 -> n38;
+  n38 -> n33;
+  n38 -> n37;
+  n38 -> n22;
+  n38 -> n36;
+  n39 -> n38;
+  n39 -> n22;
+  n39 -> n35;
+  n52 -> n22;
+  n126 -> n22;
+  n54 -> n22;
+  n101 -> n24;
+  n101 -> n66;
+  n101 -> n76;
+  n101 -> n22;
+  n101 -> n100;
+  n101 -> n99;
+  n101 -> n98;
+  n101 -> n97;
+  n101 -> n96;
+  n65 -> n22;
+}

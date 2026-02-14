@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::{
     ir::{CanonicalIr, Proposal, ProposalStatus, TraitFunction},
-    proposal::ResolvedProposalNodes,
+    ir::proposal::ResolvedProposalNodes,
 };
 
 use super::AcceptProposalError;

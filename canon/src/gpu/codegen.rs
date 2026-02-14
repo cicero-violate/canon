@@ -4,8 +4,8 @@
 
 use std::collections::HashMap;
 
-use crate::ir::{Function, GpuFunction, VectorPort};
-use crate::runtime::bytecode::{FunctionBytecode, Instruction};
+use crate::ir::{GpuFunction, VectorPort};
+use crate::runtime::bytecode_types::{FunctionBytecode, Instruction};
 use crate::runtime::value::{ScalarValue, Value};
 
 /// Generated GPU program plus layout metadata.
@@ -19,14 +19,13 @@ pub struct GpuProgram {
 }
 
 /// Convert a math-only bytecode to WGSL compute shader.
-pub fn generate_shader(gpu: &GpuFunction, function: &Function) -> Result<GpuProgram, String> {
+pub fn generate_shader(gpu: &GpuFunction, bytecode: &FunctionBytecode) -> Result<GpuProgram, String> {
     if gpu.outputs.len() != 1 {
         return Err(format!(
             "gpu kernel `{}` must have exactly one output for now",
             gpu.id
         ));
     }
-    let bytecode = FunctionBytecode::from_function(function).map_err(|err| err.to_string())?;
     let lanes = lane_count(gpu)?;
     let input_offsets = compute_offsets(&gpu.inputs, lanes);
     let output_offsets = compute_offsets(&gpu.outputs, lanes);

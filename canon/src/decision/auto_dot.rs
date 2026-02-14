@@ -9,7 +9,7 @@ use crate::{
     },
     ir::CanonicalIr,
     layout::{LayoutGraph, LayoutNode, apply_topology_to_layout},
-    proposal::sanitize_identifier,
+    ir::proposal::sanitize_identifier,
 };
 
 use super::{

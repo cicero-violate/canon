@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::{
     ir::CanonicalIr,
     layout::LayoutGraph,
-    proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl},
+    ir::proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl},
 };
 
 use super::{

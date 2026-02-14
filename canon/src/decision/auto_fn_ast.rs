@@ -7,7 +7,7 @@ use crate::{
         ProposalKind, ProposalStatus, ProposedApi, ProposedNode, ProposedNodeKind,
     },
     layout::LayoutGraph,
-    proposal::{derive_word_from_identifier, sanitize_identifier},
+    ir::proposal::{derive_word_from_identifier, sanitize_identifier},
 };
 
 use super::{
