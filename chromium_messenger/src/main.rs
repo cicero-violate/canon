@@ -85,7 +85,14 @@ impl ChromeConnection {
         let url = Url::parse(&ws_url)?;
         let (mut socket, _) = connect(url)?;
 
-        // Use blocking socket so Chromium can push events directly
+        // Set non-blocking so the daemon event loop can interleave
+        // local socket messages with Chromium events.
+        match socket.get_ref() {
+            tungstenite::stream::MaybeTlsStream::Plain(tcp) => {
+                tcp.set_nonblocking(true)?;
+            }
+            _ => {}
+        }
 
         Ok((
             Self {
@@ -315,12 +322,22 @@ fn spawn_local_listener(tx: Sender<DaemonEvent>) -> std::io::Result<()> {
     thread::spawn(move || {
         for stream in listener.incoming() {
             if let Ok(mut stream) = stream {
-                let mut buf = String::new();
-                if stream.read_to_string(&mut buf).is_ok() {
-                    if let Ok(msg) = serde_json::from_str::<incoming::LocalMessage>(&buf) {
-                        let _ = tx.send(DaemonEvent::ReceiveLocalMessage(msg));
-                    }
-                }
+               use std::io::Read;
+               let mut len_buf = [0u8; 4];
+               if stream.read_exact(&mut len_buf).is_err() {
+                   eprintln!("[listener] failed to read length prefix");
+                   continue;
+               }
+               let msg_len = u32::from_le_bytes(len_buf) as usize;
+               let mut body = vec![0u8; msg_len];
+               if stream.read_exact(&mut body).is_err() {
+                   eprintln!("[listener] failed to read body ({} bytes)", msg_len);
+                   continue;
+               }
+               match serde_json::from_slice::<incoming::LocalMessage>(&body) {
+                   Ok(msg) => { let _ = tx.send(DaemonEvent::ReceiveLocalMessage(msg)); }
+                   Err(e) => eprintln!("[listener] parse failed: {e}"),
+               }
             }
         }
     });

@@ -233,6 +233,12 @@ fn send_to_daemon(prompt: &str) -> Result<(), LlmProviderError> {
     let mut stream = UnixStream::connect(DAEMON_SOCKET)
         .map_err(|e| LlmProviderError::SocketError(e.to_string()))?;
 
+    // Write 4-byte little-endian length prefix then payload.
+    let len = payload.len() as u32;
+    stream
+        .write_all(&len.to_le_bytes())
+        .map_err(|e| LlmProviderError::SocketError(e.to_string()))?;
+
     stream
         .write_all(payload.as_bytes())
         .map_err(|e| LlmProviderError::SocketError(e.to_string()))?;
