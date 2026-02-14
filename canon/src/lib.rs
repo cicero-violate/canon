@@ -65,3 +65,6 @@ pub use agent::{
 pub use agent::build_ir_slice;
 pub use agent::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
 pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
+pub use evolution::{
+    LyapunovError, TopologyFingerprint, DEFAULT_TOPOLOGY_THETA, check_topology_drift,
+};

@@ -1,6 +1,7 @@
 pub mod goal_mutation;
 mod kernel_bridge;
 mod structural;
+pub mod lyapunov;
 
 use std::collections::HashMap;
 
@@ -14,6 +15,9 @@ use crate::ir::{
 use crate::runtime::delta_verifier::{DeltaVerifier, VerificationError};
 
 pub use goal_mutation::{GoalMutationError, mutate_goal};
+pub use lyapunov::{
+    DEFAULT_TOPOLOGY_THETA, LyapunovError, TopologyFingerprint, check_topology_drift,
+};
 use kernel_bridge::{
     build_invariant_registry, build_kernel_admission, build_proof_registry, build_state_log,
 };
