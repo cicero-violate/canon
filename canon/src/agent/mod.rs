@@ -10,6 +10,8 @@
 pub mod call;
 pub mod capability;
 pub mod dispatcher;
+pub mod pipeline;
+pub mod refactor;
 pub mod slice;
 
 pub use call::{
@@ -19,4 +21,6 @@ pub use capability::{
     CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
 };
 pub use dispatcher::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
+pub use pipeline::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
+pub use refactor::{RefactorKind, RefactorProposal, RefactorTarget};
 pub use slice::build_ir_slice;
