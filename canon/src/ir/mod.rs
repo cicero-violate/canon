@@ -13,7 +13,7 @@ mod learning;
 mod policy;
 mod project;
 mod proofs;
-mod proposal;
+pub mod proposal;
 mod reward;
 mod timeline;
 mod types;

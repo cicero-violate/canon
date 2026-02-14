@@ -1,9 +1,13 @@
+pub mod cli;
+pub mod commands;
 pub mod decision;
+pub mod diff;
 pub mod dot_export;
 pub mod dot_import;
 pub mod evolution;
 pub mod gpu;
 pub mod ingest;
+pub mod io_utils;
 pub mod ir;
 pub mod layout;
 pub mod materialize;
@@ -15,8 +19,11 @@ mod proposal;
 pub mod runtime;
 pub mod schema;
 pub mod semantic_builder;
+pub mod version_gate;
 pub mod validate;
 
+pub use cli::Command;
+pub use commands::execute_command;
 pub use decision::{
     AcceptProposalError, AutoAcceptDslError, ProposalAcceptance, ProposalAcceptanceInput,
     accept_proposal, auto_accept_dsl_proposal,

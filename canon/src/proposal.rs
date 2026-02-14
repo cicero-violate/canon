@@ -2,9 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use thiserror::Error;
 
-use crate::ir::{
-    ModuleId, Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge,
-    ProposedNode, ProposedNodeKind, StructId, TraitId, Word, WordError,
+use crate::ir::{ModuleId, StructId, TraitId, Word, WordError};
+use crate::ir::proposal::{
+    Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
+    ProposedNodeKind,
 };
 
 #[derive(Debug, Clone)]

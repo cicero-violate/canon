@@ -1,0 +1,259 @@
+use crate::ir::{
+    EnumNode, EnumVariant, EnumVariantFields, Field, Function, FunctionContract, ImplBlock,
+    ImplFunctionBinding, Struct, Trait, TraitFunction, Word,
+};
+
+use super::super::ast_lower;
+use super::super::types::{
+    collect_derives, collect_doc_string, convert_fields, convert_generics, convert_inputs,
+    convert_receiver, convert_return_type, convert_type, map_visibility, path_to_string, slugify,
+    word_from_ident,
+};
+use super::ids::{trait_path_to_trait_fn_id, trait_path_to_trait_id, type_path_to_struct_id};
+use super::ImplMapping;
+
+pub(crate) fn struct_from_syn(module_id: &str, item: &syn::ItemStruct) -> Struct {
+    let (kind, fields) = convert_fields(&item.fields);
+    Struct {
+        id: format!(
+            "struct.{}.{}",
+            slugify(module_id),
+            slugify(&item.ident.to_string())
+        ),
+        name:       word_from_ident(&item.ident, "Struct"),
+        module:     module_id.to_owned(),
+        visibility: map_visibility(&item.vis),
+        derives:    collect_derives(&item.attrs),
+        doc:        None,
+        kind,
+        fields,
+        history:    Vec::new(),
+    }
+}
+
+pub(crate) fn enum_from_syn(module_id: &str, item: &syn::ItemEnum) -> EnumNode {
+    EnumNode {
+        id: format!(
+            "enum.{}.{}",
+            slugify(module_id),
+            slugify(&item.ident.to_string())
+        ),
+        name:       word_from_ident(&item.ident, "Enum"),
+        module:     module_id.to_owned(),
+        visibility: map_visibility(&item.vis),
+        variants:   item.variants.iter().map(enum_variant_from_syn).collect(),
+        history:    Vec::new(),
+    }
+}
+
+pub(crate) fn enum_variant_from_syn(variant: &syn::Variant) -> EnumVariant {
+    let fields = match &variant.fields {
+        syn::Fields::Unit => EnumVariantFields::Unit,
+        syn::Fields::Unnamed(u) => EnumVariantFields::Tuple {
+            types: u.unnamed.iter().map(|f| convert_type(&f.ty)).collect(),
+        },
+        syn::Fields::Named(n) => EnumVariantFields::Struct {
+            fields: n
+                .named
+                .iter()
+                .map(|field| Field {
+                    name: field
+                        .ident
+                        .as_ref()
+                        .map(|id| word_from_ident(id, "Field"))
+                        .unwrap_or_else(|| Word::new("Field").unwrap()),
+                    ty:         convert_type(&field.ty),
+                    visibility: map_visibility(&field.vis),
+                    doc:        collect_doc_string(&field.attrs),
+                })
+                .collect(),
+        },
+    };
+    EnumVariant { name: word_from_ident(&variant.ident, "Variant"), fields }
+}
+
+pub(crate) fn trait_from_syn(module_id: &str, item: &syn::ItemTrait) -> Trait {
+    let trait_id = format!(
+        "trait.{}.{}",
+        slugify(module_id),
+        slugify(&item.ident.to_string())
+    );
+    let supertraits = item
+        .supertraits
+        .iter()
+        .filter_map(|bound| match bound {
+            syn::TypeParamBound::Trait(tb) => Some(path_to_string(&tb.path)),
+            _ => None,
+        })
+        .collect();
+    let functions = item
+        .items
+        .iter()
+        .filter_map(|ti| {
+            if let syn::TraitItem::Fn(fn_item) = ti {
+                Some(trait_fn_from_syn(&trait_id, fn_item))
+            } else {
+                None
+            }
+        })
+        .collect();
+    Trait {
+        id: trait_id,
+        name:             word_from_ident(&item.ident, "Trait"),
+        module:           module_id.to_owned(),
+        visibility:       map_visibility(&item.vis),
+        generic_params:   convert_generics(&item.generics),
+        functions,
+        supertraits,
+        associated_types:  Vec::new(),
+        associated_consts: Vec::new(),
+    }
+}
+
+pub(crate) fn trait_fn_from_syn(trait_id: &str, item: &syn::TraitItemFn) -> TraitFunction {
+    let fn_slug = slugify(&item.sig.ident.to_string());
+    TraitFunction {
+        id:           format!("trait_fn.{}.{}", trait_id, fn_slug),
+        name:         word_from_ident(&item.sig.ident, "TraitFn"),
+        inputs:       convert_inputs(&item.sig.inputs),
+        outputs:      convert_return_type(&item.sig.output),
+        default_body: None,
+    }
+}
+
+pub(crate) fn function_from_syn(
+    module_id: &str,
+    item: &syn::ItemFn,
+    impl_context: Option<(&str, Option<&syn::Path>)>,
+) -> Function {
+    let (impl_id, trait_function) = match impl_context {
+        Some((id, Some(path))) => (
+            id.to_owned(),
+            Some(trait_path_to_trait_fn_id(path, module_id, &item.sig.ident)),
+        ),
+        Some((id, None)) => (id.to_owned(), None),
+        None => (String::new(), None),
+    };
+    let fn_id = {
+        let fn_slug  = slugify(&item.sig.ident.to_string());
+        let mod_slug = slugify(module_id);
+        if impl_id.is_empty() {
+            format!("function.{mod_slug}.{fn_slug}")
+        } else {
+            let struct_slug = impl_id.splitn(4, '.').nth(2).unwrap_or("unknown");
+            format!("function.{mod_slug}.{struct_slug}.{fn_slug}")
+        }
+    };
+    Function {
+        id: fn_id,
+        name:       word_from_ident(&item.sig.ident, "Function"),
+        module:     module_id.to_owned(),
+        impl_id,
+        trait_function: trait_function.unwrap_or_default(),
+        visibility: map_visibility(&item.vis),
+        doc:        collect_doc_string(&item.attrs),
+        lifetime_params: item
+            .sig
+            .generics
+            .lifetimes()
+            .map(|lt| lt.lifetime.to_string())
+            .collect(),
+        receiver:   convert_receiver(&item.sig.inputs),
+        is_async:   item.sig.asyncness.is_some(),
+        is_unsafe:  item.sig.unsafety.is_some(),
+        generics:   convert_generics(&item.sig.generics),
+        where_clauses: Vec::new(),
+        inputs:     convert_inputs(&item.sig.inputs),
+        outputs:    convert_return_type(&item.sig.output),
+        deltas:     Vec::new(),
+        contract: FunctionContract {
+            total:              true,
+            deterministic:      true,
+            explicit_inputs:    true,
+            explicit_outputs:   true,
+            effects_are_deltas: true,
+        },
+        metadata: crate::ir::FunctionMetadata {
+            ast: ast_lower::lower_block(&item.block),
+            ..Default::default()
+        },
+    }
+}
+
+pub(crate) fn function_from_impl_item(
+    module_id: &str,
+    method: &syn::ImplItemFn,
+    context: Option<(&str, Option<&syn::Path>)>,
+) -> Function {
+    let item_fn = syn::ItemFn {
+        attrs: method.attrs.clone(),
+        vis:   syn::Visibility::Inherited,
+        sig:   method.sig.clone(),
+        block: Box::new(method.block.clone()),
+    };
+    function_from_syn(module_id, &item_fn, context)
+}
+
+pub(crate) fn impl_block_from_syn(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
+    let Some((_, trait_path, _)) = &block.trait_ else {
+        return build_standalone(module_id, block);
+    };
+    let syn::Type::Path(self_path) = block.self_ty.as_ref() else {
+        return ImplMapping::Unsupported;
+    };
+    let struct_id = type_path_to_struct_id(self_path, module_id);
+    let trait_id  = trait_path_to_trait_id(trait_path, module_id);
+    let impl_id   = format!(
+        "impl.{}.{}.{}",
+        slugify(module_id),
+        slugify(&struct_id),
+        slugify(&trait_id)
+    );
+    let mut bindings  = Vec::new();
+    let mut functions = Vec::new();
+    for item in &block.items {
+        if let syn::ImplItem::Fn(method) = item {
+            let function = function_from_impl_item(module_id, method, Some((&impl_id, Some(trait_path))));
+            bindings.push(ImplFunctionBinding {
+                trait_fn: trait_path_to_trait_fn_id(trait_path, module_id, &method.sig.ident),
+                function: function.id.clone(),
+            });
+            functions.push(function);
+        }
+    }
+    if bindings.is_empty() {
+        return ImplMapping::Unsupported;
+    }
+    ImplMapping::ImplBlock(
+        ImplBlock {
+            id: impl_id,
+            module:    module_id.to_owned(),
+            struct_id,
+            trait_id,
+            functions: bindings,
+        },
+        functions,
+    )
+}
+
+fn build_standalone(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
+    let self_ty_slug = match block.self_ty.as_ref() {
+        syn::Type::Path(p) => slugify(
+            &p.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default(),
+        ),
+        _ => "unknown".to_owned(),
+    };
+    let standalone_impl_id = format!("impl.{}.{}.standalone", slugify(module_id), self_ty_slug);
+    let funcs = block
+        .items
+        .iter()
+        .filter_map(|item| {
+            if let syn::ImplItem::Fn(method) = item {
+                Some(function_from_impl_item(module_id, method, Some((&standalone_impl_id, None))))
+            } else {
+                None
+            }
+        })
+        .collect();
+    ImplMapping::Standalone(funcs)
+}

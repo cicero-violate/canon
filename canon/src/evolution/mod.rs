@@ -1,4 +1,4 @@
-mod goal_mutation;
+pub mod goal_mutation;
 mod kernel_bridge;
 mod structural;
 

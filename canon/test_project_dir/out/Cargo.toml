@@ -1,0 +1,8 @@
+# Derived from Canonical IR. Do not edit.
+[package]
+name = "CanonDemo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+Serde = { package = "serde", version = "1.0" }

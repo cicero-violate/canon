@@ -1,19 +1,17 @@
 use std::fs;
 
-use crate::auto_accept_dsl_proposal;
+use crate::decision::auto_dsl::auto_accept_dsl_proposal;
 use crate::cli::Command;
 use crate::diff::diff_ir;
 use crate::ingest::{self, IngestOptions};
 use crate::layout::LayoutGraph;
-use crate::materialize::materialize;
-use crate::render_impl_function;
+use crate::materialize::{materialize, write_file_tree};
+use crate::materialize::render_fn::render_impl_function;
 use crate::runtime::{TickExecutionMode, TickExecutor};
 use crate::schema::generate_schema;
 use crate::validate::validate_ir;
-use crate::verify_dot;
+use crate::dot_export::{self, verify_dot};
 use crate::version_gate::enforce_version_gate;
-use crate::write_file_tree;
-use crate::dot_export;
 use crate::io_utils::{load_ir, load_layout, resolve_layout, load_ir_or_semantic};
 // use crate::io_utils::load_ir_or_semantic
 

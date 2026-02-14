@@ -1,4 +1,4 @@
-use canon::CanonicalIr;
+use crate::CanonicalIr;
 use std::collections::BTreeSet;
 
 pub fn diff_ir(before: &CanonicalIr, after: &CanonicalIr) -> String {

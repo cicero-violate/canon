@@ -1,4 +1,4 @@
-use canon::CanonicalIr;
+use crate::CanonicalIr;
 
 pub fn enforce_version_gate(ir: &CanonicalIr) -> Result<(), Box<dyn std::error::Error>> {
     let runtime_version = env!("CARGO_PKG_VERSION");

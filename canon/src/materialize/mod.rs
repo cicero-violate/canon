@@ -13,7 +13,7 @@ pub use self::render_fn::render_impl_function;
 
 mod file_tree;
 mod render_cargo;
-mod render_fn;
+pub mod render_fn;
 mod render_impl;
 mod render_module;
 mod render_struct;

@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use canon::{
+use crate::{
     CanonicalIr,
     layout::{LayoutGraph, SemanticGraph},
     semantic_builder::SemanticIrBuilder,
