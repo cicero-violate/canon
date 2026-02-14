@@ -159,6 +159,19 @@ pub enum Command {
         #[arg(long, default_value = "5")]
         policy_update_interval: u64,
     },
+
+    /// Bootstrap the standard 5-node capability graph and a seed proposal.
+    BootstrapGraph {
+        /// Write capability graph JSON here.
+        #[arg(long = "graph-out")]
+        graph_out: PathBuf,
+        /// Write seed proposal JSON here.
+        #[arg(long = "proposal-out")]
+        proposal_out: PathBuf,
+        /// IR path — used to pick the first module as proposal target.
+        #[arg(long)]
+        ir: PathBuf,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]

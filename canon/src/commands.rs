@@ -4,6 +4,7 @@ use crate::agent::call::AgentCallOutput;
 use crate::agent::refactor::RefactorProposal;
 use crate::agent::{RewardLedger, run_meta_tick, run_pipeline};
 use crate::agent::runner::{RunnerConfig, run_agent};
+use crate::agent::bootstrap::{bootstrap_graph, bootstrap_proposal};
 use crate::cli::Command;
 use crate::decision::auto_dsl::auto_accept_dsl_proposal;
 use crate::diff::diff_ir;
@@ -290,6 +291,58 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
                     if s.policy_updated { "Y" } else { "-" },
                 );
             }
+        }
+
+        Command::BootstrapGraph { graph_out, proposal_out, ir } => {
+            let ir_doc = load_ir(&ir)?;
+
+            // Pick first module id as proposal target, fall back to "module_0".
+            let target_id = ir_doc
+                .modules
+                .first()
+                .map(|m| m.id.as_str())
+                .unwrap_or("module_0")
+                .to_string();
+
+            let graph = bootstrap_graph();
+            let proposal = bootstrap_proposal(&target_id);
+
+            // Validate graph edges before writing.
+            let violations = graph.validate_edges();
+            if !violations.is_empty() {
+                for v in &violations {
+                    eprintln!("graph violation: {v}");
+                }
+                return Err("bootstrap graph has edge violations".into());
+            }
+
+            save_capability_graph(&graph, &graph_out)?;
+            let proposal_json = serde_json::to_string_pretty(&proposal)?;
+            fs::write(&proposal_out, proposal_json)?;
+
+            println!("Bootstrap complete.");
+            println!(
+                "  graph:    {} nodes, {} edges → {}",
+                graph.nodes.len(),
+                graph.edges.len(),
+                graph_out.display()
+            );
+            println!(
+                "  proposal: target={} kind={:?} → {}",
+                target_id,
+                crate::agent::refactor::RefactorKind::SplitModule,
+                proposal_out.display()
+            );
+            println!();
+            println!("To start the agent loop:");
+            println!(
+                "  canon run-agent --ir <IR> --graph {} --proposal {} \
+                 --ir-out out.ir.json --ledger-out ledger.json \
+                 --graph-out {} --max-ticks 10",
+                graph_out.display(),
+                proposal_out.display(),
+                graph_out.display(),
+            );
         }
     }
     Ok(())

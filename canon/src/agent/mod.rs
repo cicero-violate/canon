@@ -7,6 +7,7 @@
 //! State lives exclusively in CanonicalIr and CapabilityGraph edges.
 //! Nothing inside a node is stateful.
 
+pub mod bootstrap;
 pub mod call;
 pub mod capability;
 pub mod dispatcher;
@@ -38,3 +39,4 @@ pub use slice::build_ir_slice;
 pub use observe::{IrObservation, IrTotals, observe_ir, observation_to_payload};
 pub use llm_provider::{LlmProviderError, call_llm};
 pub use runner::{RunnerConfig, RunnerError, TickStats, run_agent};
+pub use bootstrap::{bootstrap_graph, bootstrap_proposal};
