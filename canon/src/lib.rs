@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod cli;
 pub mod commands;
 pub mod decision;
@@ -15,7 +16,6 @@ pub mod observe;
 pub mod patch_protocol;
 pub mod proof;
 // pub mod proof_object;
-mod proposal;
 pub mod runtime;
 pub mod schema;
 pub mod semantic_builder;
@@ -56,6 +56,10 @@ pub use semantic_builder::SemanticIrBuilder;
 // pub use proof_object::{
 //     ProofArtifact as CanonProofArtifact, ProofObject, ProofResult, evaluate_proof_object,
 // };
-pub use proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl};
+pub use ir::proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl};
 pub use schema::generate_schema;
+pub use agent::{
+    AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
+    CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
+};
 pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};

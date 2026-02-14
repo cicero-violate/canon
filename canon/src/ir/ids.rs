@@ -27,3 +27,5 @@ pub type GpuFunctionId = String;
 pub type RewardRecordId = String;
 pub type PolicyParameterId = String;
 pub type GoalMutationId = String;
+pub type AgentCallId = String;
+pub type CapabilityNodeId = String;
