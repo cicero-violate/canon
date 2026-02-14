@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use crate::ir::{
     AdmissionId, AppliedDeltaRecord, CanonicalIr, Delta, DeltaId, DeltaPayload, JudgmentDecision,
+    DeltaKind,
 };
 
 use crate::runtime::delta_verifier::{DeltaVerifier, VerificationError};
@@ -73,7 +74,23 @@ pub fn apply_deltas(
                 .get(delta_id.as_str())
                 .ok_or_else(|| EvolutionError::UnknownDelta(delta_id.clone()))?;
             enforce_delta_application(delta)?;
-            apply_structural_delta(&mut next, delta)?;
+            // Lyapunov gate: structural deltas must not exceed topology drift bound.
+            if delta.kind == DeltaKind::Structure {
+                let proof_ids: Vec<String> =
+                    ir.proofs.iter().map(|p| p.id.clone()).collect();
+                let mut candidate = next.clone();
+                apply_structural_delta(&mut candidate, delta)?;
+                check_topology_drift(
+                    &next,
+                    &candidate,
+                    &proof_ids,
+                    DEFAULT_TOPOLOGY_THETA,
+                )
+                .map_err(EvolutionError::TopologyDrift)?;
+                next = candidate;
+            } else {
+                apply_structural_delta(&mut next, delta)?;
+            }
             next.applied_deltas.push(AppliedDeltaRecord {
                 id: format!("{}#{}", admission.id, order),
                 admission: admission.id.clone(),
@@ -144,6 +161,8 @@ pub enum EvolutionError {
     PayloadHash(String),
     #[error("kernel error: {0}")]
     Kernel(String),
-    #[error("delta verification failed: {0}")]
-    VerificationFailed(#[from] VerificationError),
+    #[error("delta verification failed")]
+    VerificationFailed(VerificationError),
+    #[error("topology drift rejected: {0}")]
+    TopologyDrift(LyapunovError),
 }
