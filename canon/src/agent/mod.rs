@@ -9,6 +9,7 @@
 
 pub mod call;
 pub mod capability;
+pub mod slice;
 
 pub use call::{
     AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
@@ -16,3 +17,4 @@ pub use call::{
 pub use capability::{
     CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
 };
+pub use slice::build_ir_slice;

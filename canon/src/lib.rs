@@ -62,4 +62,5 @@ pub use agent::{
     AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
     CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
 };
+pub use agent::build_ir_slice;
 pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
