@@ -9,6 +9,7 @@
 
 pub mod call;
 pub mod capability;
+pub mod dispatcher;
 pub mod slice;
 
 pub use call::{
@@ -17,4 +18,5 @@ pub use call::{
 pub use capability::{
     CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
 };
+pub use dispatcher::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
 pub use slice::build_ir_slice;

@@ -63,4 +63,5 @@ pub use agent::{
     CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
 };
 pub use agent::build_ir_slice;
+pub use agent::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
 pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
