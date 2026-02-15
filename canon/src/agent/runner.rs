@@ -125,16 +125,10 @@ pub async fn run_agent(
     let mut stats: Vec<TickStats> = Vec::new();
     let mut tick_number: u64 = 0;
 
-    // Wait for extension then open a tab before the first tick.
+    // Wait for the extension to connect — tabs are opened per LLM call.
     eprintln!("[runner] waiting for extension to connect...");
     bridge.wait_for_connection().await;
-    eprintln!("[runner] extension connected — opening ChatGPT tab");
-    bridge.open_tab().await.map_err(|_| RunnerError::Io("failed to open tab".into()))?;
-    eprintln!("[runner] waiting for tab to be ready...");
-    bridge.wait_for_tab().await;
-    // Give ChatGPT's React app time to fully mount after tab ready.
-    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
-    eprintln!("[runner] tab ready — starting tick loop");
+    eprintln!("[runner] extension connected — starting tick loop");
 
     loop {
         tick_number += 1;

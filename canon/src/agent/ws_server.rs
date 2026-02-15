@@ -189,6 +189,31 @@ impl WsBridge {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
     }
+
+    /// Open a fresh ChatGPT tab and wait until it registers, returning its tab_id.
+    /// Each call produces a new stateless conversation context.
+    pub async fn open_fresh_tab(&self) -> Result<u32, WsBridgeError> {
+        // Snapshot existing tab ids so we can detect the new one.
+        let before: Vec<u32> = {
+            let st = self.state.lock().await;
+            st.live_tabs.clone()
+        };
+
+        self.open_tab().await?;
+
+        // Poll until a tab_id appears that wasn't in `before`.
+        loop {
+            {
+                let st = self.state.lock().await;
+                for id in &st.live_tabs {
+                    if !before.contains(id) {
+                        return Ok(*id);
+                    }
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

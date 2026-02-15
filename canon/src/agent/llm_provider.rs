@@ -58,7 +58,7 @@ pub async fn call_llm(
     let prompt = PromptBuilder::new(input).build();
 
     let raw_response = bridge
-        .send_turn(None, prompt)
+        .send_turn(Some(bridge.open_fresh_tab().await?), prompt)
         .await
         .map_err(LlmProviderError::Transport)?;
 
