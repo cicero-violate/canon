@@ -27,15 +27,17 @@ fn check_module_graph<'a>(
         let from = edge.source.as_str();
         let to = edge.target.as_str();
         if idx.modules.get(from).is_none() || idx.modules.get(to).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::ExplicitArtifacts,
+                edge.source.clone(),
                 format!("module edge `{from}` -> `{to}` references unknown modules"),
             ));
             continue;
         }
         if from == to {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::ModuleSelfImport,
+                from.to_string(),
                 format!("module `{from}` may not import itself"),
             ));
             continue;
@@ -44,8 +46,9 @@ fn check_module_graph<'a>(
         adj.entry(from).or_default().push(to);
     }
     if is_cyclic_directed(&graph) {
-        violations.push(Violation::new(
+        violations.push(Violation::with_subject(
             CanonRule::ModuleDag,
+            "module_graph",
             "module import permissions must form a strict DAG",
         ));
     }
@@ -67,18 +70,17 @@ fn check_call_graph<'a>(
 
     for edge in &ir.call_edges {
         let Some(caller) = idx.functions.get(edge.caller.as_str()) else {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::CallGraphPublicApis,
-                format!(
-                    "call edge `{}` references missing caller `{}`",
-                    edge.id, edge.caller
-                ),
+                edge.caller.clone(),
+                ViolationDetail::MissingFunction { function_id: edge.caller.clone() },
             ));
             continue;
         };
         let Some(callee) = idx.functions.get(edge.callee.as_str()) else {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::CallGraphPublicApis,
+                edge.callee.clone(),
                 format!(
                     "call edge `{}` references missing callee `{}`",
                     edge.id, edge.callee
@@ -89,8 +91,9 @@ fn check_call_graph<'a>(
         call_pairs.insert((edge.caller.clone(), edge.callee.clone()));
         call_graph.add_edge(edge.caller.as_str(), edge.callee.as_str(), ());
         if callee.visibility != Visibility::Public {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::CallGraphPublicApis,
+                callee.id.clone(),
                 format!(
                     "call edge `{}` targets private function `{}`",
                     edge.id, callee.name
@@ -103,8 +106,9 @@ fn check_call_graph<'a>(
             module_adj,
             &mut perm_cache,
         ) {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::CallGraphRespectsDag,
+                caller.module.clone(),
                 format!(
                     "module `{}` lacks permission to call `{}` in `{}`",
                     caller.module, callee.name, callee.module
@@ -113,8 +117,9 @@ fn check_call_graph<'a>(
         }
     }
     if is_cyclic_directed(&call_graph) {
-        violations.push(Violation::new(
+        violations.push(Violation::with_subject(
             CanonRule::CallGraphAcyclic,
+            "call_graph",
             "call graph contains recursion which violates Canon rules 29 and 75",
         ));
     }
@@ -132,8 +137,9 @@ fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Viola
         let mut node_set: HashSet<&str> = HashSet::new();
         for node in &graph.nodes {
             if idx.functions.get(node.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::with_subject(
                     CanonRule::TickGraphEdgesDeclared,
+                    node.clone(),
                     format!(
                         "tick graph `{}` references unknown function `{node}`",
                         graph.name
@@ -146,8 +152,9 @@ fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Viola
         }
         for edge in &graph.edges {
             if !node_set.contains(edge.from.as_str()) || !node_set.contains(edge.to.as_str()) {
-                violations.push(Violation::new(
+                violations.push(Violation::with_subject(
                     CanonRule::TickGraphEdgesDeclared,
+                    edge.from.clone(),
                     format!(
                         "tick graph `{}` edge {} -> {} references undeclared nodes",
                         graph.name, edge.from, edge.to
@@ -156,8 +163,9 @@ fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Viola
                 continue;
             }
             if !call_pairs.contains(&(edge.from.clone(), edge.to.clone())) {
-                violations.push(Violation::new(
+                violations.push(Violation::with_subject(
                     CanonRule::TickGraphEdgesDeclared,
+                    edge.from.clone(),
                     format!(
                         "tick graph `{}` edge {} -> {} must exist in call graph",
                         graph.name, edge.from, edge.to
@@ -167,8 +175,9 @@ fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Viola
             tg.add_edge(edge.from.as_str(), edge.to.as_str(), ());
         }
         if is_cyclic_directed(&tg) {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::TickGraphAcyclic,
+                graph.name.to_string(),
                 format!("tick graph `{}` must be acyclic", graph.name),
             ));
         }
@@ -178,8 +187,9 @@ fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Viola
 fn check_loop_policies(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
     for p in &ir.loop_policies {
         if idx.tick_graphs.get(p.graph.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::LoopContinuationJudgment,
+                p.id.clone(),
                 format!(
                     "loop policy `{}` references missing tick graph `{}`",
                     p.id, p.graph
@@ -187,8 +197,9 @@ fn check_loop_policies(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Vio
             ));
         }
         if idx.predicates.get(p.continuation.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::with_subject(
                 CanonRule::LoopContinuationJudgment,
+                p.id.clone(),
                 format!(
                     "loop policy `{}` references missing predicate `{}`",
                     p.id, p.continuation
