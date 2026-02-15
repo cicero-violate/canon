@@ -7,8 +7,8 @@ use crate::ir::{
 use super::super::parser::{ParsedFile, ParsedWorkspace};
 use super::IngestError;
 use super::ModulesBuild;
-use super::edges::AliasBinding;
 use super::types::{
+    AliasBinding,
     attribute_to_string, collect_doc_string, convert_type, expr_to_string, flatten_use_tree,
     map_visibility, render_use_item, resolve_use_entry, slugify, to_pascal_case, word_from_ident,
 };

@@ -16,3 +16,11 @@ pub(crate) use uses::{
     flatten_use_tree, module_segments_from_key, render_use_item, resolve_use_entry,
 };
 pub(crate) use visibility::map_visibility;
+
+/// Shared binding type used by both `edges` and `modules`.
+/// Lives here to break the mutual import between those two sibling modules.
+#[derive(Clone)]
+pub(crate) struct AliasBinding {
+    pub module_key: String,
+    pub function_slug: String,
+}

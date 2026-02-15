@@ -6,8 +6,7 @@ use crate::ir::{CallEdge, Function, Visibility};
 
 use super::super::parser::ParsedWorkspace;
 use super::modules::{collect_use_aliases, module_key};
-use super::types::module_segments_from_key;
-use super::types::slugify;
+use super::types::{module_segments_from_key, slugify, AliasBinding};
 
 // ── Shared data structures ────────────────────────────────────────────────────
 
@@ -23,12 +22,6 @@ pub(crate) struct UseEntry {
 pub(crate) struct FunctionLookupEntry {
     pub id: String,
     pub visibility: Visibility,
-}
-
-#[derive(Clone)]
-pub(crate) struct AliasBinding {
-    pub module_key: String,
-    pub function_slug: String,
 }
 
 // ── Call edge builder ─────────────────────────────────────────────────────────

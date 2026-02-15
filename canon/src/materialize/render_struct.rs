@@ -1,4 +1,4 @@
-use super::render_fn::render_type;
+use super::render_common::render_type;
 use crate::ir::{EnumNode, EnumVariantFields, Struct, StructKind, Visibility};
 
 pub fn render_struct(structure: &Struct) -> String {
@@ -70,14 +70,7 @@ pub fn render_struct(structure: &Struct) -> String {
     lines.join("\n")
 }
 
-pub fn render_visibility(vis: Visibility) -> &'static str {
-    match vis {
-        Visibility::Public => "pub ",
-        Visibility::Private => "",
-        Visibility::PubCrate => "pub(crate) ",
-        Visibility::PubSuper => "pub(super) ",
-    }
-}
+pub use super::render_common::render_visibility;
 
 pub fn render_enum(en: &EnumNode) -> String {
     let mut lines = Vec::new();
