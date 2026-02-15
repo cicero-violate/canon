@@ -180,7 +180,7 @@ pub fn run_pipeline(
         .map_err(PipelineError::TopologyDrift)?;
 
     let next_layout = layout.clone();
-    let reward = compute_pipeline_reward(ir, &candidate, None, None);
+    let reward = compute_pipeline_reward(ir, &candidate, 0.0, 0.0);
 
     Ok(PipelineResult {
         ir: candidate,

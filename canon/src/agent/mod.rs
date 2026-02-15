@@ -11,6 +11,7 @@ pub mod bootstrap;
 pub mod call;
 pub mod capability;
 pub mod dispatcher;
+pub mod epoch;
 pub mod io;
 pub mod llm_provider;
 pub mod meta;
