@@ -7,6 +7,10 @@
 //! The caller drives each stage by supplying AgentCallOutputs from their
 //! LLM client. The pipeline assembles them into IR mutations via the
 //! existing accept_proposal + apply_deltas + Lyapunov gate chain.
+//!
+//! If nodes were skipped due to insufficient trust the pipeline short-circuits
+//! at the first missing stage and returns PipelineError::StageSkipped so the
+//! runner can log the incomplete tick without penalising the ledger.
 
 use serde_json::Value;
 
@@ -61,6 +65,9 @@ pub enum PipelineError {
     Evolution(EvolutionError),
     /// No admission_id was found in the Judge output payload.
     MissingAdmission,
+    /// One or more nodes were skipped due to insufficient trust; pipeline
+    /// cannot proceed past this stage in the current tick.
+    StageSkipped { stage: RefactorStage },
 }
 
 impl std::fmt::Display for PipelineError {
@@ -77,6 +84,9 @@ impl std::fmt::Display for PipelineError {
             PipelineError::Evolution(e) => write!(f, "Mutate stage: {e}"),
             PipelineError::MissingAdmission => {
                 write!(f, "Judge stage: admission_id not found in payload")
+            }
+            PipelineError::StageSkipped { stage } => {
+                write!(f, "stage {stage}: node skipped (insufficient trust)")
             }
         }
     }
@@ -105,6 +115,11 @@ pub struct PipelineResult {
 /// [0] = Observer output, [1] = Reasoner output, [2] = Prover output,
 /// [3] = Judge output. The Mutate stage is driven internally.
 ///
+/// If a node was skipped by the dispatcher (insufficient trust) its slot will
+/// be absent from `stage_outputs`. The pipeline short-circuits at that point
+/// with `PipelineError::StageSkipped` rather than treating it as a hard
+/// payload error. The runner should log it and continue to the next tick.
+///
 /// Returns PipelineResult on success, PipelineError on first failure.
 pub fn run_pipeline(
     ir: &CanonicalIr,
@@ -113,20 +128,17 @@ pub fn run_pipeline(
     stage_outputs: &[AgentCallOutput],
 ) -> Result<PipelineResult, PipelineError> {
     // --- Observe stage ---
-    // Observer output must confirm it found relevant IR artifacts.
-    let observer_out = stage_output(stage_outputs, 0, RefactorStage::Observe)?;
+    let observer_out = require_stage(stage_outputs, 0, RefactorStage::Observe)?;
     extract_str_field(&observer_out.payload, "observation", RefactorStage::Observe)?;
 
     // --- Reason stage ---
-    // Reasoner output must include a rationale string.
-    let reasoner_out = stage_output(stage_outputs, 1, RefactorStage::Reason)?;
+    let reasoner_out = require_stage(stage_outputs, 1, RefactorStage::Reason)?;
     let rationale =
         extract_str_field(&reasoner_out.payload, "rationale", RefactorStage::Reason)?;
     proposal.rationale = rationale;
 
     // --- Prove stage ---
-    // Prover output must include a proof_id.
-    let prover_out = stage_output(stage_outputs, 2, RefactorStage::Prove)?;
+    let prover_out = require_stage(stage_outputs, 2, RefactorStage::Prove)?;
     let proof_id = prover_out
         .proof_id
         .clone()
@@ -141,8 +153,7 @@ pub fn run_pipeline(
     proposal.proof_id = Some(proof_id);
 
     // --- Judge stage ---
-    // Judge output must include decision = "accept" | "reject" and admission_id.
-    let judge_out = stage_output(stage_outputs, 3, RefactorStage::Judge)?;
+    let judge_out = require_stage(stage_outputs, 3, RefactorStage::Judge)?;
     let decision =
         extract_str_field(&judge_out.payload, "decision", RefactorStage::Judge)?;
     if decision.to_lowercase() != "accept" {
@@ -162,17 +173,13 @@ pub fn run_pipeline(
         .to_string();
 
     // --- Mutate stage ---
-    // Run Lyapunov gate then apply_deltas.
     let proof_ids: Vec<String> = ir.proofs.iter().map(|p| p.id.clone()).collect();
     let candidate = apply_deltas(ir, &[admission_id.clone()])
         .map_err(PipelineError::Evolution)?;
     check_topology_drift(ir, &candidate, &proof_ids, DEFAULT_TOPOLOGY_THETA)
         .map_err(PipelineError::TopologyDrift)?;
 
-    // Sync layout — carry forward existing layout for now.
     let next_layout = layout.clone();
-
-    // --- Compute real reward ---
     let reward = compute_pipeline_reward(ir, &candidate, None, None);
 
     Ok(PipelineResult {
@@ -194,6 +201,8 @@ pub fn record_pipeline_outcome(
     let outcome = match result {
         Ok(r) => NodeOutcome::Accepted { reward: r.reward },
         Err(PipelineError::Rejected { .. }) => NodeOutcome::Rejected { penalty: 1.0 },
+        // Skipped stages are not the node's fault — no ledger penalty.
+        Err(PipelineError::StageSkipped { .. }) => return ledger.trust_threshold_for(node_id),
         Err(_) => NodeOutcome::Halted { penalty: 0.5 },
     };
     ledger.record(node_id, outcome);
@@ -202,15 +211,17 @@ pub fn record_pipeline_outcome(
 
 // --- helpers ---
 
-fn stage_output(
+/// Returns the output at `idx` if present, or `StageSkipped` if the node
+/// was not dispatched this tick (trust gate). Distinct from `MissingPayloadField`
+/// which signals a structural problem in an output that *was* returned.
+fn require_stage(
     outputs: &[AgentCallOutput],
     idx: usize,
     stage: RefactorStage,
 ) -> Result<&AgentCallOutput, PipelineError> {
-    outputs.get(idx).ok_or_else(|| PipelineError::MissingPayloadField {
-        stage,
-        field: format!("stage_outputs[{idx}]"),
-    })
+    outputs
+        .get(idx)
+        .ok_or_else(|| PipelineError::StageSkipped { stage })
 }
 
 fn extract_str_field<'a>(
