@@ -19,7 +19,7 @@ pub mod runtime;
 pub mod schema;
 pub mod semantic_builder;
 pub mod version_gate;
-// pub mod validate;
+pub mod validate;
 
 pub use cli::Command;
 pub use commands::execute_command;
@@ -71,7 +71,7 @@ pub use agent::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
 pub use agent::record_pipeline_outcome;
 pub use agent::{RefactorKind, RefactorProposal, RefactorTarget};
 pub use agent::{NodeOutcome, NodeRewardEntry, RewardLedger};
-// pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
+pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
 pub use evolution::{
     LyapunovError, TopologyFingerprint, DEFAULT_TOPOLOGY_THETA, check_topology_drift,
 };
