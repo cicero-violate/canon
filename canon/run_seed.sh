@@ -15,7 +15,7 @@ cargo run --bin canon -- bootstrap-graph \
 
 
 # 2. Start the chromium_messenger daemon (you do this manually)
-./run_chromium_daemon.sh
+# ./run_chromium_daemon.sh
 
 
 # 3. Run the agent
