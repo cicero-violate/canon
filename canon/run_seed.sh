@@ -17,6 +17,14 @@ cargo run -p canon -- materialize \
   target/materialized_project \
   --layout /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json
 
+## INGEST AND DIAGNOSE
+cargo run -p canon -- ingest \
+  --src canon \
+  --semantic-out canon/tests/data/generated_semantic.json \
+  --layout-out canon/tests/data/generated_layout.json \
+  && cargo run -p canon -- diagnose canon/tests/data/generated_semantic.json 2>&1
+
+
 # 2. Bootstrap the capability graph and seed proposal
 # cargo run --bin canon -- bootstrap-graph \
 #   --ir /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
