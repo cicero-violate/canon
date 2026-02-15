@@ -36,15 +36,15 @@ The self-modification operator $\Phi$ lives at $L7$ and mutates $G^{(1)}$ throug
 
 ### Node Types in the Capability Graph (L3)
 
-| Node Type | Role | Stateless? |
-|---|---|---|
-| **Observer** | reads IR, emits deltas | Yes |
-| **Reasoner** | proposes refactors | Yes |
-| **Prover** | generates SMT proofs | Yes |
-| **Judge** | accepts/rejects proposals | Yes |
-| **Mutator** | applies admitted deltas | Yes |
-| **Evaluator** | computes reward signal | Yes |
-| **Meta-Agent** | rewrites graph topology | Yes (but writes to $L7$) |
+| Node Type      | Role                      | Stateless?               |
+|----------------+---------------------------+--------------------------|
+| **Observer**   | reads IR, emits deltas    | Yes                      |
+| **Reasoner**   | proposes refactors        | Yes                      |
+| **Prover**     | generates SMT proofs      | Yes                      |
+| **Judge**      | accepts/rejects proposals | Yes                      |
+| **Mutator**    | applies admitted deltas   | Yes                      |
+| **Evaluator**  | computes reward signal    | Yes                      |
+| **Meta-Agent** | rewrites graph topology   | Yes (but writes to $L7$) |
 
 All nodes are stateless. State lives **exclusively in the graph edges and IR**, never inside a node. This is why stateless LLM calls work — each call receives a subgraph slice as context, executes, and writes its output back to the graph as a new edge or delta.
 
