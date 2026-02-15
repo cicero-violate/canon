@@ -45,7 +45,7 @@ pub fn build_indexes<'a>(ir: &'a CanonicalIr, violations: &mut Vec<Violation>) -
             violations,
         ),
         impls: index_by_id(
-            &ir.impl,
+            &ir.impls,
             |i| i.id.as_str(),
             CanonRule::ImplBinding,
             "impl",
