@@ -45,7 +45,7 @@ pub fn build_indexes<'a>(ir: &'a CanonicalIr, violations: &mut Vec<Violation>) -
             violations,
         ),
         impls: index_by_id(
-            &ir.impl_blocks,
+            &ir.impl,
             |i| i.id.as_str(),
             CanonRule::ImplBinding,
             "impl",
@@ -156,8 +156,6 @@ where
     }
     map
 }
-
-
 
 pub fn pipeline_stage_allows(stage: PipelineStage, kind: DeltaKind) -> bool {
     match stage {
