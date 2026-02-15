@@ -244,6 +244,7 @@ fn build_standalone(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
         _ => "unknown".to_owned(),
     };
     let standalone_impl_id = format!("impl.{}.{}.standalone", slugify(module_id), self_ty_slug);
+    let struct_id = format!("struct.{}.{}", slugify(module_id), self_ty_slug);
     let funcs = block
         .items
         .iter()
@@ -255,5 +256,12 @@ fn build_standalone(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
             }
         })
         .collect();
-    ImplMapping::Standalone(funcs)
+    let impl_block = ImplBlock {
+        id:        standalone_impl_id,
+        module:    module_id.to_owned(),
+        struct_id,
+        trait_id:  String::new(),
+        functions: Vec::new(),
+    };
+    ImplMapping::Standalone(impl_block, funcs)
 }
