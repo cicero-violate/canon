@@ -8,7 +8,7 @@ cargo run --bin canon -- ingest \
   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json
 
 cargo run --bin canon -- ingest \
-  --src /home/cicero-arch-omen/ai_sandbox/canon/memory/memory_engine \ 
+  --src /home/cicero-arch-omen/ai_sandbox/canon/memory/memory_engine \
   --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.ir.json \
   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.layout.json
 
