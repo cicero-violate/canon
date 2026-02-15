@@ -125,11 +125,12 @@ pub(crate) fn function_from_syn(
     module_id: &str,
     item: &syn::ItemFn,
     impl_context: Option<(&str, Option<&syn::Path>)>,
+    trait_name_to_id: &std::collections::HashMap<String, String>,
 ) -> Function {
     let (impl_id, trait_function) = match impl_context {
         Some((id, Some(path))) => (
             id.to_owned(),
-            Some(trait_path_to_trait_fn_id(path, module_id, &item.sig.ident)),
+            Some(trait_path_to_trait_fn_id(path, module_id, &item.sig.ident, trait_name_to_id)),
         ),
         Some((id, None)) => (id.to_owned(), None),
         None => (String::new(), None),
@@ -184,6 +185,7 @@ pub(crate) fn function_from_impl_item(
     module_id: &str,
     method: &syn::ImplItemFn,
     context: Option<(&str, Option<&syn::Path>)>,
+    trait_name_to_id: &std::collections::HashMap<String, String>,
 ) -> Function {
     let item_fn = syn::ItemFn {
         attrs: method.attrs.clone(),
@@ -191,18 +193,22 @@ pub(crate) fn function_from_impl_item(
         sig:   method.sig.clone(),
         block: Box::new(method.block.clone()),
     };
-    function_from_syn(module_id, &item_fn, context)
+    function_from_syn(module_id, &item_fn, context, trait_name_to_id)
 }
 
-pub(crate) fn impl_block_from_syn(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
+pub(crate) fn impl_block_from_syn(
+    module_id: &str,
+    block: &syn::ItemImpl,
+    trait_name_to_id: &std::collections::HashMap<String, String>,
+) -> ImplMapping {
     let Some((_, trait_path, _)) = &block.trait_ else {
-        return build_standalone(module_id, block);
+        return build_standalone(module_id, block, trait_name_to_id);
     };
     let syn::Type::Path(self_path) = block.self_ty.as_ref() else {
         return ImplMapping::Unsupported;
     };
     let struct_id = type_path_to_struct_id(self_path, module_id);
-    let trait_id  = trait_path_to_trait_id(trait_path, module_id);
+    let trait_id  = trait_path_to_trait_id(trait_path, module_id, trait_name_to_id);
     let impl_id   = format!(
         "impl.{}.{}.{}",
         slugify(module_id),
@@ -213,9 +219,19 @@ pub(crate) fn impl_block_from_syn(module_id: &str, block: &syn::ItemImpl) -> Imp
     let mut functions = Vec::new();
     for item in &block.items {
         if let syn::ImplItem::Fn(method) = item {
-            let function = function_from_impl_item(module_id, method, Some((&impl_id, Some(trait_path))));
+            let function = function_from_impl_item(
+                module_id,
+                method,
+                Some((&impl_id, Some(trait_path))),
+                trait_name_to_id,
+            );
             bindings.push(ImplFunctionBinding {
-                trait_fn: trait_path_to_trait_fn_id(trait_path, module_id, &method.sig.ident),
+                trait_fn: trait_path_to_trait_fn_id(
+                    trait_path,
+                    module_id,
+                    &method.sig.ident,
+                    trait_name_to_id,
+                ),
                 function: function.id.clone(),
             });
             functions.push(function);
@@ -236,7 +252,11 @@ pub(crate) fn impl_block_from_syn(module_id: &str, block: &syn::ItemImpl) -> Imp
     )
 }
 
-fn build_standalone(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
+fn build_standalone(
+    module_id: &str,
+    block: &syn::ItemImpl,
+    trait_name_to_id: &std::collections::HashMap<String, String>,
+) -> ImplMapping {
     let self_ty_slug = match block.self_ty.as_ref() {
         syn::Type::Path(p) => slugify(
             &p.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default(),
@@ -250,7 +270,12 @@ fn build_standalone(module_id: &str, block: &syn::ItemImpl) -> ImplMapping {
         .iter()
         .filter_map(|item| {
             if let syn::ImplItem::Fn(method) = item {
-                Some(function_from_impl_item(module_id, method, Some((&standalone_impl_id, None))))
+                Some(function_from_impl_item(
+                    module_id,
+                    method,
+                    Some((&standalone_impl_id, None)),
+                    trait_name_to_id,
+                ))
             } else {
                 None
             }

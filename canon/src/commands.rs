@@ -22,6 +22,7 @@ use crate::runtime::{TickExecutionMode, TickExecutor};
 use crate::schema::generate_schema;
 use crate::validate::validate_ir;
 use crate::version_gate::enforce_version_gate;
+use crate::diagnose::trace_root_causes;
 
 pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
@@ -40,6 +41,39 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             let ir_doc = load_ir(&ir)?;
             validate_ir(&ir_doc)?;
             println!("Lint passed.");
+        }
+
+        Command::Diagnose { ir } => {
+            let ir_doc = load_ir_or_semantic(&ir)?;
+            match validate_ir(&ir_doc) {
+                Ok(()) => {
+                    println!("No violations. IR is structurally sound.");
+                }
+                Err(errors) => {
+                    let briefs = trace_root_causes(&errors, &ir_doc);
+                    println!(
+                        "{} violation(s) → {} root cause(s):\n",
+                        errors.violations().len(),
+                        briefs.len()
+                    );
+                    for (i, b) in briefs.iter().enumerate() {
+                        println!(
+                            "── Root Cause {} ─────────────────────────────",
+                            i + 1
+                        );
+                        println!("Rule:      {:?}", b.rule);
+                        println!("Count:     {} violation(s)", b.violation_count);
+                        println!("Class:     {}", b.defect_class);
+                        println!("IR Field:  {}", b.ir_field);
+                        println!("Fix Site:  {}", b.fix_site);
+                        println!("Examples:");
+                        for ex in &b.examples {
+                            println!("  - {}", ex);
+                        }
+                        println!("Brief:\n  {}\n", b.brief);
+                    }
+                }
+            }
         }
 
         Command::RenderFn { ir, fn_id } => {

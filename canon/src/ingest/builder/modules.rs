@@ -80,7 +80,7 @@ pub(crate) fn build_module_edges(
                     if source_id == target_id {
                         continue;
                     }
-                    acc.entry((source_id.clone(), target_id.clone()))
+                    acc.entry((target_id.clone(), source_id.clone()))
                         .or_default()
                         .insert(imported);
                 }

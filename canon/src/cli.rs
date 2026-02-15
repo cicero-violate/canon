@@ -28,6 +28,12 @@ pub enum Command {
     Lint {
         ir: PathBuf,
     },
+    /// Trace validation violations back to their root causes in the ingest pipeline.
+    /// Prints one structured brief per root cause, sorted by violation count descending.
+    Diagnose {
+        /// Path to the IR JSON file to validate and diagnose.
+        ir: PathBuf,
+    },
     RenderFn {
         #[arg(long)]
         ir: PathBuf,

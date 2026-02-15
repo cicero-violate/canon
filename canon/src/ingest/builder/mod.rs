@@ -57,11 +57,16 @@ pub(crate) fn build_layout_map(
     let structs = functions::build_structs(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
     let enums = functions::build_enums(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
     let traits = functions::build_traits(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
+    let trait_name_to_id: std::collections::HashMap<String, String> = traits
+        .iter()
+        .map(|t| (t.name.as_str().to_ascii_lowercase(), t.id.clone()))
+        .collect();
     let (impl_blocks, fns) = functions::build_impls_and_functions(
         &parsed,
         &module_lookup,
         &file_lookup,
         &mut layout_acc,
+        &trait_name_to_id,
     );
     let call_edges = edges::build_call_edges(&parsed, &module_lookup, &fns);
     let semantic = SemanticGraph {

@@ -21,7 +21,7 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
                 format!("impl `{}` references missing struct `{}`", block.id, block.struct_id),
             ));
         }
-        if trait_opt.is_none() {
+        if !block.trait_id.is_empty() && trait_opt.is_none() {
             violations.push(Violation::new(
                 CanonRule::ImplBinding,
                 format!("impl `{}` references missing trait `{}`", block.id, block.trait_id),
@@ -41,6 +41,7 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
                 ));
             }
         }
+        if !block.trait_id.is_empty() {
         if let Some(t) = trait_opt {
             if t.module != block.module {
                 violations.push(Violation::new(
@@ -51,6 +52,7 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
                     ),
                 ));
             }
+        }
         }
         for binding in &block.functions {
             if binding_lookup.insert(binding.function.as_str(), block.id.as_str()).is_some() {

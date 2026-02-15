@@ -20,6 +20,7 @@ mod runtime;
 mod schema;
 mod semantic_builder;
 mod validate;
+mod diagnose;
 
 pub use ir::CanonicalIr;
 

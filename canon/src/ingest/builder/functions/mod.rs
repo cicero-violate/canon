@@ -17,7 +17,7 @@ pub(crate) use syn_conv::{
 };
 
 pub(crate) enum ImplMapping {
-    Standalone(Vec<Function>),
+    Standalone(ImplBlock, Vec<Function>),
     ImplBlock(ImplBlock, Vec<Function>),
     Unsupported,
 }
@@ -90,6 +90,7 @@ pub(crate) fn build_impls_and_functions(
     module_lookup: &HashMap<String, String>,
     file_lookup: &HashMap<String, String>,
     layout: &mut LayoutAccumulator,
+    trait_name_to_id: &HashMap<String, String>,
 ) -> (Vec<ImplBlock>, Vec<Function>) {
     let mut impls     = Vec::new();
     let mut functions = Vec::new();
@@ -99,28 +100,27 @@ pub(crate) fn build_impls_and_functions(
         for syn_item in &file.ast.items {
             match syn_item {
                 syn::Item::Fn(item_fn) => {
-                    let function = function_from_syn(module_id, item_fn, None);
+                    let function = function_from_syn(module_id, item_fn, None, trait_name_to_id);
                     layout.assign(LayoutNode::Function(function.id.clone()), file_id.clone());
                     functions.push(function);
                 }
                 syn::Item::Impl(impl_block) => {
-                    match impl_block_from_syn(module_id, impl_block) {
-                        ImplMapping::Standalone(funcs) | ImplMapping::ImplBlock(_, funcs)
-                            if matches!(impl_block_from_syn(module_id, impl_block), ImplMapping::Standalone(_)) =>
-                        {
-                            for f in funcs {
+                    match impl_block_from_syn(module_id, impl_block, trait_name_to_id) {
+                        ImplMapping::Standalone(block, funcs) => {
+                            for f in &funcs {
                                 layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());
-                                functions.push(f);
                             }
-                        }
-                        ImplMapping::ImplBlock(block, funcs) => {
-                            for f in funcs {
-                                layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());
-                                functions.push(f);
-                            }
+                            functions.extend(funcs);
                             impls.push(block);
                         }
-                        _ => {}
+                        ImplMapping::ImplBlock(block, funcs) => {
+                            for f in &funcs {
+                                layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());
+                            }
+                            functions.extend(funcs);
+                            impls.push(block);
+                        }
+                        ImplMapping::Unsupported => {}
                     }
                 }
                 _ => {}

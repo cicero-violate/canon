@@ -1,6 +1,7 @@
 pub mod agent;
 pub mod cli;
 pub mod commands;
+pub mod diagnose;
 pub mod decision;
 pub mod diff;
 pub mod dot_export;
