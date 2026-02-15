@@ -1,7 +1,7 @@
 cd /home/cicero-arch-omen/ai_sandbox/canon/canon
 cargo build --bin canon 2>&1 | tail -3
 
-# 1. Ingest canon's own source into an IR
+# 1. Ingest a rust project's own source into an IR, and emit semantic and layout graphs
 cargo run --bin canon -- ingest \
   --src /home/cicero-arch-omen/ai_sandbox/canon/canon \
   --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
@@ -11,6 +11,11 @@ cargo run --bin canon -- ingest \
   --src /home/cicero-arch-omen/ai_sandbox/canon/memory/memory_engine \
   --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.ir.json \
   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.layout.json
+
+cargo run -p canon -- materialize \
+  --ir /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
+  --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json \ 
+  --out-dir target/materialized_project
 
 # 2. Bootstrap the capability graph and seed proposal
 # cargo run --bin canon -- bootstrap-graph \
