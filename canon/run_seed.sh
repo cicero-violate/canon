@@ -8,11 +8,15 @@ cargo run --bin canon -- ingest \
   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json
 
 # 2. Bootstrap the capability graph and seed proposal
-cargo run --bin canon -- bootstrap-graph \
+# cargo run --bin canon -- bootstrap-graph \
+#   --ir /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
+#   --graph-out /home/cicero-arch-omen/ai_sandbox/canon/canon.graph.json \
+#   --proposal-out /home/cicero-arch-omen/ai_sandbox/canon/canon.proposal.json
+
+/workspace/ai_sandbox/canon/target/debug/canon bootstrap-graph \
   --ir /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
   --graph-out /home/cicero-arch-omen/ai_sandbox/canon/canon.graph.json \
   --proposal-out /home/cicero-arch-omen/ai_sandbox/canon/canon.proposal.json
-
 
 # 2. Start the chromium_messenger daemon (you do this manually)
 # ./run_chromium_daemon.sh
