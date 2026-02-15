@@ -4,10 +4,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-# materialize sample IR into target/materialized_project
-cargo run -- materialize \
-  tests/data/valid_ir.json \
-  target/materialized_project
+cargo run -p canon -- ingest \
+  --src canon \
+  --semantic-out canon/tests/data/generated_semantic.json \
+  --layout-out canon/tests/data/generated_layout.json
+
+cargo run -p canon -- materialize \
+  canon/tests/data/generated_semantic.json \
+  target/materialized_project \
+  --layout canon/tests/data/generated_layout.json
 
 # convert execution events into observe deltas
 cargo run -- observe-events \
