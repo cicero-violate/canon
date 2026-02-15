@@ -13,9 +13,9 @@ cargo run --bin canon -- ingest \
   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.layout.json
 
 cargo run -p canon -- materialize \
-  --ir /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
-  --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json \ 
-  --out-dir target/materialized_project
+  /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
+  target/materialized_project \
+  --layout /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json
 
 # 2. Bootstrap the capability graph and seed proposal
 # cargo run --bin canon -- bootstrap-graph \
