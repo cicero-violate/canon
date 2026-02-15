@@ -1,4 +1,4 @@
-use super::error::Violation;
+use super::error::{Violation, ViolationDetail};
 use super::rules::CanonRule;
 use crate::ir::*;
 use std::collections::HashMap;
@@ -135,7 +135,7 @@ pub fn index_by_id<'a, T, F>(
     items: &'a [T],
     id_fn: F,
     rule: CanonRule,
-    kind: &str,
+    _kind: &str,
     violations: &mut Vec<Violation>,
 ) -> HashMap<&'a str, &'a T>
 where
@@ -145,14 +145,19 @@ where
     for item in items {
         let id = id_fn(item);
         if map.insert(id, item).is_some() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 rule,
-                format!("duplicate {kind} id `{id}` is forbidden"),
+                id.to_string(),
+                ViolationDetail::Duplicate {
+                    name: id.to_string(),
+                },
             ));
         }
     }
     map
 }
+
+
 
 pub fn pipeline_stage_allows(stage: PipelineStage, kind: DeltaKind) -> bool {
     match stage {
