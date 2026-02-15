@@ -19,7 +19,7 @@ mod proof;
 mod runtime;
 mod schema;
 mod semantic_builder;
-// mod validate;
+mod validate;
 
 pub use ir::CanonicalIr;
 
