@@ -20,7 +20,7 @@ use crate::materialize::{materialize, write_file_tree};
 use crate::materialize::render_fn::render_impl_function;
 use crate::runtime::{TickExecutionMode, TickExecutor};
 use crate::schema::generate_schema;
-// use crate::validate::validate_ir;
+use crate::validate::validate_ir;
 use crate::version_gate::enforce_version_gate;
 
 pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
