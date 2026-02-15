@@ -27,14 +27,15 @@ use clap::Parser;
 use cli::Cli;
 use commands::execute_command;
 
-fn main() {
-    if let Err(err) = run() {
+#[tokio::main]
+async fn main() {
+    if let Err(err) = run().await {
         eprintln!("{err}");
         std::process::exit(1);
     }
 }
 
-fn run() -> Result<(), Box<dyn std::error::Error>> {
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    execute_command(cli.command)
+    execute_command(cli.command).await
 }

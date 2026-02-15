@@ -28,20 +28,24 @@
   }
 
   function updateFromEvent(data, state) {
+    // New ChatGPT SSE format wraps the payload under a "v" key.
+    const unwrapped = (data && typeof data === 'object' && 'v' in data) ? data.v : data;
+
     if (!state.conversationId) {
-      state.conversationId = data.conversation_id || data.conversationId || data.message?.conversation_id;
+      state.conversationId = unwrapped.conversation_id || unwrapped.conversationId || unwrapped.message?.conversation_id;
     }
     if (!state.messageId) {
-      state.messageId = data.message_id || data.messageId || data.message?.id;
+      state.messageId = unwrapped.message_id || unwrapped.messageId || unwrapped.message?.id;
     }
 
     state.sseEvents.push(data);
 
-    const message = data.message;
+    const message = unwrapped.message;
     const role = message?.author?.role;
     const parts = message?.content?.parts;
     if (role === 'assistant' && Array.isArray(parts) && parts.length > 0) {
-      state.responseText = parts.join('\n');
+      const text = parts.filter(p => typeof p === 'string').join('\n');
+      if (text.trim()) state.responseText = text;
     }
   }
 

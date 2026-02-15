@@ -1,0 +1,49 @@
+# =========================
+# Node / TypeScript
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+# dist/
+build/
+
+# Generated protobuf JS/TS (optional: keep if you prefer)
+# src/gen/*.js
+# src/gen/*.d.ts
+
+# TypeScript cache
+*.tsbuildinfo
+
+# =========================
+# Rust
+# =========================
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Generated protobuf Rust
+rust/src/gen/
+
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+*.swp
+
+# =========================
+# Env / Secrets
+# =========================
+.env
+.env.*
+
+# =========================
+# Misc
+# =========================
+*.log

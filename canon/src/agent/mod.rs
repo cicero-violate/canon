@@ -19,6 +19,8 @@ pub mod refactor;
 pub mod reward;
 pub mod runner;
 pub mod slice;
+pub mod ws_server;
+pub mod sse;
 
 pub use call::{
     AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
@@ -40,3 +42,4 @@ pub use observe::{IrObservation, IrTotals, observe_ir, observation_to_payload};
 pub use llm_provider::{LlmProviderError, call_llm};
 pub use runner::{RunnerConfig, RunnerError, TickStats, run_agent};
 pub use bootstrap::{bootstrap_graph, bootstrap_proposal};
+pub use ws_server::WsBridge;

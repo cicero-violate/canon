@@ -4,6 +4,7 @@ use crate::agent::call::AgentCallOutput;
 use crate::agent::refactor::RefactorProposal;
 use crate::agent::{RewardLedger, run_meta_tick, run_pipeline};
 use crate::agent::runner::{RunnerConfig, run_agent};
+use crate::agent::ws_server;
 use crate::agent::bootstrap::{bootstrap_graph, bootstrap_proposal};
 use crate::cli::Command;
 use crate::decision::auto_dsl::auto_accept_dsl_proposal;
@@ -22,7 +23,7 @@ use crate::schema::generate_schema;
 use crate::validate::validate_ir;
 use crate::version_gate::enforce_version_gate;
 
-pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         Command::Schema { pretty } => {
             println!("{}", generate_schema(pretty)?);
@@ -254,7 +255,7 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
             meta_tick_interval,
             policy_update_interval,
         } => {
-            let mut ir_doc = load_ir(&ir)?;
+            let mut ir_doc = load_ir_or_semantic(&ir)?;
             let layout_path = resolve_layout(layout, &ir);
             let mut layout_doc = load_layout(layout_path)?;
             let mut cap_graph = load_capability_graph(&graph)?;
@@ -272,7 +273,8 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
                 &mut cap_graph,
                 seed_proposal,
                 &config,
-            )?;
+                &ws_server::spawn("127.0.0.1:8787".parse()?),
+            ).await?;
 
             println!("Agent run complete — {} ticks", stats.len());
             println!("{:<6} {:>8} {:>8} {:>10} {:>6} {:>6}",
@@ -294,7 +296,7 @@ pub fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Command::BootstrapGraph { graph_out, proposal_out, ir } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_or_semantic(&ir)?;
 
             // Pick first module id as proposal target, fall back to "module_0".
             let target_id = ir_doc

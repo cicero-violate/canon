@@ -11,7 +11,7 @@
 //!   6. Every policy_update_interval ticks: ledger.update_policy()
 //!
 //! No LLM calls inside this file — delegated entirely to llm_provider::call_llm().
-//! No async. Blocking I/O only.
+//! Async — requires a tokio runtime. WsBridge is passed in from main.
 
 use std::path::{Path, PathBuf};
 use std::fs;
@@ -24,6 +24,7 @@ use super::call::AgentCallOutput;
 use super::capability::CapabilityGraph;
 use super::dispatcher::AgentCallDispatcher;
 use super::llm_provider::{LlmProviderError, call_llm};
+use super::ws_server::WsBridge;
 use super::meta::run_meta_tick;
 use super::pipeline::{PipelineError, run_pipeline, record_pipeline_outcome};
 use super::refactor::{RefactorKind, RefactorProposal, RefactorTarget};
@@ -112,16 +113,28 @@ pub struct TickStats {
 /// `graph` is the CapabilityGraph — mutated by meta-ticks.
 /// `proposal_seed` is used to construct the RefactorProposal for each tick;
 /// the runner increments the id each tick.
-pub fn run_agent(
+pub async fn run_agent(
     ir: &mut CanonicalIr,
     layout: &mut LayoutGraph,
     graph: &mut CapabilityGraph,
     proposal_seed: RefactorProposal,
     config: &RunnerConfig,
+    bridge: &WsBridge,
 ) -> Result<Vec<TickStats>, RunnerError> {
     let mut ledger = RewardLedger::new(config.ledger_alpha, config.base_trust_threshold);
     let mut stats: Vec<TickStats> = Vec::new();
     let mut tick_number: u64 = 0;
+
+    // Wait for extension then open a tab before the first tick.
+    eprintln!("[runner] waiting for extension to connect...");
+    bridge.wait_for_connection().await;
+    eprintln!("[runner] extension connected — opening ChatGPT tab");
+    bridge.open_tab().await.map_err(|_| RunnerError::Io("failed to open tab".into()))?;
+    eprintln!("[runner] waiting for tab to be ready...");
+    bridge.wait_for_tab().await;
+    // Give ChatGPT's React app time to fully mount after tab ready.
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+    eprintln!("[runner] tab ready — starting tick loop");
 
     loop {
         tick_number += 1;
@@ -163,7 +176,7 @@ pub fn run_agent(
 
             eprintln!("[runner]   → calling node {node_id} (stage={:?})", input.stage);
 
-            match call_llm(&input) {
+            match call_llm(bridge, &input).await {
                 Ok(output) => {
                     eprintln!("[runner]   ✓ node {node_id} responded");
                     tick_stats.nodes_called += 1;
