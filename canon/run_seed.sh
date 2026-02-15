@@ -7,6 +7,11 @@ cargo run --bin canon -- ingest \
   --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json
 
+cargo run --bin canon -- ingest \
+  --src /home/cicero-arch-omen/ai_sandbox/canon/memory/memory_engine \ 
+  --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.ir.json \
+  --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine..layout.json
+
 # 2. Bootstrap the capability graph and seed proposal
 # cargo run --bin canon -- bootstrap-graph \
 #   --ir /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
