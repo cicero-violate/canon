@@ -37,7 +37,7 @@ pub struct CanonicalIr {
     pub enums: Vec<EnumNode>,
     pub traits: Vec<Trait>,
     #[serde(rename = "impls")]
-    pub impl_blocks: Vec<ImplBlock>,
+    pub impl: Vec<ImplBlock>,
     pub functions: Vec<Function>,
     pub call_edges: Vec<CallEdge>,
     pub tick_graphs: Vec<TickGraph>,
