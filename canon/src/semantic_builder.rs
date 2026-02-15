@@ -13,7 +13,7 @@ impl SemanticIrBuilder {
     pub fn new(name: &str) -> Self {
         Self {
             meta: CanonicalMeta {
-                version: "0.0.0-semantic".to_owned(),
+                version: env!("CARGO_PKG_VERSION").to_string(),
                 law_revision: Word::new("SemanticOnly").unwrap(),
                 description: format!("Semantic graph for `{name}`"),
             },
@@ -39,7 +39,7 @@ impl SemanticIrBuilder {
             structs: semantic.structs,
             enums: semantic.enums,
             traits: semantic.traits,
-            impl_blocks: semantic.impls,
+            impls: semantic.impls,
             functions: semantic.functions,
             call_edges: semantic.call_edges,
             tick_graphs: semantic.tick_graphs,
