@@ -204,7 +204,7 @@ pub async fn run_agent(
         let _threshold =
             record_pipeline_outcome(&mut ledger, primary_node, pipeline_result.as_ref());
 
-        match pipeline_result {
+        match &pipeline_result {
             Ok(result) => {
                 eprintln!(
                     "[runner] tick {tick_number} — pipeline OK reward={:.4} admission={}",
@@ -212,12 +212,18 @@ pub async fn run_agent(
                 );
                 tick_stats.pipeline_reward = Some(result.reward);
                 // Update live IR and layout.
-                *ir = result.ir;
-                *layout = result.layout;
+                *ir = result.ir.clone();
+                *layout = result.layout.clone();
                 // Persist IR.
                 persist_ir(ir, &config.ir_out)?;
             }
-            Err(ref e) => {
+            Err(super::pipeline::PipelineError::StageSkipped { stage }) => {
+                eprintln!(
+                    "[runner] tick {tick_number} — pipeline incomplete: stage {stage} skipped (trust building)"
+                );
+                // Not an error — node trust is still accumulating.
+            }
+            Err(e) => {
                 eprintln!("[runner] tick {tick_number} — pipeline error: {e}");
                 tick_stats.pipeline_error = Some(e.to_string());
             }

@@ -18,7 +18,9 @@ use super::capability::{
 use super::refactor::{RefactorKind, RefactorProposal, RefactorTarget};
 
 /// Default proof_confidence on all bootstrapped edges.
-const DEFAULT_EDGE_CONFIDENCE: f64 = 0.7;
+/// Must satisfy c^(chain_length-1) >= base_trust_threshold.
+/// For a 5-node linear chain with threshold 0.5: c >= 0.5^(1/4) ≈ 0.841.
+const DEFAULT_EDGE_CONFIDENCE: f64 = 0.85;
 
 /// Build the standard 5-node Observer→Reasoner→Prover→Judge→Mutator graph.
 ///
