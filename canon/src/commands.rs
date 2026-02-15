@@ -12,9 +12,9 @@ use crate::diff::diff_ir;
 use crate::dot_export::{self, verify_dot};
 use crate::ingest::{self, IngestOptions};
 use crate::io_utils::{
-    load_capability_graph, load_ir, load_ir_or_semantic, load_layout, resolve_layout,
-    save_capability_graph,
+    load_ir, load_ir_or_semantic, load_layout, resolve_layout,
 };
+use crate::agent::io::{load_capability_graph, save_capability_graph};
 use crate::layout::LayoutGraph;
 use crate::materialize::{materialize, write_file_tree};
 use crate::materialize::render_fn::render_impl_function;

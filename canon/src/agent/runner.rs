@@ -18,7 +18,7 @@ use std::fs;
 
 use crate::ir::CanonicalIr;
 use crate::layout::LayoutGraph;
-use crate::io_utils::{load_capability_graph, save_capability_graph};
+use crate::agent::io::{load_capability_graph, save_capability_graph};
 
 use super::call::AgentCallOutput;
 use super::capability::CapabilityGraph;

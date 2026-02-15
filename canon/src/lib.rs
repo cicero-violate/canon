@@ -72,6 +72,7 @@ pub use agent::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
 pub use agent::record_pipeline_outcome;
 pub use agent::{RefactorKind, RefactorProposal, RefactorTarget};
 pub use agent::{NodeOutcome, NodeRewardEntry, RewardLedger};
+pub use agent::{load_capability_graph, save_capability_graph};
 pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
 pub use evolution::{
     LyapunovError, TopologyFingerprint, DEFAULT_TOPOLOGY_THETA, check_topology_drift,

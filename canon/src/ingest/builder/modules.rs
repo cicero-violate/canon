@@ -97,6 +97,13 @@ pub(crate) fn build_module_edges(
                     if source_id == target_id {
                         continue;
                     }
+                    // Skip edges resolving back to the crate root — these come
+                    // from `use crate::X` absolute paths and are not real
+                    // architectural dependencies; they would form cycles with
+                    // every parent→child mod-declaration edge.
+                    if source_key == "crate" {
+                        continue;
+                    }
                     // Skip edges where a submodule imports from its own
                     // parent namespace (e.g. ir::timeline -> ir).  These
                     // are re-export aliases, not real architectural deps,
