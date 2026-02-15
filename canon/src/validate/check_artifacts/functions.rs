@@ -1,6 +1,7 @@
 use super::super::error::Violation;
 use super::super::helpers::Indexes;
 use super::super::rules::CanonRule;
+use crate::validate::error::ViolationDetail;
 use crate::ir::{CanonicalIr, Function};
 use std::collections::{HashMap, HashSet};
 
@@ -17,32 +18,44 @@ pub fn check_functions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Vio
             check_function_deltas(f, idx, violations);
         } else {
             let Some(block) = idx.impls.get(f.impl_id.as_str()) else {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::ExecutionOnlyInImpl,
-                    format!("function `{}` references missing impl `{}`", f.name, f.impl_id),
+                    f.id.clone(),
+                    ViolationDetail::FunctionMissingImpl {
+                        function_id: f.id.clone(),
+                        impl_id: f.impl_id.clone(),
+                    },
                 ));
                 check_function_generics(f, violations);
                 check_function_deltas(f, idx, violations);
                 continue;
             };
             if f.module != block.module {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::ExecutionOnlyInImpl,
-                    format!("function `{}` must live in module `{}`", f.name, block.module),
+                    f.id.clone(),
+                    ViolationDetail::FunctionWrongModule {
+                        function_id: f.id.clone(),
+                        module: block.module.clone(),
+                    },
                 ));
             }
             match trait_fn_to_trait.get(f.trait_function.as_str()) {
                 Some(&tid) if tid == block.trait_id.as_str() => {}
-                Some(_) => violations.push(Violation::new(
+                Some(_) => violations.push(Violation::structured(
                     CanonRule::ImplBinding,
-                    format!("function `{}` implements trait fn from wrong trait", f.name),
+                    f.id.clone(),
+                    ViolationDetail::FunctionWrongTraitBinding {
+                        function_id: f.id.clone(),
+                    },
                 )),
-                None if !f.trait_function.is_empty() => violations.push(Violation::new(
+                None if !f.trait_function.is_empty() => violations.push(Violation::structured(
                     CanonRule::ImplBinding,
-                    format!(
-                        "function `{}` references unknown trait function `{}`",
-                        f.name, f.trait_function
-                    ),
+                    f.id.clone(),
+                    ViolationDetail::FunctionUnknownTraitFunction {
+                        function_id: f.id.clone(),
+                        trait_fn: f.trait_function.clone(),
+                    },
                 )),
                 None => {}
             }
@@ -52,18 +65,21 @@ pub fn check_functions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Vio
                 || !f.contract.explicit_outputs
                 || !f.contract.effects_are_deltas
             {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::FunctionContracts,
-                    format!(
-                        "function `{}` must assert totality, determinism, explicit IO, and delta effects",
-                        f.name
-                    ),
+                    f.id.clone(),
+                    ViolationDetail::FunctionContractViolation {
+                        function_id: f.id.clone(),
+                    },
                 ));
             }
             if f.outputs.is_empty() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::FunctionContracts,
-                    format!("function `{}` must explicitly enumerate outputs", f.name),
+                    f.id.clone(),
+                    ViolationDetail::FunctionMissingOutputs {
+                        function_id: f.id.clone(),
+                    },
                 ));
             }
             check_function_generics(f, violations);
@@ -76,21 +92,26 @@ fn check_function_generics(f: &Function, violations: &mut Vec<Violation>) {
     let mut seen_generics: HashSet<&str> = HashSet::new();
     for param in &f.generics {
         if !seen_generics.insert(param.name.as_str()) {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::ExplicitArtifacts,
-                format!(
-                    "function `{}` declares duplicate generic parameter `{}`",
-                    f.name, param.name
-                ),
+                f.id.clone(),
+                ViolationDetail::FunctionDuplicateGeneric {
+                    function_id: f.id.clone(),
+                    generic: param.name.clone(),
+                },
             ));
         }
     }
     let mut seen_lifetimes: HashSet<&str> = HashSet::new();
     for lt in &f.lifetime_params {
         if !seen_lifetimes.insert(lt.as_str()) {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::ExplicitArtifacts,
-                format!("function `{}` declares duplicate lifetime parameter `{lt}`", f.name),
+                f.id.clone(),
+                ViolationDetail::FunctionDuplicateLifetime {
+                    function_id: f.id.clone(),
+                    lifetime: lt.clone(),
+                },
             ));
         }
     }
@@ -99,9 +120,13 @@ fn check_function_generics(f: &Function, violations: &mut Vec<Violation>) {
 fn check_function_deltas(f: &Function, idx: &Indexes, violations: &mut Vec<Violation>) {
     for d in &f.deltas {
         if idx.deltas.get(d.delta.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::EffectsAreDeltas,
-                format!("function `{}` references missing delta `{}`", f.name, d.delta),
+                f.id.clone(),
+                ViolationDetail::FunctionMissingDelta {
+                    function_id: f.id.clone(),
+                    delta: d.delta.clone(),
+                },
             ));
         }
     }
