@@ -61,12 +61,24 @@ pub(crate) fn build_layout_map(
         .iter()
         .map(|t| (t.name.as_str().to_ascii_lowercase(), t.id.clone()))
         .collect();
+    let type_slug_to_id: std::collections::HashMap<String, String> = structs
+        .iter()
+        .map(|s| {
+            let slug = s.id.rsplitn(2, '.').next().unwrap_or("").to_owned();
+            (slug, s.id.clone())
+        })
+        .chain(enums.iter().map(|e| {
+            let slug = e.id.rsplitn(2, '.').next().unwrap_or("").to_owned();
+            (slug, e.id.clone())
+        }))
+        .collect();
     let (impl_blocks, fns) = functions::build_impls_and_functions(
         &parsed,
         &module_lookup,
         &file_lookup,
         &mut layout_acc,
         &trait_name_to_id,
+        &type_slug_to_id,
     );
     let call_edges = edges::build_call_edges(&parsed, &module_lookup, &fns);
     let semantic = SemanticGraph {

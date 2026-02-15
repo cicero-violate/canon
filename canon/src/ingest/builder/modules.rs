@@ -57,6 +57,12 @@ pub(crate) fn build_module_edges(
     let mut acc: HashMap<(String, String), BTreeSet<String>> = HashMap::new();
     for file in &parsed.files {
         let module_key = module_key(file);
+        if file.path_string().ends_with("__items.rs") {
+            continue;
+        }
+        if module_key.is_empty() {
+            continue;
+        }
         let Some(target_id) = module_lookup.get(&module_key) else {
             continue;
         };

@@ -35,7 +35,15 @@ fn gpu_kernel_matches_cpu_add() {
     let lhs: Vec<f32> = (0..lanes).map(|i| i as f32).collect();
     let rhs: Vec<f32> = (0..lanes).map(|i| (i * 2) as f32).collect();
 
-    let program = generate_shader(&gpu, &function).expect("shader generation succeeds");
+    // Compile IR function into runtime bytecode before GPU codegen
+    use canon::runtime::bytecode::FunctionBytecode;
+
+    let bytecode =
+        FunctionBytecode::from_function(&function)
+            .expect("bytecode compilation succeeds");
+
+    let program =
+        generate_shader(&gpu, &bytecode).expect("shader generation succeeds");
     let input_buffer =
         flatten_ports(&gpu.inputs, &[lhs.clone(), rhs.clone()]).expect("flatten inputs");
     let mut gpu_outputs = vec![0.0; lanes];

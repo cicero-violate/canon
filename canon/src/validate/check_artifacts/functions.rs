@@ -97,7 +97,7 @@ fn check_function_generics(f: &Function, violations: &mut Vec<Violation>) {
                 f.id.clone(),
                 ViolationDetail::FunctionDuplicateGeneric {
                     function_id: f.id.clone(),
-                    generic: param.name.clone(),
+                    generic: param.name.to_string(),
                 },
             ));
         }
@@ -110,7 +110,7 @@ fn check_function_generics(f: &Function, violations: &mut Vec<Violation>) {
                 f.id.clone(),
                 ViolationDetail::FunctionDuplicateLifetime {
                     function_id: f.id.clone(),
-                    lifetime: lt.clone(),
+                    lifetime: lt.to_string(),
                 },
             ));
         }
@@ -125,7 +125,7 @@ fn check_function_deltas(f: &Function, idx: &Indexes, violations: &mut Vec<Viola
                 f.id.clone(),
                 ViolationDetail::FunctionMissingDelta {
                     function_id: f.id.clone(),
-                    delta: d.delta.clone(),
+                    delta: d.delta.to_string(),
                 },
             ));
         }

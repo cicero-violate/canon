@@ -1,4 +1,4 @@
-use super::super::error::Violation;
+use super::super::error::{Violation, ViolationDetail};
 use super::super::rules::CanonRule;
 use crate::ir::CanonicalIr;
 use serde_json::Value as JsonValue;
@@ -35,9 +35,13 @@ fn validate_ast_node(
         JsonValue::Object(map) => {
             if let Some(kind) = map.get("kind").and_then(|k| k.as_str()) {
                 if !allowed.contains(kind) {
-                    violations.push(Violation::new(
+                    violations.push(Violation::structured(
                         CanonRule::FunctionAst,
-                        format!("unknown AST node kind `{kind}` in function `{function_id}`"),
+                        function_id.to_string(),
+                        ViolationDetail::UnknownAstNodeKind {
+                            function_id: function_id.to_string(),
+                            kind: kind.to_string(),
+                        },
                     ));
                 }
             }

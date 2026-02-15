@@ -200,15 +200,28 @@ pub(crate) fn impl_block_from_syn(
     module_id: &str,
     block: &syn::ItemImpl,
     trait_name_to_id: &std::collections::HashMap<String, String>,
+    type_slug_to_id: &std::collections::HashMap<String, String>,
 ) -> ImplMapping {
     let Some((_, trait_path, _)) = &block.trait_ else {
-        return build_standalone(module_id, block, trait_name_to_id);
+        return build_standalone(module_id, block, trait_name_to_id, type_slug_to_id);
     };
     let syn::Type::Path(self_path) = block.self_ty.as_ref() else {
         return ImplMapping::Unsupported;
     };
-    let struct_id = type_path_to_struct_id(self_path, module_id);
+    let struct_id = type_path_to_struct_id(self_path, module_id, type_slug_to_id);
     let trait_id  = trait_path_to_trait_id(trait_path, module_id, trait_name_to_id);
+    // Skip impl blocks for external traits (std::fmt::Display, Default, From,
+    // etc.) that were not ingested as Trait entries. The fallback id produced
+    // by trait_path_to_trait_id will not resolve in idx.traits, so emitting
+    // the block would only produce ImplBinding violations.
+    let trait_name = trait_path
+        .segments
+        .last()
+        .map(|s| s.ident.to_string().to_ascii_lowercase())
+        .unwrap_or_default();
+    if !trait_name_to_id.contains_key(&trait_name) {
+        return ImplMapping::Unsupported;
+    }
     let impl_id   = format!(
         "impl.{}.{}.{}",
         slugify(module_id),
@@ -256,6 +269,7 @@ fn build_standalone(
     module_id: &str,
     block: &syn::ItemImpl,
     trait_name_to_id: &std::collections::HashMap<String, String>,
+    type_slug_to_id: &std::collections::HashMap<String, String>,
 ) -> ImplMapping {
     let self_ty_slug = match block.self_ty.as_ref() {
         syn::Type::Path(p) => slugify(
@@ -264,7 +278,10 @@ fn build_standalone(
         _ => "unknown".to_owned(),
     };
     let standalone_impl_id = format!("impl.{}.{}.standalone", slugify(module_id), self_ty_slug);
-    let struct_id = format!("struct.{}.{}", slugify(module_id), self_ty_slug);
+    let struct_id = type_slug_to_id
+        .get(self_ty_slug.as_str())
+        .cloned()
+        .unwrap_or_else(|| format!("struct.{}.{}", slugify(module_id), self_ty_slug));
     let funcs = block
         .items
         .iter()

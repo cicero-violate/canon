@@ -1,4 +1,4 @@
-use super::error::Violation;
+use super::error::{Violation, ViolationDetail};
 use super::helpers::{Indexes, pipeline_stage_allows, proof_scope_allows};
 use super::rules::CanonRule;
 use crate::ir::*;
@@ -16,35 +16,38 @@ fn check_deltas(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>
         match &delta.payload {
             Some(DeltaPayload::UpdateFunctionAst { function_id, .. }) => {
                 if idx.functions.get(function_id.as_str()).is_none() {
-                    violations.push(Violation::new(
+                    violations.push(Violation::structured(
                         CanonRule::FunctionAst,
-                        format!(
-                            "delta `{}` references unknown function `{function_id}` for AST update",
-                            delta.id
-                        ),
+                        delta.id.clone(),
+                        ViolationDetail::DeltaReferencesUnknownFunction {
+                            delta: delta.id.clone(),
+                            function_id: function_id.clone(),
+                        },
                     ));
                 }
             }
             Some(DeltaPayload::UpdateFunctionInputs { function_id, .. })
             | Some(DeltaPayload::UpdateFunctionOutputs { function_id, .. }) => {
                 if idx.functions.get(function_id.as_str()).is_none() {
-                    violations.push(Violation::new(
+                    violations.push(Violation::structured(
                         CanonRule::ExplicitArtifacts,
-                        format!(
-                            "delta `{}` references unknown function `{function_id}`",
-                            delta.id
-                        ),
+                        delta.id.clone(),
+                        ViolationDetail::DeltaReferencesUnknownFunction {
+                            delta: delta.id.clone(),
+                            function_id: function_id.clone(),
+                        },
                     ));
                 }
             }
             Some(DeltaPayload::UpdateStructVisibility { struct_id, .. }) => {
                 if idx.structs.get(struct_id.as_str()).is_none() {
-                    violations.push(Violation::new(
+                    violations.push(Violation::structured(
                         CanonRule::ExplicitArtifacts,
-                        format!(
-                            "delta `{}` references unknown struct `{struct_id}`",
-                            delta.id
-                        ),
+                        delta.id.clone(),
+                        ViolationDetail::DeltaReferencesUnknownStruct {
+                            delta: delta.id.clone(),
+                            struct_id: struct_id.clone(),
+                        },
                     ));
                 }
             }
@@ -54,18 +57,24 @@ fn check_deltas(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>
             }) => match idx.structs.get(struct_id.as_str()) {
                 Some(structure) => {
                     if !structure.fields.iter().any(|f| f.name == *field_name) {
-                        violations.push(Violation::new(
+                        violations.push(Violation::structured(
                             CanonRule::ExplicitArtifacts,
-                            format!(
-                                "delta `{}` cannot remove missing field `{}` from struct `{}`",
-                                delta.id, field_name, struct_id
-                            ),
+                            delta.id.clone(),
+                            ViolationDetail::DeltaMissingField {
+                                delta: delta.id.clone(),
+                                struct_id: struct_id.clone(),
+                                field: field_name.to_string(),
+                            },
                         ));
                     }
                 }
-                None => violations.push(Violation::new(
+                None => violations.push(Violation::structured(
                     CanonRule::ExplicitArtifacts,
-                    format!("delta `{}` targets unknown struct `{struct_id}`", delta.id),
+                    delta.id.clone(),
+                    ViolationDetail::DeltaReferencesUnknownStruct {
+                        delta: delta.id.clone(),
+                        struct_id: struct_id.clone(),
+                    },
                 )),
             },
             Some(DeltaPayload::RenameArtifact { kind, old_id, .. }) => {
@@ -76,56 +85,66 @@ fn check_deltas(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>
                     _ => false,
                 };
                 if !exists {
-                    violations.push(Violation::new(
+                    violations.push(Violation::structured(
                         CanonRule::ExplicitArtifacts,
-                        format!(
-                            "delta `{}` attempts to rename unknown `{}` `{}`",
-                            delta.id, kind, old_id
-                        ),
+                        delta.id.clone(),
+                        ViolationDetail::DeltaReferencesUnknownArtifact {
+                            delta: delta.id.clone(),
+                            kind: kind.clone(),
+                            id: old_id.clone(),
+                        },
                     ));
                 }
             }
             _ => {}
         }
         if !delta.append_only {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::DeltaAppendOnly,
-                format!("delta `{}` must be append-only", delta.id),
+                delta.id.clone(),
+                ViolationDetail::DeltaAppendOnlyViolation {
+                    delta: delta.id.clone(),
+                },
             ));
         }
         if !pipeline_stage_allows(delta.stage, delta.kind) {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::DeltaPipeline,
-                format!(
-                    "delta `{}` of kind `{:?}` is not legal in stage `{:?}`",
-                    delta.id, delta.kind, delta.stage
-                ),
+                delta.id.clone(),
+                ViolationDetail::DeltaPipelineViolation {
+                    delta: delta.id.clone(),
+                },
             ));
         }
         let Some(proof) = idx.proofs.get(delta.proof.as_str()) else {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::DeltaProofs,
-                format!(
-                    "delta `{}` requires proof `{}` but it was not found",
-                    delta.id, delta.proof
-                ),
+                delta.id.clone(),
+                ViolationDetail::DeltaMissingProof {
+                    delta: delta.id.clone(),
+                    proof: delta.proof.clone(),
+                },
             ));
             continue;
         };
         if !proof_scope_allows(delta.kind, proof.scope) {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::ProofScope,
-                format!(
-                    "delta `{}` of kind `{:?}` cannot carry proof scope `{:?}`",
-                    delta.id, delta.kind, proof.scope
-                ),
+                delta.id.clone(),
+                ViolationDetail::ProofScopeViolation {
+                    delta: delta.id.clone(),
+                },
             ));
         }
         if let Some(fn_id) = &delta.related_function {
             if idx.functions.get(fn_id.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::EffectsAreDeltas,
-                    format!("delta `{}` references missing function `{fn_id}`", delta.id),
+                    delta.id.clone(),
+                    ViolationDetail::DeltaReferencesUnknownFunction {
+                        delta: delta.id.clone(),
+                        function_id: fn_id.clone(),
+                    },
                 ));
             }
         }
@@ -136,12 +155,13 @@ fn check_struct_history(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Vi
     for s in &ir.structs {
         for h in &s.history {
             if idx.deltas.get(h.delta.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::EffectsAreDeltas,
-                    format!(
-                        "struct `{}` references missing delta `{}` in history",
-                        s.name, h.delta
-                    ),
+                    s.id.clone(),
+                    ViolationDetail::StructHistoryMissingDelta {
+                        struct_id: s.id.clone(),
+                        delta: h.delta.clone(),
+                    },
                 ));
             }
         }
@@ -151,32 +171,44 @@ fn check_struct_history(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Vi
 fn check_admissions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
     for a in &ir.admissions {
         if idx.ticks.get(a.tick.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::AdmissionBridge,
-                format!("admission `{}` references missing tick `{}`", a.id, a.tick),
+                a.id.clone(),
+                ViolationDetail::AdmissionMissingTick {
+                    admission: a.id.clone(),
+                    tick: a.tick.clone(),
+                },
             ));
         }
         let Some(j) = idx.judgments.get(a.judgment.as_str()) else {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::AdmissionBridge,
-                format!(
-                    "admission `{}` references missing judgment `{}`",
-                    a.id, a.judgment
-                ),
+                a.id.clone(),
+                ViolationDetail::AdmissionMissingJudgment {
+                    admission: a.id.clone(),
+                    judgment: a.judgment.clone(),
+                },
             ));
             continue;
         };
         if j.decision != JudgmentDecision::Accept {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::AdmissionBridge,
-                format!("admission `{}` must reference accepted judgment", a.id),
+                a.id.clone(),
+                ViolationDetail::AdmissionNotAccepted {
+                    admission: a.id.clone(),
+                },
             ));
         }
         for d in &a.delta_ids {
             if idx.deltas.get(d.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::AdmissionBridge,
-                    format!("admission `{}` lists unknown delta `{d}`", a.id),
+                    a.id.clone(),
+                    ViolationDetail::AdmissionMissingDelta {
+                        admission: a.id.clone(),
+                        delta: d.clone(),
+                    },
                 ));
             }
         }
@@ -187,31 +219,33 @@ fn check_applied_records(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<V
     let mut prev_order = None;
     for r in &ir.applied_deltas {
         if idx.admissions.get(r.admission.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::AdmissionBridge,
-                format!(
-                    "applied delta `{}` references missing admission `{}`",
-                    r.id, r.admission
-                ),
+                r.id.clone(),
+                ViolationDetail::AppliedMissingAdmission {
+                    applied: r.id.clone(),
+                    admission: r.admission.clone(),
+                },
             ));
         }
         if idx.deltas.get(r.delta.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::AdmissionBridge,
-                format!(
-                    "applied delta `{}` references unknown delta `{}`",
-                    r.id, r.delta
-                ),
+                r.id.clone(),
+                ViolationDetail::AppliedMissingDelta {
+                    applied: r.id.clone(),
+                    delta: r.delta.clone(),
+                },
             ));
         }
         if let Some(prev) = prev_order {
             if r.order < prev {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::AdmissionBridge,
-                    format!(
-                        "applied deltas must be non-decreasing but `{}` < `{prev}`",
-                        r.order
-                    ),
+                    r.id.clone(),
+                    ViolationDetail::AppliedOrderViolation {
+                        applied: r.id.clone(),
+                    },
                 ));
             }
         }

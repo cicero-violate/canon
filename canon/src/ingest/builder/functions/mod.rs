@@ -91,6 +91,7 @@ pub(crate) fn build_impls_and_functions(
     file_lookup: &HashMap<String, String>,
     layout: &mut LayoutAccumulator,
     trait_name_to_id: &HashMap<String, String>,
+    type_slug_to_id: &HashMap<String, String>,
 ) -> (Vec<ImplBlock>, Vec<Function>) {
     let mut impls     = Vec::new();
     let mut functions = Vec::new();
@@ -105,7 +106,7 @@ pub(crate) fn build_impls_and_functions(
                     functions.push(function);
                 }
                 syn::Item::Impl(impl_block) => {
-                    match impl_block_from_syn(module_id, impl_block, trait_name_to_id) {
+                    match impl_block_from_syn(module_id, impl_block, trait_name_to_id, type_slug_to_id) {
                         ImplMapping::Standalone(block, funcs) => {
                             for f in &funcs {
                                 layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());

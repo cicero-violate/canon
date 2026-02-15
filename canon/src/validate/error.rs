@@ -24,6 +24,12 @@ pub enum ViolationDetail {
 
     InvalidContract,
 
+    // AST
+    UnknownAstNodeKind {
+        function_id: String,
+        kind: String,
+    },
+
     DeltaReferencesUnknownFunction { delta: String, function_id: String },
     DeltaReferencesUnknownStruct { delta: String, struct_id: String },
     DeltaReferencesUnknownArtifact { delta: String, kind: String, id: String },

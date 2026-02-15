@@ -1,4 +1,4 @@
-use super::error::Violation;
+use super::error::{Violation, ViolationDetail};
 use super::helpers::Indexes;
 use super::rules::CanonRule;
 use crate::ir::*;
@@ -17,22 +17,33 @@ fn check_epochs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>
     for epoch in &ir.tick_epochs {
         for tick in &epoch.ticks {
             if idx.ticks.get(tick.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::TickEpochs,
-                    format!("epoch `{}` references unknown tick `{tick}`", epoch.id),
+                    epoch.id.clone(),
+                    ViolationDetail::EpochMissingTick {
+                        epoch: epoch.id.clone(),
+                        tick: tick.clone(),
+                    },
                 ));
             }
         }
         if let Some(parent) = &epoch.parent_epoch {
             if parent == &epoch.id {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::TickEpochs,
-                    format!("epoch `{}` may not reference itself as parent", epoch.id),
+                    epoch.id.clone(),
+                    ViolationDetail::EpochSelfParent {
+                        epoch: epoch.id.clone(),
+                    },
                 ));
             } else if idx.epochs.get(parent.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::TickEpochs,
-                    format!("epoch `{}` references missing parent `{parent}`", epoch.id),
+                    epoch.id.clone(),
+                    ViolationDetail::EpochMissingParent {
+                        epoch: epoch.id.clone(),
+                        parent: parent.clone(),
+                    },
                 ));
             } else {
                 let mut cursor = parent.as_str();
@@ -40,9 +51,12 @@ fn check_epochs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>
                 seen.insert(epoch.id.as_str());
                 while let Some(pe) = idx.epochs.get(cursor) {
                     if !seen.insert(pe.id.as_str()) {
-                        violations.push(Violation::new(
+                        violations.push(Violation::structured(
                             CanonRule::TickEpochs,
-                            format!("epoch hierarchy containing `{}` forms a cycle", epoch.id),
+                            epoch.id.clone(),
+                            ViolationDetail::EpochCycle {
+                                epoch: epoch.id.clone(),
+                            },
                         ));
                         break;
                     }
@@ -60,27 +74,36 @@ fn check_epochs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>
 fn check_ticks(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
     for tick in &ir.ticks {
         if idx.tick_graphs.get(tick.graph.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::TickRoot,
-                format!(
-                    "tick `{}` references missing graph `{}`",
-                    tick.id, tick.graph
-                ),
+                tick.id.clone(),
+                ViolationDetail::TickMissingGraph {
+                    tick: tick.id.clone(),
+                    graph: tick.graph.clone(),
+                },
             ));
         }
         for d in &tick.input_state {
             if idx.deltas.get(d.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::TickRoot,
-                    format!("tick `{}` input delta `{d}` does not exist", tick.id),
+                    tick.id.clone(),
+                    ViolationDetail::TickMissingDelta {
+                        tick: tick.id.clone(),
+                        delta: d.clone(),
+                    },
                 ));
             }
         }
         for d in &tick.output_deltas {
             if idx.deltas.get(d.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::TickRoot,
-                    format!("tick `{}` output delta `{d}` does not exist", tick.id),
+                    tick.id.clone(),
+                    ViolationDetail::TickMissingDelta {
+                        tick: tick.id.clone(),
+                        delta: d.clone(),
+                    },
                 ));
             }
         }
@@ -90,34 +113,46 @@ fn check_ticks(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)
 fn check_plans(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
     for plan in &ir.plans {
         let Some(j) = idx.judgments.get(plan.judgment.as_str()) else {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::PlanArtifacts,
-                format!(
-                    "plan `{}` references missing judgment `{}`",
-                    plan.id, plan.judgment
-                ),
+                plan.id.clone(),
+                ViolationDetail::PlanMissingJudgment {
+                    plan: plan.id.clone(),
+                    judgment: plan.judgment.clone(),
+                },
             ));
             continue;
         };
         if j.decision != JudgmentDecision::Accept {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::PlanArtifacts,
-                format!("plan `{}` must point to an accepted judgment", plan.id),
+                plan.id.clone(),
+                ViolationDetail::PlanNotAccepted {
+                    plan: plan.id.clone(),
+                },
             ));
         }
         for step in &plan.steps {
             if idx.functions.get(step.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::PlanArtifacts,
-                    format!("plan `{}` references unknown function `{step}`", plan.id),
+                    plan.id.clone(),
+                    ViolationDetail::PlanMissingFunction {
+                        plan: plan.id.clone(),
+                        function: step.clone(),
+                    },
                 ));
             }
         }
         for d in &plan.expected_deltas {
             if idx.deltas.get(d.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::PlanArtifacts,
-                    format!("plan `{}` expects unknown delta `{d}`", plan.id),
+                    plan.id.clone(),
+                    ViolationDetail::PlanMissingDelta {
+                        plan: plan.id.clone(),
+                        delta: d.clone(),
+                    },
                 ));
             }
         }
@@ -127,28 +162,34 @@ fn check_plans(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)
 fn check_executions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
     for exec in &ir.executions {
         if idx.ticks.get(exec.tick.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::ExecutionBoundary,
-                format!(
-                    "execution `{}` references missing tick `{}`",
-                    exec.id, exec.tick
-                ),
+                exec.id.clone(),
+                ViolationDetail::ExecutionMissingTick {
+                    execution: exec.id.clone(),
+                    tick: exec.tick.clone(),
+                },
             ));
         }
         if idx.plans.get(exec.plan.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::ExecutionBoundary,
-                format!(
-                    "execution `{}` references missing plan `{}`",
-                    exec.id, exec.plan
-                ),
+                exec.id.clone(),
+                ViolationDetail::ExecutionMissingPlan {
+                    execution: exec.id.clone(),
+                    plan: exec.plan.clone(),
+                },
             ));
         }
         for d in &exec.outcome_deltas {
             if idx.deltas.get(d.as_str()).is_none() {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::ExecutionBoundary,
-                    format!("execution `{}` captured unknown delta `{d}`", exec.id),
+                    exec.id.clone(),
+                    ViolationDetail::ExecutionMissingDelta {
+                        execution: exec.id.clone(),
+                        delta: d.clone(),
+                    },
                 ));
             }
         }
@@ -164,13 +205,12 @@ fn check_reward_monotonicity(ir: &CanonicalIr, violations: &mut Vec<Violation>) 
         let prev = records[i - 1].reward;
         let curr = records[i].reward;
         if curr < prev - EPSILON {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::RewardCollapseDetected,
-                format!(
-                    "reward dropped from {prev:.6} to {curr:.6} between records `{}` and `{}`",
-                    records[i - 1].id,
-                    records[i].id,
-                ),
+                records[i].id.clone(),
+                ViolationDetail::RewardDrop {
+                    subject: records[i].id.clone(),
+                },
             ));
         }
     }
@@ -179,28 +219,33 @@ fn check_reward_monotonicity(ir: &CanonicalIr, violations: &mut Vec<Violation>) 
 fn check_gpu(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
     for gpu in &ir.gpu_functions {
         if idx.functions.get(gpu.function.as_str()).is_none() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::GpuLawfulMath,
-                format!(
-                    "gpu kernel `{}` references missing function `{}`",
-                    gpu.id, gpu.function
-                ),
+                gpu.id.clone(),
+                ViolationDetail::GpuMissingFunction {
+                    gpu: gpu.id.clone(),
+                    function: gpu.function.clone(),
+                },
             ));
         }
         if gpu.inputs.is_empty() || gpu.outputs.is_empty() {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::GpuLawfulMath,
-                format!("gpu kernel `{}` must enumerate inputs and outputs", gpu.id),
+                gpu.id.clone(),
+                ViolationDetail::GpuMissingPorts {
+                    gpu: gpu.id.clone(),
+                },
             ));
         }
         for port in gpu.inputs.iter().chain(gpu.outputs.iter()) {
             if port.lanes == 0 {
-                violations.push(Violation::new(
+                violations.push(Violation::structured(
                     CanonRule::GpuLawfulMath,
-                    format!(
-                        "gpu kernel `{}` port `{}` must specify lanes > 0",
-                        gpu.id, port.name
-                    ),
+                    gpu.id.clone(),
+                    ViolationDetail::GpuInvalidLanes {
+                        gpu: gpu.id.clone(),
+                        port: port.name.to_string(),
+                    },
                 ));
             }
         }
@@ -209,9 +254,12 @@ fn check_gpu(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
             || !gpu.properties.no_branch
             || !gpu.properties.no_io
         {
-            violations.push(Violation::new(
+            violations.push(Violation::structured(
                 CanonRule::GpuLawfulMath,
-                format!("gpu kernel `{}` violates the math-only contract", gpu.id),
+                gpu.id.clone(),
+                ViolationDetail::GpuContractViolation {
+                    gpu: gpu.id.clone(),
+                },
             ));
         }
     }
@@ -225,13 +273,12 @@ fn check_reward_collapse(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
             if let Some(last_reward) = prev {
                 let delta = snapshot.reward_at_snapshot - last_reward;
                 if delta < -EPSILON {
-                    violations.push(Violation::new(
+                    violations.push(Violation::structured(
                         CanonRule::RewardMonotonicity,
-                        format!(
-                            "reward collapsed from {last_reward:.4} to {curr:.4} across epoch `{}`",
-                            epoch.id,
-                            curr = snapshot.reward_at_snapshot,
-                        ),
+                        epoch.id.clone(),
+                        ViolationDetail::RewardDrop {
+                            subject: epoch.id.clone(),
+                        },
                     ));
                 }
             }

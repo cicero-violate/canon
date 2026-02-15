@@ -28,12 +28,20 @@ pub(crate) fn trait_path_to_trait_fn_id(
     format!("trait_fn.{}.{}", trait_id, slugify(&fn_ident.to_string()))
 }
 
-pub(crate) fn type_path_to_struct_id(path: &syn::TypePath, module_id: &str) -> String {
+pub(crate) fn type_path_to_struct_id(
+    path: &syn::TypePath,
+    module_id: &str,
+    type_slug_to_id: &std::collections::HashMap<String, String>,
+) -> String {
     let struct_name = path
         .path
         .segments
         .last()
         .map(|seg| seg.ident.to_string())
         .unwrap_or_else(|| "Struct".to_owned());
-    format!("struct.{}.{}", slugify(module_id), slugify(&struct_name))
+    let slug = slugify(&struct_name);
+    type_slug_to_id
+        .get(slug.as_str())
+        .cloned()
+        .unwrap_or_else(|| format!("struct.{}.{}", slugify(module_id), slug))
 }
