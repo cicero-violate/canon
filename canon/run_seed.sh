@@ -19,10 +19,10 @@ cargo run -p canon -- materialize \
 
 ## INGEST AND DIAGNOSE
 cargo run -p canon -- ingest \
-  --src canon \
-  --semantic-out canon/tests/data/generated_semantic.json \
-  --layout-out canon/tests/data/generated_layout.json \
-  && cargo run -p canon -- diagnose canon/tests/data/generated_semantic.json 2>&1
+  --src . \
+  --semantic-out tests/data/generated_semantic.json \
+  --layout-out tests/data/generated_layout.json \
+  && cargo run -p canon -- diagnose tests/data/generated_semantic.json 2>&1
 
 
 # 2. Bootstrap the capability graph and seed proposal
