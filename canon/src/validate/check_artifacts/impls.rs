@@ -64,23 +64,8 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
                 }
             }
         }
-        if !block.trait_id.is_empty() {
-        if let Some(t) = trait_opt {
-            if t.module != block.module {
-                violations.push(Violation::structured(
-                    CanonRule::ImplBinding,
-                    block.id.clone(),
-                    ViolationDetail::ImplWrongModuleForTrait {
-                        impl_id: block.id.clone(),
-                    },
-                ));
-            }
-        }
-        }
-        // Note: ImplWrongModuleForTrait is intentionally not checked here.
-        // Rust allows implementing a trait defined in one module for a type
-        // in another module; enforcing co-location produces false positives
-        // on cross-module trait impls discovered during ingest.
+        // ImplWrongModuleForTrait is intentionally not checked: Rust allows
+        // implementing a trait defined in one module for a type in another.
         for binding in &block.functions {
             if binding_lookup.insert(binding.function.as_str(), block.id.as_str()).is_some() {
                 violations.push(Violation::structured(

@@ -67,6 +67,17 @@ pub(crate) fn build_module_edges(
             continue;
         };
         for item in &file.ast.items {
+            // Emit edges for `mod foo;` submodule declarations.
+            if let syn::Item::Mod(item_mod) = item {
+                let child_key = format!("{}::{}", module_key, item_mod.ident);
+                if let Some(child_id) = module_lookup.get(&child_key) {
+                    if child_id != target_id {
+                        acc.entry((target_id.clone(), child_id.clone()))
+                            .or_default()
+                            .insert(item_mod.ident.to_string());
+                    }
+                }
+            }
             if let syn::Item::Use(item_use) = item {
                 let mut entries = Vec::new();
                 flatten_use_tree(
@@ -86,9 +97,17 @@ pub(crate) fn build_module_edges(
                     if source_id == target_id {
                         continue;
                     }
+                    // Skip edges where a submodule imports from its own
+                    // parent namespace (e.g. ir::timeline -> ir).  These
+                    // are re-export aliases, not real architectural deps,
+                    // and would introduce a cycle with the mod-declaration
+                    // edge emitted above.
+                    if module_key.starts_with(&format!("{}::", source_key)) {
+                        continue;
+                    }
                     acc.entry((target_id.clone(), source_id.clone()))
-                        .or_default()
-                        .insert(imported);
+                       .or_default()
+                       .insert(imported);
                 }
             }
         }
