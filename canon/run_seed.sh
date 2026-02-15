@@ -12,10 +12,7 @@ cargo run --bin canon -- ingest \
 #   --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.ir.json \
 #   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.layout.json
 
-cargo run -p canon -- materialize \
-  /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
-  target/materialized_project \
-  --layout /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json
+
 
 ## INGEST AND DIAGNOSE
 cargo run -p canon -- ingest \
@@ -23,6 +20,11 @@ cargo run -p canon -- ingest \
   --semantic-out tests/data/generated_semantic.json \
   --layout-out tests/data/generated_layout.json \
   && cargo run -p canon -- diagnose tests/data/generated_semantic.json 2>&1
+
+cargo run -p canon -- materialize \
+  tests/data/generated_semantic.json \
+  target/materialized_project \
+  --layout tests/data/generated_layout.json
 
 
 # 2. Bootstrap the capability graph and seed proposal
