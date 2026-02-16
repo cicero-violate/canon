@@ -22,7 +22,10 @@ pub use memory_engine::{
     MemoryEngineConfig,
     MemoryEngineError,
     StateSlice,
+    CanonicalState,
 };
 
 // expose proof types needed by canon
 pub use proofs::{JudgmentProof, AdmissionProof, CommitProof, OutcomeProof};
+
+
