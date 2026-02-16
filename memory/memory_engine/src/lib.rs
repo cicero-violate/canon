@@ -5,9 +5,9 @@
 pub mod memory_engine;
 
 // Internal modules — NOT externally accessible
-pub mod primitives;
-pub mod delta;
-pub mod epoch;
+pub (crate) mod primitives;
+pub (crate) mod delta;
+pub (crate) mod epoch;
 pub(crate) mod graph_log;
 pub(crate) mod page;
 pub(crate) mod tlog;
