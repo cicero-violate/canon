@@ -25,14 +25,15 @@
 
 ## Storage Layer
 
-| Feature                    | Status | Notes                                  |
-|----------------------------+--------+----------------------------------------|
-| In-memory PageStore        | ✅     | Default backend                        |
-| Memory-mapped PageStore    | ✅     | `memmap2` backend                      |
-| Automatic in-memory growth | ✅     | `Vec` resize fallback                  |
-| mmap bounds guard          | ✅     | Assert on overflow                     |
-| Flush on commit            | ✅     | Ensures mmap durability                |
-| Zero-copy hashing          | ❌     | Page snapshot is cloned before hashing |
+| Feature                     | Status | Notes                                                                  |
+|-----------------------------+--------+------------------------------------------------------------------------|
+| In-memory PageStore         | ✅     | Default backend                                                        |
+| Memory-mapped PageStore     | ✅     | `memmap2` backend                                                      |
+| Automatic in-memory growth  | ✅     | `Vec` resize fallback                                                  |
+| mmap bounds guard           | ✅     | Assert on overflow                                                     |
+| Flush on commit             | ✅     | Ensures mmap durability                                                |
+| Zero-copy hashing           | ✅     | Leaf hash reads directly from `PageStore::read_page()` slice           |
+| Zero-allocation delta apply | ❌     | Current delta apply uses `read_page(...).to_vec()` as a scratch buffer |
 
 ---
 
@@ -62,7 +63,7 @@
 
 ## What Is Not Implemented
 
-- True zero-copy page hashing
+- Zero-allocation delta application (scratch buffer still allocated per apply)
 - Parallel delta commit execution
 - GPU compute path
 - Journal-backed recovery
@@ -77,4 +78,3 @@
 - Incremental + full recompute equivalence
 - Clean proof object layering
 - Append-only log design
-
