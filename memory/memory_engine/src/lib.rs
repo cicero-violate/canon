@@ -2,13 +2,13 @@
 // #![allow(dead_code)]
 #![allow(hidden_glob_reexports)]
 
-mod primitives;
-mod delta;
-mod epoch;
-mod graph_log;
-mod page;
-mod tlog;
-mod proofs;
+pub mod primitives;
+pub mod delta;
+pub mod epoch;
+pub mod graph_log;
+pub mod page;
+pub mod tlog;
+pub mod proofs;
 
 // Authority surface — ONLY this is public
 pub mod memory_engine;
