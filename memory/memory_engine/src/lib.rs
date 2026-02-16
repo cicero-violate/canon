@@ -11,9 +11,12 @@ pub mod tlog;
 pub mod proofs;
 pub mod page_store;
 pub mod journal;
-
-// Authority surface — ONLY this is public
+pub mod canonical_state;
+pub mod merkle;
+pub mod engine_commit;
 pub mod memory_engine;
+
+pub use canonical_state::CanonicalState;
 
 pub use memory_engine::{
     AdmissionError,
@@ -21,11 +24,8 @@ pub use memory_engine::{
     MemoryEngine,
     MemoryEngineConfig,
     MemoryEngineError,
-    StateSlice,
-    CanonicalState,
 };
 
 // expose proof types needed by canon
 pub use proofs::{JudgmentProof, AdmissionProof, CommitProof, OutcomeProof};
-
 
