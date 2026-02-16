@@ -283,3 +283,62 @@ impl MemoryEngine {
         hasher.finalize().into()
     }
 }
+
+use crate::engine::Engine;
+
+impl Engine for MemoryEngine {
+    type Error = MemoryEngineError;
+
+    fn admit_execution(
+        &self,
+        judgment_proof: &JudgmentProof,
+    ) -> Result<AdmissionProof, Self::Error> {
+        MemoryEngine::admit_execution(self, judgment_proof)
+            .map_err(MemoryEngineError::Admission)
+    }
+
+    fn register_delta(&self, delta: Delta) -> Hash {
+        MemoryEngine::register_delta(self, delta)
+    }
+
+    fn fetch_delta_by_hash(&self, hash: &Hash) -> Option<Delta> {
+        MemoryEngine::fetch_delta_by_hash(self, hash)
+    }
+
+    fn commit_delta(
+        &self,
+        admission: &AdmissionProof,
+        delta_hash: &Hash,
+    ) -> Result<CommitProof, Self::Error> {
+        MemoryEngine::commit_delta(self, admission, delta_hash)
+    }
+
+    fn commit_batch(
+        &self,
+        admission: &AdmissionProof,
+        delta_hashes: &[Hash],
+    ) -> Result<Vec<CommitProof>, Self::Error> {
+        MemoryEngine::commit_batch(self, admission, delta_hashes)
+    }
+
+    fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof {
+        MemoryEngine::record_outcome(self, commit)
+    }
+
+    fn compute_event_hash(
+        &self,
+        admission: &AdmissionProof,
+        commit: &CommitProof,
+        outcome: &OutcomeProof,
+    ) -> Hash {
+        MemoryEngine::compute_event_hash(self, admission, commit, outcome)
+    }
+
+    fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), Self::Error> {
+        MemoryEngine::commit_graph_delta(self, delta)
+    }
+
+    fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> {
+        MemoryEngine::materialized_graph(self)
+    }
+}
