@@ -150,29 +150,6 @@ impl MemoryEngine {
     }
 
     // ===============================
-    // Commit
-    // ===============================
-
-    pub fn commit_delta(
-        &self,
-        admission: &AdmissionProof,
-        delta_hash: &Hash,
-    ) -> Result<CommitProof, MemoryEngineError> {
-        let delta = self
-            .fetch_delta_by_hash(delta_hash)
-            .ok_or(MemoryEngineError::DeltaNotFound)?;
-
-        commit_delta_internal(
-            &self.state,
-            &self.tlog,
-            &self.epoch,
-            admission,
-            delta,
-        )
-        .map_err(MemoryEngineError::Commit)
-    }
-
-    // ===============================
     // Outcome
     // ===============================
 
