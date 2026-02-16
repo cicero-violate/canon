@@ -23,21 +23,6 @@ fn encode_rle(mask: &[bool]) -> Vec<u8> {
     encoded
 }
 
-fn decode_rle(encoded: &[u8], output: &mut [bool]) {
-    let mut pos = 0;
-    for &byte in encoded {
-        let is_zero = (byte & 0x80) != 0;
-        let count = (byte & 0x7F) as usize;
-        let value = !is_zero;
-
-        for _ in 0..count {
-            if pos < output.len() {
-                output[pos] = value;
-                pos += 1;
-            }
-        }
-    }
-}
 
 /// Bitpack dense boolean masks
 fn bitpack_mask(mask: &[bool]) -> Vec<u8> {
@@ -52,15 +37,7 @@ fn bitpack_mask(mask: &[bool]) -> Vec<u8> {
     packed
 }
 
-fn bitunpack_mask(packed: &[u8], output: &mut [bool]) {
-    for (i, out) in output.iter_mut().enumerate() {
-        let byte_idx = i / 8;
-        let bit_idx = i % 8;
-        if byte_idx < packed.len() {
-            *out = (packed[byte_idx] & (1 << bit_idx)) != 0;
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, Copy)]
 pub enum CompressionMode {

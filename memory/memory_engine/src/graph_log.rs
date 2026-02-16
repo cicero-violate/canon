@@ -44,7 +44,6 @@ impl GraphMaterializer {
 pub struct GraphDeltaLog {
     entries: RwLock<Vec<GraphDelta>>,
     writer: RwLock<Option<BufWriter<File>>>,
-    path: PathBuf,
 }
 
 impl GraphDeltaLog {
@@ -63,7 +62,6 @@ impl GraphDeltaLog {
         Ok(Self {
             entries: RwLock::new(entries),
             writer: RwLock::new(Some(BufWriter::new(file))),
-            path,
         })
     }
 

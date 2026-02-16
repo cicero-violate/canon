@@ -69,14 +69,20 @@ impl DeltaAppliable for Page {
             return Err(PageError::PageIDMismatch);
         }
 
-        let dense = delta.to_dense();
         let data_slice = self.data_mut_slice();
 
-        if dense.len() != data_slice.len() {
-            return Err(PageError::InvalidSize(dense.len()));
+        if delta.mask.len() != data_slice.len() {
+            return Err(PageError::MaskSizeMismatch);
         }
 
-        data_slice.copy_from_slice(&dense);
+        let dense = delta.to_dense();
+
+        for (i, &mask_bit) in delta.mask.iter().enumerate() {
+            if mask_bit {
+                data_slice[i] = dense[i];
+            }
+        }
+
         self.set_epoch(delta.epoch);
         Ok(())
     }

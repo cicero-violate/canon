@@ -50,6 +50,7 @@ pub struct CanonicalState {
     max_leaves: u64,
     tree_size: u64,
     dirty_leaves: Vec<u64>,
+    canonical_pages: HashMap<PageID, Vec<u8>>,
 }
 
 
@@ -68,14 +69,30 @@ impl CanonicalState {
         let tree_size = max_leaves.next_power_of_two();
         let total_nodes = tree_size * 2;
 
+        // Pre-compute empty-subtree hashes bottom-up so rehash_dirty_levels
+        // reads the correct sibling value for any unwritten leaf — matching
+        // what full_recompute_root produces unconditionally.
+        let mut merkle_nodes = vec![[0u8; 32]; total_nodes as usize];
+        for i in (1..tree_size as usize).rev() {
+            let left = i * 2;
+            let right = left + 1;
+            let mut hasher = Sha256::new();
+            hasher.update(DOMAIN_INTERNAL);
+            hasher.update(merkle_nodes[left]);
+            hasher.update(merkle_nodes[right]);
+            merkle_nodes[i] = hasher.finalize().into();
+        }
+        let root_hash = merkle_nodes[1];
+
         Self {
-            root_hash: [0u8; 32],
+            root_hash,
             page_store: PageStore::in_memory(),
             page_hashes: std::collections::BTreeMap::new(),
-            merkle_nodes: vec![[0u8; 32]; total_nodes as usize],
+            merkle_nodes,
             max_leaves: tree_size,
             tree_size,
             dirty_leaves: Vec::new(),
+            canonical_pages: HashMap::new(),
         }
     }
 
@@ -85,17 +102,32 @@ impl CanonicalState {
         validate_delta(delta)?;
 
         // Materialize canonical dense page representation
+        // Canonical page size is determined by first write
+        // Canonical in-memory page state only
         let dense = delta.to_dense();
 
-        // Write canonical page state
-        self.page_store
-            .write_page(delta.page_id.0, &dense);
+        let mut page_bytes = self
+            .canonical_pages
+            .entry(delta.page_id)
+            .or_insert_with(|| vec![0u8; dense.len()]);
 
-        let page_bytes = dense;
+        if dense.len() > page_bytes.len() {
+            page_bytes.resize(dense.len(), 0);
+        }
+
+        for (i, &bit) in delta.mask.iter().enumerate() {
+            if bit {
+                page_bytes[i] = dense[i];
+            }
+        }
+
+        let snapshot = page_bytes.clone();
+
+        self.page_store.write_page(delta.page_id.0, &snapshot);
 
         let mut page_hasher = Sha256::new();
         page_hasher.update(DOMAIN_LEAF);
-        page_hasher.update(page_bytes);
+        page_hasher.update(&snapshot);
         let page_hash: Hash = page_hasher.finalize().into();
 
         self.page_hashes.insert(delta.page_id, page_hash);
@@ -105,7 +137,9 @@ impl CanonicalState {
             self.rehash_with_new_capacity(delta.page_id.0 + 1);
         }
 
-        self.mark_dirty(delta.page_id.0);
+        if !self.dirty_leaves.contains(&delta.page_id.0) {
+            self.mark_dirty(delta.page_id.0);
+        }
         self.rehash_dirty_levels();
 
         Ok(())
@@ -202,7 +236,18 @@ impl CanonicalState {
 
         self.tree_size = new_tree_size;
         self.max_leaves = new_tree_size;
-        self.merkle_nodes = vec![[0u8; 32]; total_nodes as usize];
+        // Initialise with empty-subtree hashes (same convention as with_capacity)
+        let mut new_nodes = vec![[0u8; 32]; total_nodes as usize];
+        for i in (1..new_tree_size as usize).rev() {
+            let left = i * 2;
+            let right = left + 1;
+            let mut hasher = Sha256::new();
+            hasher.update(DOMAIN_INTERNAL);
+            hasher.update(new_nodes[left]);
+            hasher.update(new_nodes[right]);
+            new_nodes[i] = hasher.finalize().into();
+        }
+        self.merkle_nodes = new_nodes;
 
         // Reinsert leaves
         let existing = self.page_hashes.clone();
@@ -250,6 +295,7 @@ impl CanonicalState {
         }
 
         self.root_hash = self.merkle_nodes[1];
+        self.dirty_leaves.clear();
     }
 
     /// Recompute root from sparse tree nodes (debug only).
@@ -274,16 +320,14 @@ impl CanonicalState {
             nodes[idx] = *hash;
         }
 
-        // Recompute internal nodes bottom-up
+        // Recompute internal nodes bottom-up unconditionally.
         for i in (1..self.tree_size as usize).rev() {
             let left = i * 2;
             let right = left + 1;
-
             let mut hasher = Sha256::new();
             hasher.update(DOMAIN_INTERNAL);
             hasher.update(nodes[left]);
             hasher.update(nodes[right]);
-
             nodes[i] = hasher.finalize().into();
         }
 

@@ -53,13 +53,6 @@ pub struct TransactionLog {
     path: PathBuf,
 }
 
-/// Reader for replay and validation
-#[derive(Debug)]
-pub struct TransactionLogReader {
-    reader: BufReader<File>,
-    version: u32,
-}
-
 /// Lightweight summary of log contents
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LogSummary {
@@ -148,30 +141,7 @@ impl TransactionLog {
 }
 
 /// Validate log header and return version
-fn check_log_version(reader: &mut BufReader<File>) -> std::io::Result<u32> {
-    let mut magic = [0u8; 8];
-    reader.read_exact(&mut magic)?;
 
-    if &magic != MAGIC {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "invalid transaction log magic",
-        ));
-    }
-
-    let mut version_bytes = [0u8; 4];
-    reader.read_exact(&mut version_bytes)?;
-    let version = u32::from_le_bytes(version_bytes);
-
-    if !(1..=VERSION).contains(&version) {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "unsupported transaction log version",
-        ));
-    }
-
-    Ok(version)
-}
 
 const CANON_TLOG_MAGIC: &[u8] = b"CANON_TLOG1";
 const CANON_TLOG_VERSION: u32 = 1;
