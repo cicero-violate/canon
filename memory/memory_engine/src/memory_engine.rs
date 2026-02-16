@@ -62,6 +62,9 @@ impl CanonicalState {
     pub fn apply_delta(&mut self, delta: &Delta) -> Result<(), DeltaError> {
         validate_delta(delta)?;
 
+        self.page_store.write_page(delta.page_id.0, &delta.payload);
+        let page_bytes = self.page_store.read_page(delta.page_id.0);
+
         // Update page payload
         let page_entry = self
             .pages
