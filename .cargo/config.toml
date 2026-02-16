@@ -1,4 +1,4 @@
 [build]
 rustc-wrapper = "./lints/lint_rustc_gate"
-rustflags = ["-A", "warnings"]
+# rustflags = ["-A", "warnings"]
 
