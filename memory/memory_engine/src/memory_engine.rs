@@ -15,12 +15,12 @@ use std::{
 
 use parking_lot::RwLock;
 use sha2::{Digest, Sha256};
+use crate::hash::gpu::create_gpu_backend;
 
 use crate::{
     canonical_state::CanonicalState,
     delta::Delta,
     epoch::EpochCell,
-    engine_commit::commit_delta_internal,
     graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
     primitives::Hash,
     proofs::{AdmissionProof, CommitProof, JudgmentProof, OutcomeProof},
@@ -113,7 +113,9 @@ impl MemoryEngine {
             epoch: Arc::new(EpochCell::new(0)),
             admitted: RwLock::new(HashSet::new()),
             deltas: RwLock::new(HashMap::new()),
-            state: Arc::new(RwLock::new(CanonicalState::new_empty())),
+            state: Arc::new(RwLock::new(
+                CanonicalState::new_empty(create_gpu_backend()),
+            )),
         })
     }
 
@@ -173,6 +175,54 @@ impl MemoryEngine {
     pub fn fetch_delta_by_hash(&self, hash: &Hash) -> Option<Delta> {
         self.deltas.read().get(hash).cloned()
     }
+
+    // ===============================
+    // Commit (delegated)
+    // ===============================
+
+    pub fn commit_batch(
+        &self,
+        admission: &AdmissionProof,
+        delta_hashes: &[Hash],
+    ) -> Result<Vec<CommitProof>, MemoryEngineError> {
+        use rayon::prelude::*;
+
+        let deltas: Vec<Delta> = delta_hashes
+            .iter()
+            .map(|h| {
+                self.fetch_delta_by_hash(h)
+                    .ok_or(MemoryEngineError::DeltaNotFound)
+            })
+            .collect::<Result<_, _>>()?;
+
+        {
+            let mut state = self.state.write();
+            state
+                .apply_deltas_batch(&deltas)
+                .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+            state.page_store.flush().ok();
+        }
+
+        self.epoch.increment();
+
+        for delta in &deltas {
+            self.tlog
+                .append(admission, delta.clone())
+                .map_err(CommitError::TlogWrite)?;
+        }
+
+        let root = self.state.read().root_hash();
+
+        Ok(delta_hashes
+            .par_iter()
+            .map(|delta_hash| CommitProof {
+                admission_proof_hash: admission.hash(),
+                delta_hash: *delta_hash,
+                state_hash: root,
+            })
+            .collect())
+    }
+
 
     // ===============================
     // Event Hash
