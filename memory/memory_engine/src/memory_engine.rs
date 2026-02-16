@@ -30,7 +30,7 @@ use crate::{
     delta::{Delta, DeltaError},
     epoch::EpochCell,
     graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
-    page::{PageAllocator, PageAllocatorConfig, PageLocation},
+    page::PageLocation,
     primitives::Hash,
     proofs::{AdmissionProof, CommitProof, JudgmentProof, OutcomeProof},
     tlog::TransactionLog,
@@ -38,7 +38,7 @@ use crate::{
 
 use crate::page_store::PageStore;
 use crate::primitives::PageID;
-use crate::journal::Journal;
+
 
 /// Canonical state owned exclusively by the memory engine.
 #[derive(Debug)]
@@ -121,29 +121,6 @@ impl CanonicalState {
         }
     }
 
-    /// Incrementally update sparse Merkle tree (64-depth).
-    fn update_merkle_tree(&mut self, page_id: PageID) {
-        let leaf_index = self.tree_size + page_id.0;
-        let mut node_index = leaf_index as usize;
-
-        self.merkle_nodes[node_index] = self.page_hashes[&page_id];
-
-        while node_index > 1 {
-            let parent = node_index / 2;
-            let left = parent * 2;
-            let right = left + 1;
-
-            let mut hasher = Sha256::new();
-            hasher.update(DOMAIN_INTERNAL);
-            hasher.update(self.merkle_nodes[left]);
-            hasher.update(self.merkle_nodes[right]);
-
-            self.merkle_nodes[parent] = hasher.finalize().into();
-            node_index = parent;
-        }
-
-        self.root_hash = self.merkle_nodes[1];
-    }
 
     /// Mark a leaf as dirty
     fn mark_dirty(&mut self, leaf: u64) {
