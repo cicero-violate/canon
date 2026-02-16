@@ -9,6 +9,8 @@ pub mod graph_log;
 pub mod page;
 pub mod tlog;
 pub mod proofs;
+pub mod page_store;
+pub mod journal;
 
 // Authority surface — ONLY this is public
 pub mod memory_engine;
