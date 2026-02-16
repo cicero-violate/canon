@@ -4,9 +4,9 @@ use anyhow::{Context, Result, anyhow, bail};
 use hex;
 use host_state_controller::{RunReceipt, StateController};
 use memory_engine::delta::Delta;
-use memory_engine::delta::shell_delta::ShellDelta;
-use memory_engine::epoch::Epoch;
+use memory_engine::delta::ShellDelta;
 use memory_engine::primitives::{DeltaID, PageID};
+use memory_engine::epoch::Epoch;
 
 use crate::lean_gate::ShellMetadata;
 use crate::state_io::{SHELL_GRAPH_ID, gate_and_commit, load_state, shell_state_dir};

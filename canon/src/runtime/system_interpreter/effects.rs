@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use crate::ir::{SystemNode, SystemNodeKind};
 use crate::runtime::value::{ScalarValue, StructValue, Value};
-use memory_engine::Delta;
 
 use super::{ProofArtifact, SystemExecutionEvent, SystemInterpreter, SystemInterpreterError};
 
@@ -11,7 +10,7 @@ impl<'a> SystemInterpreter<'a> {
         &self,
         node: &SystemNode,
         outputs: &BTreeMap<String, Value>,
-        emitted_deltas: &[Delta],
+        emitted_deltas: &[crate::runtime::value::DeltaValue],
         proofs: &mut Vec<ProofArtifact>,
         delta_records: &mut Vec<super::DeltaEmission>,
         events: &mut Vec<SystemExecutionEvent>,

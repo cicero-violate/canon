@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow, bail};
 use hex;
 use host_state_controller::{RunReceipt, StateController};
-use memory_engine::delta::Delta;
-use memory_engine::delta::shell_delta::ShellDelta;
-use memory_engine::{CanonicalState, TlogEntry, TlogManager};
+use memory_engine::memory_engine::CanonicalState;
+use memory_engine::tlog::{TlogEntry, TlogManager};
+use memory_engine::delta::{Delta, ShellDelta};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 

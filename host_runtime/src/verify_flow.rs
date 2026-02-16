@@ -7,6 +7,7 @@ use canon::ir::{CanonicalIr, SystemGraph};
 use canon::runtime::value::ScalarValue;
 use canon::runtime::{SystemExecutionEvent, SystemExecutionResult, SystemInterpreter, Value};
 use hex;
+use memory_engine::primitives::PageID;
 
 use crate::shell_flow::{ShellOptions, parse_shell_mode};
 use crate::state_io::{gate_and_commit, load_state, resolve_fixture_path};
@@ -60,18 +61,35 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
 
     println!("Intent: lhs={}, rhs={}", intent.lhs, intent.rhs);
 
-    let interpreter = SystemInterpreter::new(&ir);
+    let config = memory_engine::MemoryEngineConfig {
+        tlog_path: repo_root.join("canon_store").join("canon.tlog"),
+        graph_log_path: repo_root.join("canon_store").join("graph.log"),
+        default_location: memory_engine::page::PageLocation::from_tag(0).unwrap(),  // Handling Result here
+    };
+    let engine = memory_engine::MemoryEngine::new(config)?;
+    let interpreter = SystemInterpreter::new(&ir, &engine);
     let inputs = build_initial_inputs(&intent);
     let graph = select_system_graph(&ir)?;
     let execution = interpreter.execute_graph(&graph.id, inputs)?;
     report_execution(&execution)?;
-    gate_and_commit(
-        repo_root,
-        &mut state,
-        &graph.id,
-        &execution.emitted_deltas,
-        None,
-    )?;
+    let deltas: Vec<memory_engine::delta::Delta> = execution
+        .emitted_deltas
+        .iter()
+        .map(|dv| {
+            memory_engine::delta::Delta::new_dense(
+                memory_engine::primitives::DeltaID(
+                    dv.delta_id.parse().expect("delta_id must be a valid u64")
+                ),
+                PageID(0),
+                memory_engine::epoch::Epoch(0),
+                dv.payload_hash.clone().into(),
+                vec![],
+                memory_engine::delta::Source(dv.delta_id.clone()),
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    gate_and_commit(repo_root, &mut state, &graph.id, &deltas, None)?;
     Ok(())
 }
 
@@ -137,7 +155,7 @@ fn report_execution(result: &SystemExecutionResult) -> Result<()> {
             let summary: Vec<String> = delta
                 .deltas
                 .iter()
-                .map(|d| format!("delta_id={} bytes={}", d.delta_id.0, d.payload.len()))
+                .map(|d| format!("delta_id={} hash={}", d.delta_id, d.payload_hash))
                 .collect();
             println!("[delta] node={} {}", delta.node_id, summary.join(", "));
         }

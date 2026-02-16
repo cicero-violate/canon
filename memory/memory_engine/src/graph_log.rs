@@ -86,7 +86,8 @@ impl GraphDeltaLog {
     }
 
     pub fn replay_snapshot(&self) -> Result<GraphSnapshot, GraphDeltaError> {
-        GraphMaterializer::replay(self.entries())
+        let entries = self.entries.read();
+        GraphMaterializer::replay(entries.clone())
     }
 }
 

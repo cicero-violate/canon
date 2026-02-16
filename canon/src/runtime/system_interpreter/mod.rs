@@ -10,23 +10,25 @@ use crate::ir::{CanonicalIr, FunctionId, SystemGraph, SystemNode, SystemNodeId, 
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::{ExecutorError, FunctionExecutor};
 use crate::runtime::value::Value;
-use memory_engine::Delta;
+use memory_engine::MemoryEngine;
+use memory_engine::JudgmentProof;
 
-mod delta;
 mod effects;
 mod planner;
 
 /// Executes Canon system graphs.
-pub struct SystemInterpreter<'a> {
-    ir: &'a CanonicalIr,
-    executor: FunctionExecutor<'a>,
-}
+    pub struct SystemInterpreter<'a> {
+        ir: &'a CanonicalIr,
+        executor: FunctionExecutor<'a>,
+        engine: &'a MemoryEngine,
+    }
 
 impl<'a> SystemInterpreter<'a> {
-    pub fn new(ir: &'a CanonicalIr) -> Self {
+    pub fn new(ir: &'a CanonicalIr, engine: &'a MemoryEngine) -> Self {
         Self {
             ir,
             executor: FunctionExecutor::new(ir),
+            engine,
         }
     }
 
@@ -78,8 +80,7 @@ impl<'a> SystemInterpreter<'a> {
         let mut results: HashMap<SystemNodeId, BTreeMap<String, Value>> = HashMap::new();
         let mut proofs = Vec::new();
         let mut delta_provenance = Vec::new();
-        let mut emitted_deltas = Vec::new();
-        let mut delta_counter: u64 = 0;
+    let mut emitted_deltas = Vec::new();
 
         for node_id in &order {
             let node = node_index
@@ -90,17 +91,13 @@ impl<'a> SystemInterpreter<'a> {
             let delta_start = context.deltas().len();
             let outputs = self.execute_node(node, inputs, &mut context)?;
             let emitted_slice = context.deltas()[delta_start..].to_vec();
-            let mut concrete_deltas = Vec::new();
             for value in emitted_slice {
-                let delta = self.materialize_delta(&value, delta_counter)?;
-                delta_counter = delta_counter.saturating_add(1);
-                emitted_deltas.push(delta.clone());
-                concrete_deltas.push(delta);
+                emitted_deltas.push(value.clone());
             }
             self.apply_node_effects(
                 node,
                 &outputs,
-                &concrete_deltas,
+                &emitted_deltas,
                 &mut proofs,
                 &mut delta_provenance,
                 &mut events,
@@ -110,6 +107,13 @@ impl<'a> SystemInterpreter<'a> {
                 node_id: node.id.clone(),
                 kind: node.kind.clone(),
             });
+        }
+
+        // === MEMORY ENGINE COMMIT PIPELINE ===
+        // === MEMORY ENGINE COMMIT PIPELINE (placeholder wiring) ===
+        for _delta_value in &emitted_deltas {
+            // TODO: explicit mapping from DeltaValue -> memory_engine::delta::Delta
+            // until then, commit path is intentionally disabled
         }
 
         Ok(SystemExecutionResult {
@@ -187,7 +191,7 @@ pub struct SystemExecutionResult {
     pub graph_id: String,
     pub node_results: HashMap<SystemNodeId, BTreeMap<String, Value>>,
     pub execution_order: Vec<SystemNodeId>,
-    pub emitted_deltas: Vec<Delta>,
+    pub emitted_deltas: Vec<crate::runtime::value::DeltaValue>,
     pub proof_artifacts: Vec<ProofArtifact>,
     pub delta_provenance: Vec<DeltaEmission>,
     pub events: Vec<SystemExecutionEvent>,
@@ -203,7 +207,7 @@ pub struct ProofArtifact {
 #[derive(Debug, Clone)]
 pub struct DeltaEmission {
     pub node_id: SystemNodeId,
-    pub deltas: Vec<Delta>,
+    pub deltas: Vec<crate::runtime::value::DeltaValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -266,8 +270,6 @@ pub enum SystemInterpreterError {
     GateRejected(SystemNodeId),
     #[error("persist node `{0}` emitted no deltas")]
     PersistWithoutDelta(SystemNodeId),
-    #[error("failed to materialize delta: {0}")]
-    DeltaMaterialization(String),
     #[error("cycle detected in system graph at `{0}`")]
     CycleDetected(SystemNodeId),
     #[error(transparent)]

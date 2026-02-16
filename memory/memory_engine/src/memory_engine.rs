@@ -84,12 +84,14 @@ impl CanonicalState {
     pub fn apply_delta(&mut self, delta: &Delta) -> Result<(), DeltaError> {
         validate_delta(delta)?;
 
-        // Write to page store (disk or in-memory)
-        self.page_store
-            .write_page(delta.page_id.0, &delta.payload);
+        // Materialize canonical dense page representation
+        let dense = delta.to_dense();
 
-        // Zero-copy hashing from page store
-        let page_bytes = self.page_store.read_page(delta.page_id.0);
+        // Write canonical page state
+        self.page_store
+            .write_page(delta.page_id.0, &dense);
+
+        let page_bytes = dense;
 
         let mut page_hasher = Sha256::new();
         page_hasher.update(DOMAIN_LEAF);
@@ -156,7 +158,10 @@ impl CanonicalState {
 
          use rayon::prelude::*;
 
-         // Step 1: update dirty leaves
+         // Step 1: dedupe once (deterministic ordering)
+         self.dirty_leaves.sort_unstable();
+         self.dirty_leaves.dedup();
+
          let mut current_level: Vec<usize> = self
              .dirty_leaves
              .iter()
@@ -181,7 +186,7 @@ impl CanonicalState {
              parents.sort_unstable();
              parents.dedup();
 
-             // Immutable snapshot slice (no clone)
+             // Immutable snapshot reference (no clone)
              let snapshot: &[Hash] = &self.merkle_nodes;
 
              // Compute parent hashes in parallel into temp buffer
@@ -429,6 +434,7 @@ impl MemoryEngine {
             };
 
             let mut hasher = Sha256::new();
+            hasher.update(DOMAIN_INTERNAL);
             hasher.update(left);
             hasher.update(right);
             current_hash = hasher.finalize().into();
@@ -521,12 +527,11 @@ impl MemoryEngine {
         admission: &AdmissionProof,
         delta_hashes: &[Hash],
     ) -> Result<Vec<CommitProof>, MemoryEngineError> {
-        use rayon::prelude::*;
-
-        delta_hashes
-            .par_iter()
-            .map(|delta_hash| self.commit_delta(admission, delta_hash))
-            .collect()
+        let mut proofs = Vec::with_capacity(delta_hashes.len());
+        for delta_hash in delta_hashes {
+            proofs.push(self.commit_delta(admission, delta_hash)?);
+        }
+        Ok(proofs)
     }
 
     /// Outcome stage (F) — trivial success path for now.

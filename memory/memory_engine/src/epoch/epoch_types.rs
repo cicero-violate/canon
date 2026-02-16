@@ -50,7 +50,6 @@ impl EpochCell {
     #[inline]
     pub fn increment(&self) -> Epoch {
         let old = self.inner.fetch_add(1, Ordering::AcqRel);
-        println!("EPOCH_INCREMENT: was {} → now {}", old, old + 1);
         Epoch(old)
     }
 }
