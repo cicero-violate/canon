@@ -20,6 +20,8 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+const PAGE_SIZE: usize = 4096;
+
 use crate::{
     delta::delta_validation::validate_delta,
     delta::{Delta, DeltaError},
@@ -35,7 +37,9 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CanonicalState {
     root_hash: Hash,
-    payload: Vec<u8>,
+    page_store: PageStore
+    page_hashes: std::collections::BTreeMap<PageID, Hash>,
+    merkle_nodes: HashMap<(u8, u64), Hash>, // (level, index)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,25 +51,36 @@ impl CanonicalState {
     pub fn new_empty() -> Self {
         Self {
             root_hash: [0u8; 32],
-            payload: Vec::new(),
+            pages: HashMap::new(),
+            page_hashes: std::collections::BTreeMap::new(),
+            merkle_nodes: HashMap::new(),
         }
     }
 
-    pub fn from_payload(payload: Vec<u8>) -> Self {
-        let mut state = Self {
-            root_hash: [0u8; 32],
-            payload,
-        };
-        state.root_hash = state.compute_root_hash();
-        state
-    }
+    // Removed blob-based constructor — state is now page-based
 
     pub fn apply_delta(&mut self, delta: &Delta) -> Result<(), DeltaError> {
         validate_delta(delta)?;
-        self.payload.extend_from_slice(&delta.payload);
-        let new_hash = self.compute_root_hash();
-        debug_assert!(self.root_hash != new_hash || delta.payload.is_empty());
-        self.root_hash = new_hash;
+
+        // Update page payload
+        let page_entry = self
+            .pages
+            .entry(delta.page_id)
+            .or_insert_with(|| vec![0u8; PAGE_SIZE]);
+
+        let len = delta.payload.len().min(PAGE_SIZE);
+        page_entry[..len].copy_from_slice(&delta.payload[..len]);
+
+        // Recompute page hash
+        let mut page_hasher = Sha256::new();
+        page_hasher.update(&page_entry);
+        let page_hash: Hash = page_hasher.finalize().into();
+
+        self.page_hashes.insert(delta.page_id, page_hash);
+
+        // Incremental Merkle update
+        self.update_merkle_tree(delta.page_id);
+
         Ok(())
     }
 
@@ -80,8 +95,8 @@ impl CanonicalState {
     }
 
     fn compute_root_hash(&self) -> Hash {
+        // Only used for snapshot validation
         let mut hasher = Sha256::new();
-        hasher.update(&(self.payload.len() as u64).to_le_bytes());
         hasher.update(&self.payload);
         hasher.finalize().into()
     }
@@ -205,6 +220,34 @@ impl MemoryEngine {
         })
     }
 
+    /// Verify Merkle proof
+    pub fn verify_proof(
+        root: Hash,
+        page_id: PageID,
+        leaf_hash: Hash,
+        proof: &[Hash],
+    ) -> bool {
+        let mut current_hash = leaf_hash;
+        let mut index = page_id.0;
+
+        for sibling_hash in proof {
+            let (left, right) = if index % 2 == 0 {
+                (current_hash, *sibling_hash)
+            } else {
+                (*sibling_hash, current_hash)
+            };
+
+            let mut hasher = Sha256::new();
+            hasher.update(left);
+            hasher.update(right);
+            current_hash = hasher.finalize().into();
+
+            index /= 2;
+        }
+
+        current_hash == root
+    }
+
     /// Current epoch.
     pub fn current_epoch(&self) -> u64 {
         self.epoch.load().0 as u64
@@ -278,6 +321,20 @@ impl MemoryEngine {
         })
     }
 
+    /// Commit batch of deltas in parallel
+    pub fn commit_batch(
+        &self,
+        admission: &AdmissionProof,
+        delta_hashes: &[Hash],
+    ) -> Result<Vec<CommitProof>, MemoryEngineError> {
+        use rayon::prelude::*;
+
+        delta_hashes
+            .par_iter()
+            .map(|delta_hash| self.commit_delta(admission, delta_hash))
+            .collect()
+    }
+
     /// Outcome stage (F) — trivial success path for now.
     pub fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof {
         OutcomeProof {
@@ -313,9 +370,103 @@ impl MemoryEngine {
         let mut hasher = Sha256::new();
         hasher.update(&delta.page_id.0.to_be_bytes());
         hasher.update(&delta.epoch.0.to_be_bytes());
-        hasher.update(&delta.mask.iter().map(|b| *b as u8).collect::<Vec<_>>());
+        for bit in &delta.mask {
+            hasher.update(&[*bit as u8]);
+        }
         hasher.update(&delta.payload);
         hasher.finalize().into()
+    }
+
+    fn update_merkle_tree(&mut self, page_id: PageID) {
+        let mut current_hash = self.page_hashes[&page_id];
+        let mut index = page_id.0;
+
+        // Sparse Merkle Tree with fixed depth = 64 (u64 PageID)
+        for level in 0..64 {
+            self.merkle_nodes.insert((level, index), current_hash);
+
+            let sibling_index = if index % 2 == 0 {
+                index + 1
+            } else {
+                index - 1
+            };
+
+            let sibling_hash = self
+                .merkle_nodes
+                .get(&(level, sibling_index))
+                .copied()
+                .unwrap_or([0u8; 32]);
+
+            let (left, right) = if index % 2 == 0 {
+                (current_hash, sibling_hash)
+            } else {
+                (sibling_hash, current_hash)
+            };
+
+            let mut hasher = Sha256::new();
+            hasher.update(left);
+            hasher.update(right);
+            current_hash = hasher.finalize().into();
+
+            index /= 2;
+        }
+
+        self.root_hash = current_hash;
+    }
+
+    /// Generate Merkle inclusion proof for a page
+    pub fn merkle_proof(&self, page_id: PageID) -> Option<Vec<Hash>> {
+        if !self.page_hashes.contains_key(&page_id) {
+            return None;
+        }
+
+        let mut proof = Vec::with_capacity(64);
+        let mut index = page_id.0;
+
+        for level in 0..64 {
+            let sibling_index = if index % 2 == 0 {
+                index + 1
+            } else {
+                index - 1
+            };
+
+            let sibling_hash = self
+                .merkle_nodes
+                .get(&(level, sibling_index))
+                .copied()
+                .unwrap_or([0u8; 32]);
+
+            proof.push(sibling_hash);
+            index /= 2;
+        }
+
+        Some(proof)
+    }
+
+    fn compute_merkle_root(page_hashes: &HashMap<PageID, Hash>) -> Hash {
+        if page_hashes.is_empty() {
+            return [0u8; 32];
+        }
+
+        let mut hashes: Vec<Hash> = page_hashes.values().cloned().collect();
+        hashes.sort(); // deterministic order
+
+        while hashes.len() > 1 {
+            let mut next = Vec::new();
+            for pair in hashes.chunks(2) {
+                let mut hasher = Sha256::new();
+                hasher.update(pair[0]);
+                if pair.len() == 2 {
+                    hasher.update(pair[1]);
+                } else {
+                    hasher.update(pair[0]); // duplicate last if odd
+                }
+                next.push(hasher.finalize().into());
+            }
+            hashes = next;
+        }
+
+        hashes[0]
     }
 
     /// Append a graph delta to the log.
