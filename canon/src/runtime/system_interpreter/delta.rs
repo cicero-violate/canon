@@ -1,6 +1,4 @@
-use memory_engine::delta::Delta;
-use memory_engine::epoch::Epoch;
-use memory_engine::primitives::{DeltaID, PageID};
+use memory_engine::Delta;
 
 use crate::runtime::value::DeltaValue;
 
@@ -25,7 +23,7 @@ impl<'a> SystemInterpreter<'a> {
             Epoch(0),
             payload,
             mask,
-            memory_engine::delta::Source(format!("system_interpreter:{}", value.delta_id)),
+            /* construct Delta using public API only */
         )
         .map_err(|err| SystemInterpreterError::DeltaMaterialization(err.to_string()))
     }

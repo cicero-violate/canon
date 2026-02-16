@@ -113,6 +113,13 @@ impl std::fmt::Display for DefectClass {
 /// Returns one `RootCauseBrief` per distinct root cause (not per violation).
 /// Results are sorted by violation count descending.
 pub fn trace_root_causes(errors: &ValidationErrors, ir: &CanonicalIr) -> Vec<RootCauseBrief> {
+    // 🔎 DEBUG: dump ExplicitArtifacts violation details
+    for v in errors.violations() {
+        if v.rule() == CanonRule::ExplicitArtifacts {
+            println!("EXPLICIT ARTIFACT VIOLATION → {}", v.detail());
+        }
+    }
+
     let clusters = cluster_by_rule(errors.violations());
 
     let mut briefs: Vec<RootCauseBrief> = clusters
@@ -139,7 +146,8 @@ fn trace_cluster(rule: CanonRule, violations: &[&Violation], ir: &CanonicalIr) -
     let examples: Vec<String> = violations
         .iter()
         .take(3)
-        .map(|v| v.detail().to_owned())
+        // Use full Debug output so structured violations show real data
+        .map(|v| format!("{:#?}", v))
         .collect();
 
     // Layer 1: what does the validator check?

@@ -86,10 +86,23 @@ fn classify_rule26(violations: &[&Violation], ir: &CanonicalIr) -> DefectClass {
         .filter(|b| failing_impl_ids.contains(b.id.as_str()))
         .collect();
 
-    // Signal A: any failing impl has an empty trait_id (standalone inherent impl).
+    // Signal A: inherent impls (empty trait_id) should only be treated as
+    // ValidatorOverConstraint if the violation is trait-related.
     let has_empty_trait_id = failing_impls.iter().any(|b| b.trait_id.is_empty());
+
     if has_empty_trait_id {
-        return DefectClass::ValidatorOverConstraint;
+        // If any violation detail is trait-related, this was an over-constraint.
+        let trait_related = violations.iter().any(|v| {
+            let d = v.detail();
+            d.contains("ImplMissingTrait") || d.contains("ImplTraitMismatch")
+        });
+
+        if trait_related {
+            return DefectClass::ValidatorOverConstraint;
+        } else {
+            // Otherwise this is a real structural issue (e.g. missing struct/module)
+            return DefectClass::WrongValue;
+        }
     }
 
     // Signal B: the trait name portion of the id exists in ir.traits, just

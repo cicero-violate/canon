@@ -1,1751 +1,563 @@
 digraph dependencies {
-  // compound=true;
-  // rankdir=LR;
-  layout=neato;
-  node [fontname="monospace"];
-  edge [fontname="monospace"];
-
-  subgraph cluster_0 {
-    label="ir::gpu";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n0_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n0_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n0_import -> n0_export;
-  }
-
-  subgraph cluster_1 {
-    label="ir::core";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n1_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n1_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n1_import -> n1_export;
-  }
-
-  subgraph cluster_2 {
-    label="ir::errors";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n2_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n2_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n2_import -> n2_export;
-  }
-
-  subgraph cluster_3 {
-    label="ir::graphs";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n3_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n3_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n3_import -> n3_export;
-  }
-
-  subgraph cluster_4 {
-    label="ir::world_model";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n4_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n4_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n4_import -> n4_export;
-  }
-
-  subgraph cluster_5 {
-    label="ir::proposal";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n5_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n5_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n5_import -> n5_export;
-  }
-
-  subgraph cluster_6 {
-    label="ir::timeline";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n6_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n6_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n6_import -> n6_export;
-  }
-
-  subgraph cluster_7 {
-    label="ir::types";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n7_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n7_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n7_import -> n7_export;
-  }
-
-  subgraph cluster_8 {
-    label="ir::project";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n8_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n8_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n8_import -> n8_export;
-  }
-
-  subgraph cluster_9 {
-    label="ir::word";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n9_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n9_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n9_import -> n9_export;
-  }
-
-  subgraph cluster_10 {
-    label="ir::reward";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n10_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n10_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n10_import -> n10_export;
-  }
-
-  subgraph cluster_11 {
-    label="ir::proofs";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n11_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n11_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n11_import -> n11_export;
-  }
-
-  subgraph cluster_12 {
-    label="ir::policy";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n12_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n12_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n12_import -> n12_export;
-  }
-
-  subgraph cluster_13 {
-    label="ir::learning";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n13_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n13_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n13_import -> n13_export;
-  }
-
-  subgraph cluster_14 {
-    label="ir::judgment";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n14_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n14_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n14_import -> n14_export;
-  }
-
-  subgraph cluster_15 {
-    label="ir::ids";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n15_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n15_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n15_import -> n15_export;
-  }
-
-  subgraph cluster_16 {
-    label="ir::goals";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n16_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n16_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n16_import -> n16_export;
-  }
-
-  subgraph cluster_17 {
-    label="ir::functions";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n17_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n17_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n17_import -> n17_export;
-  }
-
-  subgraph cluster_18 {
-    label="ir::delta";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n18_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n18_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n18_import -> n18_export;
-  }
-
-  subgraph cluster_19 {
-    label="ir::artifacts";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n19_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n19_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n19_import -> n19_export;
-  }
-
-  subgraph cluster_20 {
-    label="ir::admission";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n20_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n20_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n20_import -> n20_export;
-  }
-
-  subgraph cluster_21 {
-    label="ir";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n21_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n21_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n21_import -> n21_export;
-  }
-
-  subgraph cluster_22 {
-    label="ingest::builder::modules";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n22_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n22_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n22_import -> n22_export;
-  }
-
-  subgraph cluster_23 {
-    label="ingest::builder::functions::syn_conv";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n23_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n23_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n23_import -> n23_export;
-  }
-
-  subgraph cluster_24 {
-    label="ingest::builder::functions::ids";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n24_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n24_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n24_import -> n24_export;
-  }
-
-  subgraph cluster_25 {
-    label="layout::validation";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n25_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n25_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n25_import -> n25_export;
-  }
-
-  subgraph cluster_26 {
-    label="layout::strategies";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n26_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n26_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n26_import -> n26_export;
-  }
-
-  subgraph cluster_27 {
-    label="layout";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n27_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n27_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n27_import -> n27_export;
-  }
-
-  subgraph cluster_28 {
-    label="ingest::builder::functions";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n28_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n28_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n28_import -> n28_export;
-  }
-
-  subgraph cluster_29 {
-    label="ingest::builder::ast_lower::util";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n29_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n29_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n29_import -> n29_export;
-  }
-
-  subgraph cluster_30 {
-    label="ingest::builder::ast_lower::pat";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n30_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n30_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n30_import -> n30_export;
-  }
-
-  subgraph cluster_31 {
-    label="ingest::builder::ast_lower::expr";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n31_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n31_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n31_import -> n31_export;
-  }
-
-  subgraph cluster_32 {
-    label="ingest::builder::ast_lower";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n32_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n32_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n32_import -> n32_export;
-  }
-
-  subgraph cluster_33 {
-    label="ingest::builder::types::types";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n33_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n33_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n33_import -> n33_export;
-  }
-
-  subgraph cluster_34 {
-    label="ingest::builder::types::uses";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n34_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n34_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n34_import -> n34_export;
-  }
-
-  subgraph cluster_35 {
-    label="ingest::builder::types::strings";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n35_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n35_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n35_import -> n35_export;
-  }
-
-  subgraph cluster_36 {
-    label="ingest::builder::types::ports";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n36_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n36_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n36_import -> n36_export;
-  }
-
-  subgraph cluster_37 {
-    label="ingest::builder::types::visibility";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n37_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n37_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n37_import -> n37_export;
-  }
-
-  subgraph cluster_38 {
-    label="ingest::builder::types";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n38_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n38_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n38_import -> n38_export;
-  }
-
-  subgraph cluster_39 {
-    label="ingest::builder::layout";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n39_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n39_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n39_import -> n39_export;
-  }
-
-  subgraph cluster_40 {
-    label="ingest::builder::edges";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n40_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n40_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n40_import -> n40_export;
-  }
-
-  subgraph cluster_41 {
-    label="ingest::builder";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n41_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n41_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n41_import -> n41_export;
-  }
-
-  subgraph cluster_42 {
-    label="runtime::value";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n42_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n42_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n42_import -> n42_export;
-  }
-
-  subgraph cluster_43 {
-    label="runtime::context";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n43_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n43_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n43_import -> n43_export;
-  }
-
-  subgraph cluster_44 {
-    label="runtime::tick_executor::reconcile";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n44_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n44_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n44_import -> n44_export;
-  }
-
-  subgraph cluster_45 {
-    label="runtime::bytecode_types";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n45_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n45_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n45_import -> n45_export;
-  }
-
-  subgraph cluster_46 {
-    label="runtime::ast";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n46_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n46_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n46_import -> n46_export;
-  }
-
-  subgraph cluster_47 {
-    label="runtime::bytecode";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n47_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n47_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n47_import -> n47_export;
-  }
-
-  subgraph cluster_48 {
-    label="runtime::executor::error";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n48_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n48_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n48_import -> n48_export;
-  }
-
-  subgraph cluster_49 {
-    label="runtime::executor::interp";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n49_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n49_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n49_import -> n49_export;
-  }
-
-  subgraph cluster_50 {
-    label="runtime::executor::arith";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n50_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n50_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n50_import -> n50_export;
-  }
-
-  subgraph cluster_51 {
-    label="runtime::executor";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n51_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n51_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n51_import -> n51_export;
-  }
-
-  subgraph cluster_52 {
-    label="runtime::parallel";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n52_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n52_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n52_import -> n52_export;
-  }
-
-  subgraph cluster_53 {
-    label="runtime::tick_executor::parallel";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n53_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n53_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n53_import -> n53_export;
-  }
-
-  subgraph cluster_54 {
-    label="runtime::tick_executor::graph";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n54_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n54_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n54_import -> n54_export;
-  }
-
-  subgraph cluster_55 {
-    label="runtime::tick_executor::types";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n55_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n55_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n55_import -> n55_export;
-  }
-
-  subgraph cluster_56 {
-    label="[cycle: runtime::rollout, runtime::planner, runtime::tick_executor::planning, runtime::tick_executor]";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n56_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n56_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n56_import -> n56_export;
-  }
-
-  subgraph cluster_57 {
-    label="validate::check_artifacts::functions";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n57_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n57_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n57_import -> n57_export;
-  }
-
-  subgraph cluster_58 {
-    label="runtime::policy_updater";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n58_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n58_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n58_import -> n58_export;
-  }
-
-  subgraph cluster_59 {
-    label="materialize::render_fn::ast::stmt";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n59_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n59_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n59_import -> n59_export;
-  }
-
-  subgraph cluster_60 {
-    label="materialize::render_cargo";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n60_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n60_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n60_import -> n60_export;
-  }
-
-  subgraph cluster_61 {
-    label="validate::check_artifacts::module";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n61_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n61_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n61_import -> n61_export;
-  }
-
-  subgraph cluster_62 {
-    label="diff";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n62_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n62_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n62_import -> n62_export;
-  }
-
-  subgraph cluster_63 {
-    label="proof::smt_bridge";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n63_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n63_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n63_import -> n63_export;
-  }
-
-  subgraph cluster_64 {
-    label="proof";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n64_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n64_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n64_import -> n64_export;
-  }
-
-  subgraph cluster_65 {
-    label="materialize::layout_renderer";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n65_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n65_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n65_import -> n65_export;
-  }
-
-  subgraph cluster_66 {
-    label="evolution::structural::guard";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n66_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n66_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n66_import -> n66_export;
-  }
-
-  subgraph cluster_67 {
-    label="evolution::structural::apply";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n67_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n67_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n67_import -> n67_export;
-  }
-
-  subgraph cluster_68 {
-    label="decision::auto_fn_ast";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n68_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n68_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n68_import -> n68_export;
-  }
-
-  subgraph cluster_69 {
-    label="validate::check_graphs";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n69_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n69_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n69_import -> n69_export;
-  }
-
-  subgraph cluster_70 {
-    label="evolution::kernel_bridge";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n70_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n70_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n70_import -> n70_export;
-  }
-
-  subgraph cluster_71 {
-    label="runtime::delta_verifier";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n71_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n71_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n71_import -> n71_export;
-  }
-
-  subgraph cluster_72 {
-    label="decision::accept::proposal_checks";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n72_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n72_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n72_import -> n72_export;
-  }
-
-  subgraph cluster_73 {
-    label="evolution::goal_mutation";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n73_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n73_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n73_import -> n73_export;
-  }
-
-  subgraph cluster_74 {
-    label="evolution::structural::rename";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n74_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n74_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n74_import -> n74_export;
-  }
-
-  subgraph cluster_75 {
-    label="evolution::structural";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n75_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n75_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n75_import -> n75_export;
-  }
-
-  subgraph cluster_76 {
-    label="evolution";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n76_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n76_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n76_import -> n76_export;
-  }
-
-  subgraph cluster_77 {
-    label="semantic_builder";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n77_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n77_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n77_import -> n77_export;
-  }
-
-  subgraph cluster_78 {
-    label="io_utils";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n78_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n78_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n78_import -> n78_export;
-  }
-
-  subgraph cluster_79 {
-    label="dot_import";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n79_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n79_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n79_import -> n79_export;
-  }
-
-  subgraph cluster_80 {
-    label="dot_export";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n80_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n80_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n80_import -> n80_export;
-  }
-
-  subgraph cluster_81 {
-    label="decision::bootstrap";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n81_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n81_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n81_import -> n81_export;
-  }
-
-  subgraph cluster_82 {
-    label="decision::auto_dot";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n82_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n82_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n82_import -> n82_export;
-  }
-
-  subgraph cluster_83 {
-    label="decision::accept::delta_emitter";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n83_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n83_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n83_import -> n83_export;
-  }
-
-  subgraph cluster_84 {
-    label="decision::accept";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n84_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n84_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n84_import -> n84_export;
-  }
-
-  subgraph cluster_85 {
-    label="decision::auto_dsl";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n85_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n85_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n85_import -> n85_export;
-  }
-
-  subgraph cluster_86 {
-    label="decision";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n86_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n86_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n86_import -> n86_export;
-  }
-
-  subgraph cluster_87 {
-    label="schema";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n87_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n87_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n87_import -> n87_export;
-  }
-
-  subgraph cluster_88 {
-    label="observe";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n88_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n88_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n88_import -> n88_export;
-  }
-
-  subgraph cluster_89 {
-    label="cli";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n89_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n89_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n89_import -> n89_export;
-  }
-
-  subgraph cluster_90 {
-    label="validate::check_deltas";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n90_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n90_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n90_import -> n90_export;
-  }
-
-  subgraph cluster_91 {
-    label="validate::helpers";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n91_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n91_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n91_import -> n91_export;
-  }
-
-  subgraph cluster_92 {
-    label="validate::check_artifacts::type_defs";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n92_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n92_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n92_import -> n92_export;
-  }
-
-  subgraph cluster_93 {
-    label="validate::check_artifacts::impls";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n93_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n93_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n93_import -> n93_export;
-  }
-
-  subgraph cluster_94 {
-    label="validate::check_artifacts::ast";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n94_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n94_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n94_import -> n94_export;
-  }
-
-  subgraph cluster_95 {
-    label="validate::check_artifacts";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n95_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n95_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n95_import -> n95_export;
-  }
-
-  subgraph cluster_96 {
-    label="validate::error";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n96_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n96_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n96_import -> n96_export;
-  }
-
-  subgraph cluster_97 {
-    label="validate::rules";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n97_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n97_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n97_import -> n97_export;
-  }
-
-  subgraph cluster_98 {
-    label="validate::check_proposals";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n98_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n98_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n98_import -> n98_export;
-  }
-
-  subgraph cluster_99 {
-    label="validate::check_project";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n99_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n99_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n99_import -> n99_export;
-  }
-
-  subgraph cluster_100 {
-    label="validate::check_execution";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n100_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n100_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n100_import -> n100_export;
-  }
-
-  subgraph cluster_101 {
-    label="validate";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n101_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n101_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n101_import -> n101_export;
-  }
-
-  subgraph cluster_102 {
-    label="runtime::reward";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n102_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n102_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n102_import -> n102_export;
-  }
-
-  subgraph cluster_103 {
-    label="runtime::system_interpreter::planner";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n103_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n103_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n103_import -> n103_export;
-  }
-
-  subgraph cluster_104 {
-    label="runtime::system_interpreter::effects";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n104_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n104_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n104_import -> n104_export;
-  }
-
-  subgraph cluster_105 {
-    label="runtime::system_interpreter::delta";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n105_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n105_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n105_import -> n105_export;
-  }
-
-  subgraph cluster_106 {
-    label="runtime::system_interpreter";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n106_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n106_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n106_import -> n106_export;
-  }
-
-  subgraph cluster_107 {
-    label="runtime";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n107_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n107_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n107_import -> n107_export;
-  }
-
-  subgraph cluster_108 {
-    label="ingest::parser";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n108_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n108_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n108_import -> n108_export;
-  }
-
-  subgraph cluster_109 {
-    label="ingest::fs_walk";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n109_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n109_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n109_import -> n109_export;
-  }
-
-  subgraph cluster_110 {
-    label="ingest";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n110_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n110_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n110_import -> n110_export;
-  }
-
-  subgraph cluster_111 {
-    label="materialize::render_fn::ast::utils";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n111_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n111_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n111_import -> n111_export;
-  }
-
-  subgraph cluster_112 {
-    label="materialize::render_fn::ast::expr";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n112_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n112_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n112_import -> n112_export;
-  }
-
-  subgraph cluster_113 {
-    label="materialize::render_fn::ast";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n113_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n113_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n113_import -> n113_export;
-  }
-
-  subgraph cluster_114 {
-    label="materialize::render_fn";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n114_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n114_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n114_import -> n114_export;
-  }
-
-  subgraph cluster_115 {
-    label="materialize::render_struct";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n115_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n115_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n115_import -> n115_export;
-  }
-
-  subgraph cluster_116 {
-    label="materialize::file_tree";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n116_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n116_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n116_import -> n116_export;
-  }
-
-  subgraph cluster_117 {
-    label="materialize::render_module";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n117_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n117_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n117_import -> n117_export;
-  }
-
-  subgraph cluster_118 {
-    label="materialize::render_trait";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n118_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n118_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n118_import -> n118_export;
-  }
-
-  subgraph cluster_119 {
-    label="materialize::render_impl";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n119_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n119_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n119_import -> n119_export;
-  }
-
-  subgraph cluster_120 {
-    label="materialize";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n120_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n120_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n120_import -> n120_export;
-  }
-
-  subgraph cluster_121 {
-    label="version_gate";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n121_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n121_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n121_import -> n121_export;
-  }
-
-  subgraph cluster_122 {
-    label="commands";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n122_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n122_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n122_import -> n122_export;
-  }
-
-  subgraph cluster_123 {
-    label="patch_protocol";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n123_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n123_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n123_import -> n123_export;
-  }
-
-  subgraph cluster_124 {
-    label="main";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n124_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n124_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n124_import -> n124_export;
-  }
-
-  subgraph cluster_125 {
-    label="gpu::fusion";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n125_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n125_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n125_import -> n125_export;
-  }
-
-  subgraph cluster_126 {
-    label="gpu::codegen";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n126_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n126_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n126_import -> n126_export;
-  }
-
-  subgraph cluster_127 {
-    label="gpu::dispatch";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n127_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n127_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n127_import -> n127_export;
-  }
-
-  subgraph cluster_128 {
-    label="gpu";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n128_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n128_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n128_import -> n128_export;
-  }
-
-  subgraph cluster_129 {
-    label="lib";
-    style=filled;
-    fillcolor=lightgray;
-    color=black;
-
-    n129_import [label="IMPORT" shape=ellipse fillcolor=lightgreen style="filled,bold"];
-    n129_export [label="EXPORT" shape=doubleoctagon fillcolor=lightcoral style="filled,bold"];
-    n129_import -> n129_export;
-  }
-
-  // inter-module dependencies
-  edge [style=dashed color=blue penwidth=2];
-  n41_export -> n40_import [ltail=cluster_41 lhead=cluster_40];
-  n41_export -> n27_import [ltail=cluster_41 lhead=cluster_27];
-  n41_export -> n39_import [ltail=cluster_41 lhead=cluster_39];
-  n41_export -> n38_import [ltail=cluster_41 lhead=cluster_38];
-  n41_export -> n32_import [ltail=cluster_41 lhead=cluster_32];
-  n41_export -> n28_import [ltail=cluster_41 lhead=cluster_28];
-  n41_export -> n22_import [ltail=cluster_41 lhead=cluster_22];
-  n56_export -> n51_import [ltail=cluster_56 lhead=cluster_51];
-  n56_export -> n21_import [ltail=cluster_56 lhead=cluster_21];
-  n56_export -> n55_import [ltail=cluster_56 lhead=cluster_55];
-  n56_export -> n54_import [ltail=cluster_56 lhead=cluster_54];
-  n56_export -> n53_import [ltail=cluster_56 lhead=cluster_53];
-  n56_export -> n42_import [ltail=cluster_56 lhead=cluster_42];
-  n56_export -> n44_import [ltail=cluster_56 lhead=cluster_44];
-  n56_export -> n43_import [ltail=cluster_56 lhead=cluster_43];
-  n35_export -> n21_import [ltail=cluster_35 lhead=cluster_21];
-  n57_export -> n21_import [ltail=cluster_57 lhead=cluster_21];
-  n58_export -> n21_import [ltail=cluster_58 lhead=cluster_21];
-  n36_export -> n21_import [ltail=cluster_36 lhead=cluster_21];
-  n44_export -> n4_import [ltail=cluster_44 lhead=cluster_4];
-  n44_export -> n21_import [ltail=cluster_44 lhead=cluster_21];
-  n60_export -> n21_import [ltail=cluster_60 lhead=cluster_21];
-  n61_export -> n21_import [ltail=cluster_61 lhead=cluster_21];
-  n54_export -> n21_import [ltail=cluster_54 lhead=cluster_21];
-  n54_export -> n42_import [ltail=cluster_54 lhead=cluster_42];
-  n64_export -> n63_import [ltail=cluster_64 lhead=cluster_63];
-  n27_export -> n26_import [ltail=cluster_27 lhead=cluster_26];
-  n27_export -> n21_import [ltail=cluster_27 lhead=cluster_21];
-  n27_export -> n25_import [ltail=cluster_27 lhead=cluster_25];
-  n56_export -> n4_import [ltail=cluster_56 lhead=cluster_4];
-  n65_export -> n21_import [ltail=cluster_65 lhead=cluster_21];
-  n65_export -> n27_import [ltail=cluster_65 lhead=cluster_27];
-  n66_export -> n21_import [ltail=cluster_66 lhead=cluster_21];
-  n67_export -> n21_import [ltail=cluster_67 lhead=cluster_21];
-  n68_export -> n27_import [ltail=cluster_68 lhead=cluster_27];
-  n68_export -> n5_import [ltail=cluster_68 lhead=cluster_5];
-  n68_export -> n21_import [ltail=cluster_68 lhead=cluster_21];
-  n39_export -> n27_import [ltail=cluster_39 lhead=cluster_27];
-  n39_export -> n21_import [ltail=cluster_39 lhead=cluster_21];
-  n69_export -> n21_import [ltail=cluster_69 lhead=cluster_21];
-  n124_export -> n123_import [ltail=cluster_124 lhead=cluster_123];
-  n124_export -> n121_import [ltail=cluster_124 lhead=cluster_121];
-  n124_export -> n107_import [ltail=cluster_124 lhead=cluster_107];
-  n124_export -> n120_import [ltail=cluster_124 lhead=cluster_120];
-  n124_export -> n64_import [ltail=cluster_124 lhead=cluster_64];
-  n124_export -> n110_import [ltail=cluster_124 lhead=cluster_110];
-  n124_export -> n122_import [ltail=cluster_124 lhead=cluster_122];
-  n124_export -> n79_import [ltail=cluster_124 lhead=cluster_79];
-  n124_export -> n101_import [ltail=cluster_124 lhead=cluster_101];
-  n124_export -> n89_import [ltail=cluster_124 lhead=cluster_89];
-  n124_export -> n88_import [ltail=cluster_124 lhead=cluster_88];
-  n124_export -> n87_import [ltail=cluster_124 lhead=cluster_87];
-  n124_export -> n77_import [ltail=cluster_124 lhead=cluster_77];
-  n124_export -> n86_import [ltail=cluster_124 lhead=cluster_86];
-  n124_export -> n62_import [ltail=cluster_124 lhead=cluster_62];
-  n124_export -> n80_import [ltail=cluster_124 lhead=cluster_80];
-  n124_export -> n21_import [ltail=cluster_124 lhead=cluster_21];
-  n124_export -> n27_import [ltail=cluster_124 lhead=cluster_27];
-  n124_export -> n78_import [ltail=cluster_124 lhead=cluster_78];
-  n124_export -> n76_import [ltail=cluster_124 lhead=cluster_76];
-  n113_export -> n112_import [ltail=cluster_113 lhead=cluster_112];
-  n113_export -> n111_import [ltail=cluster_113 lhead=cluster_111];
-  n113_export -> n59_import [ltail=cluster_113 lhead=cluster_59];
-  n53_export -> n42_import [ltail=cluster_53 lhead=cluster_42];
-  n53_export -> n21_import [ltail=cluster_53 lhead=cluster_21];
-  n53_export -> n51_import [ltail=cluster_53 lhead=cluster_51];
-  n53_export -> n43_import [ltail=cluster_53 lhead=cluster_43];
-  n53_export -> n52_import [ltail=cluster_53 lhead=cluster_52];
-  n78_export -> n27_import [ltail=cluster_78 lhead=cluster_27];
-  n78_export -> n77_import [ltail=cluster_78 lhead=cluster_77];
-  n70_export -> n21_import [ltail=cluster_70 lhead=cluster_21];
-  n128_export -> n127_import [ltail=cluster_128 lhead=cluster_127];
-  n128_export -> n126_import [ltail=cluster_128 lhead=cluster_126];
-  n128_export -> n125_import [ltail=cluster_128 lhead=cluster_125];
-  n80_export -> n27_import [ltail=cluster_80 lhead=cluster_27];
-  n80_export -> n21_import [ltail=cluster_80 lhead=cluster_21];
-  n80_export -> n79_import [ltail=cluster_80 lhead=cluster_79];
-  n76_export -> n75_import [ltail=cluster_76 lhead=cluster_75];
-  n76_export -> n73_import [ltail=cluster_76 lhead=cluster_73];
-  n76_export -> n71_import [ltail=cluster_76 lhead=cluster_71];
-  n76_export -> n70_import [ltail=cluster_76 lhead=cluster_70];
-  n76_export -> n21_import [ltail=cluster_76 lhead=cluster_21];
-  n42_export -> n21_import [ltail=cluster_42 lhead=cluster_21];
-  n115_export -> n21_import [ltail=cluster_115 lhead=cluster_21];
-  n81_export -> n21_import [ltail=cluster_81 lhead=cluster_21];
-  n16_export -> n15_import [ltail=cluster_16 lhead=cluster_15];
-  n104_export -> n21_import [ltail=cluster_104 lhead=cluster_21];
-  n104_export -> n42_import [ltail=cluster_104 lhead=cluster_42];
-  n77_export -> n27_import [ltail=cluster_77 lhead=cluster_27];
-  n77_export -> n21_import [ltail=cluster_77 lhead=cluster_21];
-  n33_export -> n21_import [ltail=cluster_33 lhead=cluster_21];
-  n129_export -> n78_import [ltail=cluster_129 lhead=cluster_78];
-  n129_export -> n126_import [ltail=cluster_129 lhead=cluster_126];
-  n129_export -> n77_import [ltail=cluster_129 lhead=cluster_77];
-  n129_export -> n101_import [ltail=cluster_129 lhead=cluster_101];
-  n129_export -> n63_import [ltail=cluster_129 lhead=cluster_63];
-  n129_export -> n5_import [ltail=cluster_129 lhead=cluster_5];
-  n129_export -> n80_import [ltail=cluster_129 lhead=cluster_80];
-  n129_export -> n27_import [ltail=cluster_129 lhead=cluster_27];
-  n129_export -> n86_import [ltail=cluster_129 lhead=cluster_86];
-  n129_export -> n62_import [ltail=cluster_129 lhead=cluster_62];
-  n129_export -> n64_import [ltail=cluster_129 lhead=cluster_64];
-  n129_export -> n89_import [ltail=cluster_129 lhead=cluster_89];
-  n129_export -> n21_import [ltail=cluster_129 lhead=cluster_21];
-  n129_export -> n121_import [ltail=cluster_129 lhead=cluster_121];
-  n129_export -> n107_import [ltail=cluster_129 lhead=cluster_107];
-  n129_export -> n87_import [ltail=cluster_129 lhead=cluster_87];
-  n129_export -> n122_import [ltail=cluster_129 lhead=cluster_122];
-  n129_export -> n128_import [ltail=cluster_129 lhead=cluster_128];
-  n129_export -> n120_import [ltail=cluster_129 lhead=cluster_120];
-  n129_export -> n88_import [ltail=cluster_129 lhead=cluster_88];
-  n129_export -> n123_import [ltail=cluster_129 lhead=cluster_123];
-  n129_export -> n79_import [ltail=cluster_129 lhead=cluster_79];
-  n129_export -> n110_import [ltail=cluster_129 lhead=cluster_110];
-  n129_export -> n76_import [ltail=cluster_129 lhead=cluster_76];
-  n129_export -> n127_import [ltail=cluster_129 lhead=cluster_127];
-  n45_export -> n42_import [ltail=cluster_45 lhead=cluster_42];
-  n45_export -> n21_import [ltail=cluster_45 lhead=cluster_21];
-  n63_export -> n46_import [ltail=cluster_63 lhead=cluster_46];
-  n63_export -> n21_import [ltail=cluster_63 lhead=cluster_21];
-  n63_export -> n42_import [ltail=cluster_63 lhead=cluster_42];
-  n48_export -> n21_import [ltail=cluster_48 lhead=cluster_21];
-  n48_export -> n47_import [ltail=cluster_48 lhead=cluster_47];
-  n48_export -> n43_import [ltail=cluster_48 lhead=cluster_43];
-  n120_export -> n27_import [ltail=cluster_120 lhead=cluster_27];
-  n120_export -> n119_import [ltail=cluster_120 lhead=cluster_119];
-  n120_export -> n21_import [ltail=cluster_120 lhead=cluster_21];
-  n120_export -> n118_import [ltail=cluster_120 lhead=cluster_118];
-  n120_export -> n117_import [ltail=cluster_120 lhead=cluster_117];
-  n120_export -> n60_import [ltail=cluster_120 lhead=cluster_60];
-  n120_export -> n116_import [ltail=cluster_120 lhead=cluster_116];
-  n120_export -> n114_import [ltail=cluster_120 lhead=cluster_114];
-  n120_export -> n115_import [ltail=cluster_120 lhead=cluster_115];
-  n126_export -> n45_import [ltail=cluster_126 lhead=cluster_45];
-  n126_export -> n21_import [ltail=cluster_126 lhead=cluster_21];
-  n126_export -> n42_import [ltail=cluster_126 lhead=cluster_42];
-  n73_export -> n16_import [ltail=cluster_73 lhead=cluster_16];
-  n73_export -> n72_import [ltail=cluster_73 lhead=cluster_72];
-  n73_export -> n21_import [ltail=cluster_73 lhead=cluster_21];
-  n84_export -> n72_import [ltail=cluster_84 lhead=cluster_72];
-  n84_export -> n83_import [ltail=cluster_84 lhead=cluster_83];
-  n84_export -> n27_import [ltail=cluster_84 lhead=cluster_27];
-  n84_export -> n76_import [ltail=cluster_84 lhead=cluster_76];
-  n84_export -> n63_import [ltail=cluster_84 lhead=cluster_63];
-  n84_export -> n5_import [ltail=cluster_84 lhead=cluster_5];
-  n84_export -> n21_import [ltail=cluster_84 lhead=cluster_21];
-  n110_export -> n109_import [ltail=cluster_110 lhead=cluster_109];
-  n110_export -> n27_import [ltail=cluster_110 lhead=cluster_27];
-  n110_export -> n108_import [ltail=cluster_110 lhead=cluster_108];
-  n110_export -> n41_import [ltail=cluster_110 lhead=cluster_41];
-  n49_export -> n47_import [ltail=cluster_49 lhead=cluster_47];
-  n49_export -> n43_import [ltail=cluster_49 lhead=cluster_43];
-  n49_export -> n21_import [ltail=cluster_49 lhead=cluster_21];
-  n49_export -> n42_import [ltail=cluster_49 lhead=cluster_42];
-  n101_export -> n100_import [ltail=cluster_101 lhead=cluster_100];
-  n101_export -> n99_import [ltail=cluster_101 lhead=cluster_99];
-  n101_export -> n69_import [ltail=cluster_101 lhead=cluster_69];
-  n101_export -> n21_import [ltail=cluster_101 lhead=cluster_21];
-  n101_export -> n98_import [ltail=cluster_101 lhead=cluster_98];
-  n101_export -> n97_import [ltail=cluster_101 lhead=cluster_97];
-  n101_export -> n96_import [ltail=cluster_101 lhead=cluster_96];
-  n101_export -> n95_import [ltail=cluster_101 lhead=cluster_95];
-  n101_export -> n91_import [ltail=cluster_101 lhead=cluster_91];
-  n101_export -> n90_import [ltail=cluster_101 lhead=cluster_90];
-  n72_export -> n21_import [ltail=cluster_72 lhead=cluster_21];
-  n72_export -> n5_import [ltail=cluster_72 lhead=cluster_5];
-  n103_export -> n21_import [ltail=cluster_103 lhead=cluster_21];
-  n103_export -> n42_import [ltail=cluster_103 lhead=cluster_42];
-  n40_export -> n21_import [ltail=cluster_40 lhead=cluster_21];
-  n71_export -> n21_import [ltail=cluster_71 lhead=cluster_21];
-  n75_export -> n66_import [ltail=cluster_75 lhead=cluster_66];
-  n75_export -> n74_import [ltail=cluster_75 lhead=cluster_74];
-  n75_export -> n21_import [ltail=cluster_75 lhead=cluster_21];
-  n75_export -> n67_import [ltail=cluster_75 lhead=cluster_67];
-  n90_export -> n21_import [ltail=cluster_90 lhead=cluster_21];
-  n32_export -> n31_import [ltail=cluster_32 lhead=cluster_31];
-  n32_export -> n30_import [ltail=cluster_32 lhead=cluster_30];
-  n32_export -> n29_import [ltail=cluster_32 lhead=cluster_29];
-  n88_export -> n21_import [ltail=cluster_88 lhead=cluster_21];
-  n98_export -> n21_import [ltail=cluster_98 lhead=cluster_21];
-  n98_export -> n5_import [ltail=cluster_98 lhead=cluster_5];
-  n28_export -> n21_import [ltail=cluster_28 lhead=cluster_21];
-  n28_export -> n27_import [ltail=cluster_28 lhead=cluster_27];
-  n28_export -> n24_import [ltail=cluster_28 lhead=cluster_24];
-  n28_export -> n23_import [ltail=cluster_28 lhead=cluster_23];
-  n127_export -> n126_import [ltail=cluster_127 lhead=cluster_126];
-  n21_export -> n20_import [ltail=cluster_21 lhead=cluster_20];
-  n21_export -> n19_import [ltail=cluster_21 lhead=cluster_19];
-  n21_export -> n18_import [ltail=cluster_21 lhead=cluster_18];
-  n21_export -> n17_import [ltail=cluster_21 lhead=cluster_17];
-  n21_export -> n16_import [ltail=cluster_21 lhead=cluster_16];
-  n21_export -> n15_import [ltail=cluster_21 lhead=cluster_15];
-  n21_export -> n14_import [ltail=cluster_21 lhead=cluster_14];
-  n21_export -> n13_import [ltail=cluster_21 lhead=cluster_13];
-  n21_export -> n12_import [ltail=cluster_21 lhead=cluster_12];
-  n21_export -> n11_import [ltail=cluster_21 lhead=cluster_11];
-  n21_export -> n10_import [ltail=cluster_21 lhead=cluster_10];
-  n21_export -> n9_import [ltail=cluster_21 lhead=cluster_9];
-  n21_export -> n8_import [ltail=cluster_21 lhead=cluster_8];
-  n21_export -> n7_import [ltail=cluster_21 lhead=cluster_7];
-  n21_export -> n6_import [ltail=cluster_21 lhead=cluster_6];
-  n21_export -> n5_import [ltail=cluster_21 lhead=cluster_5];
-  n21_export -> n4_import [ltail=cluster_21 lhead=cluster_4];
-  n21_export -> n3_import [ltail=cluster_21 lhead=cluster_3];
-  n21_export -> n2_import [ltail=cluster_21 lhead=cluster_2];
-  n21_export -> n1_import [ltail=cluster_21 lhead=cluster_1];
-  n21_export -> n0_import [ltail=cluster_21 lhead=cluster_0];
-  n37_export -> n21_import [ltail=cluster_37 lhead=cluster_21];
-  n52_export -> n51_import [ltail=cluster_52 lhead=cluster_51];
-  n52_export -> n21_import [ltail=cluster_52 lhead=cluster_21];
-  n52_export -> n42_import [ltail=cluster_52 lhead=cluster_42];
-  n93_export -> n21_import [ltail=cluster_93 lhead=cluster_21];
-  n50_export -> n42_import [ltail=cluster_50 lhead=cluster_42];
-  n50_export -> n21_import [ltail=cluster_50 lhead=cluster_21];
-  n38_export -> n37_import [ltail=cluster_38 lhead=cluster_37];
-  n38_export -> n36_import [ltail=cluster_38 lhead=cluster_36];
-  n38_export -> n35_import [ltail=cluster_38 lhead=cluster_35];
-  n38_export -> n34_import [ltail=cluster_38 lhead=cluster_34];
-  n38_export -> n33_import [ltail=cluster_38 lhead=cluster_33];
-  n99_export -> n21_import [ltail=cluster_99 lhead=cluster_21];
-  n105_export -> n42_import [ltail=cluster_105 lhead=cluster_42];
-  n118_export -> n21_import [ltail=cluster_118 lhead=cluster_21];
-  n79_export -> n27_import [ltail=cluster_79 lhead=cluster_27];
-  n79_export -> n21_import [ltail=cluster_79 lhead=cluster_21];
-  n117_export -> n27_import [ltail=cluster_117 lhead=cluster_27];
-  n117_export -> n21_import [ltail=cluster_117 lhead=cluster_21];
-  n122_export -> n121_import [ltail=cluster_122 lhead=cluster_121];
-  n122_export -> n85_import [ltail=cluster_122 lhead=cluster_85];
-  n122_export -> n101_import [ltail=cluster_122 lhead=cluster_101];
-  n122_export -> n80_import [ltail=cluster_122 lhead=cluster_80];
-  n122_export -> n120_import [ltail=cluster_122 lhead=cluster_120];
-  n122_export -> n114_import [ltail=cluster_122 lhead=cluster_114];
-  n122_export -> n27_import [ltail=cluster_122 lhead=cluster_27];
-  n122_export -> n110_import [ltail=cluster_122 lhead=cluster_110];
-  n122_export -> n78_import [ltail=cluster_122 lhead=cluster_78];
-  n122_export -> n107_import [ltail=cluster_122 lhead=cluster_107];
-  n122_export -> n87_import [ltail=cluster_122 lhead=cluster_87];
-  n122_export -> n62_import [ltail=cluster_122 lhead=cluster_62];
-  n122_export -> n89_import [ltail=cluster_122 lhead=cluster_89];
-  n125_export -> n21_import [ltail=cluster_125 lhead=cluster_21];
-  n95_export -> n21_import [ltail=cluster_95 lhead=cluster_21];
-  n95_export -> n94_import [ltail=cluster_95 lhead=cluster_94];
-  n95_export -> n93_import [ltail=cluster_95 lhead=cluster_93];
-  n95_export -> n61_import [ltail=cluster_95 lhead=cluster_61];
-  n95_export -> n57_import [ltail=cluster_95 lhead=cluster_57];
-  n95_export -> n92_import [ltail=cluster_95 lhead=cluster_92];
-  n51_export -> n50_import [ltail=cluster_51 lhead=cluster_50];
-  n51_export -> n49_import [ltail=cluster_51 lhead=cluster_49];
-  n51_export -> n43_import [ltail=cluster_51 lhead=cluster_43];
-  n51_export -> n21_import [ltail=cluster_51 lhead=cluster_21];
-  n51_export -> n42_import [ltail=cluster_51 lhead=cluster_42];
-  n51_export -> n48_import [ltail=cluster_51 lhead=cluster_48];
-  n22_export -> n21_import [ltail=cluster_22 lhead=cluster_21];
-  n100_export -> n21_import [ltail=cluster_100 lhead=cluster_21];
-  n85_export -> n27_import [ltail=cluster_85 lhead=cluster_27];
-  n85_export -> n5_import [ltail=cluster_85 lhead=cluster_5];
-  n85_export -> n21_import [ltail=cluster_85 lhead=cluster_21];
-  n47_export -> n45_import [ltail=cluster_47 lhead=cluster_45];
-  n47_export -> n21_import [ltail=cluster_47 lhead=cluster_21];
-  n47_export -> n46_import [ltail=cluster_47 lhead=cluster_46];
-  n47_export -> n42_import [ltail=cluster_47 lhead=cluster_42];
-  n83_export -> n21_import [ltail=cluster_83 lhead=cluster_21];
-  n83_export -> n5_import [ltail=cluster_83 lhead=cluster_5];
-  n86_export -> n85_import [ltail=cluster_86 lhead=cluster_85];
-  n86_export -> n84_import [ltail=cluster_86 lhead=cluster_84];
-  n86_export -> n82_import [ltail=cluster_86 lhead=cluster_82];
-  n86_export -> n68_import [ltail=cluster_86 lhead=cluster_68];
-  n86_export -> n81_import [ltail=cluster_86 lhead=cluster_81];
-  n55_export -> n42_import [ltail=cluster_55 lhead=cluster_42];
-  n55_export -> n51_import [ltail=cluster_55 lhead=cluster_51];
-  n55_export -> n4_import [ltail=cluster_55 lhead=cluster_4];
-  n55_export -> n21_import [ltail=cluster_55 lhead=cluster_21];
-  n74_export -> n21_import [ltail=cluster_74 lhead=cluster_21];
-  n91_export -> n21_import [ltail=cluster_91 lhead=cluster_21];
-  n43_export -> n21_import [ltail=cluster_43 lhead=cluster_21];
-  n43_export -> n42_import [ltail=cluster_43 lhead=cluster_42];
-  n25_export -> n21_import [ltail=cluster_25 lhead=cluster_21];
-  n94_export -> n21_import [ltail=cluster_94 lhead=cluster_21];
-  n107_export -> n45_import [ltail=cluster_107 lhead=cluster_45];
-  n107_export -> n58_import [ltail=cluster_107 lhead=cluster_58];
-  n107_export -> n46_import [ltail=cluster_107 lhead=cluster_46];
-  n107_export -> n71_import [ltail=cluster_107 lhead=cluster_71];
-  n107_export -> n47_import [ltail=cluster_107 lhead=cluster_47];
-  n107_export -> n56_import [ltail=cluster_107 lhead=cluster_56];
-  n107_export -> n42_import [ltail=cluster_107 lhead=cluster_42];
-  n107_export -> n51_import [ltail=cluster_107 lhead=cluster_51];
-  n107_export -> n106_import [ltail=cluster_107 lhead=cluster_106];
-  n107_export -> n52_import [ltail=cluster_107 lhead=cluster_52];
-  n107_export -> n102_import [ltail=cluster_107 lhead=cluster_102];
-  n107_export -> n43_import [ltail=cluster_107 lhead=cluster_43];
-  n46_export -> n42_import [ltail=cluster_46 lhead=cluster_42];
-  n46_export -> n45_import [ltail=cluster_46 lhead=cluster_45];
-  n46_export -> n21_import [ltail=cluster_46 lhead=cluster_21];
-  n82_export -> n79_import [ltail=cluster_82 lhead=cluster_79];
-  n82_export -> n21_import [ltail=cluster_82 lhead=cluster_21];
-  n82_export -> n27_import [ltail=cluster_82 lhead=cluster_27];
-  n82_export -> n5_import [ltail=cluster_82 lhead=cluster_5];
-  n106_export -> n21_import [ltail=cluster_106 lhead=cluster_21];
-  n106_export -> n43_import [ltail=cluster_106 lhead=cluster_43];
-  n106_export -> n42_import [ltail=cluster_106 lhead=cluster_42];
-  n106_export -> n105_import [ltail=cluster_106 lhead=cluster_105];
-  n106_export -> n104_import [ltail=cluster_106 lhead=cluster_104];
-  n106_export -> n103_import [ltail=cluster_106 lhead=cluster_103];
-  n106_export -> n51_import [ltail=cluster_106 lhead=cluster_51];
-  n92_export -> n21_import [ltail=cluster_92 lhead=cluster_21];
-  n119_export -> n21_import [ltail=cluster_119 lhead=cluster_21];
-  n114_export -> n113_import [ltail=cluster_114 lhead=cluster_113];
-  n114_export -> n21_import [ltail=cluster_114 lhead=cluster_21];
-  n87_export -> n21_import [ltail=cluster_87 lhead=cluster_21];
-  n23_export -> n21_import [ltail=cluster_23 lhead=cluster_21];
-  n102_export -> n21_import [ltail=cluster_102 lhead=cluster_21];
+  rankdir=LR;
+  node [shape=box fontname="monospace"];
+  "ir::proofs";
+  "ir::learning";
+  "ir::functions";
+  "ir::artifacts";
+  "ir::types";
+  "ir::timeline";
+  "ir::policy";
+  "ir::proposal";
+  "ir::delta";
+  "ir::core";
+  "ir::gpu";
+  "ir::ids";
+  "ir::goals";
+  "ir::graphs";
+  "ir::errors";
+  "ir::judgment";
+  "ir::reward";
+  "ir::admission";
+  "ir::word";
+  "ir::project";
+  "ir::world_model";
+  "ir";
+  "layout::validation";
+  "layout::strategies";
+  "layout";
+  "semantic_builder";
+  "runtime::value";
+  "runtime::bytecode_types";
+  "gpu::codegen";
+  "gpu::dispatch";
+  "materialize::render_trait";
+  "runtime::delta_verifier";
+  "decision::auto_dsl";
+  "validate::rules";
+  "validate::helpers";
+  "validate::check_execution";
+  "validate::check_artifacts::module";
+  "validate::check_artifacts::ast";
+  "validate::check_artifacts::impls";
+  "validate::error";
+  "validate::check_artifacts::functions";
+  "validate::check_artifacts::type_defs";
+  "validate::check_artifacts";
+  "validate::check_project";
+  "validate::check_graphs";
+  "validate::check_proposals";
+  "validate::check_deltas";
+  "validate";
+  "diagnose::predicate";
+  "diagnose::pipeline";
+  "diagnose::classify";
+  "diagnose::brief";
+  "diagnose";
+  "agent::call";
+  "dot_import";
+  "dot_export";
+  "agent::refactor";
+  "io_utils";
+  "diff";
+  "agent::ws_server";
+  "materialize::render_common";
+  "materialize::render_fn::ast::stmt";
+  "materialize::render_fn::ast::utils";
+  "materialize::render_fn::ast::expr";
+  "materialize::render_fn::ast";
+  "materialize::render_fn";
+  "materialize::render_cargo";
+  "materialize::render_impl";
+  "materialize::render_module";
+  "materialize::render_struct";
+  "materialize::file_tree";
+  "materialize";
+  "agent::io";
+  "agent::runner";
+  "ingest::fs_walk";
+  "ingest::builder::layout";
+  "ingest::builder::functions::syn_conv";
+  "ingest::builder::functions::ids";
+  "ingest::builder::functions";
+  "ingest::builder::edges";
+  "ingest::builder::ast_lower::util";
+  "ingest::builder::ast_lower::pat";
+  "ingest::builder::ast_lower::expr";
+  "ingest::builder::ast_lower";
+  "ingest::builder::types::ports";
+  "ingest::builder::types::uses";
+  "ingest::builder::types::types";
+  "ingest::builder::types::strings";
+  "ingest::builder::types::visibility";
+  "ingest::builder::types";
+  "ingest::builder::modules";
+  "ingest::builder";
+  "ingest::parser";
+  "ingest";
+  "agent::dispatcher";
+  "evolution::lyapunov";
+  "decision::accept::proposal_checks";
+  "evolution::goal_mutation";
+  "evolution::kernel_bridge";
+  "evolution::structural::guard";
+  "evolution::structural::apply";
+  "evolution::structural::rename";
+  "evolution::structural";
+  "evolution";
+  "runtime::reward";
+  "agent::pipeline";
+  "agent::capability";
+  "agent::meta";
+  "runtime::policy_updater";
+  "agent::reward";
+  "agent::bootstrap";
+  "agent::observe";
+  "agent::epoch";
+  "agent::llm_provider";
+  "agent::slice";
+  "agent::sse";
+  "agent";
+  "cli";
+  "version_gate";
+  "runtime::context";
+  "runtime::ast";
+  "runtime::bytecode";
+  "runtime::executor::interp";
+  "runtime::executor::arith";
+  "runtime::executor::error";
+  "runtime::executor";
+  "runtime::error";
+  "runtime::system_interpreter::planner";
+  "runtime::system_interpreter::effects";
+  "runtime::system_interpreter::delta";
+  "runtime::system_interpreter";
+  "runtime::parallel";
+  "runtime::tick_executor::reconcile";
+  "runtime::tick_executor::types";
+  "runtime::graph";
+  "runtime::rollout";
+  "runtime::tick_executor::planning";
+  "runtime::tick_executor::graph";
+  "runtime::tick_executor::parallel";
+  "runtime::tick_executor";
+  "runtime";
+  "schema";
+  "commands";
+  "decision::auto_dot";
+  "decision::accept::delta_emitter";
+  "proof::smt_bridge";
+  "decision::accept";
+  "gpu::fusion";
+  "gpu";
+  "proof";
+  "observe";
+  "patch_protocol";
+  "decision::bootstrap";
+  "decision::auto_fn_ast";
+  "decision";
+  "lib";
+  "materialize::layout_renderer";
+  "main";
+  "semantic_builder" -> "ir";
+  "semantic_builder" -> "layout";
+  "gpu::dispatch" -> "gpu::codegen";
+  "materialize::render_trait" -> "ir";
+  "runtime::delta_verifier" -> "ir";
+  "commands" -> "layout";
+  "commands" -> "agent::bootstrap";
+  "commands" -> "schema";
+  "commands" -> "agent::io";
+  "commands" -> "runtime";
+  "commands" -> "materialize::render_fn";
+  "commands" -> "version_gate";
+  "commands" -> "cli";
+  "commands" -> "agent";
+  "commands" -> "ingest";
+  "commands" -> "agent::runner";
+  "commands" -> "materialize";
+  "commands" -> "agent::ws_server";
+  "commands" -> "diff";
+  "commands" -> "validate";
+  "commands" -> "io_utils";
+  "commands" -> "agent::refactor";
+  "commands" -> "dot_export";
+  "commands" -> "agent::call";
+  "commands" -> "diagnose";
+  "commands" -> "decision::auto_dsl";
+  "agent::dispatcher" -> "ir";
+  "runtime::policy_updater" -> "ir";
+  "agent::reward" -> "ir";
+  "agent::reward" -> "runtime::policy_updater";
+  "validate::helpers" -> "ir";
+  "runtime::tick_executor::parallel" -> "runtime::value";
+  "runtime::tick_executor::parallel" -> "runtime::error";
+  "runtime::tick_executor::parallel" -> "runtime::context";
+  "runtime::tick_executor::parallel" -> "ir";
+  "runtime::tick_executor::parallel" -> "runtime::executor";
+  "runtime::tick_executor::parallel" -> "runtime::parallel";
+  "runtime::context" -> "runtime::value";
+  "runtime::context" -> "ir";
+  "runtime::system_interpreter::planner" -> "runtime::value";
+  "runtime::system_interpreter::planner" -> "ir";
+  "validate::check_execution" -> "ir";
+  "runtime" -> "runtime::ast";
+  "runtime" -> "runtime::graph";
+  "runtime" -> "runtime::reward";
+  "runtime" -> "runtime::executor";
+  "runtime" -> "runtime::rollout";
+  "runtime" -> "runtime::bytecode";
+  "runtime" -> "runtime::bytecode_types";
+  "runtime" -> "runtime::context";
+  "runtime" -> "runtime::policy_updater";
+  "runtime" -> "runtime::tick_executor";
+  "runtime" -> "runtime::value";
+  "runtime" -> "runtime::parallel";
+  "runtime" -> "runtime::system_interpreter";
+  "runtime" -> "runtime::delta_verifier";
+  "runtime" -> "runtime::error";
+  "ingest::builder::types::visibility" -> "ir";
+  "ingest::builder::types::strings" -> "ir";
+  "runtime::executor::error" -> "runtime::bytecode";
+  "runtime::executor::error" -> "ir";
+  "runtime::executor::error" -> "runtime::context";
+  "validate::check_deltas" -> "ir";
+  "evolution::kernel_bridge" -> "ir";
+  "dot_import" -> "ir";
+  "dot_import" -> "layout";
+  "ingest" -> "ingest::parser";
+  "ingest" -> "layout";
+  "ingest" -> "ingest::builder";
+  "ingest" -> "ingest::fs_walk";
+  "decision::auto_dot" -> "ir::proposal";
+  "decision::auto_dot" -> "dot_import";
+  "decision::auto_dot" -> "ir";
+  "decision::auto_dot" -> "layout";
+  "decision::accept" -> "evolution";
+  "decision::accept" -> "ir";
+  "decision::accept" -> "decision::accept::proposal_checks";
+  "decision::accept" -> "proof::smt_bridge";
+  "decision::accept" -> "ir::proposal";
+  "decision::accept" -> "decision::accept::delta_emitter";
+  "decision::accept" -> "layout";
+  "validate::check_artifacts::module" -> "ir";
+  "agent::slice" -> "ir";
+  "diagnose" -> "ir";
+  "diagnose" -> "diagnose::brief";
+  "diagnose" -> "diagnose::classify";
+  "diagnose" -> "validate";
+  "diagnose" -> "diagnose::pipeline";
+  "diagnose" -> "diagnose::predicate";
+  "validate::check_artifacts::impls" -> "ir";
+  "validate::check_artifacts" -> "validate::check_artifacts::type_defs";
+  "validate::check_artifacts" -> "validate::check_artifacts::functions";
+  "validate::check_artifacts" -> "validate::check_artifacts::impls";
+  "validate::check_artifacts" -> "validate::check_artifacts::ast";
+  "validate::check_artifacts" -> "validate::check_artifacts::module";
+  "validate::check_artifacts" -> "ir";
+  "gpu::codegen" -> "ir";
+  "gpu::codegen" -> "runtime::value";
+  "gpu::codegen" -> "runtime::bytecode_types";
+  "runtime::ast" -> "ir";
+  "runtime::ast" -> "runtime::bytecode_types";
+  "runtime::ast" -> "runtime::value";
+  "runtime::executor::arith" -> "runtime::value";
+  "runtime::executor::arith" -> "ir";
+  "ingest::builder::types::ports" -> "ir";
+  "runtime::tick_executor::planning" -> "runtime::value";
+  "runtime::tick_executor::planning" -> "ir::world_model";
+  "runtime::tick_executor::planning" -> "ir";
+  "runtime::tick_executor::planning" -> "runtime::rollout";
+  "validate::check_artifacts::ast" -> "ir";
+  "validate" -> "validate::check_deltas";
+  "validate" -> "validate::check_proposals";
+  "validate" -> "validate::check_graphs";
+  "validate" -> "validate::check_project";
+  "validate" -> "validate::error";
+  "validate" -> "validate::check_artifacts";
+  "validate" -> "ir";
+  "validate" -> "validate::check_execution";
+  "validate" -> "validate::helpers";
+  "validate" -> "validate::rules";
+  "validate::check_artifacts::functions" -> "ir";
+  "validate::check_artifacts::functions" -> "validate::error";
+  "io_utils" -> "semantic_builder";
+  "io_utils" -> "layout";
+  "materialize" -> "materialize::render_trait";
+  "materialize" -> "materialize::file_tree";
+  "materialize" -> "materialize::render_struct";
+  "materialize" -> "materialize::render_common";
+  "materialize" -> "materialize::render_module";
+  "materialize" -> "materialize::render_impl";
+  "materialize" -> "materialize::render_cargo";
+  "materialize" -> "ir";
+  "materialize" -> "layout";
+  "materialize" -> "materialize::render_fn";
+  "runtime::parallel" -> "ir";
+  "runtime::parallel" -> "runtime::executor";
+  "runtime::parallel" -> "runtime::value";
+  "dot_export" -> "layout";
+  "dot_export" -> "dot_import";
+  "dot_export" -> "ir";
+  "gpu" -> "gpu::dispatch";
+  "gpu" -> "gpu::codegen";
+  "gpu" -> "gpu::fusion";
+  "proof::smt_bridge" -> "runtime::ast";
+  "proof::smt_bridge" -> "ir";
+  "proof::smt_bridge" -> "runtime::value";
+  "ingest::builder::modules" -> "ir";
+  "materialize::render_struct" -> "ir";
+  "ingest::builder::ast_lower" -> "ingest::builder::ast_lower::expr";
+  "ingest::builder::ast_lower" -> "ingest::builder::ast_lower::pat";
+  "ingest::builder::ast_lower" -> "ingest::builder::ast_lower::util";
+  "proof" -> "proof::smt_bridge";
+  "validate::check_project" -> "ir";
+  "evolution::lyapunov" -> "ir::goals";
+  "evolution::lyapunov" -> "ir";
+  "materialize::render_common" -> "ir";
+  "validate::check_proposals" -> "ir::proposal";
+  "validate::check_proposals" -> "ir";
+  "agent::meta" -> "ir";
+  "agent::runner" -> "agent::io";
+  "agent::runner" -> "ir";
+  "agent::runner" -> "layout";
+  "evolution::structural" -> "evolution::structural::rename";
+  "evolution::structural" -> "evolution::structural::apply";
+  "evolution::structural" -> "evolution::structural::guard";
+  "evolution::structural" -> "ir";
+  "lib" -> "gpu::codegen";
+  "lib" -> "diagnose";
+  "lib" -> "proof::smt_bridge";
+  "lib" -> "layout";
+  "lib" -> "commands";
+  "lib" -> "cli";
+  "lib" -> "decision";
+  "lib" -> "ir";
+  "lib" -> "patch_protocol";
+  "lib" -> "validate";
+  "lib" -> "ir::proposal";
+  "lib" -> "materialize";
+  "lib" -> "runtime";
+  "lib" -> "schema";
+  "lib" -> "dot_import";
+  "lib" -> "ingest";
+  "lib" -> "observe";
+  "lib" -> "evolution";
+  "lib" -> "proof";
+  "lib" -> "semantic_builder";
+  "lib" -> "dot_export";
+  "lib" -> "io_utils";
+  "lib" -> "version_gate";
+  "lib" -> "agent";
+  "lib" -> "gpu::dispatch";
+  "lib" -> "diff";
+  "lib" -> "gpu";
+  "decision::auto_fn_ast" -> "layout";
+  "decision::auto_fn_ast" -> "ir";
+  "decision::auto_fn_ast" -> "ir::proposal";
+  "agent" -> "agent::sse";
+  "agent" -> "agent::slice";
+  "agent" -> "agent::llm_provider";
+  "agent" -> "agent::epoch";
+  "agent" -> "agent::ws_server";
+  "agent" -> "agent::observe";
+  "agent" -> "agent::bootstrap";
+  "agent" -> "agent::call";
+  "agent" -> "agent::reward";
+  "agent" -> "agent::meta";
+  "agent" -> "agent::refactor";
+  "agent" -> "agent::runner";
+  "agent" -> "agent::capability";
+  "agent" -> "agent::pipeline";
+  "agent" -> "agent::io";
+  "agent" -> "agent::dispatcher";
+  "layout::validation" -> "ir";
+  "ingest::builder::layout" -> "ir";
+  "ingest::builder::layout" -> "layout";
+  "ingest::builder::types" -> "ingest::builder::types::visibility";
+  "ingest::builder::types" -> "ingest::builder::types::strings";
+  "ingest::builder::types" -> "ingest::builder::types::types";
+  "ingest::builder::types" -> "ingest::builder::types::uses";
+  "ingest::builder::types" -> "ingest::builder::types::ports";
+  "ir::goals" -> "ir::ids";
+  "agent::pipeline" -> "runtime::reward";
+  "agent::pipeline" -> "evolution";
+  "agent::pipeline" -> "layout";
+  "agent::pipeline" -> "ir";
+  "evolution::structural::rename" -> "ir";
+  "validate::check_artifacts::type_defs" -> "ir";
+  "materialize::render_fn" -> "materialize::render_fn::ast";
+  "materialize::render_fn" -> "materialize::render_common";
+  "materialize::render_fn" -> "ir";
+  "ingest::builder::functions" -> "ingest::builder::functions::ids";
+  "ingest::builder::functions" -> "ir";
+  "ingest::builder::functions" -> "ingest::builder::functions::syn_conv";
+  "ingest::builder::functions" -> "layout";
+  "runtime::executor" -> "runtime::executor::error";
+  "runtime::executor" -> "ir";
+  "runtime::executor" -> "runtime::executor::arith";
+  "runtime::executor" -> "runtime::value";
+  "runtime::executor" -> "runtime::executor::interp";
+  "runtime::executor" -> "runtime::context";
+  "validate::check_graphs" -> "ir";
+  "ingest::builder::edges" -> "ir";
+  "runtime::graph" -> "ir";
+  "runtime::graph" -> "runtime::error";
+  "runtime::graph" -> "runtime::value";
+  "runtime::reward" -> "runtime::value";
+  "runtime::reward" -> "ir";
+  "runtime::system_interpreter" -> "ir";
+  "runtime::system_interpreter" -> "runtime::value";
+  "runtime::system_interpreter" -> "runtime::system_interpreter::delta";
+  "runtime::system_interpreter" -> "runtime::system_interpreter::effects";
+  "runtime::system_interpreter" -> "runtime::system_interpreter::planner";
+  "runtime::system_interpreter" -> "runtime::executor";
+  "runtime::system_interpreter" -> "runtime::context";
+  "materialize::render_module" -> "ir";
+  "materialize::render_module" -> "layout";
+  "runtime::system_interpreter::delta" -> "runtime::value";
+  "ingest::builder::functions::syn_conv" -> "ir";
+  "decision::accept::proposal_checks" -> "ir";
+  "decision::accept::proposal_checks" -> "ir::proposal";
+  "runtime::bytecode" -> "runtime::value";
+  "runtime::bytecode" -> "ir";
+  "runtime::bytecode" -> "runtime::ast";
+  "runtime::bytecode" -> "runtime::bytecode_types";
+  "ir" -> "ir::world_model";
+  "ir" -> "ir::project";
+  "ir" -> "ir::word";
+  "ir" -> "ir::admission";
+  "ir" -> "ir::ids";
+  "ir" -> "ir::reward";
+  "ir" -> "ir::judgment";
+  "ir" -> "ir::errors";
+  "ir" -> "ir::graphs";
+  "ir" -> "ir::goals";
+  "ir" -> "ir::gpu";
+  "ir" -> "ir::core";
+  "ir" -> "ir::delta";
+  "ir" -> "ir::proposal";
+  "ir" -> "ir::policy";
+  "ir" -> "ir::timeline";
+  "ir" -> "ir::types";
+  "ir" -> "ir::artifacts";
+  "ir" -> "ir::functions";
+  "ir" -> "ir::learning";
+  "ir" -> "ir::proofs";
+  "agent::epoch" -> "agent::meta";
+  "agent::epoch" -> "ir";
+  "agent::epoch" -> "agent::reward";
+  "agent::epoch" -> "agent::capability";
+  "decision::accept::delta_emitter" -> "ir::proposal";
+  "decision::accept::delta_emitter" -> "ir";
+  "runtime::executor::interp" -> "runtime::value";
+  "runtime::executor::interp" -> "ir";
+  "runtime::executor::interp" -> "runtime::context";
+  "runtime::executor::interp" -> "runtime::bytecode";
+  "materialize::render_cargo" -> "ir";
+  "runtime::tick_executor::reconcile" -> "ir";
+  "runtime::tick_executor::reconcile" -> "ir::world_model";
+  "observe" -> "ir";
+  "runtime::value" -> "ir";
+  "runtime::tick_executor::graph" -> "runtime::value";
+  "runtime::tick_executor::graph" -> "ir";
+  "runtime::tick_executor::graph" -> "runtime::error";
+  "runtime::bytecode_types" -> "runtime::value";
+  "runtime::bytecode_types" -> "ir";
+  "materialize::layout_renderer" -> "ir";
+  "materialize::layout_renderer" -> "layout";
+  "gpu::fusion" -> "ir";
+  "evolution::structural::guard" -> "ir";
+  "evolution" -> "evolution::structural";
+  "evolution" -> "evolution::kernel_bridge";
+  "evolution" -> "evolution::goal_mutation";
+  "evolution" -> "evolution::lyapunov";
+  "evolution" -> "ir";
+  "evolution" -> "runtime::delta_verifier";
+  "decision::bootstrap" -> "ir";
+  "decision" -> "decision::auto_dsl";
+  "decision" -> "decision::accept";
+  "decision" -> "decision::auto_dot";
+  "decision" -> "decision::auto_fn_ast";
+  "decision" -> "decision::bootstrap";
+  "schema" -> "ir";
+  "ingest::builder" -> "ingest::builder::modules";
+  "ingest::builder" -> "ingest::builder::types";
+  "ingest::builder" -> "ingest::builder::ast_lower";
+  "ingest::builder" -> "layout";
+  "ingest::builder" -> "ingest::builder::edges";
+  "ingest::builder" -> "ingest::builder::functions";
+  "ingest::builder" -> "ingest::builder::layout";
+  "main" -> "observe";
+  "main" -> "io_utils";
+  "main" -> "agent";
+  "main" -> "ir";
+  "main" -> "proof";
+  "main" -> "schema";
+  "main" -> "semantic_builder";
+  "main" -> "version_gate";
+  "main" -> "dot_export";
+  "main" -> "dot_import";
+  "main" -> "cli";
+  "main" -> "commands";
+  "main" -> "diagnose";
+  "main" -> "decision";
+  "main" -> "materialize";
+  "main" -> "patch_protocol";
+  "main" -> "runtime";
+  "main" -> "validate";
+  "main" -> "layout";
+  "main" -> "evolution";
+  "main" -> "diff";
+  "main" -> "gpu";
+  "main" -> "ingest";
+  "ingest::builder::types::types" -> "ir";
+  "diagnose::predicate" -> "validate";
+  "decision::auto_dsl" -> "layout";
+  "decision::auto_dsl" -> "ir::proposal";
+  "decision::auto_dsl" -> "ir";
+  "evolution::goal_mutation" -> "decision::accept::proposal_checks";
+  "evolution::goal_mutation" -> "ir";
+  "evolution::goal_mutation" -> "ir::goals";
+  "runtime::tick_executor::types" -> "ir";
+  "runtime::tick_executor::types" -> "ir::world_model";
+  "runtime::tick_executor::types" -> "runtime::executor";
+  "runtime::tick_executor::types" -> "runtime::value";
+  "runtime::error" -> "ir";
+  "runtime::error" -> "runtime::executor";
+  "runtime::system_interpreter::effects" -> "ir";
+  "runtime::system_interpreter::effects" -> "runtime::value";
+  "runtime::rollout" -> "ir::world_model";
+  "runtime::rollout" -> "runtime::reward";
+  "runtime::rollout" -> "ir";
+  "runtime::rollout" -> "runtime::graph";
+  "runtime::rollout" -> "runtime::value";
+  "runtime::rollout" -> "runtime::executor";
+  "runtime::rollout" -> "runtime::context";
+  "evolution::structural::apply" -> "ir";
+  "runtime::tick_executor" -> "runtime::tick_executor::parallel";
+  "runtime::tick_executor" -> "runtime::tick_executor::graph";
+  "runtime::tick_executor" -> "runtime::tick_executor::planning";
+  "runtime::tick_executor" -> "agent::epoch";
+  "runtime::tick_executor" -> "runtime::tick_executor::types";
+  "runtime::tick_executor" -> "runtime::context";
+  "runtime::tick_executor" -> "runtime::value";
+  "runtime::tick_executor" -> "runtime::error";
+  "runtime::tick_executor" -> "runtime::reward";
+  "runtime::tick_executor" -> "runtime::executor";
+  "runtime::tick_executor" -> "runtime::tick_executor::reconcile";
+  "runtime::tick_executor" -> "ir";
+  "agent::bootstrap" -> "ir";
+  "agent::observe" -> "ir";
+  "materialize::render_fn::ast" -> "materialize::render_fn::ast::expr";
+  "materialize::render_fn::ast" -> "materialize::render_fn::ast::utils";
+  "materialize::render_fn::ast" -> "materialize::render_fn::ast::stmt";
+  "materialize::render_impl" -> "ir";
+  "agent::call" -> "ir";
+  "diagnose::classify" -> "validate";
+  "diagnose::classify" -> "ir";
+  "layout" -> "layout::strategies";
+  "layout" -> "ir";
+  "layout" -> "layout::validation";
+  "agent::refactor" -> "ir";
 }

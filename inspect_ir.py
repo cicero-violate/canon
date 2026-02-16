@@ -44,7 +44,7 @@ def main(semantic_path, layout_path):
     print_section("Top-Level Schema (layout.json)")
     print(json.dumps(infer_schema(layout), indent=2))
 
-    impl_blocks = semantic.get("impl_blocks", [])
+    impl_blocks = semantic.get("impls", [])
     functions = semantic.get("functions", [])
 
     print_section("Impl Block Schema")

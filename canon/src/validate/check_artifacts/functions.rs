@@ -24,6 +24,18 @@ pub fn check_functions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Vio
             continue;
         }
 
+        // Rule 5: ExplicitArtifacts — impl_id must reference a valid impl
+        if idx.impls.get(f.impl_id.as_str()).is_none() {
+            violations.push(Violation::structured(
+                CanonRule::ExplicitArtifacts,
+                f.id.clone(),
+                ViolationDetail::FunctionMissingImpl {
+                    function_id: f.id.clone(),
+                    impl_id: f.impl_id.clone(),
+                },
+            ));
+        }
+
         let Some(block) = idx.impls.get(f.impl_id.as_str()) else {
             violations.push(Violation::structured(
                 CanonRule::ExecutionOnlyInImpl,

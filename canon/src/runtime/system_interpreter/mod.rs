@@ -10,7 +10,7 @@ use crate::ir::{CanonicalIr, FunctionId, SystemGraph, SystemNode, SystemNodeId, 
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::{ExecutorError, FunctionExecutor};
 use crate::runtime::value::Value;
-use memory_engine::delta::Delta;
+use memory_engine::Delta;
 
 mod delta;
 mod effects;

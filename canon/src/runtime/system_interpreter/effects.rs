@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::ir::{SystemNode, SystemNodeKind};
 use crate::runtime::value::{ScalarValue, StructValue, Value};
-use memory_engine::delta::Delta;
+use memory_engine::Delta;
 
 use super::{ProofArtifact, SystemExecutionEvent, SystemInterpreter, SystemInterpreterError};
 
