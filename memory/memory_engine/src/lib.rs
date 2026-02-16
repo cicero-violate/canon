@@ -2,6 +2,10 @@
 // #![allow(dead_code)]
 #![allow(hidden_glob_reexports)]
 
+mod canonical_state;
+mod hash;
+mod engine_commit;
+
 pub mod primitives;
 pub mod delta;
 pub mod epoch;
@@ -11,11 +15,8 @@ pub mod tlog;
 pub mod proofs;
 pub mod page_store;
 pub mod journal;
-pub mod canonical_state;
-pub mod hash;
-pub mod engine_commit;
-pub mod memory_engine;
 
+pub mod memory_engine;
 pub use canonical_state::CanonicalState;
 
 pub use memory_engine::{
