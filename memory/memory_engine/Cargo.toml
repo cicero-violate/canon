@@ -15,6 +15,10 @@ rayon = "1.8"
 memmap2 = "0.9"
 proptest = "1"
 cust = "0.8"
+cuda-sys = { version = "0.2", optional = true }
+
+[features]
+cuda = ["cuda-sys"]
 
 [dev-dependencies]
 rand = "0.8"
