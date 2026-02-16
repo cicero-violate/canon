@@ -1,7 +1,11 @@
-use crate::ir::CanonicalIr;
 use super::super::EvolutionError;
+use crate::ir::CanonicalIr;
 
-pub fn rename_module(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError> {
+pub fn rename_module(
+    ir: &mut CanonicalIr,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError> {
     let module = ir
         .modules
         .iter_mut()
@@ -18,7 +22,7 @@ pub fn rename_module(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result
             tr.module = new_id.to_owned();
         }
     }
-    for block in &mut ir.impl_blocks {
+    for block in &mut ir.impls {
         if block.module == *old_id {
             block.module = new_id.to_owned();
         }
@@ -39,14 +43,18 @@ pub fn rename_module(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result
     Ok(())
 }
 
-pub fn rename_struct(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError> {
+pub fn rename_struct(
+    ir: &mut CanonicalIr,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError> {
     let structure = ir
         .structs
         .iter_mut()
         .find(|s| s.id == *old_id)
         .ok_or_else(|| EvolutionError::UnknownStruct(old_id.to_string()))?;
     structure.id = new_id.to_owned();
-    for block in &mut ir.impl_blocks {
+    for block in &mut ir.impls {
         if block.struct_id == *old_id {
             block.struct_id = new_id.to_owned();
         }
@@ -59,14 +67,18 @@ pub fn rename_struct(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result
     Ok(())
 }
 
-pub fn rename_function(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError> {
+pub fn rename_function(
+    ir: &mut CanonicalIr,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError> {
     let function = ir
         .functions
         .iter_mut()
         .find(|f| f.id == *old_id)
         .ok_or_else(|| EvolutionError::UnknownFunction(old_id.to_string()))?;
     function.id = new_id.to_owned();
-    for block in &mut ir.impl_blocks {
+    for block in &mut ir.impls {
         for binding in &mut block.functions {
             if binding.function == *old_id {
                 binding.function = new_id.to_owned();

@@ -60,21 +60,22 @@ fn render_tuple_type(params: &[TypeRef]) -> String {
 }
 
 fn render_fn_ptr_type(params: &[TypeRef]) -> String {
-    if params.is_empty() {
-        return "fn()".to_owned();
+    match params.split_last() {
+        None => "fn()".to_owned(),
+        Some((ret, inputs)) => {
+            let rendered_inputs = inputs
+                .iter()
+                .map(render_type)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let mut sig = format!("fn({rendered_inputs})");
+            if !matches!(ret.kind, TypeKind::Tuple) || !ret.params.is_empty() {
+                sig.push_str(" -> ");
+                sig.push_str(&render_type(ret));
+            }
+            sig
+        }
     }
-    let (inputs, output) = params.split_at(params.len().saturating_sub(1));
-    let rendered_inputs = inputs
-        .iter()
-        .map(render_type)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let mut sig = format!("fn({rendered_inputs})");
-    if let Some(ret) = output.last() {
-        sig.push_str(" -> ");
-        sig.push_str(&render_type(ret));
-    }
-    sig
 }
 
 fn render_slice_type(ty: &TypeRef) -> String {

@@ -2,12 +2,12 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 
 use crate::{
+    ir::proposal::{derive_word_from_identifier, sanitize_identifier},
     ir::{
         CanonicalIr, Delta, DeltaKind, DeltaPayload, PipelineStage, Proposal, ProposalGoal,
         ProposalKind, ProposalStatus, ProposedApi, ProposedNode, ProposedNodeKind,
     },
     layout::LayoutGraph,
-    ir::proposal::{derive_word_from_identifier, sanitize_identifier},
 };
 
 use super::{

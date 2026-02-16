@@ -6,17 +6,9 @@ use crate::ir::{CallEdge, Function, Visibility};
 
 use super::super::parser::ParsedWorkspace;
 use super::modules::{collect_use_aliases, module_key};
-use super::types::{module_segments_from_key, slugify, AliasBinding};
+use super::types::{AliasBinding, UseEntry, module_segments_from_key, slugify};
 
 // ── Shared data structures ────────────────────────────────────────────────────
-
-#[derive(Clone, Debug)]
-pub(crate) struct UseEntry {
-    pub segments: Vec<String>,
-    pub alias: Option<String>,
-    pub is_glob: bool,
-    pub leading_colon: bool,
-}
 
 #[derive(Clone)]
 pub(crate) struct FunctionLookupEntry {

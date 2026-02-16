@@ -27,22 +27,6 @@ pub struct TickExecutionResult {
     pub parallel_duration: Option<Duration>,
 }
 
-#[derive(Debug, Error)]
-pub enum TickExecutorError {
-    #[error("unknown tick `{0}`")]
-    UnknownTick(String),
-    #[error("unknown graph `{0}`")]
-    UnknownGraph(String),
-    #[error("cycle detected in tick graph at function `{0}` (Canon Line 48 violation)")]
-    CycleDetected(FunctionId),
-    #[error("parallel execution mismatch for function `{function}`")]
-    ParallelMismatch { function: FunctionId },
-    #[error("parallel delta mismatch at index {index}")]
-    ParallelDeltaMismatch { index: usize },
-    #[error(transparent)]
-    Executor(#[from] ExecutorError),
-}
-
 #[derive(Clone)]
 pub(super) struct PredictionContext {
     pub predicted_deltas: Vec<DeltaId>,
@@ -83,10 +67,4 @@ pub(super) fn default_predicted_snapshot(tick_id: &str, horizon: u32) -> StateSn
         delta_ids: Vec::new(),
         description: format!("baseline horizon {horizon}"),
     }
-}
-
-pub(super) fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
-    // Layer 1 (Foundation): deterministic scalar utility.
-    // Minimal rule: U = (# emitted deltas)
-    emitted.len() as f64
 }

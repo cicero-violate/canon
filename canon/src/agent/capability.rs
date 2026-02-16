@@ -162,20 +162,14 @@ impl CapabilityGraph {
     /// Returns node trust scores τ(v) propagated from proof_confidence on edges.
     /// Nodes with no predecessors get trust = 1.0 (root axiom).
     pub fn trust_scores(&self) -> HashMap<String, f64> {
-        let mut scores: HashMap<String, f64> = self
-            .nodes
-            .iter()
-            .map(|n| (n.id.clone(), 1.0_f64))
-            .collect();
+        let mut scores: HashMap<String, f64> =
+            self.nodes.iter().map(|n| (n.id.clone(), 1.0_f64)).collect();
 
         // Single-pass topological propagation (best-effort, no cycle guard needed here).
         for _ in 0..self.nodes.len() {
             for node in &self.nodes {
-                let preds: Vec<&CapabilityEdge> = self
-                    .edges
-                    .iter()
-                    .filter(|e| e.to == node.id)
-                    .collect();
+                let preds: Vec<&CapabilityEdge> =
+                    self.edges.iter().filter(|e| e.to == node.id).collect();
                 if preds.is_empty() {
                     continue;
                 }

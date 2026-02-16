@@ -1,13 +1,13 @@
+use crate::ChromeConnection;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::fs;
-use std::io::Write;
 use std::io::Read;
+use std::io::Write;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::time::Duration;
-use crate::ChromeConnection;
 
 #[derive(Debug, Deserialize)]
 pub struct LocalMessage {
@@ -37,18 +37,26 @@ struct SseMessage {
     event: Value,
 }
 
-pub fn setup_response_listener(conn: &mut ChromeConnection) -> Result<(), Box<dyn std::error::Error>> {
+pub fn setup_response_listener(
+    conn: &mut ChromeConnection,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("Injecting response capture script...");
 
     // Register a CDP binding so JS can push messages directly to Rust
-    conn.send_command("Runtime.addBinding", json!({
-        "name": "__chromiumMessenger"
-    }))?;
+    conn.send_command(
+        "Runtime.addBinding",
+        json!({
+            "name": "__chromiumMessenger"
+        }),
+    )?;
 
-    conn.send_command("Runtime.evaluate", json!({
-        "expression": RESPONSE_JS,
-        "awaitPromise": false,
-    }))?;
+    conn.send_command(
+        "Runtime.evaluate",
+        json!({
+            "expression": RESPONSE_JS,
+            "awaitPromise": false,
+        }),
+    )?;
     std::thread::sleep(Duration::from_millis(200));
 
     let listener_script = r#"
@@ -59,10 +67,13 @@ pub fn setup_response_listener(conn: &mut ChromeConnection) -> Result<(), Box<dy
         });
     "#;
 
-    conn.send_command("Runtime.evaluate", json!({
-        "expression": listener_script,
-        "awaitPromise": false,
-    }))?;
+    conn.send_command(
+        "Runtime.evaluate",
+        json!({
+            "expression": listener_script,
+            "awaitPromise": false,
+        }),
+    )?;
     std::thread::sleep(Duration::from_millis(100));
     Ok(())
 }
@@ -80,9 +91,7 @@ pub fn wait_for_response(
 
     while start.elapsed() < timeout {
         if let Some(event) = conn.read_event()? {
-            if event.get("method").and_then(|m| m.as_str())
-                == Some("Runtime.bindingCalled")
-            {
+            if event.get("method").and_then(|m| m.as_str()) == Some("Runtime.bindingCalled") {
                 let payload = event["params"]["payload"]
                     .as_str()
                     .ok_or("missing binding payload")?;
@@ -99,19 +108,11 @@ pub fn wait_for_response(
                     && last_message_id.as_deref() != Some(msg_id)
                 {
                     let captured = CapturedMessage {
-                        conversation_id: value["conversationId"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
+                        conversation_id: value["conversationId"].as_str().unwrap_or("").to_string(),
                         message_id: msg_id.to_string(),
                         timestamp,
-                        response_text: value["responseText"]
-                            .as_str()
-                            .map(|s| s.to_string()),
-                        sse_events: value["sseEvents"]
-                            .as_array()
-                            .cloned()
-                            .unwrap_or_default(),
+                        response_text: value["responseText"].as_str().map(|s| s.to_string()),
+                        sse_events: value["sseEvents"].as_array().cloned().unwrap_or_default(),
                     };
 
                     if persist {
@@ -133,21 +134,23 @@ fn save_message(msg: &CapturedMessage) -> Result<(), Box<dyn std::error::Error>>
     let path = PathBuf::from(BASE_DIR)
         .join(&msg.conversation_id)
         .join(&msg.message_id);
-    
-    println!("[chromium_messenger] Saving message: conv={}, msg={}", 
-             msg.conversation_id, msg.message_id);
-    
+
+    println!(
+        "[chromium_messenger] Saving message: conv={}, msg={}",
+        msg.conversation_id, msg.message_id
+    );
+
     fs::create_dir_all(&path)?;
-    
+
     let file_path = path.join(format!("{}.json", msg.message_id));
     println!("[chromium_messenger] Writing to: {}", file_path.display());
-    
+
     write_json_atomic(&file_path, &serde_json::to_value(msg)?)?;
-    
+
     println!("[chromium_messenger] Message saved successfully");
-    
+
     notify_watch_service(&msg.conversation_id, &msg.message_id);
-    
+
     Ok(())
 }
 
@@ -189,34 +192,38 @@ fn save_sse_messages(msg: &CapturedMessage) -> Result<(), Box<dyn std::error::Er
 }
 
 fn extract_sse_messages(events: &[Value], fallback_conversation_id: &str) -> Vec<SseMessage> {
-   let mut messages = Vec::new();
-   for event in events {
-       let message = match extract_event_message(event) {
-           Some(message) => message,
-           None => continue,
-       };
-      let message_id = match message.get("id").and_then(Value::as_str) {
-          Some(id) => id.to_string(),
-          None => continue,
-      };
+    let mut messages = Vec::new();
+    for event in events {
+        let message = match extract_event_message(event) {
+            Some(message) => message,
+            None => continue,
+        };
+        let message_id = match message.get("id").and_then(Value::as_str) {
+            Some(id) => id.to_string(),
+            None => continue,
+        };
 
         // Skip context messages that are not actual conversation messages
         if let Some(content) = message.get("content") {
             if let Some(content_type) = content.get("content_type").and_then(Value::as_str) {
                 // Skip user/model editable context messages
-                if content_type == "user_editable_context" || content_type == "model_editable_context" {
+                if content_type == "user_editable_context"
+                    || content_type == "model_editable_context"
+                {
                     continue;
                 }
             }
-            
+
             // Skip system messages with empty text content
             if let Some(author) = message.get("author") {
                 if let Some(role) = author.get("role").and_then(Value::as_str) {
-                    if role == "system" && content.get("content_type").and_then(Value::as_str) == Some("text") {
+                    if role == "system"
+                        && content.get("content_type").and_then(Value::as_str) == Some("text")
+                    {
                         if let Some(parts) = content.get("parts").and_then(Value::as_array) {
-                            let is_empty = parts.iter().all(|p| {
-                                p.as_str().map(|s| s.trim().is_empty()).unwrap_or(true)
-                            });
+                            let is_empty = parts
+                                .iter()
+                                .all(|p| p.as_str().map(|s| s.trim().is_empty()).unwrap_or(true));
                             if is_empty {
                                 continue;
                             }
@@ -226,9 +233,9 @@ fn extract_sse_messages(events: &[Value], fallback_conversation_id: &str) -> Vec
             }
         }
 
-      let conversation_id = message
-           .get("conversation_id")
-           .and_then(Value::as_str)
+        let conversation_id = message
+            .get("conversation_id")
+            .and_then(Value::as_str)
             .unwrap_or(fallback_conversation_id)
             .to_string();
 
@@ -285,11 +292,17 @@ fn notify_watch_service(conversation_id: &str, message_id: &str) {
             if let Err(e) = writeln!(stream, "{}", message_id) {
                 eprintln!("[chromium_messenger] Failed to write to socket: {}", e);
             } else {
-                println!("[chromium_messenger] Notified watch_service: {}", message_id);
+                println!(
+                    "[chromium_messenger] Notified watch_service: {}",
+                    message_id
+                );
             }
         }
         Err(e) => {
-            eprintln!("[chromium_messenger] Socket connection failed ({}): {}", socket_path, e);
+            eprintln!(
+                "[chromium_messenger] Socket connection failed ({}): {}",
+                socket_path, e
+            );
             eprintln!("[chromium_messenger] watch_service may not be running");
         }
     }
@@ -297,14 +310,8 @@ fn notify_watch_service(conversation_id: &str, message_id: &str) {
 
 pub fn save_message_from_value(value: Value) -> Result<(), Box<dyn std::error::Error>> {
     let captured = CapturedMessage {
-        conversation_id: value["conversationId"]
-            .as_str()
-            .unwrap_or("")
-            .to_string(),
-        message_id: value["messageId"]
-            .as_str()
-            .unwrap_or("")
-            .to_string(),
+        conversation_id: value["conversationId"].as_str().unwrap_or("").to_string(),
+        message_id: value["messageId"].as_str().unwrap_or("").to_string(),
         timestamp: value["timestamp"].as_u64().unwrap_or(0),
         response_text: value["responseText"].as_str().map(|s| s.to_string()),
         sse_events: value["sseEvents"].as_array().cloned().unwrap_or_default(),

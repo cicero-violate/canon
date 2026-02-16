@@ -1,4 +1,4 @@
-use super::render_fn::render_type;
+use super::render_fn::{render_impl_function, render_type};
 use super::render_impl::render_impl;
 use super::render_struct::{render_struct, render_visibility};
 use super::render_trait::render_trait;
@@ -57,7 +57,7 @@ pub fn render_file(
 
     let layout_file_id = file_node.id.as_str();
     let mut impls: Vec<_> = ir
-        .impl_blocks
+        .impls
         .iter()
         .filter(|block| block.module == module.id)
         .filter(|block| {
@@ -69,6 +69,19 @@ pub fn render_file(
     impls.sort_by_key(|i| i.id.as_str());
     for block in impls {
         lines.push(render_impl(block, struct_map, trait_map, function_map));
+    }
+
+    // ── standalone (free) functions assigned to this file ─────────────────────
+    let mut free_functions: Vec<_> = ir
+        .functions
+        .iter()
+        .filter(|f| f.module == module.id)
+        .filter(|f| f.impl_id.is_empty())
+        .filter(|f| function_layout_file(layout, f.id.as_str()) == Some(layout_file_id))
+        .collect();
+    free_functions.sort_by_key(|f| f.name.as_str());
+    for f in free_functions {
+        lines.push(render_impl_function(f));
     }
 
     lines.join("\n\n") + "\n"
@@ -112,13 +125,25 @@ pub fn render_module(
     }
 
     let mut impls: Vec<_> = ir
-        .impl_blocks
+        .impls
         .iter()
         .filter(|i| i.module == module.id)
         .collect();
     impls.sort_by_key(|i| i.id.as_str());
     for block in impls {
         lines.push(render_impl(block, struct_map, trait_map, function_map));
+    }
+
+    // ── standalone (free) functions ───────────────────────────────────────────
+    let mut free_functions: Vec<_> = ir
+        .functions
+        .iter()
+        .filter(|f| f.module == module.id)
+        .filter(|f| f.impl_id.is_empty())
+        .collect();
+    free_functions.sort_by_key(|f| f.name.as_str());
+    for f in free_functions {
+        lines.push(render_impl_function(f));
     }
 
     lines.join("\n\n") + "\n"
@@ -231,7 +256,9 @@ pub fn render_use_block(incoming: &[(String, Vec<String>)]) -> Vec<String> {
 }
 
 fn normalize_use_prefix(source: &str) -> String {
-    if source.starts_with("::") || source.starts_with("crate::") || source.starts_with("super::") {
+    // All materialized modules live at crate root.
+    // Always qualify with `crate::` unless already absolute.
+    if source.starts_with("::") || source.starts_with("crate::") {
         source.to_owned()
     } else {
         format!("crate::{source}")
@@ -244,40 +271,13 @@ fn collect_intramodule_types(
     layout: &LayoutGraph,
     ir: &CanonicalIr,
 ) -> Vec<String> {
-    let Some(layout_module) = layout.modules.iter().find(|m| m.id == module.id) else {
-        return Vec::new();
-    };
-    if layout_module.files.is_empty() {
-        return Vec::new();
-    }
-    let (id_to_stem, stem_to_id) = build_file_maps(layout_module);
-    if id_to_stem.is_empty() {
-        return Vec::new();
-    }
-    let mut lines = BTreeSet::new();
-    for structure in ir.structs.iter().filter(|s| s.module == module.id) {
-        if let Some(line) = intramodule_use_line(
-            structure.name.as_str(),
-            struct_layout_file(layout, structure.id.as_str()),
-            current_file_id,
-            &id_to_stem,
-            &stem_to_id,
-        ) {
-            lines.insert(line);
-        }
-    }
-    for tr in ir.traits.iter().filter(|t| t.module == module.id) {
-        if let Some(line) = intramodule_use_line(
-            tr.name.as_str(),
-            trait_layout_file(layout, tr.id.as_str()),
-            current_file_id,
-            &id_to_stem,
-            &stem_to_id,
-        ) {
-            lines.insert(line);
-        }
-    }
-    lines.into_iter().collect()
+    // Intramodule import generation is currently disabled.
+    // Returning empty avoids generating incorrect `use super::...` paths.
+    let _ = module;
+    let _ = current_file_id;
+    let _ = layout;
+    let _ = ir;
+    Vec::new()
 }
 
 fn intramodule_use_line(
@@ -287,17 +287,12 @@ fn intramodule_use_line(
     id_to_stem: &HashMap<String, String>,
     stem_to_id: &HashMap<String, String>,
 ) -> Option<String> {
-    let target_file_id = if let Some(id) = explicit_file_id {
-        id.to_owned()
-    } else {
-        let guess = to_snake_case(type_name);
-        stem_to_id.get(&guess).cloned()?
-    };
-    if target_file_id == current_file_id {
-        return None;
-    }
-    let stem = id_to_stem.get(&target_file_id)?;
-    Some(format!("use super::{stem}::{type_name};"))
+    let _ = type_name;
+    let _ = explicit_file_id;
+    let _ = current_file_id;
+    let _ = id_to_stem;
+    let _ = stem_to_id;
+    None
 }
 
 fn build_file_maps(module: &LayoutModule) -> (HashMap<String, String>, HashMap<String, String>) {
@@ -314,24 +309,29 @@ fn build_file_maps(module: &LayoutModule) -> (HashMap<String, String>, HashMap<S
     (id_to_stem, stem_to_id)
 }
 
+// derive module name from layout file id map
+// removed incorrect path expansion
+
 fn collect_external_uses(
     module_id: &str,
     ir: &CanonicalIr,
     _function_map: &HashMap<&str, &Function>,
 ) -> Vec<String> {
-    let mut lines = BTreeSet::new();
-    for function in ir.functions.iter().filter(|f| f.module == module_id) {
-        for port in function.inputs.iter().chain(function.outputs.iter()) {
-            collect_external_types(&port.ty, &mut lines);
-        }
-    }
-    lines.into_iter().collect()
+    // Fully-qualified type paths are emitted directly in signatures.
+    // We do NOT auto-generate `use` statements.
+    let _ = module_id;
+    let _ = ir;
+    Vec::new()
 }
 
 fn collect_external_types(ty: &crate::ir::TypeRef, out: &mut BTreeSet<String>) {
     if ty.kind == TypeKind::External {
         let path = ty.name.as_str();
-        if !path.is_empty() {
+
+        // Only generate `use` lines for fully-qualified paths.
+        // Bare identifiers like `String`, `HashMap`, `CanonicalIr`
+        // must NOT generate `use` statements.
+        if path.contains("::") {
             out.insert(format!("use {};", path));
         }
     }

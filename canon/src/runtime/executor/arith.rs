@@ -1,6 +1,6 @@
+use super::error::InterpreterError;
 use crate::ir::Function;
 use crate::runtime::value::{ScalarValue, Value};
-use super::error::InterpreterError;
 
 pub enum ArithmeticOp {
     Add,
@@ -29,16 +29,14 @@ pub fn apply_arithmetic(
         }
         _ => Err(InterpreterError::TypeError {
             function: function.id.clone(),
-            message:  "arithmetic requires matching scalar types".into(),
+            message: "arithmetic requires matching scalar types".into(),
         }),
     }
 }
 
 fn apply_op<T>(a: T, b: T, op: &ArithmeticOp) -> T
 where
-    T: std::ops::Add<Output = T>
-     + std::ops::Sub<Output = T>
-     + std::ops::Mul<Output = T>,
+    T: std::ops::Add<Output = T> + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>,
 {
     match op {
         ArithmeticOp::Add => a + b,
@@ -48,9 +46,17 @@ where
 }
 
 fn apply_op_f32(a: f32, b: f32, op: &ArithmeticOp) -> f32 {
-    match op { ArithmeticOp::Add => a + b, ArithmeticOp::Sub => a - b, ArithmeticOp::Mul => a * b }
+    match op {
+        ArithmeticOp::Add => a + b,
+        ArithmeticOp::Sub => a - b,
+        ArithmeticOp::Mul => a * b,
+    }
 }
 
 fn apply_op_f64(a: f64, b: f64, op: &ArithmeticOp) -> f64 {
-    match op { ArithmeticOp::Add => a + b, ArithmeticOp::Sub => a - b, ArithmeticOp::Mul => a * b }
+    match op {
+        ArithmeticOp::Add => a + b,
+        ArithmeticOp::Sub => a - b,
+        ArithmeticOp::Mul => a * b,
+    }
 }

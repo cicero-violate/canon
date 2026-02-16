@@ -72,12 +72,15 @@ impl RewardLedger {
     pub fn record(&mut self, node_id: impl Into<String>, outcome: NodeOutcome) {
         let node_id = node_id.into();
         let reward = outcome.reward_value();
-        let entry = self.entries.entry(node_id.clone()).or_insert(NodeRewardEntry {
-            node_id: node_id.clone(),
-            outcome: outcome.clone(),
-            ema_reward: reward,
-            run_count: 0,
-        });
+        let entry = self
+            .entries
+            .entry(node_id.clone())
+            .or_insert(NodeRewardEntry {
+                node_id: node_id.clone(),
+                outcome: outcome.clone(),
+                ema_reward: reward,
+                run_count: 0,
+            });
         // EMA update: ema = α * reward + (1 - α) * ema
         entry.ema_reward = self.alpha * reward + (1.0 - self.alpha) * entry.ema_reward;
         entry.run_count += 1;

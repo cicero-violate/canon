@@ -1,6 +1,6 @@
-mod utils;
 mod expr;
 mod stmt;
+mod utils;
 
 use serde_json::Value as JsonValue;
 

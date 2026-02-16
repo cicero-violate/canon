@@ -13,22 +13,22 @@
 //! No LLM calls inside this file — delegated entirely to llm_provider::call_llm().
 //! Async — requires a tokio runtime. WsBridge is passed in from main.
 
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
+use crate::agent::io::{load_capability_graph, save_capability_graph};
 use crate::ir::CanonicalIr;
 use crate::layout::LayoutGraph;
-use crate::agent::io::{load_capability_graph, save_capability_graph};
 
 use super::call::AgentCallOutput;
 use super::capability::CapabilityGraph;
 use super::dispatcher::AgentCallDispatcher;
 use super::llm_provider::{LlmProviderError, call_llm};
-use super::ws_server::WsBridge;
 use super::meta::run_meta_tick;
-use super::pipeline::{PipelineError, run_pipeline, record_pipeline_outcome};
+use super::pipeline::{PipelineError, record_pipeline_outcome, run_pipeline};
 use super::refactor::{RefactorKind, RefactorProposal, RefactorTarget};
 use super::reward::RewardLedger;
+use super::ws_server::WsBridge;
 
 /// Configuration for one agent run session.
 #[derive(Debug, Clone)]
@@ -72,7 +72,10 @@ pub enum RunnerError {
     /// Dispatcher could not produce a call order.
     Dispatch(crate::agent::call::AgentCallError),
     /// LLM provider failed for a node.
-    Llm { node_id: String, error: LlmProviderError },
+    Llm {
+        node_id: String,
+        error: LlmProviderError,
+    },
     /// No stage outputs were collected (empty graph).
     NoOutputs,
     /// I/O error persisting graph or ledger.
@@ -136,7 +139,10 @@ pub async fn run_agent(
             break;
         }
 
-        eprintln!("[runner] tick {tick_number} — dispatching {} nodes", graph.nodes.len());
+        eprintln!(
+            "[runner] tick {tick_number} — dispatching {} nodes",
+            graph.nodes.len()
+        );
 
         let mut tick_stats = TickStats {
             tick_number,
@@ -149,12 +155,10 @@ pub async fn run_agent(
         };
 
         // --- Step 1: dispatch all nodes in topological order ---
-        let mut dispatcher = AgentCallDispatcher::new(graph, ir)
-            .with_trust_threshold(config.base_trust_threshold);
+        let mut dispatcher =
+            AgentCallDispatcher::new(graph, ir).with_trust_threshold(config.base_trust_threshold);
 
-        let order = dispatcher
-            .dispatch_order()
-            .map_err(RunnerError::Dispatch)?;
+        let order = dispatcher.dispatch_order().map_err(RunnerError::Dispatch)?;
 
         let mut stage_outputs: Vec<AgentCallOutput> = Vec::new();
 
@@ -168,7 +172,10 @@ pub async fn run_agent(
                 }
             };
 
-            eprintln!("[runner]   → calling node {node_id} (stage={:?})", input.stage);
+            eprintln!(
+                "[runner]   → calling node {node_id} (stage={:?})",
+                input.stage
+            );
 
             match call_llm(bridge, &input).await {
                 Ok(output) => {
@@ -255,9 +262,7 @@ pub async fn run_agent(
         }
 
         // --- Step 6: policy update ---
-        if config.policy_update_interval > 0
-            && tick_number % config.policy_update_interval == 0
-        {
+        if config.policy_update_interval > 0 && tick_number % config.policy_update_interval == 0 {
             if let Some(current_policy) = ir.policy_parameters.last() {
                 match ledger.update_policy(current_policy) {
                     Ok(new_policy) => {
@@ -289,13 +294,11 @@ pub async fn run_agent(
 // ---------------------------------------------------------------------------
 
 fn persist_ir(ir: &CanonicalIr, path: &Path) -> Result<(), RunnerError> {
-    let json = serde_json::to_string_pretty(ir)
-        .map_err(|e| RunnerError::Io(e.to_string()))?;
+    let json = serde_json::to_string_pretty(ir).map_err(|e| RunnerError::Io(e.to_string()))?;
     fs::write(path, json).map_err(|e| RunnerError::Io(e.to_string()))
 }
 
 fn persist_ledger(ledger: &RewardLedger, path: &Path) -> Result<(), RunnerError> {
-    let json = serde_json::to_string_pretty(ledger)
-        .map_err(|e| RunnerError::Io(e.to_string()))?;
+    let json = serde_json::to_string_pretty(ledger).map_err(|e| RunnerError::Io(e.to_string()))?;
     fs::write(path, json).map_err(|e| RunnerError::Io(e.to_string()))
 }

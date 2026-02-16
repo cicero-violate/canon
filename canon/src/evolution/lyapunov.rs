@@ -86,12 +86,18 @@ pub enum LyapunovError {
 impl std::fmt::Display for LyapunovError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LyapunovError::DriftExceeded { cosine_distance, bound_theta } => write!(
+            LyapunovError::DriftExceeded {
+                cosine_distance,
+                bound_theta,
+            } => write!(
                 f,
                 "topology drift {cosine_distance:.4} exceeds bound θ={bound_theta:.4}"
             ),
             LyapunovError::NoInvariantProofs => {
-                write!(f, "structural mutation requires at least one invariant proof")
+                write!(
+                    f,
+                    "structural mutation requires at least one invariant proof"
+                )
             }
         }
     }

@@ -1,5 +1,5 @@
-use crate::ir::CanonicalIr;
 use super::super::EvolutionError;
+use crate::ir::CanonicalIr;
 
 pub fn ensure_module_exists(ir: &CanonicalIr, module: &str) -> Result<(), EvolutionError> {
     if ir.modules.iter().any(|m| m.id == module) {
@@ -27,7 +27,11 @@ pub fn ensure_field_exists(
         .iter()
         .find(|s| s.id == struct_id)
         .ok_or_else(|| EvolutionError::UnknownStruct(struct_id.to_string()))?;
-    if structure.fields.iter().any(|f| f.name.as_str() == field_name) {
+    if structure
+        .fields
+        .iter()
+        .any(|f| f.name.as_str() == field_name)
+    {
         Ok(())
     } else {
         Err(EvolutionError::UnknownField {

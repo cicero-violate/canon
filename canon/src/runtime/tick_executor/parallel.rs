@@ -12,7 +12,7 @@ use crate::runtime::parallel::{
 use crate::runtime::value::{DeltaValue, Value};
 
 use super::graph::gather_inputs;
-use super::types::TickExecutorError;
+use crate::runtime::error::RuntimeError;
 
 pub(super) fn execute_parallel(
     ir: &CanonicalIr,
@@ -24,7 +24,7 @@ pub(super) fn execute_parallel(
         HashMap<FunctionId, BTreeMap<String, Value>>,
         Vec<DeltaValue>,
     ),
-    TickExecutorError,
+    RuntimeError,
 > {
     let batches = partition_independent_batches(execution_order, dependencies);
     let mut results = HashMap::new();
@@ -58,7 +58,7 @@ pub(super) fn execute_parallel(
                 })
             };
 
-        let batch_results = execute_jobs(jobs, &worker).map_err(TickExecutorError::Executor)?;
+        let batch_results = execute_jobs(jobs, &worker).map_err(RuntimeError::Executor)?;
         let mut batch_delta_map: HashMap<FunctionId, Vec<DeltaValue>> = HashMap::new();
         for result in batch_results {
             batch_delta_map.insert(result.function.clone(), result.deltas);
@@ -77,9 +77,9 @@ pub(super) fn execute_parallel(
 pub(super) fn verify_parallel_outputs(
     sequential: &HashMap<FunctionId, BTreeMap<String, Value>>,
     parallel: &HashMap<FunctionId, BTreeMap<String, Value>>,
-) -> Result<(), TickExecutorError> {
+) -> Result<(), RuntimeError> {
     if sequential.len() != parallel.len() {
-        return Err(TickExecutorError::ParallelMismatch {
+        return Err(RuntimeError::ParallelMismatch {
             function: "<count mismatch>".into(),
         });
     }
@@ -87,12 +87,12 @@ pub(super) fn verify_parallel_outputs(
         match parallel.get(function) {
             Some(p_outputs) if p_outputs == seq_outputs => continue,
             Some(_) => {
-                return Err(TickExecutorError::ParallelMismatch {
+                return Err(RuntimeError::ParallelMismatch {
                     function: function.clone(),
                 });
             }
             None => {
-                return Err(TickExecutorError::ParallelMismatch {
+                return Err(RuntimeError::ParallelMismatch {
                     function: function.clone(),
                 });
             }
@@ -104,15 +104,15 @@ pub(super) fn verify_parallel_outputs(
 pub(super) fn verify_parallel_deltas(
     sequential: &[DeltaValue],
     parallel: &[DeltaValue],
-) -> Result<(), TickExecutorError> {
+) -> Result<(), RuntimeError> {
     if sequential.len() != parallel.len() {
-        return Err(TickExecutorError::ParallelDeltaMismatch {
+        return Err(RuntimeError::ParallelDeltaMismatch {
             index: sequential.len().min(parallel.len()),
         });
     }
     for (idx, (seq, par)) in sequential.iter().zip(parallel.iter()).enumerate() {
         if seq != par {
-            return Err(TickExecutorError::ParallelDeltaMismatch { index: idx });
+            return Err(RuntimeError::ParallelDeltaMismatch { index: idx });
         }
     }
     Ok(())

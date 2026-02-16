@@ -2,35 +2,36 @@
 //!
 //! Executes an entire tick graph, respecting data dependencies (Canon Lines 46-50).
 
-mod graph;
+pub(crate) mod graph;
 mod parallel;
 mod planning;
 mod reconcile;
 mod types;
 
-pub use types::{TickExecutionMode, TickExecutionResult, TickExecutorError};
+pub use types::{TickExecutionMode, TickExecutionResult};
 
 use std::collections::{BTreeMap, HashMap};
 use std::time::Instant;
 
+use crate::agent::epoch;
 use crate::ir::{CanonicalIr, TickGraph};
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::FunctionExecutor;
 use crate::runtime::value::Value;
 
+use crate::runtime::error::RuntimeError;
+use crate::runtime::reward::compute_reward_from_deltas;
 use graph::{build_dependency_map, gather_inputs, topological_sort};
 use parallel::{execute_parallel, verify_parallel_deltas, verify_parallel_outputs};
 use planning::{finalize_execution, plan_tick};
 use reconcile::reconcile_prediction;
-use types::{PlanContext, PredictionContext, compute_reward_from_deltas};
-
+use types::{PlanContext, PredictionContext};
 
 /// Executes a tick graph in topological order.
 pub struct TickExecutor<'a> {
     ir: &'a mut CanonicalIr,
     skip_planning: bool,
 }
-
 
 impl<'a> TickExecutor<'a> {
     pub fn new(ir: &'a mut CanonicalIr) -> Self {
@@ -42,10 +43,7 @@ impl<'a> TickExecutor<'a> {
     }
 
     /// Execute a tick by its ID.
-    pub fn execute_tick(
-        &mut self,
-        tick_id: &str,
-    ) -> Result<TickExecutionResult, TickExecutorError> {
+    pub fn execute_tick(&mut self, tick_id: &str) -> Result<TickExecutionResult, RuntimeError> {
         self.execute_tick_with_mode_and_inputs(
             tick_id,
             TickExecutionMode::Sequential,
@@ -58,7 +56,7 @@ impl<'a> TickExecutor<'a> {
         &mut self,
         tick_id: &str,
         initial_inputs: BTreeMap<String, Value>,
-    ) -> Result<TickExecutionResult, TickExecutorError> {
+    ) -> Result<TickExecutionResult, RuntimeError> {
         self.execute_tick_with_mode_and_inputs(
             tick_id,
             TickExecutionMode::Sequential,
@@ -71,7 +69,7 @@ impl<'a> TickExecutor<'a> {
         &mut self,
         tick_id: &str,
         mode: TickExecutionMode,
-    ) -> Result<TickExecutionResult, TickExecutorError> {
+    ) -> Result<TickExecutionResult, RuntimeError> {
         self.execute_tick_with_mode_and_inputs(tick_id, mode, BTreeMap::new())
     }
 
@@ -81,7 +79,7 @@ impl<'a> TickExecutor<'a> {
         tick_id: &str,
         mode: TickExecutionMode,
         initial_inputs: BTreeMap<String, Value>,
-    ) -> Result<TickExecutionResult, TickExecutorError> {
+    ) -> Result<TickExecutionResult, RuntimeError> {
         let plan_ctx = plan_tick(self.ir, tick_id, self.skip_planning);
         self.execute_internal(tick_id, mode, initial_inputs, plan_ctx)
     }
@@ -92,20 +90,20 @@ impl<'a> TickExecutor<'a> {
         mode: TickExecutionMode,
         initial_inputs: BTreeMap<String, Value>,
         plan_ctx: PlanContext,
-    ) -> Result<TickExecutionResult, TickExecutorError> {
+    ) -> Result<TickExecutionResult, RuntimeError> {
         let tick = self
             .ir
             .ticks
             .iter()
             .find(|t| t.id == tick_id)
-            .ok_or_else(|| TickExecutorError::UnknownTick(tick_id.to_string()))?;
+            .ok_or_else(|| RuntimeError::UnknownTick(tick_id.to_string()))?;
 
         let graph = self
             .ir
             .tick_graphs
             .iter()
             .find(|g| g.id == tick.graph)
-            .ok_or_else(|| TickExecutorError::UnknownGraph(tick.graph.clone()))?;
+            .ok_or_else(|| RuntimeError::UnknownGraph(tick.graph.clone()))?;
 
         let graph_cloned = graph.clone();
         let tick_id_owned = tick.id.clone();
@@ -148,7 +146,7 @@ impl<'a> TickExecutor<'a> {
         tick_id: &str,
         mode: TickExecutionMode,
         initial_inputs: &BTreeMap<String, Value>,
-    ) -> Result<TickExecutionResult, TickExecutorError> {
+    ) -> Result<TickExecutionResult, RuntimeError> {
         let dependencies = build_dependency_map(graph);
         let execution_order = topological_sort(graph, &dependencies)?;
         let mut context = ExecutionContext::new(initial_inputs.clone());
@@ -160,7 +158,7 @@ impl<'a> TickExecutor<'a> {
             let inputs = gather_inputs(function_id, &dependencies, &results, initial_inputs)?;
             let outputs = function_executor
                 .execute_by_id(function_id, inputs, &mut context)
-                .map_err(TickExecutorError::Executor)?;
+                .map_err(RuntimeError::Executor)?;
             results.insert(function_id.clone(), outputs);
         }
         let sequential_duration = sequential_start.elapsed();
@@ -193,7 +191,7 @@ impl<'a> TickExecutor<'a> {
         mode: TickExecutionMode,
         initial_inputs: &BTreeMap<String, Value>,
         prediction: PredictionContext,
-    ) -> Result<TickExecutionResult, TickExecutorError> {
+    ) -> Result<TickExecutionResult, RuntimeError> {
         let result = self.execute_graph(graph, tick_id, mode, initial_inputs)?;
         reconcile_prediction(self.ir, &result, prediction);
         Ok(result)

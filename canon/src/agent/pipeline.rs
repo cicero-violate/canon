@@ -133,8 +133,7 @@ pub fn run_pipeline(
 
     // --- Reason stage ---
     let reasoner_out = require_stage(stage_outputs, 1, RefactorStage::Reason)?;
-    let rationale =
-        extract_str_field(&reasoner_out.payload, "rationale", RefactorStage::Reason)?;
+    let rationale = extract_str_field(&reasoner_out.payload, "rationale", RefactorStage::Reason)?;
     proposal.rationale = rationale;
 
     // --- Prove stage ---
@@ -154,8 +153,7 @@ pub fn run_pipeline(
 
     // --- Judge stage ---
     let judge_out = require_stage(stage_outputs, 3, RefactorStage::Judge)?;
-    let decision =
-        extract_str_field(&judge_out.payload, "decision", RefactorStage::Judge)?;
+    let decision = extract_str_field(&judge_out.payload, "decision", RefactorStage::Judge)?;
     if decision.to_lowercase() != "accept" {
         let rationale = judge_out
             .payload
@@ -174,8 +172,7 @@ pub fn run_pipeline(
 
     // --- Mutate stage ---
     let proof_ids: Vec<String> = ir.proofs.iter().map(|p| p.id.clone()).collect();
-    let candidate = apply_deltas(ir, &[admission_id.clone()])
-        .map_err(PipelineError::Evolution)?;
+    let candidate = apply_deltas(ir, &[admission_id.clone()]).map_err(PipelineError::Evolution)?;
     check_topology_drift(ir, &candidate, &proof_ids, DEFAULT_TOPOLOGY_THETA)
         .map_err(PipelineError::TopologyDrift)?;
 

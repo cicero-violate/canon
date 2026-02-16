@@ -22,13 +22,13 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use super::sse::{extract_sse_delta, is_done};
+use futures_util::{SinkExt, StreamExt};
+use serde_json::{Value, json};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
-use futures_util::{SinkExt, StreamExt};
-use serde_json::{Value, json};
-use super::sse::{extract_sse_delta, is_done};
 
 /// How long to wait for a response before giving up.
 const RESPONSE_TIMEOUT_SECS: u64 = 120;
@@ -132,11 +132,7 @@ impl WsBridge {
         eprintln!("[ws] TURN sent to tab {target}");
 
         // Wait for the assembled response with a timeout.
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(RESPONSE_TIMEOUT_SECS),
-            rx,
-        )
-        .await
+        match tokio::time::timeout(std::time::Duration::from_secs(RESPONSE_TIMEOUT_SECS), rx).await
         {
             Ok(Ok(text)) => Ok(text),
             Ok(Err(_)) => Err(WsBridgeError::Cancelled),
@@ -224,7 +220,9 @@ impl WsBridge {
 /// Returns a WsBridge handle immediately — the server runs concurrently.
 pub fn spawn(addr: SocketAddr) -> WsBridge {
     let state = Arc::new(Mutex::new(ServerState::new()));
-    let bridge = WsBridge { state: state.clone() };
+    let bridge = WsBridge {
+        state: state.clone(),
+    };
 
     tokio::spawn(async move {
         loop {
@@ -358,17 +356,13 @@ async fn handle_inbound(raw: &str, state: &Arc<Mutex<ServerState>>) {
             let mut st = state.lock().await;
 
             if let Some(text) = extracted {
-                st.tab_buffers
-                    .entry(tab_id)
-                    .or_default()
-                    .push(text);
+                st.tab_buffers.entry(tab_id).or_default().push(text);
             }
 
             if done {
-                if let (Some(buffer), Some(tx)) = (
-                    st.tab_buffers.remove(&tab_id),
-                    st.pending.remove(&tab_id),
-                ) {
+                if let (Some(buffer), Some(tx)) =
+                    (st.tab_buffers.remove(&tab_id), st.pending.remove(&tab_id))
+                {
                     let assembled = buffer.join("");
                     eprintln!("[ws] tab {tab_id} done — {} bytes", assembled.len());
                     let _ = tx.send(assembled);

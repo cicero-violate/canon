@@ -4,13 +4,13 @@ use thiserror::Error;
 
 use crate::{
     evolution::{EvolutionError, apply_deltas},
+    ir::proposal::{ProposalResolutionError, resolve_proposal_nodes},
     ir::{
         CanonicalIr, Delta, DeltaAdmission, DeltaId, Judgment, JudgmentDecision, ProposalStatus,
         Word, WordError,
     },
     layout::{LayoutAssignment, LayoutFile, LayoutGraph, LayoutModule, LayoutNode},
     proof::smt_bridge::{SmtError, attach_function_proofs},
-    ir::proposal::{ProposalResolutionError, resolve_proposal_nodes},
 };
 
 use self::{
@@ -198,7 +198,7 @@ fn apply_layout_deltas(layout: &mut LayoutGraph, ir: &CanonicalIr, deltas: &[Del
                 ..
             } => {
                 if let Some(module_id) = ir
-                    .impl_blocks
+                    .impls
                     .iter()
                     .find(|block| block.id == *impl_id)
                     .map(|block| block.module.clone())

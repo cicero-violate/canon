@@ -1,4 +1,4 @@
-use super::{DefectClass, predicate::RulePredicate, pipeline::PipelineEntry};
+use super::{DefectClass, pipeline::PipelineEntry, predicate::RulePredicate};
 
 /// Layer 4 — Brief Generator.
 ///
@@ -6,33 +6,34 @@ use super::{DefectClass, predicate::RulePredicate, pipeline::PipelineEntry};
 /// No ad-hoc format strings live in the tracers; all templates are here.
 pub fn render(
     predicate: &RulePredicate,
-    pipeline:  Option<&PipelineEntry>,
-    defect:    &DefectClass,
-    count:     usize,
-    examples:  &[String],
+    pipeline: Option<&PipelineEntry>,
+    defect: &DefectClass,
+    count: usize,
+    examples: &[String],
+    cycle: Option<&[String]>,
+    tick_slice: Option<&str>,
 ) -> String {
     match defect {
         DefectClass::MissingEmit => render_missing_emit(predicate, pipeline, count),
-        DefectClass::WrongValue  => render_wrong_value(predicate, pipeline, count),
+        DefectClass::WrongValue => render_wrong_value(predicate, pipeline, count),
         DefectClass::WrongDirection => render_wrong_direction(predicate, pipeline, count),
         DefectClass::MissingContext => render_missing_context(predicate, pipeline, count),
-        DefectClass::ValidatorOverConstraint => {
-            render_over_constraint(predicate, pipeline, count)
-        }
+        DefectClass::ValidatorOverConstraint => render_over_constraint(predicate, pipeline, count),
         DefectClass::RequiresDomainInput => render_domain_input(predicate, count),
+        DefectClass::CycleDetected => render_cycle(predicate, count, examples, cycle, tick_slice),
     }
 }
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 
 fn render_missing_emit(
-    p:        &RulePredicate,
+    p: &RulePredicate,
     pipeline: Option<&PipelineEntry>,
-    count:    usize,
+    count: usize,
 ) -> String {
     let rule_code = p.rule.code();
-    let coll      = p.ir_collection;
-    let field     = p.ir_field;
+    let coll = p.ir_collection;
+    let field = p.ir_field;
     match pipeline {
         Some(pe) => format!(
             "Rule {rule_code} fires on {count} item(s) because a node is referenced via \
@@ -52,14 +53,10 @@ fn render_missing_emit(
     }
 }
 
-fn render_wrong_value(
-    p:        &RulePredicate,
-    pipeline: Option<&PipelineEntry>,
-    count:    usize,
-) -> String {
+fn render_wrong_value(p: &RulePredicate, pipeline: Option<&PipelineEntry>, count: usize) -> String {
     let rule_code = p.rule.code();
-    let field     = p.ir_field;
-    let cond      = p.pass_condition;
+    let field = p.ir_field;
+    let cond = p.pass_condition;
     match pipeline {
         Some(pe) => format!(
             "Rule {rule_code} fires on {count} item(s) because `{field}` holds a value that \
@@ -80,12 +77,12 @@ fn render_wrong_value(
 }
 
 fn render_wrong_direction(
-    p:        &RulePredicate,
+    p: &RulePredicate,
     pipeline: Option<&PipelineEntry>,
-    count:    usize,
+    count: usize,
 ) -> String {
     let rule_code = p.rule.code();
-    let field     = p.ir_field;
+    let field = p.ir_field;
     match pipeline {
         Some(pe) => format!(
             "Rule {rule_code} fires on {count} item(s) because the edge recorded in `{field}` \
@@ -104,13 +101,13 @@ fn render_wrong_direction(
 }
 
 fn render_missing_context(
-    p:        &RulePredicate,
+    p: &RulePredicate,
     pipeline: Option<&PipelineEntry>,
-    count:    usize,
+    count: usize,
 ) -> String {
     let rule_code = p.rule.code();
-    let field     = p.ir_field;
-    let coll      = p.ir_collection;
+    let field = p.ir_field;
+    let coll = p.ir_collection;
     match pipeline {
         Some(pe) => format!(
             "Rule {rule_code} fires on {count} item(s) because some `{coll}` entries are \
@@ -133,13 +130,13 @@ fn render_missing_context(
 }
 
 fn render_over_constraint(
-    p:        &RulePredicate,
+    p: &RulePredicate,
     pipeline: Option<&PipelineEntry>,
-    count:    usize,
+    count: usize,
 ) -> String {
     let rule_code = p.rule.code();
-    let field     = p.ir_field;
-    let cond      = p.pass_condition;
+    let field = p.ir_field;
+    let cond = p.pass_condition;
     match pipeline {
         Some(pe) => format!(
             "Rule {rule_code} fires on {count} item(s) because the validator checks `{field}` \
@@ -162,8 +159,8 @@ fn render_over_constraint(
 
 fn render_domain_input(p: &RulePredicate, count: usize) -> String {
     let rule_code = p.rule.code();
-    let coll      = p.ir_collection;
-    let cond      = p.pass_condition;
+    let coll = p.ir_collection;
+    let cond = p.pass_condition;
     format!(
         "Rule {rule_code} fires on {count} item(s). The pass condition ({cond}) requires \
          a human-authored artifact in `{coll}`. \
@@ -173,3 +170,38 @@ fn render_domain_input(p: &RulePredicate, count: usize) -> String {
     )
 }
 
+fn render_cycle(
+    p: &RulePredicate,
+    count: usize,
+    _examples: &[String],
+    cycle: Option<&[String]>,
+    tick_slice: Option<&str>,
+) -> String {
+    let rule_code = p.rule.code();
+    let cycle_part = match cycle {
+        Some(path) if !path.is_empty() => format!("Cycle path:\n{}\n\n", path.join(" -> ")),
+        _ => "Cycle path:\n(no cycle path computed)\n\n".to_owned(),
+    };
+
+    let tick_part = match tick_slice {
+        Some(s) => {
+            let t = s.trim_end();
+            if t.is_empty() {
+                "tick_executor edges:\n(no tick_executor edges found)".to_owned()
+            } else if t.starts_with("tick_executor edges:") {
+                t.to_owned()
+            } else {
+                format!("tick_executor edges:\n{t}")
+            }
+        }
+        None => "tick_executor edges:\n(no tick_executor edges found)".to_owned(),
+    };
+
+    format!(
+        "Rule {rule_code} fires on {count} item(s) because `ir.module_edges` \
+contains a directed cycle among modules.\n\n\
+Cycle detail (tick_executor slice):\n{cycle_part}{tick_part}\n\n\
+Fix: break the cycle by removing or refactoring at least one \
+cross-module dependency edge."
+    )
+}

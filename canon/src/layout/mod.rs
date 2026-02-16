@@ -29,10 +29,11 @@ pub struct LayoutMap {
 
 impl Default for LayoutMap {
     fn default() -> Self {
-        Self {
-            semantic: SemanticGraph::default(),
-            layout: LayoutGraph::default(),
-        }
+        let semantic = SemanticGraph::default();
+        let strategy = FlatNodeLayoutStrategy;
+        let mut layout = strategy.plan(&semantic);
+        normalize_layout(&mut layout);
+        Self { semantic, layout }
     }
 }
 
@@ -106,6 +107,70 @@ pub trait LayoutStrategy {
         ""
     }
     fn plan(&self, semantic: &SemanticGraph) -> LayoutGraph;
+}
+
+/// Transform one layout graph into another using a strategy.
+/// This enables graph-to-graph layout rewrites.
+pub fn transform_layout_graph(
+    semantic: &SemanticGraph,
+    strategy: &dyn LayoutStrategy,
+) -> LayoutGraph {
+    strategy.plan(semantic)
+}
+
+/// Canonical normalization:
+/// Deterministically produce a fully atomic layout.
+pub struct CanonicalNormalizationStrategy;
+
+impl LayoutStrategy for CanonicalNormalizationStrategy {
+    fn name(&self) -> &'static str {
+        "canonical_normalized"
+    }
+
+    fn description(&self) -> &'static str {
+        "Deterministic canonical layout (fully atomic, stable ordering)."
+    }
+
+    fn plan(&self, semantic: &SemanticGraph) -> LayoutGraph {
+        use crate::layout::FlatNodeLayoutStrategy;
+        let strategy = FlatNodeLayoutStrategy;
+        let mut layout = strategy.plan(semantic);
+        normalize_layout(&mut layout);
+        layout
+    }
+}
+
+/// Canonical normalization strategy:
+/// Ensures deterministic ordering of modules, files, and routing.
+pub fn normalize_layout(layout: &mut LayoutGraph) {
+    layout.modules.sort_by(|a, b| a.id.cmp(&b.id));
+
+    for module in &mut layout.modules {
+        module.files.sort_by(|a, b| a.id.cmp(&b.id));
+        module.imports.sort_by(|a, b| a.from.cmp(&b.from));
+    }
+
+    layout.routing.sort_by(|a, b| {
+        let (a_id, a_kind) = layout_node_key(&a.node);
+        let (b_id, b_kind) = layout_node_key(&b.node);
+        (a_kind, a_id).cmp(&(b_kind, b_id))
+    });
+}
+
+/// Graph-to-graph layout transformation.
+///
+/// Applies a layout strategy to a semantic graph and returns
+/// a new fully validated LayoutGraph.
+pub fn transform_layout<S: LayoutStrategy>(
+    semantic: &SemanticGraph,
+    strategy: &S,
+) -> Result<LayoutGraph, LayoutValidationError> {
+    let mut layout = strategy.plan(semantic);
+
+    // Canonical normalization invariant
+    normalize_layout(&mut layout);
+
+    Ok(layout)
 }
 
 /// Represents helpers that can strip layout metadata from semantic nodes.
@@ -276,7 +341,7 @@ mod tests {
             structs: vec![structure],
             enums: Vec::new(),
             traits: Vec::new(),
-            impl_blocks: Vec::new(),
+            impls: Vec::new(),
             functions: Vec::new(),
             call_edges: Vec::new(),
             tick_graphs: Vec::new(),

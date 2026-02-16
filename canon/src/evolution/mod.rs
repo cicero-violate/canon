@@ -1,7 +1,7 @@
 pub mod goal_mutation;
 mod kernel_bridge;
-mod structural;
 pub mod lyapunov;
+mod structural;
 
 use std::collections::HashMap;
 
@@ -9,18 +9,18 @@ use canon_kernel::{self as kernel, Judgment as KernelJudgment, JudgmentPredicate
 use thiserror::Error;
 
 use crate::ir::{
-    AdmissionId, AppliedDeltaRecord, CanonicalIr, Delta, DeltaId, DeltaPayload, JudgmentDecision,
-    DeltaKind,
+    AdmissionId, AppliedDeltaRecord, CanonicalIr, Delta, DeltaId, DeltaKind, DeltaPayload,
+    JudgmentDecision,
 };
 
 use crate::runtime::delta_verifier::{DeltaVerifier, VerificationError};
 
 pub use goal_mutation::{GoalMutationError, mutate_goal};
-pub use lyapunov::{
-    DEFAULT_TOPOLOGY_THETA, LyapunovError, TopologyFingerprint, check_topology_drift,
-};
 use kernel_bridge::{
     build_invariant_registry, build_kernel_admission, build_proof_registry, build_state_log,
+};
+pub use lyapunov::{
+    DEFAULT_TOPOLOGY_THETA, LyapunovError, TopologyFingerprint, check_topology_drift,
 };
 use structural::apply_structural_delta;
 
@@ -76,17 +76,11 @@ pub fn apply_deltas(
             enforce_delta_application(delta)?;
             // Lyapunov gate: structural deltas must not exceed topology drift bound.
             if delta.kind == DeltaKind::Structure {
-                let proof_ids: Vec<String> =
-                    ir.proofs.iter().map(|p| p.id.clone()).collect();
+                let proof_ids: Vec<String> = ir.proofs.iter().map(|p| p.id.clone()).collect();
                 let mut candidate = next.clone();
                 apply_structural_delta(&mut candidate, delta)?;
-                check_topology_drift(
-                    &next,
-                    &candidate,
-                    &proof_ids,
-                    DEFAULT_TOPOLOGY_THETA,
-                )
-                .map_err(EvolutionError::TopologyDrift)?;
+                check_topology_drift(&next, &candidate, &proof_ids, DEFAULT_TOPOLOGY_THETA)
+                    .map_err(EvolutionError::TopologyDrift)?;
                 next = candidate;
             } else {
                 apply_structural_delta(&mut next, delta)?;

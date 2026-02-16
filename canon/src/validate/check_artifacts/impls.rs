@@ -11,13 +11,17 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
     let trait_fn_to_trait: HashMap<&str, &str> = ir
         .traits
         .iter()
-        .flat_map(|t| t.functions.iter().map(move |f| (f.id.as_str(), t.id.as_str())))
+        .flat_map(|t| {
+            t.functions
+                .iter()
+                .map(move |f| (f.id.as_str(), t.id.as_str()))
+        })
         .collect();
 
     let mut binding_lookup: HashMap<&str, &str> = HashMap::new();
-    for block in &ir.impl_blocks {
+    for block in &ir.impls {
         let struct_opt = idx.structs.get(block.struct_id.as_str());
-        let trait_opt  = idx.traits.get(block.trait_id.as_str());
+        let trait_opt = idx.traits.get(block.trait_id.as_str());
         let struct_id_valid = struct_opt.is_some() || enum_ids.contains(block.struct_id.as_str());
         if !struct_id_valid {
             violations.push(Violation::structured(
@@ -29,6 +33,7 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
                 },
             ));
         }
+        // Only validate trait existence if trait_id is present
         if !block.trait_id.is_empty() && trait_opt.is_none() {
             violations.push(Violation::structured(
                 CanonRule::ImplBinding,
@@ -67,7 +72,10 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
         // ImplWrongModuleForTrait is intentionally not checked: Rust allows
         // implementing a trait defined in one module for a type in another.
         for binding in &block.functions {
-            if binding_lookup.insert(binding.function.as_str(), block.id.as_str()).is_some() {
+            if binding_lookup
+                .insert(binding.function.as_str(), block.id.as_str())
+                .is_some()
+            {
                 violations.push(Violation::structured(
                     CanonRule::ExecutionOnlyInImpl,
                     block.id.clone(),
@@ -76,6 +84,7 @@ pub fn check_impls(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violati
                     },
                 ));
             }
+            // Only enforce trait function binding when trait_id exists
             if !block.trait_id.is_empty() {
                 if trait_fn_to_trait.get(binding.trait_fn.as_str()).copied()
                     != Some(block.trait_id.as_str())

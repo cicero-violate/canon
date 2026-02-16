@@ -1,9 +1,9 @@
 mod ast;
 
-use crate::materialize::render_common::{render_type as render_type_common, render_visibility};
 use crate::ir::{
     Function, GenericParam, Receiver, RefKind, TypeKind, TypeRef, ValuePort, WhereClause,
 };
+use crate::materialize::render_common::{render_type as render_type_common, render_visibility};
 
 pub use ast::render_ast_body;
 

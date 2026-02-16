@@ -7,10 +7,10 @@ use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{connect, Message, WebSocket};
 use url::Url;
 
-use std::sync::mpsc::Sender;
-use std::sync::mpsc;
-use std::thread;
 use std::os::unix::net::UnixListener;
+use std::sync::mpsc;
+use std::sync::mpsc::Sender;
+use std::thread;
 
 mod incoming;
 mod outgoing;
@@ -49,7 +49,7 @@ impl ChromeConnection {
             .timeout(Duration::from_secs(2))
             .call()?
             .into_json()?;
-        
+
         let chatgpt_tab = if let Some(conv_id) = conversation_id {
             let conversation_path = format!("/c/{}", conv_id);
             if let Some(tab) = response
@@ -72,14 +72,19 @@ impl ChromeConnection {
                             || target.url.contains("chat.openai.com"))
                 })
                 .cloned()
-                .ok_or("No matching ChatGPT tab found. Please open https://chatgpt.com in Chrome.")?
+                .ok_or(
+                    "No matching ChatGPT tab found. Please open https://chatgpt.com in Chrome.",
+                )?
         };
-        
+
         let ws_url = chatgpt_tab
             .web_socket_debugger_url
             .ok_or("ChatGPT tab has no WebSocket debugger URL")?;
-        
-        println!("Found ChatGPT tab: {:?}", chatgpt_tab.title.as_deref().unwrap_or("(untitled)"));
+
+        println!(
+            "Found ChatGPT tab: {:?}",
+            chatgpt_tab.title.as_deref().unwrap_or("(untitled)")
+        );
         println!("URL: {}", chatgpt_tab.url);
 
         let url = Url::parse(&ws_url)?;
@@ -94,16 +99,14 @@ impl ChromeConnection {
             _ => {}
         }
 
-        Ok((
-            Self {
-                socket,
-                next_id: 1,
-            },
-            chatgpt_tab.id.clone(),
-        ))
+        Ok((Self { socket, next_id: 1 }, chatgpt_tab.id.clone()))
     }
 
-    pub fn send_command(&mut self, method: &str, params: Value) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn send_command(
+        &mut self,
+        method: &str,
+        params: Value,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let id = self.next_id;
         self.next_id += 1;
         let payload = json!({
@@ -119,12 +122,12 @@ impl ChromeConnection {
         println!("Waiting for page load...");
         let start = std::time::Instant::now();
         let timeout = Duration::from_millis(timeout_ms);
-        
+
         loop {
             if start.elapsed() > timeout {
                 return Err("Timeout waiting for page load".into());
             }
-            
+
             if let Some(event) = self.read_event()? {
                 if let Some(method) = event.get("method").and_then(|v| v.as_str()) {
                     if method == "Page.loadEventFired" {
@@ -133,7 +136,7 @@ impl ChromeConnection {
                     }
                 }
             }
-            
+
             std::thread::sleep(Duration::from_millis(50));
         }
     }
@@ -167,9 +170,15 @@ fn main() {
     }
 
     if args.len() < 2 {
-        eprintln!("Usage: {} <message_text> [chrome_port] [conversation_id]", args[0]);
+        eprintln!(
+            "Usage: {} <message_text> [chrome_port] [conversation_id]",
+            args[0]
+        );
         eprintln!("       {} --stdin [chrome_port] [conversation_id]", args[0]);
-        eprintln!("       {} --no-wait --stdin [chrome_port] [conversation_id]", args[0]);
+        eprintln!(
+            "       {} --no-wait --stdin [chrome_port] [conversation_id]",
+            args[0]
+        );
         eprintln!("       {} --new-tab <message_text> [chrome_port]", args[0]);
         eprintln!("       {} --daemon [chrome_port]", args[0]);
         eprintln!("  chrome_port defaults to 9222");
@@ -219,14 +228,23 @@ fn main() {
     }
     let conversation_id = positionals.get(positional_idx).map(|s| s.as_str());
 
-    if let Err(e) = run_messenger(&message_text, chrome_port, conversation_id, no_wait, new_tab) {
+    if let Err(e) = run_messenger(
+        &message_text,
+        chrome_port,
+        conversation_id,
+        no_wait,
+        new_tab,
+    ) {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
 }
 
 fn run_daemon(chrome_port: u16) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Starting chromium_messenger daemon on port {}...", chrome_port);
+    println!(
+        "Starting chromium_messenger daemon on port {}...",
+        chrome_port
+    );
 
     let (mut conn, _) = ChromeConnection::connect(chrome_port, None, false)?;
 
@@ -244,12 +262,8 @@ fn run_daemon(chrome_port: u16) -> Result<(), Box<dyn std::error::Error>> {
     loop {
         // 1. Handle Chromium → daemon (already works)
         if let Some(event) = conn.read_event()? {
-            if event.get("method").and_then(|m| m.as_str())
-                == Some("Runtime.bindingCalled")
-            {
-                let payload = event["params"]["payload"]
-                    .as_str()
-                    .unwrap_or("");
+            if event.get("method").and_then(|m| m.as_str()) == Some("Runtime.bindingCalled") {
+                let payload = event["params"]["payload"].as_str().unwrap_or("");
                 if let Ok(value) = serde_json::from_str::<Value>(payload) {
                     // persist all Chromium messages
                     if let Some(msg_id) = value.get("messageId").and_then(|v| v.as_str()) {
@@ -322,22 +336,24 @@ fn spawn_local_listener(tx: Sender<DaemonEvent>) -> std::io::Result<()> {
     thread::spawn(move || {
         for stream in listener.incoming() {
             if let Ok(mut stream) = stream {
-               use std::io::Read;
-               let mut len_buf = [0u8; 4];
-               if stream.read_exact(&mut len_buf).is_err() {
-                   eprintln!("[listener] failed to read length prefix");
-                   continue;
-               }
-               let msg_len = u32::from_le_bytes(len_buf) as usize;
-               let mut body = vec![0u8; msg_len];
-               if stream.read_exact(&mut body).is_err() {
-                   eprintln!("[listener] failed to read body ({} bytes)", msg_len);
-                   continue;
-               }
-               match serde_json::from_slice::<incoming::LocalMessage>(&body) {
-                   Ok(msg) => { let _ = tx.send(DaemonEvent::ReceiveLocalMessage(msg)); }
-                   Err(e) => eprintln!("[listener] parse failed: {e}"),
-               }
+                use std::io::Read;
+                let mut len_buf = [0u8; 4];
+                if stream.read_exact(&mut len_buf).is_err() {
+                    eprintln!("[listener] failed to read length prefix");
+                    continue;
+                }
+                let msg_len = u32::from_le_bytes(len_buf) as usize;
+                let mut body = vec![0u8; msg_len];
+                if stream.read_exact(&mut body).is_err() {
+                    eprintln!("[listener] failed to read body ({} bytes)", msg_len);
+                    continue;
+                }
+                match serde_json::from_slice::<incoming::LocalMessage>(&body) {
+                    Ok(msg) => {
+                        let _ = tx.send(DaemonEvent::ReceiveLocalMessage(msg));
+                    }
+                    Err(e) => eprintln!("[listener] parse failed: {e}"),
+                }
             }
         }
     });

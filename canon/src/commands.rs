@@ -1,28 +1,26 @@
 use std::fs;
 
+use crate::agent::bootstrap::{bootstrap_graph, bootstrap_proposal};
 use crate::agent::call::AgentCallOutput;
+use crate::agent::io::{load_capability_graph, save_capability_graph};
 use crate::agent::refactor::RefactorProposal;
-use crate::agent::{RewardLedger, run_meta_tick, run_pipeline};
 use crate::agent::runner::{RunnerConfig, run_agent};
 use crate::agent::ws_server;
-use crate::agent::bootstrap::{bootstrap_graph, bootstrap_proposal};
+use crate::agent::{RewardLedger, run_meta_tick, run_pipeline};
 use crate::cli::Command;
 use crate::decision::auto_dsl::auto_accept_dsl_proposal;
+use crate::diagnose::trace_root_causes;
 use crate::diff::diff_ir;
 use crate::dot_export::{self, verify_dot};
 use crate::ingest::{self, IngestOptions};
-use crate::io_utils::{
-    load_ir, load_ir_or_semantic, load_layout, resolve_layout,
-};
-use crate::agent::io::{load_capability_graph, save_capability_graph};
+use crate::io_utils::{load_ir, load_ir_or_semantic, load_layout, resolve_layout};
 use crate::layout::LayoutGraph;
-use crate::materialize::{materialize, write_file_tree};
 use crate::materialize::render_fn::render_impl_function;
+use crate::materialize::{materialize, write_file_tree};
 use crate::runtime::{TickExecutionMode, TickExecutor};
 use crate::schema::generate_schema;
 use crate::validate::validate_ir;
 use crate::version_gate::enforce_version_gate;
-use crate::diagnose::trace_root_causes;
 
 pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
@@ -57,10 +55,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
                         briefs.len()
                     );
                     for (i, b) in briefs.iter().enumerate() {
-                        println!(
-                            "── Root Cause {} ─────────────────────────────",
-                            i + 1
-                        );
+                        println!("── Root Cause {} ─────────────────────────────", i + 1);
                         println!("Rule:      {:?}", b.rule);
                         println!("Count:     {} violation(s)", b.violation_count);
                         println!("Class:     {}", b.defect_class);
@@ -71,6 +66,11 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
                             println!("  - {}", ex);
                         }
                         println!("Brief:\n  {}\n", b.brief);
+
+                        if let Some(report) = &b.structured_report {
+                            println!("{}", report);
+                            println!();
+                        }
                     }
                 }
             }
@@ -92,7 +92,11 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             println!("{}", diff_ir(&a, &b));
         }
 
-        Command::Materialize { ir, layout, out_dir } => {
+        Command::Materialize {
+            ir,
+            layout,
+            out_dir,
+        } => {
             let ir_doc = load_ir_or_semantic(&ir)?;
             validate_ir(&ir_doc)?;
             enforce_version_gate(&ir_doc)?;
@@ -102,7 +106,11 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             println!("Materialized into `{}`.", out_dir.display());
         }
 
-        Command::Ingest { src, semantic_out, layout_out } => {
+        Command::Ingest {
+            src,
+            semantic_out,
+            layout_out,
+        } => {
             let layout_map = ingest::ingest_workspace(&IngestOptions::new(src))?;
             let semantic_json = serde_json::to_string_pretty(&layout_map.semantic)?;
             fs::write(&semantic_out, &semantic_json)?;
@@ -141,7 +149,11 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             fs::write(output, dot)?;
         }
 
-        Command::VerifyDot { ir, layout, original } => {
+        Command::VerifyDot {
+            ir,
+            layout,
+            original,
+        } => {
             let ir_doc = load_ir(&ir)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
             let dot = fs::read_to_string(original)?;
@@ -149,7 +161,13 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             println!("DOT verified.");
         }
 
-        Command::SubmitDsl { dsl, ir, layout, output_ir, materialize_dir } => {
+        Command::SubmitDsl {
+            dsl,
+            ir,
+            layout,
+            output_ir,
+            materialize_dir,
+        } => {
             let ir_doc = load_ir(&ir)?;
             let layout_doc = if let Some(layout_path) = layout {
                 load_layout(layout_path)?
@@ -169,15 +187,18 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
         }
 
         // --- Agent layer commands (Item 3) ---
-
-        Command::RunPipeline { ir, layout, outputs, proposal, output_ir } => {
+        Command::RunPipeline {
+            ir,
+            layout,
+            outputs,
+            proposal,
+            output_ir,
+        } => {
             let ir_doc = load_ir(&ir)?;
             let layout_path = resolve_layout(layout, &ir);
             let layout_doc = load_layout(layout_path)?;
-            let stage_outputs: Vec<AgentCallOutput> =
-                serde_json::from_slice(&fs::read(&outputs)?)?;
-            let prop: RefactorProposal =
-                serde_json::from_slice(&fs::read(&proposal)?)?;
+            let stage_outputs: Vec<AgentCallOutput> = serde_json::from_slice(&fs::read(&outputs)?)?;
+            let prop: RefactorProposal = serde_json::from_slice(&fs::read(&proposal)?)?;
 
             match run_pipeline(&ir_doc, &layout_doc, prop, &stage_outputs) {
                 Ok(result) => {
@@ -196,10 +217,13 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             }
         }
 
-        Command::MetaTick { graph, ledger, output_graph } => {
+        Command::MetaTick {
+            graph,
+            ledger,
+            output_graph,
+        } => {
             let cap_graph = load_capability_graph(&graph)?;
-            let ledger_doc: RewardLedger =
-                serde_json::from_slice(&fs::read(&ledger)?)?;
+            let ledger_doc: RewardLedger = serde_json::from_slice(&fs::read(&ledger)?)?;
 
             match run_meta_tick(&cap_graph, &ledger_doc) {
                 Ok(result) => {
@@ -227,8 +251,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
         }
 
         Command::ShowLedger { ledger } => {
-            let ledger_doc: RewardLedger =
-                serde_json::from_slice(&fs::read(&ledger)?)?;
+            let ledger_doc: RewardLedger = serde_json::from_slice(&fs::read(&ledger)?)?;
             let ranked = ledger_doc.ranked_nodes();
             if ranked.is_empty() {
                 println!("Ledger is empty — no pipeline runs recorded.");
@@ -293,8 +316,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             let layout_path = resolve_layout(layout, &ir);
             let mut layout_doc = load_layout(layout_path)?;
             let mut cap_graph = load_capability_graph(&graph)?;
-            let seed_proposal: RefactorProposal =
-                serde_json::from_slice(&fs::read(&proposal)?)?;
+            let seed_proposal: RefactorProposal = serde_json::from_slice(&fs::read(&proposal)?)?;
 
             let mut config = RunnerConfig::new(graph_out, ledger_out, ir_out);
             config.max_ticks = max_ticks;
@@ -308,11 +330,14 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
                 seed_proposal,
                 &config,
                 &ws_server::spawn("127.0.0.1:8787".parse()?),
-            ).await?;
+            )
+            .await?;
 
             println!("Agent run complete — {} ticks", stats.len());
-            println!("{:<6} {:>8} {:>8} {:>10} {:>6} {:>6}",
-                "tick", "nodes", "errors", "reward", "meta", "policy");
+            println!(
+                "{:<6} {:>8} {:>8} {:>10} {:>6} {:>6}",
+                "tick", "nodes", "errors", "reward", "meta", "policy"
+            );
             println!("{}", "-".repeat(52));
             for s in &stats {
                 println!(
@@ -329,7 +354,11 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             }
         }
 
-        Command::BootstrapGraph { graph_out, proposal_out, ir } => {
+        Command::BootstrapGraph {
+            graph_out,
+            proposal_out,
+            ir,
+        } => {
             let ir_doc = load_ir_or_semantic(&ir)?;
 
             // Pick first module id as proposal target, fall back to "module_0".

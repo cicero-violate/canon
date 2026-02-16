@@ -35,7 +35,9 @@ pub fn maybe_fire_meta_tick(ir: &CanonicalIr, epoch_count: usize, tick_reward: f
     for record in &ir.reward_deltas {
         ledger.record(
             record.tick.clone(),
-            NodeOutcome::Accepted { reward: record.reward },
+            NodeOutcome::Accepted {
+                reward: record.reward,
+            },
         );
     }
 

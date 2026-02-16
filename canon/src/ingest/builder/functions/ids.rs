@@ -14,7 +14,10 @@ pub(crate) fn trait_path_to_trait_id(
     if let Some(id) = trait_name_to_id.get(&name_key) {
         id.clone()
     } else {
-        format!("trait.{}.{}", slugify(module_id), slugify(&trait_name))
+        // Do not synthesize a new trait ID here.
+        // If the trait was not ingested, it is external and should
+        // be treated as unsupported by the caller.
+        String::new()
     }
 }
 

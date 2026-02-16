@@ -7,7 +7,9 @@ pub mod bytecode;
 pub mod bytecode_types;
 pub mod context;
 pub mod delta_verifier;
+pub mod error;
 pub mod executor;
+pub mod graph;
 pub mod parallel;
 pub mod policy_updater;
 pub mod reward;
@@ -26,5 +28,5 @@ pub use system_interpreter::{
     DeltaEmission, ProofArtifact, SystemExecutionEvent, SystemExecutionResult, SystemInterpreter,
     SystemInterpreterError,
 };
-pub use tick_executor::{TickExecutionMode, TickExecutionResult, TickExecutor, TickExecutorError};
+pub use tick_executor::{TickExecutionMode, TickExecutionResult, TickExecutor};
 pub use value::{Value, ValueKind};

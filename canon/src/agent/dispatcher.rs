@@ -72,9 +72,10 @@ impl<'a> AgentCallDispatcher<'a> {
         // 4. Collect predecessor outputs — all predecessors must have completed.
         let mut predecessor_outputs = Vec::new();
         for pred in &preds {
-            let output = self.completed.get(pred.id.as_str()).ok_or_else(|| {
-                AgentCallError::MissingPredecessorOutput(pred.id.clone())
-            })?;
+            let output = self
+                .completed
+                .get(pred.id.as_str())
+                .ok_or_else(|| AgentCallError::MissingPredecessorOutput(pred.id.clone()))?;
             predecessor_outputs.push(output.clone());
         }
 
@@ -99,12 +100,7 @@ impl<'a> AgentCallDispatcher<'a> {
 
         for node in &self.graph.nodes {
             if !visited.contains(&node.id) {
-                self.visit(
-                    &node.id,
-                    &mut visited,
-                    &mut in_progress,
-                    &mut order,
-                )?;
+                self.visit(&node.id, &mut visited, &mut in_progress, &mut order)?;
             }
         }
         Ok(order)

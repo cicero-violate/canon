@@ -22,7 +22,7 @@ fn check_module_graph<'a>(
     for id in idx.modules.keys() {
         graph.add_node(*id);
     }
-    let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
+    let mut direct: HashMap<&str, Vec<&str>> = HashMap::new();
     for edge in &ir.module_edges {
         let from = edge.source.as_str();
         let to = edge.target.as_str();
@@ -45,7 +45,7 @@ fn check_module_graph<'a>(
             continue;
         }
         graph.add_edge(from, to, ());
-        adj.entry(from).or_default().push(to);
+        direct.entry(from).or_default().push(to);
     }
     if is_cyclic_directed(&graph) {
         violations.push(Violation::structured(
@@ -54,6 +54,26 @@ fn check_module_graph<'a>(
             ViolationDetail::ModuleCycle,
         ));
     }
+    // Compute transitive closure for permission checks
+    let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
+
+    for node in graph.nodes() {
+        let mut visited: HashSet<&str> = HashSet::new();
+        let mut stack: Vec<&str> = vec![node];
+
+        while let Some(curr) = stack.pop() {
+            if let Some(neighbors) = direct.get(curr) {
+                for next in neighbors {
+                    if visited.insert(*next) {
+                        stack.push(*next);
+                    }
+                }
+            }
+        }
+
+        adj.insert(node, visited.into_iter().collect());
+    }
+
     adj
 }
 
@@ -75,7 +95,9 @@ fn check_call_graph<'a>(
             violations.push(Violation::structured(
                 CanonRule::CallGraphPublicApis,
                 edge.caller.clone(),
-                ViolationDetail::MissingFunction { function_id: edge.caller.clone() },
+                ViolationDetail::MissingFunction {
+                    function_id: edge.caller.clone(),
+                },
             ));
             continue;
         };
@@ -83,7 +105,9 @@ fn check_call_graph<'a>(
             violations.push(Violation::structured(
                 CanonRule::CallGraphPublicApis,
                 edge.callee.clone(),
-                ViolationDetail::MissingFunction { function_id: edge.callee.clone() },
+                ViolationDetail::MissingFunction {
+                    function_id: edge.callee.clone(),
+                },
             ));
             continue;
         };
@@ -105,6 +129,7 @@ fn check_call_graph<'a>(
             module_adj,
             &mut perm_cache,
         ) {
+            println!("Permission failure: {} -> {}", caller.module, callee.module);
             violations.push(Violation::structured(
                 CanonRule::CallGraphRespectsDag,
                 caller.module.clone(),
@@ -139,7 +164,9 @@ fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Viola
                 violations.push(Violation::structured(
                     CanonRule::TickGraphEdgesDeclared,
                     node.clone(),
-                    ViolationDetail::MissingFunction { function_id: node.to_string() },
+                    ViolationDetail::MissingFunction {
+                        function_id: node.to_string(),
+                    },
                 ));
                 continue;
             }

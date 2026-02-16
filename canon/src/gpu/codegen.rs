@@ -19,7 +19,10 @@ pub struct GpuProgram {
 }
 
 /// Convert a math-only bytecode to WGSL compute shader.
-pub fn generate_shader(gpu: &GpuFunction, bytecode: &FunctionBytecode) -> Result<GpuProgram, String> {
+pub fn generate_shader(
+    gpu: &GpuFunction,
+    bytecode: &FunctionBytecode,
+) -> Result<GpuProgram, String> {
     if gpu.outputs.len() != 1 {
         return Err(format!(
             "gpu kernel `{}` must have exactly one output for now",

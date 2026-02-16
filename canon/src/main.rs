@@ -1,15 +1,15 @@
+mod agent;
 mod cli;
 mod commands;
-mod diff;
-mod agent;
-mod gpu;
-mod io_utils;
-mod version_gate;
 mod decision;
+mod diagnose;
+mod diff;
 mod dot_export;
 mod dot_import;
 mod evolution;
+mod gpu;
 mod ingest;
+mod io_utils;
 mod ir;
 mod layout;
 mod materialize;
@@ -20,7 +20,7 @@ mod runtime;
 mod schema;
 mod semantic_builder;
 mod validate;
-mod diagnose;
+mod version_gate;
 
 pub use ir::CanonicalIr;
 

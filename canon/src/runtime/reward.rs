@@ -10,8 +10,8 @@ pub fn compute_reward(_ir: &CanonicalIr, record: &ExecutionRecord) -> f64 {
 }
 
 /// Reward weights for pipeline reward computation.
-const W_CAPS: f64 = 0.5;   // weight per new capability (function/trait/module)
-const W_DELTA: f64 = 0.1;  // penalty per delta above threshold
+const W_CAPS: f64 = 0.5; // weight per new capability (function/trait/module)
+const W_DELTA: f64 = 0.1; // penalty per delta above threshold
 const DELTA_THRESHOLD: usize = 10; // deltas above this count are penalised
 const W_ENTROPY: f64 = 0.2; // bonus for entropy reduction in capability graph
 
@@ -52,4 +52,12 @@ pub fn compute_pipeline_reward(
     let entropy_reduction = entropy_before - entropy_after;
 
     delta_caps * W_CAPS - delta_penalty * W_DELTA + entropy_reduction * W_ENTROPY
+}
+use crate::runtime::value::DeltaValue;
+
+/// Compute total reward from emitted deltas.
+pub fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64 {
+    // Layer 1 deterministic scalar utility:
+    // reward = number of emitted deltas
+    emitted.len() as f64
 }

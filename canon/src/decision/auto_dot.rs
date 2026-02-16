@@ -8,8 +8,8 @@ use crate::{
         dot_graph_to_proposal, dot_graph_to_routing_hints, parse_dot,
     },
     ir::CanonicalIr,
-    layout::{LayoutGraph, LayoutNode, apply_topology_to_layout},
     ir::proposal::sanitize_identifier,
+    layout::{LayoutGraph, LayoutNode, apply_topology_to_layout},
 };
 
 use super::{

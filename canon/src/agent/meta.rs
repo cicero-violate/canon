@@ -32,7 +32,11 @@ pub enum GraphMutation {
     /// Remove a node and all its edges.
     RemoveNode { node_id: String },
     /// Add a new edge between two existing nodes.
-    AddEdge { from: String, to: String, proof_confidence: f64 },
+    AddEdge {
+        from: String,
+        to: String,
+        proof_confidence: f64,
+    },
     /// Remove an edge between two nodes.
     RemoveEdge { from: String, to: String },
     /// Promote a node to MetaAgent kind.
@@ -57,7 +61,11 @@ pub enum MetaTickError {
 impl std::fmt::Display for MetaTickError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MetaTickError::EntropyBoundExceeded { before, after, delta } => write!(
+            MetaTickError::EntropyBoundExceeded {
+                before,
+                after,
+                delta,
+            } => write!(
                 f,
                 "entropy deviation {delta:.4} exceeds bound {MAX_ENTROPY_DELTA:.4} \
                  (before={before:.4} after={after:.4})"
@@ -183,7 +191,10 @@ fn propose_mutations(graph: &CapabilityGraph, ledger: &RewardLedger) -> Vec<Grap
     }
 
     // Promote the top-ranked non-MetaAgent node if no MetaAgent exists.
-    let has_meta = graph.nodes.iter().any(|n| n.kind == CapabilityKind::MetaAgent);
+    let has_meta = graph
+        .nodes
+        .iter()
+        .any(|n| n.kind == CapabilityKind::MetaAgent);
     if !has_meta {
         if let Some(top) = ranked.first() {
             if top.ema_reward > 0.0 {
@@ -213,9 +224,14 @@ fn apply_mutation(
                 return Err(MetaTickError::UnknownNode(node_id.clone()));
             }
             next.nodes.retain(|n| n.id != *node_id);
-            next.edges.retain(|e| e.from != *node_id && e.to != *node_id);
+            next.edges
+                .retain(|e| e.from != *node_id && e.to != *node_id);
         }
-        GraphMutation::AddEdge { from, to, proof_confidence } => {
+        GraphMutation::AddEdge {
+            from,
+            to,
+            proof_confidence,
+        } => {
             if !next.nodes.iter().any(|n| &n.id == from) {
                 return Err(MetaTickError::UnknownNode(from.clone()));
             }

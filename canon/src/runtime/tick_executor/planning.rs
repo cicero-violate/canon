@@ -6,7 +6,9 @@ use crate::ir::{
     DeltaId, ExecutionRecord, Judgment, JudgmentDecision, JudgmentPredicate, Plan, Proposal,
     ProposalGoal, ProposalKind, ProposalStatus, RewardRecord, Word,
 };
-use crate::runtime::planner::Planner;
+use crate::runtime::rollout::{RolloutEngine, RolloutResult};
+use crate::runtime::value::Value;
+use std::collections::BTreeMap;
 
 use super::types::{
     PlanContext, PredictionContext, TickExecutionResult, default_predicted_snapshot,
@@ -16,13 +18,15 @@ pub(super) fn plan_tick(ir: &mut CanonicalIr, tick_id: &str, skip_planning: bool
     if skip_planning {
         return PlanContext::default();
     }
-    let planner = Planner::new(&*ir);
+
     let mut planned_utility = 0.0;
     let mut planning_depth = 0;
     let mut predicted_deltas = Vec::new();
     let mut prediction_context = PredictionContext::default();
 
-    if let Some((rollout, utility)) = planner.search_best_depth(tick_id, 3, Default::default()) {
+    if let Some((rollout, utility)) =
+        search_best_depth(ir, tick_id, 3, BTreeMap::<String, Value>::new())
+    {
         planned_utility = utility;
         planning_depth = rollout.depth_executed;
         predicted_deltas = rollout.predicted_deltas.clone();
@@ -51,6 +55,40 @@ pub(super) fn plan_tick(ir: &mut CanonicalIr, tick_id: &str, skip_planning: bool
     }
 }
 
+/// Evaluate multiple depths and return best (rollout, utility)
+fn search_best_depth(
+    ir: &CanonicalIr,
+    tick_id: &str,
+    max_depth: u32,
+    inputs: BTreeMap<String, Value>,
+) -> Option<(RolloutResult, f64)> {
+    let engine = RolloutEngine::new(ir);
+    let mut best = None;
+
+    for depth in 1..=max_depth {
+        if let Ok(result) = engine.rollout(tick_id, depth, inputs.clone()) {
+            let utility = result.total_reward + world_model_bonus(ir, tick_id, result.total_reward);
+            if best
+                .as_ref()
+                .map_or(true, |(_, best_util)| utility > *best_util)
+            {
+                best = Some((result, utility));
+            }
+        }
+    }
+
+    best
+}
+
+fn world_model_bonus(ir: &CanonicalIr, tick_id: &str, reward: f64) -> f64 {
+    ir.world_model
+        .prediction_head
+        .iter()
+        .rev()
+        .find(|head| head.tick == tick_id)
+        .map(|head| (head.estimated_reward - reward) * 0.1)
+        .unwrap_or(0.0)
+}
 pub(super) fn finalize_execution(
     ir: &mut CanonicalIr,
     tick_id: &str,

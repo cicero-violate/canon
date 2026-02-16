@@ -58,13 +58,18 @@ pub(crate) fn convert_type(ty: &syn::Type) -> TypeRef {
 }
 
 pub(crate) fn path_type(type_path: &syn::TypePath) -> TypeRef {
-    let ident = type_path
+    // Preserve the FULL type path (e.g. crate::foo::Bar)
+    let full_path = path_to_string(&type_path.path);
+
+    // Last segment still used to detect `Self`
+    let last_ident = type_path
         .path
         .segments
         .last()
         .map(|seg| seg.ident.to_string())
         .unwrap_or_else(|| "Type".to_owned());
-    let kind = if ident == "Self" {
+
+    let kind = if last_ident == "Self" {
         TypeKind::SelfType
     } else {
         TypeKind::External
@@ -80,7 +85,8 @@ pub(crate) fn path_type(type_path: &syn::TypePath) -> TypeRef {
         }
     }
     TypeRef {
-        name: word_from_string(&ident, "Type"),
+        // Store full path for stable codegen
+        name: word_from_string(&full_path, "Type"),
         kind,
         params,
         ref_kind: RefKind::None,

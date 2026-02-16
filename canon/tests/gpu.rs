@@ -39,11 +39,9 @@ fn gpu_kernel_matches_cpu_add() {
     use canon::runtime::bytecode::FunctionBytecode;
 
     let bytecode =
-        FunctionBytecode::from_function(&function)
-            .expect("bytecode compilation succeeds");
+        FunctionBytecode::from_function(&function).expect("bytecode compilation succeeds");
 
-    let program =
-        generate_shader(&gpu, &bytecode).expect("shader generation succeeds");
+    let program = generate_shader(&gpu, &bytecode).expect("shader generation succeeds");
     let input_buffer =
         flatten_ports(&gpu.inputs, &[lhs.clone(), rhs.clone()]).expect("flatten inputs");
     let mut gpu_outputs = vec![0.0; lanes];

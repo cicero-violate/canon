@@ -24,3 +24,14 @@ pub(crate) struct AliasBinding {
     pub module_key: String,
     pub function_slug: String,
 }
+
+/// Flattened representation of a single `use` path entry.
+/// Defined here (not in `edges`) so that `types::uses` can use it
+/// without importing from `edges`, breaking the types→edges→modules cycle.
+#[derive(Clone, Debug)]
+pub(crate) struct UseEntry {
+    pub segments: Vec<String>,
+    pub alias: Option<String>,
+    pub is_glob: bool,
+    pub leading_colon: bool,
+}

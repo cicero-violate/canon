@@ -50,7 +50,7 @@ pub fn validate_layout(
     );
     enforce_routing_completeness(
         "impl",
-        ir.impl_blocks.iter().map(|b| b.id.as_str()),
+        ir.impls.iter().map(|b| b.id.as_str()),
         &assigned_nodes,
         &mut violations,
     );
@@ -155,7 +155,7 @@ fn build_module_maps(ir: &CanonicalIr) -> ModuleMaps<'_> {
             .map(|t| (t.id.as_str(), t.module.as_str()))
             .collect(),
         impl_modules: ir
-            .impl_blocks
+            .impls
             .iter()
             .map(|i| (i.id.as_str(), i.module.as_str()))
             .collect(),

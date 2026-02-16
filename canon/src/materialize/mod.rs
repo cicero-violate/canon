@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 
@@ -13,8 +13,8 @@ pub use self::render_fn::render_impl_function;
 
 mod file_tree;
 mod render_cargo;
-pub mod render_fn;
 mod render_common;
+pub mod render_fn;
 mod render_impl;
 mod render_module;
 mod render_struct;
@@ -88,12 +88,31 @@ pub fn materialize(
                 mod_sections.push(items);
             }
             let mut submods = Vec::new();
+            // Support nested layout paths (e.g. "agent/bootstrap.rs")
+            use std::collections::BTreeMap;
+            let mut dir_children: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+
             for f in &ordered {
-                let stem = file_stem(&f.path);
-                if stem != "lib" && stem != "mod" {
-                    submods.push(format!("pub mod {};", stem));
+                let path = f.path.as_str();
+                let parts: Vec<&str> = path.split('/').collect();
+
+                if parts.len() == 1 {
+                    let stem = file_stem(parts[0]);
+                    if stem != "lib" && stem != "mod" {
+                        submods.push(format!("pub mod {};", stem));
+                    }
+                } else {
+                    let dir = parts[0].to_string();
+                    let file = file_stem(parts[1]).to_string();
+                    dir_children.entry(dir).or_default().insert(file);
                 }
             }
+
+            // Emit top-level directory modules
+            for dir in dir_children.keys() {
+                submods.push(format!("pub mod {};", dir));
+            }
+
             if !submods.is_empty() {
                 mod_sections.push(submods.join("\n"));
             }
@@ -110,9 +129,9 @@ pub fn materialize(
             let empty_use: Vec<String> = Vec::new();
             for (idx, file_node) in ordered.iter().enumerate() {
                 let stem = file_stem(&file_node.path);
-                if stem == "lib" || stem == "mod" {
-                    continue;
-                }
+                let path = file_node.path.as_str();
+                let parts: Vec<&str> = path.split('/').collect();
+
                 let use_block: &[String] = if idx == 0 { &use_lines } else { &empty_use };
                 let contents = render_file(
                     file_node,
@@ -124,12 +143,66 @@ pub fn materialize(
                     &function_map,
                     use_block,
                 );
+
+                if parts.len() == 1 {
+                    if stem == "lib" || stem == "mod" {
+                        continue;
+                    }
+                    let file = if parts[0].ends_with(".rs") {
+                        parts[0].to_string()
+                    } else {
+                        format!("{}.rs", parts[0])
+                    };
+                    finalize_file(
+                        &mut tree,
+                        &mut next_hashes,
+                        &ir.file_hashes,
+                        &format!("{module_dir}/{file}"),
+                        contents,
+                        existing_root,
+                    );
+                } else {
+                    let dir = parts[0];
+                    let file = if parts[1].ends_with(".rs") {
+                        parts[1].to_string()
+                    } else {
+                        format!("{}.rs", parts[1])
+                    };
+
+                    tree.add_directory(format!("{module_dir}/{dir}"));
+
+                    finalize_file(
+                        &mut tree,
+                        &mut next_hashes,
+                        &ir.file_hashes,
+                        &format!("{module_dir}/{dir}/{file}"),
+                        contents,
+                        existing_root,
+                    );
+                }
+            }
+
+            // Emit nested mod.rs files for directories
+            for (dir, children) in dir_children {
+                let nested_mod_path = format!("{module_dir}/{dir}/mod.rs");
+
+                let mut nested_lines =
+                    vec!["// Derived from Canonical IR. Do not edit.".to_owned()];
+
+                for child in children {
+                    if child != "mod" {
+                        nested_lines.push(format!("pub mod {};", child));
+                    }
+                }
+
+                let nested_contents = nested_lines.join("\n") + "\n";
+
                 finalize_file(
                     &mut tree,
                     &mut next_hashes,
                     &ir.file_hashes,
-                    &format!("{module_dir}/{}", file_node.path),
-                    contents,
+                    &nested_mod_path,
+                    nested_contents,
                     existing_root,
                 );
             }
@@ -326,5 +399,7 @@ pub fn write_file_tree(tree: &FileTree, root: impl AsRef<Path>) -> std::io::Resu
 }
 
 fn file_stem(name: &str) -> &str {
-    name.trim_end_matches(".rs")
+    // strip directories and extension
+    let last = name.rsplit('/').next().unwrap_or(name);
+    last.trim_end_matches(".rs")
 }

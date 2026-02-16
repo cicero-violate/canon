@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use crate::ir::CanonicalIr;
 use crate::ir::DeltaId;
 use crate::ir::world_model::StateSnapshot;
-use crate::runtime::tick_executor::{TickExecutionMode, TickExecutor};
+use crate::runtime::context::ExecutionContext;
+use crate::runtime::executor::FunctionExecutor;
+use crate::runtime::graph::{build_dependency_map, gather_inputs, topological_sort};
+use crate::runtime::reward::compute_reward_from_deltas;
 use crate::runtime::value::Value;
 
 #[derive(Debug)]
@@ -45,7 +48,6 @@ impl<'a> RolloutEngine<'a> {
         }
 
         let mut ir_clone = self.ir.clone();
-        let mut executor = TickExecutor::new_with_skip_planning(&mut ir_clone, true);
 
         let mut total_reward = 0.0;
         let mut predicted_deltas = Vec::new();
@@ -54,25 +56,50 @@ impl<'a> RolloutEngine<'a> {
         let mut predicted_state = None;
 
         for _ in 0..depth {
-            let result = executor
-                .execute_tick_with_mode_and_inputs(
-                    tick_id,
-                    TickExecutionMode::Sequential,
-                    current_inputs.clone(),
-                )
+            let tick = ir_clone
+                .ticks
+                .iter()
+                .find(|t| t.id == tick_id)
+                .ok_or(RolloutError::UnknownTick)?;
+
+            let graph = ir_clone
+                .tick_graphs
+                .iter()
+                .find(|g| g.id == tick.graph)
+                .ok_or(RolloutError::UnknownTick)?;
+
+            let dependencies = build_dependency_map(graph);
+            let execution_order = topological_sort(graph, &dependencies)
                 .map_err(|e| RolloutError::Execution(format!("{:?}", e)))?;
 
-            total_reward += result.reward;
+            let mut context = ExecutionContext::new(current_inputs.clone());
+            let mut results = std::collections::HashMap::new();
+            let mut function_executor = FunctionExecutor::new(&mut ir_clone);
 
-            let actual_delta_ids: Vec<_> = result
-                .emitted_deltas
+            for function_id in &execution_order {
+                let inputs = gather_inputs(function_id, &dependencies, &results, &current_inputs)
+                    .map_err(|e| RolloutError::Execution(format!("{:?}", e)))?;
+
+                let outputs = function_executor
+                    .execute_by_id(function_id, inputs, &mut context)
+                    .map_err(|e| RolloutError::Execution(format!("{:?}", e)))?;
+
+                results.insert(function_id.clone(), outputs);
+            }
+
+            let reward = compute_reward_from_deltas(context.deltas());
+            total_reward += reward;
+
+            let actual_delta_ids: Vec<_> = context
+                .deltas()
                 .iter()
                 .map(|delta| delta.delta_id.clone())
                 .collect();
+
             predicted_deltas.extend(actual_delta_ids.clone());
 
             predicted_state = Some(StateSnapshot {
-                tick: result.tick_id.clone(),
+                tick: tick_id.to_string(),
                 delta_ids: actual_delta_ids,
                 description: format!("rollout depth {}", depth_executed + 1),
             });

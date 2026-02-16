@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use crate::ir::{FunctionId, TickGraph};
 use crate::runtime::value::Value;
 
-use super::types::TickExecutorError;
+use crate::runtime::error::RuntimeError;
 
 pub(super) fn build_dependency_map(graph: &TickGraph) -> HashMap<FunctionId, Vec<FunctionId>> {
     let mut dependencies: HashMap<FunctionId, Vec<FunctionId>> = HashMap::new();
@@ -24,7 +24,7 @@ pub(super) fn build_dependency_map(graph: &TickGraph) -> HashMap<FunctionId, Vec
 pub(super) fn topological_sort(
     graph: &TickGraph,
     dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
-) -> Result<Vec<FunctionId>, TickExecutorError> {
+) -> Result<Vec<FunctionId>, RuntimeError> {
     let mut sorted = Vec::new();
     let mut visited = HashSet::new();
     let mut in_progress = HashSet::new();
@@ -50,10 +50,10 @@ fn visit_node(
     visited: &mut HashSet<FunctionId>,
     in_progress: &mut HashSet<FunctionId>,
     sorted: &mut Vec<FunctionId>,
-) -> Result<(), TickExecutorError> {
+) -> Result<(), RuntimeError> {
     // Cycle detection (Canon Line 48: graphs must be acyclic)
     if in_progress.contains(node) {
-        return Err(TickExecutorError::CycleDetected(node.clone()));
+        return Err(RuntimeError::CycleDetected(node.clone()));
     }
     if visited.contains(node) {
         return Ok(());
@@ -75,7 +75,7 @@ pub(super) fn gather_inputs(
     dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
     results: &HashMap<FunctionId, BTreeMap<String, Value>>,
     initial_inputs: &BTreeMap<String, Value>,
-) -> Result<BTreeMap<String, Value>, TickExecutorError> {
+) -> Result<BTreeMap<String, Value>, RuntimeError> {
     let mut inputs = initial_inputs.clone();
     if let Some(deps) = dependencies.get(function_id) {
         for dep in deps {

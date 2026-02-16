@@ -80,8 +80,8 @@ fn extract_field(ir: &CanonicalIr, field: &IrField) -> (String, Value) {
             truncate_list(serde_json::to_value(&ir.traits).unwrap_or(Value::Null)),
         ),
         IrField::ImplBlocks => (
-            "impl_blocks".into(),
-            truncate_list(serde_json::to_value(&ir.impl_blocks).unwrap_or(Value::Null)),
+            "impls".into(),
+            truncate_list(serde_json::to_value(&ir.impls).unwrap_or(Value::Null)),
         ),
         IrField::Functions => (
             "functions".into(),

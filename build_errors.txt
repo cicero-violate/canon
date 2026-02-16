@@ -1,0 +1,2094 @@
+   Compiling unicode-ident v1.0.23
+   Compiling quote v1.0.44
+   Compiling proc-macro2 v1.0.106
+   Compiling cfg-if v1.0.4
+   Compiling libc v0.2.181
+   Compiling shlex v1.3.0
+   Compiling find-msvc-tools v0.1.9
+   Compiling version_check v0.9.5
+   Compiling smallvec v1.15.1
+   Compiling zerocopy v0.8.39
+   Compiling cc v1.2.55
+   Compiling thiserror v1.0.69
+   Compiling bitflags v2.10.0
+   Compiling log v0.4.29
+   Compiling typenum v1.19.0
+   Compiling autocfg v1.5.0
+   Compiling stable_deref_trait v1.2.1
+   Compiling generic-array v0.14.7
+   Compiling libloading v0.8.9
+   Compiling parking_lot_core v0.9.12
+   Compiling cpufeatures v0.2.17
+   Compiling rustc-hash v1.1.0
+   Compiling glob v0.3.3
+   Compiling once_cell v1.21.3
+   Compiling syn v2.0.114
+   Compiling scopeguard v1.2.0
+   Compiling cfg_aliases v0.1.1
+   Compiling lock_api v0.4.14
+   Compiling clang-sys v1.8.1
+   Compiling ahash v0.8.12
+   Compiling litemap v0.8.1
+   Compiling writeable v0.6.2
+   Compiling zeroize v1.8.2
+   Compiling regex-syntax v0.8.9
+   Compiling minimal-lexical v0.2.1
+   Compiling rustls-pki-types v1.14.0
+   Compiling getrandom v0.2.17
+   Compiling ring v0.17.14
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling rand_core v0.6.4
+   Compiling digest v0.10.7
+   Compiling parking_lot v0.12.5
+   Compiling nom v7.1.3
+   Compiling num-traits v0.2.19
+   Compiling icu_properties_data v2.1.2
+   Compiling crossbeam-utils v0.8.21
+   Compiling httparse v1.10.1
+   Compiling arrayvec v0.7.6
+   Compiling icu_normalizer_data v2.1.1
+   Compiling bindgen v0.66.1
+   Compiling bytes v1.11.1
+   Compiling byteorder v1.5.0
+   Compiling hashbrown v0.16.1
+   Compiling equivalent v1.0.2
+   Compiling regex-automata v0.4.14
+   Compiling indexmap v2.13.0
+   Compiling cexpr v0.6.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling lazycell v1.3.0
+   Compiling allocator-api2 v0.2.21
+   Compiling rand_chacha v0.3.1
+   Compiling khronos-egl v6.0.0
+   Compiling synstructure v0.13.2
+   Compiling pin-utils v0.1.0
+   Compiling untrusted v0.9.0
+   Compiling bit-vec v0.6.3
+   Compiling termcolor v1.4.1
+   Compiling peeking_take_while v0.1.2
+   Compiling regex v1.12.3
+   Compiling unicode-width v0.1.14
+   Compiling ash v0.37.3+1.3.251
+   Compiling codespan-reporting v0.11.1
+   Compiling bit-set v0.5.3
+   Compiling hashbrown v0.14.5
+   Compiling rand v0.8.5
+   Compiling http v1.4.0
+   Compiling sha1 v0.10.6
+   Compiling blake3 v1.8.3
+   Compiling wgpu-hal v0.19.5
+   Compiling thiserror-impl v1.0.69
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.1
+   Compiling zerovec-derive v0.11.2
+   Compiling displaydoc v0.2.5
+   Compiling serde_derive v1.0.228
+   Compiling gpu-alloc-types v0.3.0
+   Compiling gpu-descriptor-types v0.1.2
+   Compiling spirv v0.3.0+sdk-1.3.268.0
+   Compiling zerofrom v0.1.6
+   Compiling aho-corasick v1.1.4
+   Compiling libloading v0.7.4
+   Compiling yoke v0.8.1
+   Compiling hexf-parse v0.2.1
+   Compiling zerovec v0.11.5
+   Compiling zerotrie v0.2.3
+   Compiling unicode-xid v0.2.6
+   Compiling utf8parse v0.2.2
+   Compiling tree-sitter-language v0.1.7
+   Compiling tinystr v0.8.2
+   Compiling potential_utf v0.1.4
+   Compiling icu_locale_core v2.1.1
+   Compiling icu_collections v2.1.1
+   Compiling utf-8 v0.7.6
+   Compiling data-encoding v2.10.0
+   Compiling naga v0.19.2
+   Compiling anstyle-parse v0.2.7
+   Compiling icu_provider v2.1.1
+   Compiling icu_normalizer v2.1.1
+   Compiling icu_properties v2.1.2
+   Compiling gpu-descriptor v0.2.4
+   Compiling gpu-alloc v0.6.0
+   Compiling serde v1.0.228
+   Compiling z3-sys v0.8.1
+   Compiling crossbeam-epoch v0.9.18
+   Compiling errno v0.3.14
+   Compiling wgpu-core v0.19.4
+   Compiling memoffset v0.6.5
+   Compiling wgpu-types v0.19.2
+   Compiling colorchoice v1.0.4
+   Compiling anstyle v1.0.13
+   Compiling futures-core v0.3.31
+   Compiling anstyle-query v1.1.5
+   Compiling rayon-core v1.13.0
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling arrayref v0.3.9
+   Compiling renderdoc-sys v1.1.0
+   Compiling profiling v1.0.17
+   Compiling raw-window-handle v0.6.2
+   Compiling glow v0.13.1
+   Compiling pin-project-lite v0.2.16
+   Compiling constant_time_eq v0.4.2
+   Compiling anstream v0.6.21
+   Compiling signal-hook-registry v1.4.8
+   Compiling crossbeam-deque v0.8.6
+   Compiling idna_adapter v1.2.1
+   Compiling tokio-macros v2.6.0
+   Compiling futures-macro v0.3.31
+   Compiling serde_derive_internals v0.29.1
+   Compiling iovec v0.1.4
+   Compiling mio v1.1.1
+   Compiling ioctl-rs v0.1.6
+   Compiling socket2 v0.6.2
+   Compiling num_cpus v1.17.0
+   Compiling serial-core v0.4.0
+   Compiling termios v0.2.2
+   Compiling wgpu v0.19.4
+   Compiling utf8_iter v1.0.4
+   Compiling either v1.15.0
+   Compiling futures-sink v0.3.31
+   Compiling schemars v0.8.22
+   Compiling percent-encoding v2.3.2
+   Compiling slab v0.4.12
+   Compiling crc32fast v1.5.0
+   Compiling clap_lex v1.0.0
+   Compiling futures-task v0.3.31
+   Compiling futures v0.1.31
+   Compiling strsim v0.11.1
+   Compiling same-file v1.0.6
+   Compiling anyhow v1.0.101
+   Compiling base64 v0.22.1
+   Compiling subtle v2.6.1
+   Compiling heck v0.5.0
+   Compiling clap_builder v4.5.58
+   Compiling walkdir v2.5.0
+   Compiling futures-util v0.3.31
+   Compiling clap_derive v4.5.55
+   Compiling form_urlencoded v1.2.2
+   Compiling idna v1.1.0
+   Compiling futures-cpupool v0.1.8
+   Compiling serial-unix v0.4.0
+   Compiling schemars_derive v0.8.22
+   Compiling tokio v1.49.0
+   Compiling bytes v0.4.12
+   Compiling bincode v1.3.3
+   Compiling tungstenite v0.24.0
+   Compiling sha2 v0.10.9
+   Compiling webpki-roots v1.0.6
+   Compiling fixedbitset v0.4.2
+   Compiling simd-adler32 v0.3.8
+   Compiling adler2 v2.0.1
+   Compiling rustls v0.23.36
+   Compiling rustls v0.22.4
+   Compiling bitflags v1.3.2
+   Compiling dyn-clone v1.0.20
+   Compiling hex v0.4.3
+   Compiling static_assertions v1.1.0
+   Compiling nix v0.25.1
+   Compiling memory_engine v0.1.0 (/workspace/ai_sandbox/canon_workspace/memory/memory_engine)
+   Compiling miniz_oxide v0.8.9
+   Compiling petgraph v0.6.5
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+   Compiling webpki-roots v0.26.11
+   Compiling z3 v0.12.1
+   Compiling rayon v1.11.0
+   Compiling tokio-tungstenite v0.24.0
+   Compiling fs v0.0.5
+   Compiling clap v4.5.58
+   Compiling serial v0.4.0
+   Compiling url v2.5.8
+   Compiling itertools v0.12.1
+   Compiling canon-kernel v0.1.0 (/workspace/ai_sandbox/canon_workspace/canon/kernel)
+   Compiling futures-intrusive v0.5.0
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+   Compiling filedescriptor v0.8.3
+   Compiling rustls-webpki v0.102.8
+   Compiling rustls-webpki v0.103.9
+   Compiling tree-sitter v0.24.7
+   Compiling tree-sitter-rust v0.23.3
+   Compiling bytemuck v1.25.0
+   Compiling shell-words v1.1.1
+   Compiling downcast-rs v1.2.1
+   Compiling portable-pty v0.8.1
+   Compiling flate2 v1.1.9
+   Compiling streaming-iterator v0.1.9
+   Compiling host_state_controller v0.1.0 (/workspace/ai_sandbox/canon_workspace/host_state_controller)
+   Compiling lints v0.1.0 (/workspace/ai_sandbox/canon_workspace/lints)
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+   Compiling test_lint v0.1.0 (/workspace/ai_sandbox/canon_workspace/test_projects/test_lint)
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+[
+  {
+    "policy": "API_TRAITS_ONLY",
+    "def_path": "api::Bad",
+    "kind": "struct",
+    "module": "api",
+    "severity": 0.9
+  }
+]
+   Compiling smt v0.1.0 (/workspace/ai_sandbox/canon_workspace/smt)
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+   Compiling canon_invariant v0.1.0 (/workspace/ai_sandbox/canon_workspace/canon_invariant)
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+   Compiling tungstenite v0.21.0
+   Compiling task_taxonomy v0.1.0 (/workspace/ai_sandbox/canon_workspace/task_taxonomy)
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+   Compiling ureq v2.12.1
+   Compiling repomap v0.1.0 (/workspace/ai_sandbox/canon_workspace/repomap)
+warning: field `name` is never read
+  --> repomap/src/symbol.rs:20:9
+   |
+19 |     Function {
+   |     -------- field in this variant
+20 |         name: String,
+   |         ^^^^
+   |
+   = note: `Symbol` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `line` is never used
+  --> repomap/src/symbol.rs:37:12
+   |
+36 | impl Symbol {
+   | ----------- method in this implementation
+37 |     pub fn line(&self) -> usize {
+   |            ^^^^
+
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+warning: `repomap` (bin "repomap") generated 2 warnings
+   Compiling chromium_messenger v0.1.0 (/workspace/ai_sandbox/canon_workspace/chromium_messenger)
+warning: unused import: `std::io::Read`
+ --> chromium_messenger/src/incoming.rs:6:5
+  |
+6 | use std::io::Read;
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `serde::Deserialize`
+ --> chromium_messenger/src/outgoing.rs:2:5
+  |
+2 | use serde::Deserialize;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+  --> chromium_messenger/src/incoming.rs:90:9
+   |
+90 |     let mut last_message_id: Option<String> = None;
+   |         ----^^^^^^^^^^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> chromium_messenger/src/main.rs:91:14
+   |
+91 |         let (mut socket, _) = connect(url)?;
+   |              ----^^^^^^
+   |              |
+   |              help: remove this `mut`
+
+warning: unused variable: `rx`
+   --> chromium_messenger/src/main.rs:329:15
+    |
+329 |     let (_tx, rx) = mpsc::channel::<Value>();
+    |               ^^ help: if this is intentional, prefix it with an underscore: `_rx`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `ReceiveChromiumMessage` is never constructed
+  --> chromium_messenger/src/main.rs:37:5
+   |
+36 | enum DaemonEvent {
+   |      ----------- variant in this enum
+37 |     ReceiveChromiumMessage(serde_json::Value),
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `conversation_id` is never read
+  --> chromium_messenger/src/incoming.rs:14:9
+   |
+13 | pub struct LocalMessage {
+   |            ------------ field in this struct
+14 |     pub conversation_id: Option<String>,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `LocalMessage` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+warning: `chromium_messenger` (bin "chromium_messenger") generated 7 warnings (run `cargo fix --bin "chromium_messenger" -p chromium_messenger` to apply 5 suggestions)
+   Compiling canon v0.1.0 (/workspace/ai_sandbox/canon_workspace/canon)
+warning: unused import: `CapabilityNode`
+  --> canon/src/agent/meta.rs:17:74
+   |
+17 | use super::capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode};
+   |                                                                          ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `load_capability_graph`
+  --> canon/src/agent/runner.rs:19:24
+   |
+19 | use crate::agent::io::{load_capability_graph, save_capability_graph};
+   |                        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `PipelineError`
+  --> canon/src/agent/runner.rs:28:23
+   |
+28 | use super::pipeline::{PipelineError, record_pipeline_outcome, run_pipeline};
+   |                       ^^^^^^^^^^^^^
+
+warning: unused imports: `RefactorKind` and `RefactorTarget`
+  --> canon/src/agent/runner.rs:29:23
+   |
+29 | use super::refactor::{RefactorKind, RefactorProposal, RefactorTarget};
+   |                       ^^^^^^^^^^^^                    ^^^^^^^^^^^^^^
+
+warning: unused import: `HashMap`
+ --> canon/src/diagnose/classify.rs:1:24
+  |
+1 | use std::collections::{HashMap, HashSet};
+  |                        ^^^^^^^
+
+warning: unused import: `pat_is_mut`
+ --> canon/src/ingest/builder/ast_lower/expr.rs:3:18
+  |
+3 | use super::pat::{pat_is_mut, pat_to_string};
+  |                  ^^^^^^^^^^
+
+warning: unused import: `serde_json::Value as JsonValue`
+ --> canon/src/ingest/builder/ast_lower/util.rs:1:5
+  |
+1 | use serde_json::Value as JsonValue;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `expr::lower_expr`
+  --> canon/src/ingest/builder/ast_lower/mod.rs:13:16
+   |
+13 | pub(crate) use expr::lower_expr;
+   |                ^^^^^^^^^^^^^^^^
+
+warning: unused import: `UseEntry`
+ --> canon/src/ingest/builder/edges.rs:9:34
+  |
+9 | use super::types::{AliasBinding, UseEntry, module_segments_from_key, slugify};
+  |                                  ^^^^^^^^
+
+warning: unused imports: `trait_path_to_trait_fn_id`, `trait_path_to_trait_id`, and `type_path_to_struct_id`
+  --> canon/src/ingest/builder/functions/mod.rs:13:22
+   |
+13 | pub(crate) use ids::{trait_path_to_trait_fn_id, trait_path_to_trait_id, type_path_to_struct_id};
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `enum_variant_from_syn`, `function_from_impl_item`, and `trait_fn_from_syn`
+  --> canon/src/ingest/builder/functions/mod.rs:15:20
+   |
+15 |     enum_from_syn, enum_variant_from_syn, function_from_impl_item, function_from_syn,
+   |                    ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+16 |     impl_block_from_syn, struct_from_syn, trait_fn_from_syn, trait_from_syn,
+   |                                           ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `path_to_string`
+ --> canon/src/ingest/builder/types/types.rs:1:22
+  |
+1 | use super::strings::{path_to_string, word_from_string};
+  |                      ^^^^^^^^^^^^^^
+
+warning: unused import: `word_from_string`
+  --> canon/src/ingest/builder/types/mod.rs:12:47
+   |
+12 |     slugify, to_pascal_case, word_from_ident, word_from_string,
+   |                                               ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `path_type` and `type_from_bound`
+  --> canon/src/ingest/builder/types/mod.rs:14:38
+   |
+14 | pub(crate) use types::{convert_type, path_type, type_from_bound};
+   |                                      ^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused import: `PolicyParameterId`
+  --> canon/src/ir/core.rs:16:11
+   |
+16 |     ids::{PolicyParameterId, ProofId},
+   |           ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CanonicalIr`
+  --> canon/src/layout/mod.rs:10:15
+   |
+10 |     CallEdge, CanonicalIr, EnumId, EnumNode, Function, FunctionId, ImplBlock, ImplId, Module,
+   |               ^^^^^^^^^^^
+
+warning: unused import: `thiserror::Error`
+  --> canon/src/layout/mod.rs:14:5
+   |
+14 | use thiserror::Error;
+   |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::utils::indent`
+ --> canon/src/materialize/render_fn/ast/expr.rs:1:5
+  |
+1 | use super::utils::indent;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `stmt::render_ast_node`
+  --> canon/src/materialize/render_fn/ast/mod.rs:13:9
+   |
+13 | pub use stmt::render_ast_node;
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `expr::render_ast_expr`
+  --> canon/src/materialize/render_fn/ast/mod.rs:16:9
+   |
+16 | pub use expr::render_ast_expr;
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `RefKind` and `TypeKind`
+ --> canon/src/materialize/render_fn/mod.rs:4:39
+  |
+4 |     Function, GenericParam, Receiver, RefKind, TypeKind, TypeRef, ValuePort, WhereClause,
+  |                                       ^^^^^^^  ^^^^^^^^
+
+warning: unused import: `Visibility`
+ --> canon/src/materialize/render_struct.rs:2:66
+  |
+2 | use crate::ir::{EnumNode, EnumVariantFields, Struct, StructKind, Visibility};
+  |                                                                  ^^^^^^^^^^
+
+warning: unused import: `schemars::JsonSchema`
+ --> canon/src/runtime/bytecode.rs:9:5
+  |
+9 | use schemars::JsonSchema;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> canon/src/runtime/bytecode.rs:10:13
+   |
+10 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused imports: `DeltaValue` and `Value`
+  --> canon/src/runtime/bytecode.rs:16:29
+   |
+16 | use crate::runtime::value::{DeltaValue, Value};
+   |                             ^^^^^^^^^^  ^^^^^
+
+warning: unused import: `ExecutorError`
+  --> canon/src/runtime/executor/interp.rs:10:20
+   |
+10 | use super::error::{ExecutorError, InterpreterError};
+   |                    ^^^^^^^^^^^^^
+
+warning: unused import: `thiserror::Error`
+ --> canon/src/runtime/tick_executor/types.rs:5:5
+  |
+5 | use thiserror::Error;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::runtime::executor::ExecutorError`
+ --> canon/src/runtime/tick_executor/types.rs:9:5
+  |
+9 | use crate::runtime::executor::ExecutorError;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::agent::epoch`
+  --> canon/src/runtime/tick_executor/mod.rs:16:5
+   |
+16 | use crate::agent::epoch;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ProofScope`
+ --> canon/src/validate/check_artifacts/module.rs:4:30
+  |
+4 | use crate::ir::{CanonicalIr, ProofScope};
+  |                              ^^^^^^^^^^
+
+warning: unreachable pattern
+   --> canon/src/evolution/structural/apply.rs:321:9
+    |
+321 |         _ => {}
+    |         ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> canon/src/evolution/structural/apply.rs:321:9
+    |
+ 14 | /         DeltaPayload::AddModule {
+ 15 | |             module_id,
+ 16 | |             name,
+ 17 | |             visibility,
+ 18 | |             description,
+ 19 | |         } => {
+    | |_________- matches some of the same values
+...
+ 35 | /         DeltaPayload::AddStruct {
+ 36 | |             module,
+ 37 | |             struct_id,
+ 38 | |             name,
+ 39 | |         } => {
+    | |_________- matches some of the same values
+...
+ 56 |           DeltaPayload::AddField { struct_id, field } => {
+    |           ------------------------------------------- matches some of the same values
+...
+ 69 | /         DeltaPayload::UpdateStructVisibility {
+ 70 | |             struct_id,
+ 71 | |             visibility,
+ 72 | |         } => {
+    | |_________- matches some of the same values
+...
+321 |           _ => {}
+    |           ^ ...and 15 other patterns collectively make this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `ir`
+   --> canon/src/layout/validation.rs:171:5
+    |
+171 |     ir: &CanonicalIr,
+    |     ^^ help: if this is intentional, prefix it with an underscore: `_ir`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> canon/src/runtime/executor/interp.rs:103:21
+    |
+103 |                 let mut owned_inputs = call_inputs.clone();
+    |                     ----^^^^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> canon/src/runtime/rollout.rs:77:17
+   |
+77 |             let mut function_executor = FunctionExecutor::new(&mut ir_clone);
+   |                 ----^^^^^^^^^^^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> canon/src/runtime/tick_executor/mod.rs:155:13
+    |
+155 |         let mut function_executor = FunctionExecutor::new(self.ir);
+    |             ----^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `e`
+  --> canon/src/validate/check_proposals.rs:37:17
+   |
+37 |             Err(e) => {
+   |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: field `ir_field` is never read
+  --> canon/src/diagnose/pipeline.rs:11:9
+   |
+ 9 | pub struct PipelineEntry {
+   |            ------------- field in this struct
+10 |     /// The IR field this entry describes (matches `RulePredicate::ir_field`).
+11 |     pub ir_field: &'static str,
+   |         ^^^^^^^^
+   |
+   = note: `PipelineEntry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `render_enum` is never used
+  --> canon/src/materialize/render_struct.rs:75:8
+   |
+75 | pub fn render_enum(en: &EnumNode) -> String {
+   |        ^^^^^^^^^^^
+
+warning: field `ir` is never read
+ --> canon/src/runtime/policy_updater.rs:5:5
+  |
+4 | pub struct PolicyUpdater {
+  |            ------------- field in this struct
+5 |     ir: *mut CanonicalIr,
+  |     ^^
+
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+warning: `canon` (lib) generated 39 warnings (run `cargo fix --lib -p canon` to apply 35 suggestions)
+   Compiling host_runtime v0.1.0 (/workspace/ai_sandbox/canon_workspace/host_runtime)
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+warning: unused imports: `bootstrap_graph` and `bootstrap_proposal`
+  --> canon/src/agent/mod.rs:27:21
+   |
+27 | pub use bootstrap::{bootstrap_graph, bootstrap_proposal};
+   |                     ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AgentCallError`, `AgentCallId`, `AgentCallInput`, `AgentCallOutput`, and `AgentCallResult`
+  --> canon/src/agent/mod.rs:28:16
+   |
+28 | pub use call::{AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult};
+   |                ^^^^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `CapabilityEdge`, `CapabilityGraph`, `CapabilityKind`, `CapabilityNode`, and `IrField`
+  --> canon/src/agent/mod.rs:29:22
+   |
+29 | pub use capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField};
+   |                      ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^
+
+warning: unused imports: `AgentCallDispatcher` and `DEFAULT_TRUST_THRESHOLD`
+  --> canon/src/agent/mod.rs:30:22
+   |
+30 | pub use dispatcher::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
+   |                      ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `load_capability_graph` and `save_capability_graph`
+  --> canon/src/agent/mod.rs:31:14
+   |
+31 | pub use io::{load_capability_graph, save_capability_graph};
+   |              ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `LlmProviderError` and `call_llm`
+  --> canon/src/agent/mod.rs:32:24
+   |
+32 | pub use llm_provider::{LlmProviderError, call_llm};
+   |                        ^^^^^^^^^^^^^^^^  ^^^^^^^^
+
+warning: unused imports: `GraphMutation`, `MAX_ENTROPY_DELTA`, `MIN_NODES`, `MetaTickError`, `MetaTickResult`, and `UNDERPERFORM_THRESHOLD`
+  --> canon/src/agent/mod.rs:34:5
+   |
+34 |     GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, MetaTickError, MetaTickResult,
+   |     ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+35 |     UNDERPERFORM_THRESHOLD, run_meta_tick,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `IrObservation`, `IrTotals`, `observation_to_payload`, and `observe_ir`
+  --> canon/src/agent/mod.rs:37:19
+   |
+37 | pub use observe::{IrObservation, IrTotals, observation_to_payload, observe_ir};
+   |                   ^^^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `pipeline::record_pipeline_outcome`
+  --> canon/src/agent/mod.rs:38:9
+   |
+38 | pub use pipeline::record_pipeline_outcome;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PipelineError`, `PipelineResult`, and `RefactorStage`
+  --> canon/src/agent/mod.rs:39:20
+   |
+39 | pub use pipeline::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
+   |                    ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused imports: `RefactorKind`, `RefactorProposal`, and `RefactorTarget`
+  --> canon/src/agent/mod.rs:40:20
+   |
+40 | pub use refactor::{RefactorKind, RefactorProposal, RefactorTarget};
+   |                    ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused imports: `NodeOutcome` and `NodeRewardEntry`
+  --> canon/src/agent/mod.rs:41:18
+   |
+41 | pub use reward::{NodeOutcome, NodeRewardEntry, RewardLedger};
+   |                  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `RunnerConfig`, `RunnerError`, `TickStats`, and `run_agent`
+  --> canon/src/agent/mod.rs:42:18
+   |
+42 | pub use runner::{RunnerConfig, RunnerError, TickStats, run_agent};
+   |                  ^^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `slice::build_ir_slice`
+  --> canon/src/agent/mod.rs:43:9
+   |
+43 | pub use slice::build_ir_slice;
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ws_server::WsBridge`
+  --> canon/src/agent/mod.rs:44:9
+   |
+44 | pub use ws_server::WsBridge;
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AcceptProposalError`, `ProposalAcceptanceInput`, `ProposalAcceptance`, and `accept_proposal`
+ --> canon/src/decision/mod.rs:8:5
+  |
+8 |     AcceptProposalError, ProposalAcceptance, ProposalAcceptanceInput, accept_proposal,
+  |     ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `AutoAcceptDotError` and `auto_accept_dot_proposal`
+  --> canon/src/decision/mod.rs:10:20
+   |
+10 | pub use auto_dot::{AutoAcceptDotError, auto_accept_dot_proposal};
+   |                    ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AutoAcceptDslError` and `auto_accept_dsl_proposal`
+  --> canon/src/decision/mod.rs:11:20
+   |
+11 | pub use auto_dsl::{AutoAcceptDslError, auto_accept_dsl_proposal};
+   |                    ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AutoAcceptFnAstError` and `auto_accept_fn_ast`
+  --> canon/src/decision/mod.rs:12:23
+   |
+12 | pub use auto_fn_ast::{AutoAcceptFnAstError, auto_accept_fn_ast};
+   |                       ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `GoalMutationError` and `mutate_goal`
+  --> canon/src/evolution/mod.rs:18:25
+   |
+18 | pub use goal_mutation::{GoalMutationError, mutate_goal};
+   |                         ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `TopologyFingerprint`
+  --> canon/src/evolution/mod.rs:23:44
+   |
+23 |     DEFAULT_TOPOLOGY_THETA, LyapunovError, TopologyFingerprint, check_topology_drift,
+   |                                            ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `GpuProgram` and `generate_shader`
+ --> canon/src/gpu/mod.rs:9:19
+  |
+9 | pub use codegen::{GpuProgram, generate_shader};
+  |                   ^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `GpuExecutorError` and `GpuExecutor`
+  --> canon/src/gpu/mod.rs:10:20
+   |
+10 | pub use dispatch::{GpuExecutor, GpuExecutorError};
+   |                    ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `FusionCandidate` and `analyze_fusion_candidates`
+  --> canon/src/gpu/mod.rs:11:18
+   |
+11 | pub use fusion::{FusionCandidate, analyze_fusion_candidates};
+   |                  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AssociatedConst` and `AssociatedType`
+  --> canon/src/ir/mod.rs:25:5
+   |
+25 |     AssociatedConst, AssociatedType, ConstItem, EnumNode, EnumVariant, EnumVariantFields, Field,
+   |     ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `errors::ErrorArtifact`
+  --> canon/src/ir/mod.rs:31:9
+   |
+31 | pub use errors::ErrorArtifact;
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DeltaRef`
+  --> canon/src/ir/mod.rs:33:5
+   |
+33 |     DeltaRef, Function, FunctionContract, FunctionMetadata, FunctionSignature, GenericParam,
+   |     ^^^^^^^^
+
+warning: unused imports: `GoalDriftMetric` and `GoalMutation`
+  --> canon/src/ir/mod.rs:36:17
+   |
+36 | pub use goals::{GoalDriftMetric, GoalMutation, GoalMutationStatus};
+   |                 ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `GpuProperties`
+  --> canon/src/ir/mod.rs:37:28
+   |
+37 | pub use gpu::{GpuFunction, GpuProperties, VectorPort};
+   |                            ^^^^^^^^^^^^^
+
+warning: unused imports: `SystemEdgeKind`, `SystemEdge`, and `TickEdge`
+  --> canon/src/ir/mod.rs:39:15
+   |
+39 |     CallEdge, SystemEdge, SystemEdgeKind, SystemGraph, SystemNode, SystemNodeKind, TickEdge,
+   |               ^^^^^^^^^^  ^^^^^^^^^^^^^^                                           ^^^^^^^^
+
+warning: unused import: `learning::Learning`
+  --> canon/src/ir/mod.rs:44:9
+   |
+44 | pub use learning::Learning;
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `DslProposalArtifacts`, `DslProposalError`, `ModuleSpec`, `ProposalResolutionError`, `ResolvedProposalNodes`, `StructSpec`, `TraitSpec`, `create_proposal_from_dsl`, `derive_word_from_identifier`, `resolve_proposal_nodes`, `sanitize_identifier`, and `slugify_word`
+  --> canon/src/ir/mod.rs:49:5
+   |
+49 |     DslProposalArtifacts, DslProposalError, ModuleSpec, ProposalResolutionError,
+   |     ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+50 |     ResolvedProposalNodes, StructSpec, TraitSpec, create_proposal_from_dsl,
+   |     ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+51 |     derive_word_from_identifier, resolve_proposal_nodes, sanitize_identifier, slugify_word,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `UtilityKind`
+  --> canon/src/ir/mod.rs:57:32
+   |
+57 | pub use reward::{RewardRecord, UtilityKind};
+   |                                ^^^^^^^^^^^
+
+warning: unused imports: `ExecutionError` and `LoopPolicy`
+  --> canon/src/ir/mod.rs:59:5
+   |
+59 |     ExecutionError, ExecutionEvent, ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch,
+   |     ^^^^^^^^^^^^^^                                   ^^^^^^^^^^
+
+warning: unused import: `WORD_PATTERN`
+  --> canon/src/ir/mod.rs:64:16
+   |
+64 | pub use word::{WORD_PATTERN, Word, WordError};
+   |                ^^^^^^^^^^^^
+
+warning: unused imports: `OriginalLayoutStrategy`, `PerTypeLayoutStrategy`, and `SingleFileLayoutStrategy`
+  --> canon/src/layout/mod.rs:19:22
+   |
+19 | pub use strategies::{OriginalLayoutStrategy, PerTypeLayoutStrategy, SingleFileLayoutStrategy};
+   |                      ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `LayoutValidationError` and `validate_layout`
+  --> canon/src/layout/mod.rs:20:22
+   |
+20 | pub use validation::{LayoutValidationError, validate_layout};
+   |                      ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused import: `FileEntry`
+  --> canon/src/materialize/mod.rs:11:27
+   |
+11 | pub use self::file_tree::{FileEntry, FileTree};
+   |                           ^^^^^^^^^
+
+warning: unused import: `self::render_fn::render_impl_function`
+  --> canon/src/materialize/mod.rs:12:9
+   |
+12 | pub use self::render_fn::render_impl_function;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `SmtCertificate`, `SmtError`, `attach_function_proofs`, and `verify_function_postconditions`
+ --> canon/src/proof/mod.rs:4:5
+  |
+4 |     SmtCertificate, SmtError, attach_function_proofs, verify_function_postconditions,
+  |     ^^^^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `InterpreterError`
+  --> canon/src/runtime/executor/mod.rs:15:32
+   |
+15 | pub use error::{ExecutorError, InterpreterError};
+   |                                ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `BinOp`, `Expr`, `FunctionAst`, `OutputExpr`, and `compile_function_ast`
+  --> canon/src/runtime/mod.rs:21:15
+   |
+21 | pub use ast::{BinOp, Expr, FunctionAst, OutputExpr, compile_function_ast};
+   |               ^^^^^  ^^^^  ^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `FunctionBytecode` and `Instruction`
+  --> canon/src/runtime/mod.rs:22:26
+   |
+22 | pub use bytecode_types::{FunctionBytecode, Instruction};
+   |                          ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `ExecutionContext` and `ExecutionState`
+  --> canon/src/runtime/mod.rs:23:19
+   |
+23 | pub use context::{ExecutionContext, ExecutionState};
+   |                   ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused imports: `DeltaVerifier`, `Snapshot`, `VerificationError`, and `VerificationResult`
+  --> canon/src/runtime/mod.rs:24:26
+   |
+24 | pub use delta_verifier::{DeltaVerifier, Snapshot, VerificationError, VerificationResult};
+   |                          ^^^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExecutorError`, `Executor`, and `FunctionExecutor`
+  --> canon/src/runtime/mod.rs:25:20
+   |
+25 | pub use executor::{Executor, ExecutorError, FunctionExecutor};
+   |                    ^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PolicyUpdateError`, `PolicyUpdater`, and `update_policy`
+  --> canon/src/runtime/mod.rs:26:26
+   |
+26 | pub use policy_updater::{PolicyUpdateError, PolicyUpdater, update_policy};
+   |                          ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused imports: `DeltaEmission`, `ProofArtifact`, `SystemExecutionEvent`, `SystemExecutionResult`, `SystemInterpreterError`, and `SystemInterpreter`
+  --> canon/src/runtime/mod.rs:28:5
+   |
+28 |     DeltaEmission, ProofArtifact, SystemExecutionEvent, SystemExecutionResult, SystemInterpreter,
+   |     ^^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
+29 |     SystemInterpreterError,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TickExecutionResult`
+  --> canon/src/runtime/mod.rs:31:44
+   |
+31 | pub use tick_executor::{TickExecutionMode, TickExecutionResult, TickExecutor};
+   |                                            ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ValueKind` and `Value`
+  --> canon/src/runtime/mod.rs:32:17
+   |
+32 | pub use value::{Value, ValueKind};
+   |                 ^^^^^  ^^^^^^^^^
+
+warning: enum `AgentCallResult` is never used
+  --> canon/src/agent/call.rs:37:10
+   |
+37 | pub enum AgentCallResult {
+   |          ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `successors` is never used
+   --> canon/src/agent/capability.rs:122:12
+    |
+ 95 | impl CapabilityGraph {
+    | -------------------- method in this implementation
+...
+122 |     pub fn successors(&self, id: &str) -> Vec<&CapabilityNode> {
+    |            ^^^^^^^^^^
+
+warning: variants `AddEdge` and `RemoveEdge` are never constructed
+  --> canon/src/agent/meta.rs:35:5
+   |
+31 | pub enum GraphMutation {
+   |          ------------- variants in this enum
+...
+35 |     AddEdge {
+   |     ^^^^^^^
+...
+41 |     RemoveEdge { from: String, to: String },
+   |     ^^^^^^^^^^
+   |
+   = note: `GraphMutation` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: constant `TOP_N` is never used
+  --> canon/src/agent/observe.rs:20:7
+   |
+20 | const TOP_N: usize = 5;
+   |       ^^^^^
+
+warning: struct `IrObservation` is never constructed
+  --> canon/src/agent/observe.rs:24:12
+   |
+24 | pub struct IrObservation {
+   |            ^^^^^^^^^^^^^
+
+warning: struct `ModuleHeat` is never constructed
+  --> canon/src/agent/observe.rs:36:12
+   |
+36 | pub struct ModuleHeat {
+   |            ^^^^^^^^^^
+
+warning: struct `StructSize` is never constructed
+  --> canon/src/agent/observe.rs:44:12
+   |
+44 | pub struct StructSize {
+   |            ^^^^^^^^^^
+
+warning: struct `CallChainDepth` is never constructed
+  --> canon/src/agent/observe.rs:52:12
+   |
+52 | pub struct CallChainDepth {
+   |            ^^^^^^^^^^^^^^
+
+warning: struct `IrTotals` is never constructed
+  --> canon/src/agent/observe.rs:60:12
+   |
+60 | pub struct IrTotals {
+   |            ^^^^^^^^
+
+warning: function `observe_ir` is never used
+  --> canon/src/agent/observe.rs:74:8
+   |
+74 | pub fn observe_ir(ir: &CanonicalIr) -> IrObservation {
+   |        ^^^^^^^^^^
+
+warning: function `observation_to_payload` is never used
+  --> canon/src/agent/observe.rs:92:8
+   |
+92 | pub fn observation_to_payload(obs: &IrObservation) -> Value {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hottest_modules` is never used
+   --> canon/src/agent/observe.rs:100:4
+    |
+100 | fn hottest_modules(ir: &CanonicalIr) -> Vec<ModuleHeat> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `largest_structs` is never used
+   --> canon/src/agent/observe.rs:145:4
+    |
+145 | fn largest_structs(ir: &CanonicalIr) -> Vec<StructSize> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `deepest_call_chains` is never used
+   --> canon/src/agent/observe.rs:167:4
+    |
+167 | fn deepest_call_chains(ir: &CanonicalIr) -> Vec<CallChainDepth> {
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `chain_depth` is never used
+   --> canon/src/agent/observe.rs:218:4
+    |
+218 | fn chain_depth<'a>(
+    |    ^^^^^^^^^^^
+
+warning: variants `Mutate` and `Complete` are never constructed
+  --> canon/src/agent/pipeline.rs:36:5
+   |
+31 | pub enum RefactorStage {
+   |          ------------- variants in this enum
+...
+36 |     Mutate,
+   |     ^^^^^^
+37 |     Complete,
+   |     ^^^^^^^^
+   |
+   = note: `RefactorStage` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `proposal` is never read
+   --> canon/src/agent/pipeline.rs:105:9
+    |
+ 99 | pub struct PipelineResult {
+    |            -------------- field in this struct
+...
+105 |     pub proposal: RefactorProposal,
+    |         ^^^^^^^^
+    |
+    = note: `PipelineResult` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: methods `is_proven` and `is_registered` are never used
+  --> canon/src/agent/refactor.rs:79:12
+   |
+58 | impl RefactorProposal {
+   | --------------------- methods in this implementation
+...
+79 |     pub fn is_proven(&self) -> bool {
+   |            ^^^^^^^^^
+...
+84 |     pub fn is_registered(&self) -> bool {
+   |            ^^^^^^^^^^^^^
+
+warning: method `was_accepted` is never used
+  --> canon/src/agent/reward.rs:35:12
+   |
+26 | impl NodeOutcome {
+   | ---------------- method in this implementation
+...
+35 |     pub fn was_accepted(&self) -> bool {
+   |            ^^^^^^^^^^^^
+
+warning: method `entry_for` is never used
+   --> canon/src/agent/reward.rs:144:12
+    |
+ 62 | impl RewardLedger {
+    | ----------------- method in this implementation
+...
+144 |     pub fn entry_for(&self, node_id: &str) -> Option<&NodeRewardEntry> {
+    |            ^^^^^^^^^
+
+warning: variants `Llm` and `NoOutputs` are never constructed
+  --> canon/src/agent/runner.rs:75:5
+   |
+71 | pub enum RunnerError {
+   |          ----------- variants in this enum
+...
+75 |     Llm {
+   |     ^^^
+...
+80 |     NoOutputs,
+   |     ^^^^^^^^^
+   |
+   = note: `RunnerError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: methods `close_tab` and `wait_for_tab` are never used
+   --> canon/src/agent/ws_server.rs:154:18
+    |
+ 99 | impl WsBridge {
+    | ------------- methods in this implementation
+...
+154 |     pub async fn close_tab(&self, tab_id: u32) -> Result<(), WsBridgeError> {
+    |                  ^^^^^^^^^
+...
+177 |     pub async fn wait_for_tab(&self) {
+    |                  ^^^^^^^^^^^^
+
+warning: fields `delta_ids`, `judgment_id`, and `admission_id` are never read
+  --> canon/src/decision/accept/mod.rs:42:9
+   |
+39 | pub struct ProposalAcceptance {
+   |            ------------------ fields in this struct
+...
+42 |     pub delta_ids: Vec<DeltaId>,
+   |         ^^^^^^^^^
+43 |     pub judgment_id: String,
+   |         ^^^^^^^^^^^
+44 |     pub admission_id: String,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `ProposalAcceptance` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: enum `AutoAcceptDotError` is never used
+  --> canon/src/decision/auto_dot.rs:22:10
+   |
+22 | pub enum AutoAcceptDotError {
+   |          ^^^^^^^^^^^^^^^^^^
+
+warning: function `auto_accept_dot_proposal` is never used
+  --> canon/src/decision/auto_dot.rs:36:8
+   |
+36 | pub fn auto_accept_dot_proposal(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_routing_hints` is never used
+  --> canon/src/decision/auto_dot.rs:90:4
+   |
+90 | fn apply_routing_hints(
+   |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `layout_node_id` is never used
+   --> canon/src/decision/auto_dot.rs:114:4
+    |
+114 | fn layout_node_id(node: &LayoutNode) -> &str {
+    |    ^^^^^^^^^^^^^^
+
+warning: enum `AutoAcceptFnAstError` is never used
+  --> canon/src/decision/auto_fn_ast.rs:20:10
+   |
+20 | pub enum AutoAcceptFnAstError {
+   |          ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `auto_accept_fn_ast` is never used
+  --> canon/src/decision/auto_fn_ast.rs:31:8
+   |
+31 | pub fn auto_accept_fn_ast(
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: field `cycle` is never read
+  --> canon/src/diagnose/mod.rs:33:9
+   |
+17 | pub struct RootCauseBrief {
+   |            -------------- field in this struct
+...
+33 |     pub cycle: Option<Vec<String>>,
+   |         ^^^^^
+   |
+   = note: `RootCauseBrief` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `RequiresDomainInput` is never constructed
+  --> canon/src/diagnose/mod.rs:51:5
+   |
+38 | pub enum DefectClass {
+   |          ----------- variant in this enum
+...
+51 |     RequiresDomainInput,
+   |     ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `DefectClass` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `ir_field` is never read
+  --> canon/src/diagnose/pipeline.rs:11:9
+   |
+ 9 | pub struct PipelineEntry {
+   |            ------------- field in this struct
+10 |     /// The IR field this entry describes (matches `RulePredicate::ir_field`).
+11 |     pub ir_field: &'static str,
+   |         ^^^^^^^^
+   |
+   = note: `PipelineEntry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `label` is never read
+  --> canon/src/dot_import.rs:26:9
+   |
+24 | pub struct DotNode {
+   |            ------- field in this struct
+25 |     pub id: String,
+26 |     pub label: String,
+   |         ^^^^^
+   |
+   = note: `DotNode` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `from` and `to` are never read
+  --> canon/src/dot_import.rs:32:9
+   |
+31 | pub struct DotIntraEdge {
+   |            ------------ fields in this struct
+32 |     pub from: String,
+   |         ^^^^
+33 |     pub to: String,
+   |         ^^
+   |
+   = note: `DotIntraEdge` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `BadClusterLabel` is never constructed
+  --> canon/src/dot_import.rs:62:5
+   |
+54 | pub enum DotImportError {
+   |          -------------- variant in this enum
+...
+62 |     BadClusterLabel(String),
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `DotImportError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `dot_graph_to_proposal` is never used
+   --> canon/src/dot_import.rs:195:8
+    |
+195 | pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, DotImportError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `dot_graph_to_file_topology` is never used
+   --> canon/src/dot_import.rs:307:8
+    |
+307 | pub fn dot_graph_to_file_topology(graph: &DotGraph) -> HashMap<String, Vec<LayoutFile>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `dot_graph_to_routing_hints` is never used
+   --> canon/src/dot_import.rs:338:8
+    |
+338 | pub fn dot_graph_to_routing_hints(graph: &DotGraph) -> HashMap<String, String> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `dot_graph_to_imported_types` is never used
+   --> canon/src/dot_import.rs:382:8
+    |
+382 | pub fn dot_graph_to_imported_types(graph: &DotGraph) -> HashMap<(String, String), Vec<String>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cluster_label` is never used
+   --> canon/src/dot_import.rs:447:4
+    |
+447 | fn cluster_label<'a>(clusters: &'a [DotCluster], cluster_id: &'a str) -> &'a str {
+    |    ^^^^^^^^^^^^^
+
+warning: function `cluster_label_to_word` is never used
+   --> canon/src/dot_import.rs:460:4
+    |
+460 | fn cluster_label_to_word(label: &str) -> Result<Word, DotImportError> {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `slugify` is never used
+   --> canon/src/dot_import.rs:481:4
+    |
+481 | fn slugify(label: &str) -> String {
+    |    ^^^^^^^
+
+warning: function `file_stem` is never used
+   --> canon/src/dot_import.rs:494:4
+    |
+494 | fn file_stem(label: &str) -> &str {
+    |    ^^^^^^^^^
+
+warning: function `mutate_goal` is never used
+ --> canon/src/evolution/goal_mutation.rs:9:8
+  |
+9 | pub fn mutate_goal(
+  |        ^^^^^^^^^^^
+
+warning: enum `GoalMutationError` is never used
+  --> canon/src/evolution/goal_mutation.rs:33:10
+   |
+33 | pub enum GoalMutationError {
+   |          ^^^^^^^^^^^^^^^^^
+
+warning: struct `GpuProgram` is never constructed
+  --> canon/src/gpu/codegen.rs:13:12
+   |
+13 | pub struct GpuProgram {
+   |            ^^^^^^^^^^
+
+warning: function `generate_shader` is never used
+  --> canon/src/gpu/codegen.rs:22:8
+   |
+22 | pub fn generate_shader(
+   |        ^^^^^^^^^^^^^^^
+
+warning: function `lane_count` is never used
+   --> canon/src/gpu/codegen.rs:121:4
+    |
+121 | fn lane_count(gpu: &GpuFunction) -> Result<u32, String> {
+    |    ^^^^^^^^^^
+
+warning: function `compute_offsets` is never used
+   --> canon/src/gpu/codegen.rs:142:4
+    |
+142 | fn compute_offsets(ports: &[VectorPort], lanes: u32) -> Vec<u32> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `flatten_ports` is never used
+   --> canon/src/gpu/codegen.rs:151:8
+    |
+151 | pub fn flatten_ports(ports: &[VectorPort], data: &[Vec<f32>]) -> Result<Vec<f32>, String> {
+    |        ^^^^^^^^^^^^^
+
+warning: function `push_binary_op` is never used
+   --> canon/src/gpu/codegen.rs:184:4
+    |
+184 | fn push_binary_op(lines: &mut Vec<String>, op: &str) {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `literal_to_f32` is never used
+   --> canon/src/gpu/codegen.rs:193:4
+    |
+193 | fn literal_to_f32(value: &Value) -> Option<f32> {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `sanitize_ident` is never used
+   --> canon/src/gpu/codegen.rs:202:4
+    |
+202 | fn sanitize_ident(value: &str) -> String {
+    |    ^^^^^^^^^^^^^^
+
+warning: struct `GpuExecutor` is never constructed
+  --> canon/src/gpu/dispatch.rs:12:12
+   |
+12 | pub struct GpuExecutor {
+   |            ^^^^^^^^^^^
+
+warning: enum `GpuExecutorError` is never used
+  --> canon/src/gpu/dispatch.rs:18:10
+   |
+18 | pub enum GpuExecutorError {
+   |          ^^^^^^^^^^^^^^^^
+
+warning: associated items `new` and `execute` are never used
+  --> canon/src/gpu/dispatch.rs:28:18
+   |
+27 | impl GpuExecutor {
+   | ---------------- associated items in this implementation
+28 |     pub async fn new() -> Result<Self, GpuExecutorError> {
+   |                  ^^^
+...
+44 |     pub async fn execute(
+   |                  ^^^^^^^
+
+warning: struct `FusionCandidate` is never constructed
+  --> canon/src/gpu/fusion.rs:12:12
+   |
+12 | pub struct FusionCandidate {
+   |            ^^^^^^^^^^^^^^^
+
+warning: function `analyze_fusion_candidates` is never used
+  --> canon/src/gpu/fusion.rs:20:8
+   |
+20 | pub fn analyze_fusion_candidates(ir: &CanonicalIr) -> Vec<FusionCandidate> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `default_graph_path_for` is never used
+  --> canon/src/io_utils.rs:54:8
+   |
+54 | pub fn default_graph_path_for(ir_path: &Path) -> PathBuf {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `AgentCallId` is never used
+  --> canon/src/ir/ids.rs:30:10
+   |
+30 | pub type AgentCallId = String;
+   |          ^^^^^^^^^^^
+
+warning: type alias `CapabilityNodeId` is never used
+  --> canon/src/ir/ids.rs:31:10
+   |
+31 | pub type CapabilityNodeId = String;
+   |          ^^^^^^^^^^^^^^^^
+
+warning: variant `MissingIdentifier` is never constructed
+   --> canon/src/ir/proposal.rs:117:5
+    |
+113 | pub enum ProposalResolutionError {
+    |          ----------------------- variant in this enum
+...
+117 |     MissingIdentifier { name: String },
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `ProposalResolutionError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: enum `UtilityKind` is never used
+  --> canon/src/ir/reward.rs:27:10
+   |
+27 | pub enum UtilityKind {
+   |          ^^^^^^^^^^^
+
+warning: trait `LayoutStrategy` is never used
+   --> canon/src/layout/mod.rs:103:11
+    |
+103 | pub trait LayoutStrategy {
+    |           ^^^^^^^^^^^^^^
+
+warning: trait `LayoutCleaner` is never used
+   --> canon/src/layout/mod.rs:112:11
+    |
+112 | pub trait LayoutCleaner {
+    |           ^^^^^^^^^^^^^
+
+warning: function `apply_topology_to_layout` is never used
+   --> canon/src/layout/mod.rs:117:8
+    |
+117 | pub fn apply_topology_to_layout(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `layout_node_key` is never used
+   --> canon/src/layout/mod.rs:141:4
+    |
+141 | fn layout_node_key(node: &LayoutNode) -> (&str, &'static str) {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `enforce_routing_completeness` is never used
+   --> canon/src/layout/mod.rs:151:4
+    |
+151 | fn enforce_routing_completeness<'a>(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `OriginalLayoutStrategy` is never constructed
+ --> canon/src/layout/strategies.rs:8:12
+  |
+8 | pub struct OriginalLayoutStrategy {
+  |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> canon/src/layout/strategies.rs:13:12
+   |
+12 | impl OriginalLayoutStrategy {
+   | --------------------------- associated function in this implementation
+13 |     pub fn new(base: LayoutGraph) -> Self {
+   |            ^^^
+
+warning: struct `SingleFileLayoutStrategy` is never constructed
+  --> canon/src/layout/strategies.rs:33:12
+   |
+33 | pub struct SingleFileLayoutStrategy;
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `PerTypeLayoutStrategy` is never constructed
+  --> canon/src/layout/strategies.rs:74:12
+   |
+74 | pub struct PerTypeLayoutStrategy;
+   |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `route_all_nodes` is never used
+   --> canon/src/layout/strategies.rs:194:4
+    |
+194 | fn route_all_nodes(
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `ensure_named_file` is never used
+   --> canon/src/layout/strategies.rs:258:4
+    |
+258 | fn ensure_named_file(
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `default_file_id` is never used
+   --> canon/src/layout/strategies.rs:278:4
+    |
+278 | fn default_file_id(module_id: &str) -> String {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `sanitize_module` is never used
+   --> canon/src/layout/strategies.rs:282:4
+    |
+282 | fn sanitize_module(module_id: &str) -> String {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `slugify` is never used
+   --> canon/src/layout/strategies.rs:295:4
+    |
+295 | fn slugify(value: &str) -> String {
+    |    ^^^^^^^
+
+warning: struct `LayoutValidationError` is never constructed
+  --> canon/src/layout/validation.rs:10:12
+   |
+10 | pub struct LayoutValidationError {
+   |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> canon/src/layout/validation.rs:15:8
+   |
+14 | impl LayoutValidationError {
+   | -------------------------- associated function in this implementation
+15 |     fn new(lines: Vec<String>) -> Self {
+   |        ^^^
+
+warning: function `validate_layout` is never used
+  --> canon/src/layout/validation.rs:21:8
+   |
+21 | pub fn validate_layout(
+   |        ^^^^^^^^^^^^^^^
+
+warning: function `validate_modules_and_files` is never used
+  --> canon/src/layout/validation.rs:71:4
+   |
+71 | fn validate_modules_and_files(
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_file_lookup` is never used
+   --> canon/src/layout/validation.rs:122:4
+    |
+122 | fn build_file_lookup(layout: &LayoutGraph) -> HashMap<&str, &str> {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: struct `ModuleMaps` is never constructed
+   --> canon/src/layout/validation.rs:132:8
+    |
+132 | struct ModuleMaps<'a> {
+    |        ^^^^^^^^^^
+
+warning: function `build_module_maps` is never used
+   --> canon/src/layout/validation.rs:140:4
+    |
+140 | fn build_module_maps(ir: &CanonicalIr) -> ModuleMaps<'_> {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `validate_routing` is never used
+   --> canon/src/layout/validation.rs:170:4
+    |
+170 | fn validate_routing(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: field `file_hashes` is never read
+  --> canon/src/materialize/mod.rs:25:9
+   |
+23 | pub struct MaterializeResult {
+   |            ----------------- field in this struct
+24 |     pub tree: FileTree,
+25 |     pub file_hashes: HashMap<String, String>,
+   |         ^^^^^^^^^^^
+
+warning: function `execution_events_to_observe_deltas` is never used
+ --> canon/src/observe.rs:3:8
+  |
+3 | pub fn execution_events_to_observe_deltas(
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_event` is never used
+  --> canon/src/observe.rs:28:4
+   |
+28 | fn describe_event(execution_id: &str, idx: usize, event: &ExecutionEvent) -> String {
+   |    ^^^^^^^^^^^^^^
+
+warning: struct `PatchMetadata` is never constructed
+ --> canon/src/patch_protocol.rs:7:12
+  |
+7 | pub struct PatchMetadata {
+  |            ^^^^^^^^^^^^^
+
+warning: struct `PatchProposal` is never constructed
+  --> canon/src/patch_protocol.rs:15:12
+   |
+15 | pub struct PatchProposal {
+   |            ^^^^^^^^^^^^^
+
+warning: struct `PatchQueue` is never constructed
+  --> canon/src/patch_protocol.rs:23:12
+   |
+23 | pub struct PatchQueue {
+   |            ^^^^^^^^^^
+
+warning: associated items `new`, `enqueue`, `dequeue`, and `len` are never used
+  --> canon/src/patch_protocol.rs:28:12
+   |
+27 | impl PatchQueue {
+   | --------------- associated items in this implementation
+28 |     pub fn new() -> Self {
+   |            ^^^
+...
+34 |     pub fn enqueue(
+   |            ^^^^^^^
+...
+48 |     pub fn dequeue(&mut self) -> Option<PatchProposal> {
+   |            ^^^^^^^
+...
+52 |     pub fn len(&self) -> usize {
+   |            ^^^
+
+warning: struct `PatchLogEntry` is never constructed
+  --> canon/src/patch_protocol.rs:59:12
+   |
+59 | pub struct PatchLogEntry {
+   |            ^^^^^^^^^^^^^
+
+warning: enum `PatchDecisionData` is never used
+  --> canon/src/patch_protocol.rs:65:10
+   |
+65 | pub enum PatchDecisionData {
+   |          ^^^^^^^^^^^^^^^^^
+
+warning: struct `PatchGate` is never constructed
+  --> canon/src/patch_protocol.rs:72:12
+   |
+72 | pub struct PatchGate {
+   |            ^^^^^^^^^
+
+warning: associated items `new`, `evaluate`, and `log` are never used
+   --> canon/src/patch_protocol.rs:77:12
+    |
+ 76 | impl PatchGate {
+    | -------------- associated items in this implementation
+ 77 |     pub fn new() -> Self {
+    |            ^^^
+...
+ 81 |     pub fn evaluate(&mut self, proposal: PatchProposal) -> PatchDecision {
+    |            ^^^^^^^^
+...
+109 |     pub fn log(&self) -> &[PatchLogEntry] {
+    |            ^^^
+
+warning: enum `PatchDecision` is never used
+   --> canon/src/patch_protocol.rs:116:10
+    |
+116 | pub enum PatchDecision {
+    |          ^^^^^^^^^^^^^
+
+warning: struct `VerifiedPatch` is never constructed
+   --> canon/src/patch_protocol.rs:128:12
+    |
+128 | pub struct VerifiedPatch {
+    |            ^^^^^^^^^^^^^
+
+warning: struct `ApprovedPatchRegistry` is never constructed
+   --> canon/src/patch_protocol.rs:135:12
+    |
+135 | pub struct ApprovedPatchRegistry {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `insert`, `get`, and `iter` are never used
+   --> canon/src/patch_protocol.rs:140:12
+    |
+139 | impl ApprovedPatchRegistry {
+    | -------------------------- associated items in this implementation
+140 |     pub fn new() -> Self {
+    |            ^^^
+...
+146 |     pub fn insert(&mut self, patch: VerifiedPatch) {
+    |            ^^^^^^
+...
+150 |     pub fn get(&self, id: &str) -> Option<&VerifiedPatch> {
+    |            ^^^
+...
+154 |     pub fn iter(&self) -> impl Iterator<Item = &VerifiedPatch> {
+    |            ^^^^
+
+warning: struct `PatchApplier` is never constructed
+   --> canon/src/patch_protocol.rs:160:12
+    |
+160 | pub struct PatchApplier<F>
+    |            ^^^^^^^^^^^^
+
+warning: associated items `new` and `apply` are never used
+   --> canon/src/patch_protocol.rs:171:12
+    |
+167 | / impl<F> PatchApplier<F>
+168 | | where
+169 | |     F: Fn(&VerifiedPatch) -> bool,
+    | |__________________________________- associated items in this implementation
+170 |   {
+171 |       pub fn new(test_runner: F) -> Self {
+    |              ^^^
+...
+175 |       pub fn apply(&self, patch: &VerifiedPatch) -> Result<(), PatchError> {
+    |              ^^^^^
+
+warning: function `is_structured_patch` is never used
+   --> canon/src/patch_protocol.rs:183:4
+    |
+183 | fn is_structured_patch(diff: &str) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `compute_patch_id` is never used
+   --> canon/src/patch_protocol.rs:187:4
+    |
+187 | fn compute_patch_id(diff: &str, metadata: &PatchMetadata) -> String {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: enum `PatchError` is never used
+   --> canon/src/patch_protocol.rs:197:10
+    |
+197 | pub enum PatchError {
+    |          ^^^^^^^^^^
+
+warning: field `function_id` is never read
+  --> canon/src/proof/smt_bridge.rs:25:9
+   |
+24 | pub struct SmtCertificate {
+   |            -------------- field in this struct
+25 |     pub function_id: FunctionId,
+   |         ^^^^^^^^^^^
+   |
+   = note: `SmtCertificate` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `Solver` is never constructed
+  --> canon/src/proof/smt_bridge.rs:53:5
+   |
+31 | pub enum SmtError {
+   |          -------- variant in this enum
+...
+53 |     Solver {
+   |     ^^^^^^
+   |
+   = note: `SmtError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `encode` is never used
+  --> canon/src/runtime/bytecode.rs:57:12
+   |
+18 | impl FunctionBytecode {
+   | --------------------- method in this implementation
+...
+57 |     pub fn encode(&self, function: &Function) -> Result<String, BytecodeError> {
+   |            ^^^^^^
+
+warning: variant `Encode` is never constructed
+  --> canon/src/runtime/bytecode.rs:77:5
+   |
+68 | pub enum BytecodeError {
+   |          ------------- variant in this enum
+...
+77 |     Encode {
+   |     ^^^^^^
+   |
+   = note: `BytecodeError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: methods `call_stack`, `create_child`, and `merge_child` are never used
+   --> canon/src/runtime/context.rs:107:12
+    |
+ 38 | impl ExecutionContext {
+    | --------------------- methods in this implementation
+...
+107 |     pub fn call_stack(&self) -> &[FunctionId] {
+    |            ^^^^^^^^^^
+...
+113 |     pub fn create_child(&self) -> Self {
+    |            ^^^^^^^^^^^^
+...
+124 |     pub fn merge_child(&mut self, child: ExecutionContext) {
+    |            ^^^^^^^^^^^
+
+warning: method `get_input` is never used
+   --> canon/src/runtime/context.rs:147:12
+    |
+146 | impl ExecutionState {
+    | ------------------- method in this implementation
+147 |     pub fn get_input(&self, name: &str) -> Result<&Value, ContextError> {
+    |            ^^^^^^^^^
+
+warning: associated function `verify_snapshot` is never used
+   --> canon/src/runtime/delta_verifier.rs:218:12
+    |
+ 14 | impl DeltaVerifier {
+    | ------------------ associated function in this implementation
+...
+218 |     pub fn verify_snapshot(ir: &CanonicalIr, snapshot: &Snapshot) -> bool {
+    |            ^^^^^^^^^^^^^^^
+
+warning: fields `before_hash`, `after_hash`, and `verified` are never read
+   --> canon/src/runtime/delta_verifier.rs:258:9
+    |
+257 | pub struct VerificationResult {
+    |            ------------------ fields in this struct
+258 |     pub before_hash: String,
+    |         ^^^^^^^^^^^
+259 |     pub after_hash: String,
+    |         ^^^^^^^^^^
+260 |     pub verified: bool,
+    |         ^^^^^^^^
+    |
+    = note: `VerificationResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `applied_deltas`, `modules`, `structs`, `traits`, and `functions` are never read
+   --> canon/src/runtime/delta_verifier.rs:266:9
+    |
+264 | pub struct Snapshot {
+    |            -------- fields in this struct
+265 |     pub state_hash: String,
+266 |     pub applied_deltas: Vec<AppliedDeltaRecord>,
+    |         ^^^^^^^^^^^^^^
+267 |     pub modules: usize,
+    |         ^^^^^^^
+268 |     pub structs: usize,
+    |         ^^^^^^^
+269 |     pub traits: usize,
+    |         ^^^^^^
+270 |     pub functions: usize,
+    |         ^^^^^^^^^
+    |
+    = note: `Snapshot` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `StateHashMismatch` is never constructed
+   --> canon/src/runtime/delta_verifier.rs:311:5
+    |
+274 | pub enum VerificationError {
+    |          ----------------- variant in this enum
+...
+311 |     StateHashMismatch { expected: String, actual: String },
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `VerificationError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `execute_composition` is never used
+  --> canon/src/runtime/executor/mod.rs:55:12
+   |
+32 | impl<'a> FunctionExecutor<'a> {
+   | ----------------------------- method in this implementation
+...
+55 |     pub fn execute_composition(
+   |            ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `PolicyUpdater` is never constructed
+ --> canon/src/runtime/policy_updater.rs:4:12
+  |
+4 | pub struct PolicyUpdater {
+  |            ^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+ --> canon/src/runtime/policy_updater.rs:9:12
+  |
+8 | impl PolicyUpdater {
+  | ------------------ associated function in this implementation
+9 |     pub fn new(ir: *mut CanonicalIr) -> Self {
+  |            ^^^
+
+warning: variants `EpochNotFound` and `NoPriorPolicy` are never constructed
+  --> canon/src/runtime/policy_updater.rs:38:5
+   |
+37 | pub enum PolicyUpdateError {
+   |          ----------------- variants in this enum
+38 |     EpochNotFound,
+   |     ^^^^^^^^^^^^^
+39 |     NoPriorPolicy,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `PolicyUpdateError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `compute_reward` is never used
+ --> canon/src/runtime/reward.rs:6:8
+  |
+6 | pub fn compute_reward(_ir: &CanonicalIr, record: &ExecutionRecord) -> f64 {
+  |        ^^^^^^^^^^^^^^
+
+warning: field `0` is never read
+  --> canon/src/runtime/rollout.rs:23:15
+   |
+23 |     Execution(String),
+   |     --------- ^^^^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `RolloutError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+23 -     Execution(String),
+23 +     Execution(()),
+   |
+
+warning: struct `SystemInterpreter` is never constructed
+  --> canon/src/runtime/system_interpreter/mod.rs:20:12
+   |
+20 | pub struct SystemInterpreter<'a> {
+   |            ^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> canon/src/runtime/system_interpreter/mod.rs:26:12
+    |
+ 25 | impl<'a> SystemInterpreter<'a> {
+    | ------------------------------ associated items in this implementation
+ 26 |     pub fn new(ir: &'a CanonicalIr) -> Self {
+    |            ^^^
+...
+ 34 |     pub fn execute_graph(
+    |            ^^^^^^^^^^^^^
+...
+ 50 |     pub fn execute_inline(
+    |            ^^^^^^^^^^^^^^
+...
+ 58 |     fn run_graph(
+    |        ^^^^^^^^^
+...
+126 |     fn execute_node(
+    |        ^^^^^^^^^^^^
+...
+142 |     fn execute_function(
+    |        ^^^^^^^^^^^^^^^^
+...
+153 |     fn execute_gate(
+    |        ^^^^^^^^^^^^
+...
+164 |     fn execute_persist(
+    |        ^^^^^^^^^^^^^^^
+...
+174 |     fn execute_materialize(
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `SystemExecutionResult` is never constructed
+   --> canon/src/runtime/system_interpreter/mod.rs:186:12
+    |
+186 | pub struct SystemExecutionResult {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ProofArtifact` is never constructed
+   --> canon/src/runtime/system_interpreter/mod.rs:197:12
+    |
+197 | pub struct ProofArtifact {
+    |            ^^^^^^^^^^^^^
+
+warning: struct `DeltaEmission` is never constructed
+   --> canon/src/runtime/system_interpreter/mod.rs:204:12
+    |
+204 | pub struct DeltaEmission {
+    |            ^^^^^^^^^^^^^
+
+warning: enum `SystemExecutionEvent` is never used
+   --> canon/src/runtime/system_interpreter/mod.rs:210:10
+    |
+210 | pub enum SystemExecutionEvent {
+    |          ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `SystemInterpreterError` is never used
+   --> canon/src/runtime/system_interpreter/mod.rs:230:10
+    |
+230 | pub enum SystemInterpreterError {
+    |          ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `materialize_delta` is never used
+  --> canon/src/runtime/system_interpreter/delta.rs:10:19
+   |
+ 9 | impl<'a> SystemInterpreter<'a> {
+   | ------------------------------ method in this implementation
+10 |     pub(super) fn materialize_delta(
+   |                   ^^^^^^^^^^^^^^^^^
+
+warning: methods `apply_node_effects`, `extract_gate_proof`, `ensure_struct_output`, `expect_output`, and `expect_struct_field` are never used
+   --> canon/src/runtime/system_interpreter/effects.rs:10:19
+    |
+  9 | impl<'a> SystemInterpreter<'a> {
+    | ------------------------------ methods in this implementation
+ 10 |     pub(super) fn apply_node_effects(
+    |                   ^^^^^^^^^^^^^^^^^^
+...
+ 55 |     fn extract_gate_proof(
+    |        ^^^^^^^^^^^^^^^^^^
+...
+ 94 |     fn ensure_struct_output<'value>(
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+111 |     fn expect_output<'value>(
+    |        ^^^^^^^^^^^^^
+...
+125 |     fn expect_struct_field<'value>(
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> canon/src/runtime/system_interpreter/planner.rs:9:19
+    |
+  8 | impl<'a> SystemInterpreter<'a> {
+    | ------------------------------ associated items in this implementation
+  9 |     pub(super) fn index_nodes(
+    |                   ^^^^^^^^^^^
+...
+ 21 |     pub(super) fn index_functions(&self) -> HashMap<FunctionId, &Function> {
+    |                   ^^^^^^^^^^^^^^^
+...
+ 29 |     pub(super) fn validate_nodes(
+    |                   ^^^^^^^^^^^^^^
+...
+ 55 |     pub(super) fn build_dependency_map(
+    |                   ^^^^^^^^^^^^^^^^^^^^
+...
+ 85 |     pub(super) fn topological_sort(
+    |                   ^^^^^^^^^^^^^^^^
+...
+110 |     fn visit_node(
+    |        ^^^^^^^^^^
+...
+140 |     pub(super) fn gather_inputs(
+    |                   ^^^^^^^^^^^^^
+
+warning: methods `execute_tick` and `execute_tick_with_inputs` are never used
+  --> canon/src/runtime/tick_executor/mod.rs:46:12
+   |
+36 | impl<'a> TickExecutor<'a> {
+   | ------------------------- methods in this implementation
+...
+46 |     pub fn execute_tick(&mut self, tick_id: &str) -> Result<TickExecutionResult, RuntimeError> {
+   |            ^^^^^^^^^^^^
+...
+55 |     pub fn execute_tick_with_inputs(
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `function_results`, `sequential_duration`, and `parallel_duration` are never read
+  --> canon/src/runtime/tick_executor/types.rs:22:9
+   |
+20 | pub struct TickExecutionResult {
+   |            ------------------- fields in this struct
+21 |     pub tick_id: String,
+22 |     pub function_results: HashMap<FunctionId, BTreeMap<String, Value>>,
+   |         ^^^^^^^^^^^^^^^^
+...
+26 |     pub sequential_duration: Duration,
+   |         ^^^^^^^^^^^^^^^^^^^
+27 |     pub parallel_duration: Option<Duration>,
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `TickExecutionResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `as_scalar` and `as_delta` are never used
+  --> canon/src/runtime/value.rs:71:12
+   |
+45 | impl Value {
+   | ---------- methods in this implementation
+...
+71 |     pub fn as_scalar(&self) -> Result<&ScalarValue, ValueError> {
+   |            ^^^^^^^^^
+...
+91 |     pub fn as_delta(&self) -> Result<&DeltaValue, ValueError> {
+   |            ^^^^^^^^
+
+warning: associated items `new` and `with_field` are never used
+   --> canon/src/runtime/value.rs:132:12
+    |
+131 | impl StructValue {
+    | ---------------- associated items in this implementation
+132 |     pub fn new(type_name: impl Into<String>) -> Self {
+    |            ^^^
+...
+139 |     pub fn with_field(mut self, name: impl Into<String>, value: Value) -> Self {
+    |            ^^^^^^^^^^
+
+warning: function `schema_value` is never used
+  --> canon/src/schema.rs:15:8
+   |
+15 | pub fn schema_value() -> Value {
+   |        ^^^^^^^^^^^^
+
+warning: multiple variants are never constructed
+   --> canon/src/validate/error.rs:6:5
+    |
+  5 | pub enum ViolationDetail {
+    |          --------------- variants in this enum
+  6 |     Message(String),
+    |     ^^^^^^^
+...
+ 11 |     MissingStruct {
+    |     ^^^^^^^^^^^^^
+...
+ 14 |     MissingTrait {
+    |     ^^^^^^^^^^^^
+...
+ 20 |     MissingDelta {
+    |     ^^^^^^^^^^^^
+...
+183 |     TraitDuplicateFunction {
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+...
+202 |     ImplWrongModuleForTrait {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+...
+205 |     ImplDuplicateBinding {
+    |     ^^^^^^^^^^^^^^^^^^^^
+...
+209 |     ImplWrongTraitFunction {
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+...
+257 |     VersionMissingMigrationProof,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+277 |     VersionProofWrongScope {
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+...
+280 |     VersionProofMissing {
+    |     ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `ViolationDetail` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+LAW using workspace prefix: /workspace/ai_sandbox/canon_workspace
+warning: `canon` (bin "canon") generated 224 warnings (37 duplicates) (run `cargo fix --bin "canon" -p canon` to apply 50 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 38s

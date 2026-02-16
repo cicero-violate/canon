@@ -12,9 +12,7 @@
 
 use crate::ir::PipelineStage;
 
-use super::capability::{
-    CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
-};
+use super::capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField};
 use super::refactor::{RefactorKind, RefactorProposal, RefactorTarget};
 
 /// Default proof_confidence on all bootstrapped edges.

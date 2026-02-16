@@ -8,7 +8,7 @@ mod expr;
 mod pat;
 mod util;
 
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 
 pub(crate) use expr::lower_expr;
 
@@ -27,21 +27,21 @@ pub(crate) fn lower_block(block: &syn::Block) -> Option<JsonValue> {
 
 pub(crate) fn lower_stmt(stmt: &syn::Stmt) -> Option<JsonValue> {
     match stmt {
-        syn::Stmt::Local(local)    => Some(lower_let(local)),
-        syn::Stmt::Expr(e, Some(_))=> Some(expr::lower_expr_stmt(e)),
-        syn::Stmt::Expr(e, None)   => Some(expr::lower_expr(e)),
-        syn::Stmt::Item(_)         => None,
-        syn::Stmt::Macro(mac)      => Some(lower_macro_stmt(mac)),
+        syn::Stmt::Local(local) => Some(lower_let(local)),
+        syn::Stmt::Expr(e, Some(_)) => Some(expr::lower_expr_stmt(e)),
+        syn::Stmt::Expr(e, None) => Some(expr::lower_expr(e)),
+        syn::Stmt::Item(_) => None,
+        syn::Stmt::Macro(mac) => Some(lower_macro_stmt(mac)),
     }
 }
 
 fn lower_let(local: &syn::Local) -> JsonValue {
-    let name    = pat::pat_to_string(&local.pat);
+    let name = pat::pat_to_string(&local.pat);
     let mutable = pat::pat_is_mut(&local.pat);
-    let value   = local.init.as_ref().map(|init| expr::lower_expr(&init.expr));
+    let value = local.init.as_ref().map(|init| expr::lower_expr(&init.expr));
     match value {
         Some(v) => json!({ "kind": "let", "name": name, "mutable": mutable, "value": v }),
-        None    => json!({ "kind": "let", "name": name, "mutable": mutable }),
+        None => json!({ "kind": "let", "name": name, "mutable": mutable }),
     }
 }
 

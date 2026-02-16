@@ -2,8 +2,8 @@ use thiserror::Error;
 
 use crate::{
     ir::CanonicalIr,
-    layout::LayoutGraph,
     ir::proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl},
+    layout::LayoutGraph,
 };
 
 use super::{

@@ -4,6 +4,8 @@ use crate::ir::CanonicalIr;
 use crate::validate::{CanonRule, Violation};
 
 use super::DefectClass;
+use petgraph::algo::kosaraju_scc;
+use petgraph::graphmap::DiGraphMap;
 
 /// Layer 3 — Heuristic Classifiers.
 ///
@@ -11,17 +13,18 @@ use super::DefectClass;
 /// It queries IR struct fields directly; violation detail strings are only
 /// used as a last-resort fallback when no IR signal is available.
 pub fn classify(
-    rule:       CanonRule,
+    rule: CanonRule,
     violations: &[&Violation],
-    ir:         &CanonicalIr,
-) -> DefectClass {
+    ir: &CanonicalIr,
+) -> (DefectClass, Option<Vec<String>>) {
     match rule {
-        CanonRule::ExecutionOnlyInImpl          => classify_rule27(violations, ir),
-        CanonRule::ImplBinding                  => classify_rule26(violations, ir),
-        CanonRule::CallGraphRespectsDag
-        | CanonRule::ModuleDag                  => classify_rule43_13(violations, ir),
-        CanonRule::VersionEvolution             => DefectClass::RequiresDomainInput,
-        _                                       => DefectClass::WrongValue,
+        CanonRule::ExecutionOnlyInImpl => (classify_rule27(violations, ir), None),
+        CanonRule::ImplBinding => (classify_rule26(violations, ir), None),
+        CanonRule::CallGraphRespectsDag | CanonRule::ModuleDag => {
+            classify_rule43_13(violations, ir)
+        }
+        CanonRule::VersionEvolution => (DefectClass::ValidatorOverConstraint, None),
+        _ => (DefectClass::WrongValue, None),
     }
 }
 
@@ -32,19 +35,16 @@ pub fn classify(
 // Heuristic (IR-based):
 //   1. Collect all impl_ids referenced by failing functions.
 //   2. If any of those ids end with ".standalone" AND are absent from
-//      ir.impl_blocks → the ImplBlock node was never emitted → MissingEmit.
+//      ir.impls → the ImplBlock node was never emitted → MissingEmit.
 //   3. Otherwise the impl_id value itself is wrong → WrongValue.
 
 fn classify_rule27(violations: &[&Violation], ir: &CanonicalIr) -> DefectClass {
-    let impl_ids_in_ir: HashSet<&str> =
-        ir.impl_blocks.iter().map(|b| b.id.as_str()).collect();
+    let impl_ids_in_ir: HashSet<&str> = ir.impls.iter().map(|b| b.id.as_str()).collect();
 
     // Pull the impl_id directly from the IR functions that are failing,
     // identified by matching the function id mentioned in each violation.
-    let failing_function_ids: HashSet<&str> = violations
-        .iter()
-        .filter_map(|v| v.subject_id())
-        .collect();
+    let failing_function_ids: HashSet<&str> =
+        violations.iter().filter_map(|v| v.subject_id()).collect();
 
     let failing_functions: Vec<&crate::ir::Function> = ir
         .functions
@@ -77,13 +77,11 @@ fn classify_rule27(violations: &[&Violation], ir: &CanonicalIr) -> DefectClass {
 //   4. Otherwise → WrongValue (general id mismatch).
 
 fn classify_rule26(violations: &[&Violation], ir: &CanonicalIr) -> DefectClass {
-    let failing_impl_ids: HashSet<&str> = violations
-        .iter()
-        .filter_map(|v| v.subject_id())
-        .collect();
+    let failing_impl_ids: HashSet<&str> =
+        violations.iter().filter_map(|v| v.subject_id()).collect();
 
     let failing_impls: Vec<&crate::ir::ImplBlock> = ir
-        .impl_blocks
+        .impls
         .iter()
         .filter(|b| failing_impl_ids.contains(b.id.as_str()))
         .collect();
@@ -102,14 +100,18 @@ fn classify_rule26(violations: &[&Violation], ir: &CanonicalIr) -> DefectClass {
         .map(|t| t.name.as_str().to_ascii_lowercase())
         .collect();
 
-    let trait_id_in_ir: HashSet<&str> =
-        ir.traits.iter().map(|t| t.id.as_str()).collect();
+    let trait_id_in_ir: HashSet<&str> = ir.traits.iter().map(|t| t.id.as_str()).collect();
 
     let wrong_module = failing_impls.iter().any(|b| {
         if trait_id_in_ir.contains(b.trait_id.as_str()) {
             return false; // correctly resolved — not a wrong-module case
         }
-        let name = b.trait_id.split('.').last().unwrap_or("").to_ascii_lowercase();
+        let name = b
+            .trait_id
+            .split('.')
+            .last()
+            .unwrap_or("")
+            .to_ascii_lowercase();
         trait_names_in_ir.contains(&name)
     });
 
@@ -132,16 +134,31 @@ fn classify_rule26(violations: &[&Violation], ir: &CanonicalIr) -> DefectClass {
 //      → direction is inverted → WrongDirection.
 //   3. Some edges exist but specific pairs are missing → MissingContext.
 
-fn classify_rule43_13(violations: &[&Violation], ir: &CanonicalIr) -> DefectClass {
+fn classify_rule43_13(
+    violations: &[&Violation],
+    ir: &CanonicalIr,
+) -> (DefectClass, Option<Vec<String>>) {
     if ir.module_edges.is_empty() {
-        return DefectClass::MissingEmit;
+        return (DefectClass::MissingEmit, None);
+    }
+
+    let mut graph: DiGraphMap<&str, ()> = DiGraphMap::new();
+    for m in &ir.modules {
+        graph.add_node(m.id.as_str());
+    }
+    for e in &ir.module_edges {
+        graph.add_edge(e.source.as_str(), e.target.as_str(), ());
+    }
+
+    let sccs = kosaraju_scc(&graph);
+    if let Some(comp) = sccs.into_iter().find(|c| c.len() > 1) {
+        let cycle: Vec<String> = comp.into_iter().map(|s| s.to_string()).collect();
+        return (DefectClass::CycleDetected, Some(cycle));
     }
 
     // Collect caller module ids from the IR functions named in violations.
-    let failing_function_ids: HashSet<&str> = violations
-        .iter()
-        .filter_map(|v| v.subject_id())
-        .collect();
+    let failing_function_ids: HashSet<&str> =
+        violations.iter().filter_map(|v| v.subject_id()).collect();
 
     let caller_module_ids: HashSet<&str> = ir
         .functions
@@ -150,10 +167,8 @@ fn classify_rule43_13(violations: &[&Violation], ir: &CanonicalIr) -> DefectClas
         .map(|f| f.module.as_str())
         .collect();
 
-    let edge_sources: HashSet<&str> =
-        ir.module_edges.iter().map(|e| e.source.as_str()).collect();
-    let edge_targets: HashSet<&str> =
-        ir.module_edges.iter().map(|e| e.target.as_str()).collect();
+    let edge_sources: HashSet<&str> = ir.module_edges.iter().map(|e| e.source.as_str()).collect();
+    let edge_targets: HashSet<&str> = ir.module_edges.iter().map(|e| e.target.as_str()).collect();
 
     // If caller modules appear as targets but not as sources, direction is inverted.
     let inverted = caller_module_ids
@@ -161,8 +176,8 @@ fn classify_rule43_13(violations: &[&Violation], ir: &CanonicalIr) -> DefectClas
         .any(|id| edge_targets.contains(*id) && !edge_sources.contains(*id));
 
     if inverted {
-        DefectClass::WrongDirection
+        (DefectClass::WrongDirection, None)
     } else {
-        DefectClass::MissingContext
+        (DefectClass::MissingContext, None)
     }
 }

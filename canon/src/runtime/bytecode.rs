@@ -12,8 +12,8 @@ use thiserror::Error;
 
 use crate::ir::{Function, FunctionId};
 use crate::runtime::ast::{FunctionAst, compile_function_ast};
-use crate::runtime::value::{DeltaValue, Value};
 pub use crate::runtime::bytecode_types::{FunctionBytecode, Instruction};
+use crate::runtime::value::{DeltaValue, Value};
 
 impl FunctionBytecode {
     /// Load bytecode from metadata or compile AST fallback.

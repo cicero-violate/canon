@@ -1,8 +1,8 @@
 pub mod agent;
 pub mod cli;
 pub mod commands;
-pub mod diagnose;
 pub mod decision;
+pub mod diagnose;
 pub mod diff;
 pub mod dot_export;
 pub mod dot_import;
@@ -19,8 +19,8 @@ pub mod proof;
 pub mod runtime;
 pub mod schema;
 pub mod semantic_builder;
-pub mod version_gate;
 pub mod validate;
+pub mod version_gate;
 
 pub use cli::Command;
 pub use commands::execute_command;
@@ -56,24 +56,24 @@ pub use semantic_builder::SemanticIrBuilder;
 // pub use proof_object::{
 //     ProofArtifact as CanonProofArtifact, ProofObject, ProofResult, evaluate_proof_object,
 // };
-pub use ir::proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl};
-pub use schema::generate_schema;
-pub use agent::{
-    AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
-    CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
-};
 pub use agent::build_ir_slice;
+pub use agent::record_pipeline_outcome;
 pub use agent::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
+pub use agent::{
+    AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult, CapabilityEdge,
+    CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
+};
 pub use agent::{
     GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, MetaTickError, MetaTickResult,
     UNDERPERFORM_THRESHOLD, run_meta_tick,
 };
-pub use agent::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
-pub use agent::record_pipeline_outcome;
-pub use agent::{RefactorKind, RefactorProposal, RefactorTarget};
 pub use agent::{NodeOutcome, NodeRewardEntry, RewardLedger};
+pub use agent::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
+pub use agent::{RefactorKind, RefactorProposal, RefactorTarget};
 pub use agent::{load_capability_graph, save_capability_graph};
-pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};
 pub use evolution::{
-    LyapunovError, TopologyFingerprint, DEFAULT_TOPOLOGY_THETA, check_topology_drift,
+    DEFAULT_TOPOLOGY_THETA, LyapunovError, TopologyFingerprint, check_topology_drift,
 };
+pub use ir::proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl};
+pub use schema::generate_schema;
+pub use validate::{CanonRule, ValidationErrors, Violation, validate_ir};

@@ -242,9 +242,13 @@ pub(crate) fn impl_block_from_syn(
 
     // Canonical impl identity must derive from the struct's owning module,
     // not the file/module where the impl block appears.
-    let struct_module = module_id.to_string();
+    let struct_module = struct_id
+        .split('.')
+        .nth(1)
+        .unwrap_or(&slugify(module_id))
+        .to_string();
 
-    let impl_id = make_impl_id(struct_module, struct_slug, Some(trait_slug));
+    let impl_id = make_impl_id(&struct_module, struct_slug, Some(trait_slug));
     let mut bindings = Vec::new();
     let mut functions = Vec::new();
     for item in &block.items {
@@ -270,14 +274,6 @@ pub(crate) fn impl_block_from_syn(
     if bindings.is_empty() {
         return ImplMapping::Unsupported;
     }
-    // Ensure impl block is recorded under the struct's module,
-    // not the current file's module.
-        let struct_module = struct_id
-            .split('.')
-            .nth(1)
-            .unwrap_or(&slugify(module_id))
-            .to_string();
-
     ImplMapping::ImplBlock(
         ImplBlock {
             id: impl_id,
@@ -316,7 +312,7 @@ fn build_standalone(
     let struct_id = type_slug_to_id
         .get(self_ty_slug.as_str())
         .cloned()
-        .unwrap_or_else(|| format!("struct.{}.{}", slugify(module_id), self_ty_slug));
+        .unwrap_or_default();
     let funcs = block
         .items
         .iter()

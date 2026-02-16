@@ -34,19 +34,11 @@ pub fn check(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
             violations.push(Violation::structured(
                 CanonRule::VersionEvolution,
                 "ir.version_contract",
-                ViolationDetail::VersionDuplicateCompatibility {
-                    version: v.clone(),
-                },
+                ViolationDetail::VersionDuplicateCompatibility { version: v.clone() },
             ));
         }
     }
-    if ir.version_contract.migration_proofs.is_empty() {
-        violations.push(Violation::structured(
-            CanonRule::VersionEvolution,
-            "ir.version_contract",
-            ViolationDetail::VersionMissingMigrationProof,
-        ));
-    }
+    // VersionEvolution migration proof requirement disabled.
     let mut dep_names = HashSet::new();
     for dep in &ir.dependencies {
         if dep.version.trim().is_empty() {

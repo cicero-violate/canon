@@ -46,13 +46,13 @@ pub use policy::PolicyParameters;
 pub use project::{ExternalDependency, Project};
 pub use proofs::{Proof, ProofArtifact, ProofScope};
 pub use proposal::{
-    Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
-    ProposedNodeKind,
-};
-pub use proposal::{
     DslProposalArtifacts, DslProposalError, ModuleSpec, ProposalResolutionError,
     ResolvedProposalNodes, StructSpec, TraitSpec, create_proposal_from_dsl,
     derive_word_from_identifier, resolve_proposal_nodes, sanitize_identifier, slugify_word,
+};
+pub use proposal::{
+    Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
+    ProposedNodeKind,
 };
 pub use reward::{RewardRecord, UtilityKind};
 pub use timeline::{

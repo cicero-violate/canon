@@ -58,7 +58,7 @@ impl<'a> FunctionExecutor<'a> {
         initial_inputs: BTreeMap<String, Value>,
         context: &mut ExecutionContext,
     ) -> Result<Vec<BTreeMap<String, Value>>, ExecutorError> {
-        let mut results       = Vec::new();
+        let mut results = Vec::new();
         let mut current_inputs = initial_inputs;
         for function_id in functions {
             let function = self
@@ -83,7 +83,9 @@ impl<'a> Executor for FunctionExecutor<'a> {
         inputs: BTreeMap<String, Value>,
         context: &mut ExecutionContext,
     ) -> Result<BTreeMap<String, Value>, ExecutorError> {
-        context.push_call(function.id.clone()).map_err(ExecutorError::Context)?;
+        context
+            .push_call(function.id.clone())
+            .map_err(ExecutorError::Context)?;
         check_contract(function)?;
         validate_inputs(function, &inputs)?;
         let outputs = interp::interpret_bytecode(self, self.ir, function, &inputs, context)?;
@@ -98,19 +100,19 @@ fn check_contract(function: &Function) -> Result<(), ExecutorError> {
     if !function.contract.total {
         return Err(ExecutorError::ContractViolation {
             function: function.id.clone(),
-            reason:   "function must be total".into(),
+            reason: "function must be total".into(),
         });
     }
     if !function.contract.explicit_inputs || !function.contract.explicit_outputs {
         return Err(ExecutorError::ContractViolation {
             function: function.id.clone(),
-            reason:   "inputs and outputs must be explicit".into(),
+            reason: "inputs and outputs must be explicit".into(),
         });
     }
     if !function.contract.effects_are_deltas {
         return Err(ExecutorError::ContractViolation {
             function: function.id.clone(),
-            reason:   "effects must be deltas".into(),
+            reason: "effects must be deltas".into(),
         });
     }
     Ok(())
@@ -124,16 +126,16 @@ fn validate_inputs(
         if !inputs.contains_key(port.name.as_str()) {
             return Err(ExecutorError::MissingInput {
                 function: function.id.clone(),
-                input:    port.name.as_str().to_string(),
+                input: port.name.as_str().to_string(),
             });
         }
         let value = &inputs[port.name.as_str()];
         if !value.is_compatible_with(&port.ty) {
             return Err(ExecutorError::TypeMismatch {
                 function: function.id.clone(),
-                port:     port.name.as_str().to_string(),
+                port: port.name.as_str().to_string(),
                 expected: format!("{:?}", port.ty),
-                found:    format!("{:?}", value.kind()),
+                found: format!("{:?}", value.kind()),
             });
         }
     }

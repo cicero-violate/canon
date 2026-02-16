@@ -1,4 +1,4 @@
-use super::super::edges::UseEntry;
+use super::UseEntry;
 
 pub(crate) fn module_segments_from_key(key: &str) -> Vec<String> {
     if key.is_empty() || key == "crate" {

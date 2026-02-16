@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashSet};
 
 use crate::{
-    ir::{CanonicalIr, Proposal, ProposalStatus, TraitFunction},
     ir::proposal::ResolvedProposalNodes,
+    ir::{CanonicalIr, Proposal, ProposalStatus, TraitFunction},
 };
 
 use super::AcceptProposalError;
@@ -147,7 +147,7 @@ pub(super) fn enforce_references(
     }
 
     let existing_impls: HashSet<(String, String)> = ir
-        .impl_blocks
+        .impls
         .iter()
         .map(|block| (block.struct_id.clone(), block.trait_id.clone()))
         .collect();

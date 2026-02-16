@@ -113,8 +113,7 @@ impl<'a> PromptBuilder<'a> {
     }
 
     fn serialize_ir(&self) -> String {
-        serde_json::to_string_pretty(&self.input.ir_slice)
-            .unwrap_or_else(|_| "{}".into())
+        serde_json::to_string_pretty(&self.input.ir_slice).unwrap_or_else(|_| "{}".into())
     }
 
     fn serialize_predecessors(&self) -> String {
@@ -161,9 +160,7 @@ impl JsonExtractor {
     }
 
     fn slice_json(text: &str) -> Result<&str, LlmProviderError> {
-        let end = text
-            .find("```")
-            .ok_or(LlmProviderError::MissingJsonFence)?;
+        let end = text.find("```").ok_or(LlmProviderError::MissingJsonFence)?;
         Ok(text[..end].trim())
     }
 }
@@ -208,33 +205,43 @@ impl OutputAssembler {
 
 fn required_fields_for_stage(stage: &str) -> &'static str {
     match stage {
-        "Observe" => r#"{
+        "Observe" => {
+            r#"{
   "observation": "<string>",
   "hottest_modules": ["<module_id>"],
   "issues_found": ["<string>"]
-}"#,
+}"#
+        }
 
-        "Learn" => r#"{
+        "Learn" => {
+            r#"{
   "rationale": "<string>",
   "proposed_kind": "<split_module|merge_modules|move_artifact|rename_artifact|add_edge|remove_edge>",
   "target_artifact_id": "<string>",
   "destination_id": "<string|null>"
-}"#,
+}"#
+        }
 
-        "Decide" => r#"{
+        "Decide" => {
+            r#"{
   "proof_id": "<string>",
   "verification_notes": "<string>"
-}"#,
+}"#
+        }
 
-        "Plan" => r#"{
+        "Plan" => {
+            r#"{
   "decision": "<accept|reject>",
   "admission_id": "<string>",
   "rationale": "<string>"
-}"#,
+}"#
+        }
 
-        _ => r#"{
+        _ => {
+            r#"{
   "observation": "<string>",
   "rationale": "<string>"
-}"#,
+}"#
+        }
     }
 }

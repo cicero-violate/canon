@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{
-    ir::{
-        Delta, DeltaId, DeltaKind, DeltaPayload, FunctionSignature, PipelineStage, Proposal,
-        ProposedEdge, TraitFunction, TypeKind, TypeRef, ValuePort, Visibility, Word,
-    },
     ir::proposal::{
         ModuleSpec, ResolvedProposalNodes, StructSpec, TraitSpec, derive_word_from_identifier,
         sanitize_identifier,
+    },
+    ir::{
+        Delta, DeltaId, DeltaKind, DeltaPayload, FunctionSignature, PipelineStage, Proposal,
+        ProposedEdge, TraitFunction, TypeKind, TypeRef, ValuePort, Visibility, Word,
     },
 };
 

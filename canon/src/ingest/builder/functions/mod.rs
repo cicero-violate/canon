@@ -30,7 +30,9 @@ pub(crate) fn build_structs(
 ) -> Vec<Struct> {
     let mut structs = Vec::new();
     for file in &parsed.files {
-        let Some(module_id) = module_lookup.get(&module_key(file)) else { continue };
+        let Some(module_id) = module_lookup.get(&module_key(file)) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Struct(s) = item {
@@ -51,7 +53,9 @@ pub(crate) fn build_enums(
 ) -> Vec<EnumNode> {
     let mut enums = Vec::new();
     for file in &parsed.files {
-        let Some(module_id) = module_lookup.get(&module_key(file)) else { continue };
+        let Some(module_id) = module_lookup.get(&module_key(file)) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Enum(e) = item {
@@ -72,7 +76,9 @@ pub(crate) fn build_traits(
 ) -> Vec<Trait> {
     let mut traits = Vec::new();
     for file in &parsed.files {
-        let Some(module_id) = module_lookup.get(&module_key(file)) else { continue };
+        let Some(module_id) = module_lookup.get(&module_key(file)) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for item in &file.ast.items {
             if let syn::Item::Trait(t) = item {
@@ -93,10 +99,12 @@ pub(crate) fn build_impls_and_functions(
     trait_name_to_id: &HashMap<String, String>,
     type_slug_to_id: &HashMap<String, String>,
 ) -> (Vec<ImplBlock>, Vec<Function>) {
-    let mut impls     = Vec::new();
+    let mut impls = Vec::new();
     let mut functions = Vec::new();
     for file in &parsed.files {
-        let Some(module_id) = module_lookup.get(&module_key(file)) else { continue };
+        let Some(module_id) = module_lookup.get(&module_key(file)) else {
+            continue;
+        };
         let file_id = file_lookup.get(&file.path_string()).cloned();
         for syn_item in &file.ast.items {
             match syn_item {
@@ -106,7 +114,12 @@ pub(crate) fn build_impls_and_functions(
                     functions.push(function);
                 }
                 syn::Item::Impl(impl_block) => {
-                    match impl_block_from_syn(module_id, impl_block, trait_name_to_id, type_slug_to_id) {
+                    match impl_block_from_syn(
+                        module_id,
+                        impl_block,
+                        trait_name_to_id,
+                        type_slug_to_id,
+                    ) {
                         ImplMapping::Standalone(block, funcs) => {
                             for f in &funcs {
                                 layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());

@@ -72,7 +72,7 @@ pub(crate) fn build_layout_map(
             (slug, e.id.clone())
         }))
         .collect();
-    let (impl_blocks, fns) = functions::build_impls_and_functions(
+    let (impls, fns) = functions::build_impls_and_functions(
         &parsed,
         &module_lookup,
         &file_lookup,
@@ -86,7 +86,7 @@ pub(crate) fn build_layout_map(
         structs,
         enums,
         traits,
-        impls: impl_blocks,
+        impls: impls,
         functions: fns,
         module_edges,
         call_edges,

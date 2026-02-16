@@ -15,11 +15,38 @@ pub(crate) struct DiscoveredFile {
 /// TODO(ING-001): Respect `.gitignore`/`Cargo.toml` module declarations.
 pub(crate) fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, IngestError> {
     super::_ensure_path_is_dir(root)?;
-    let src_root = root.join("src");
+
+    eprintln!("INGEST DEBUG: root = {}", root.display());
+    eprintln!("INGEST DEBUG: root.exists() = {}", root.exists());
+    eprintln!("INGEST DEBUG: root.is_dir() = {}", root.is_dir());
+
+    let expected_src = root.join("src");
+    let src_root = if expected_src.is_dir() {
+        expected_src.clone()
+    } else {
+        root.to_path_buf() // fallback: allow ingesting when src/ is missing or root is already src/
+    };
+
+    eprintln!("INGEST DEBUG: expected_src = {}", expected_src.display());
+    eprintln!(
+        "INGEST DEBUG: expected_src.exists() = {}",
+        expected_src.exists()
+    );
+    eprintln!(
+        "INGEST DEBUG: expected_src.is_dir() = {}",
+        expected_src.is_dir()
+    );
+    eprintln!("INGEST DEBUG: final src_root = {}", src_root.display());
+    eprintln!(
+        "INGEST DEBUG: final src_root.is_dir() = {}",
+        src_root.is_dir()
+    );
+
     if !src_root.is_dir() {
         return Err(IngestError::UnsupportedFeature(format!(
-            "ING-001: expected `{}` to contain a `src` directory",
-            root.display()
+            "ING-001: no readable source directory in `{}` (final src_root: {})",
+            root.display(),
+            src_root.display()
         )));
     }
     let mut files = Vec::new();
@@ -36,7 +63,7 @@ pub(crate) fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, 
             continue;
         }
         let relative = strip_prefix_components(path, root)
-            .unwrap_or_else(|| path.strip_prefix(root).unwrap_or(path).to_path_buf());
+            .unwrap_or_else(|| path.strip_prefix(&src_root).unwrap_or(path).to_path_buf());
         files.push(DiscoveredFile {
             absolute: path.to_path_buf(),
             relative,

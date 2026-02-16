@@ -8,9 +8,9 @@ use super::super::parser::{ParsedFile, ParsedWorkspace};
 use super::IngestError;
 use super::ModulesBuild;
 use super::types::{
-    AliasBinding,
-    attribute_to_string, collect_doc_string, convert_type, expr_to_string, flatten_use_tree,
-    map_visibility, render_use_item, resolve_use_entry, slugify, to_pascal_case, word_from_ident,
+    AliasBinding, attribute_to_string, collect_doc_string, convert_type, expr_to_string,
+    flatten_use_tree, map_visibility, render_use_item, resolve_use_entry, slugify, to_pascal_case,
+    word_from_ident,
 };
 pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, IngestError> {
     let mut acc: HashMap<String, ModuleAccumulator> = HashMap::new();
@@ -35,7 +35,7 @@ pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, In
     let mut module_lookup = HashMap::new();
     let mut file_lookup = HashMap::new();
     for builder in acc.into_values() {
-        module_lookup.insert(builder.key.clone(), builder.id.clone());
+        module_lookup.insert(slugify(&builder.key), builder.id.clone());
         modules.push(builder.into_module());
     }
     for file in &parsed.files {
@@ -63,14 +63,14 @@ pub(crate) fn build_module_edges(
         if module_key.is_empty() {
             continue;
         }
-        let Some(target_id) = module_lookup.get(&module_key) else {
+        let Some(target_id) = module_lookup.get(&slugify(&module_key)) else {
             continue;
         };
         for item in &file.ast.items {
             // Emit edges for `mod foo;` submodule declarations.
             if let syn::Item::Mod(item_mod) = item {
                 let child_key = format!("{}::{}", module_key, item_mod.ident);
-                if let Some(child_id) = module_lookup.get(&child_key) {
+                if let Some(child_id) = module_lookup.get(&slugify(&child_key)) {
                     if child_id != target_id {
                         acc.entry((target_id.clone(), child_id.clone()))
                             .or_default()
@@ -91,7 +91,7 @@ pub(crate) fn build_module_edges(
                     else {
                         continue;
                     };
-                    let Some(source_id) = module_lookup.get(&source_key) else {
+                    let Some(source_id) = module_lookup.get(&slugify(&source_key)) else {
                         continue;
                     };
                     if source_id == target_id {
@@ -113,8 +113,8 @@ pub(crate) fn build_module_edges(
                         continue;
                     }
                     acc.entry((target_id.clone(), source_id.clone()))
-                       .or_default()
-                       .insert(imported);
+                        .or_default()
+                        .insert(imported);
                 }
             }
         }

@@ -1,20 +1,23 @@
+use crate::{ChromeConnection, TargetDescriptor};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::time::Duration;
 use tungstenite::{connect, Message as WsMessage};
-use url::Url;
 use url::form_urlencoded::Serializer;
-use crate::{ChromeConnection, TargetDescriptor};
+use url::Url;
 
 const REQUEST_JS: &str = include_str!("request_message_dom.js");
 const REQUEST_HOOK_JS: &str = include_str!("request_hook.js");
 
 pub fn inject_request_hook(conn: &mut ChromeConnection) -> Result<(), Box<dyn std::error::Error>> {
     println!("Injecting request hook...");
-    conn.send_command("Runtime.evaluate", json!({
-        "expression": REQUEST_HOOK_JS,
-        "awaitPromise": false,
-    }))?;
+    conn.send_command(
+        "Runtime.evaluate",
+        json!({
+            "expression": REQUEST_HOOK_JS,
+            "awaitPromise": false,
+        }),
+    )?;
     std::thread::sleep(Duration::from_millis(100));
     Ok(())
 }
@@ -35,10 +38,13 @@ pub fn send_message(
         serde_json::to_string(message_text)?
     );
 
-    conn.send_command("Runtime.evaluate", json!({
-        "expression": request_call,
-        "awaitPromise": true,
-    }))?;
+    conn.send_command(
+        "Runtime.evaluate",
+        json!({
+            "expression": request_call,
+            "awaitPromise": true,
+        }),
+    )?;
 
     Ok(send_timestamp)
 }
@@ -59,9 +65,7 @@ pub fn open_url_tab(
         .append_pair("url", &base_url)
         .finish();
     let new_url = format!("http://localhost:{}/json/new?{}", chrome_port, query);
-    let response = ureq::get(&new_url)
-        .timeout(Duration::from_secs(2))
-        .call();
+    let response = ureq::get(&new_url).timeout(Duration::from_secs(2)).call();
     let tab: TargetDescriptor = match response {
         Ok(resp) => resp.into_json()?,
         Err(ureq::Error::Status(405, _)) => {

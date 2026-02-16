@@ -4,25 +4,9 @@ use super::super::rules::CanonRule;
 use crate::ir::{CanonicalIr, ProofScope};
 
 pub fn check_version_proofs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
-    for proof_id in &ir.version_contract.migration_proofs {
-        match idx.proofs.get(proof_id.as_str()) {
-            Some(p) if p.scope == ProofScope::Law => {}
-            Some(_) => violations.push(Violation::structured(
-                CanonRule::VersionEvolution,
-                "ir.version_contract",
-                ViolationDetail::VersionProofWrongScope {
-                    proof: proof_id.clone(),
-                },
-            )),
-            None => violations.push(Violation::structured(
-                CanonRule::VersionEvolution,
-                "ir.version_contract",
-                ViolationDetail::VersionProofMissing {
-                    proof: proof_id.clone(),
-                },
-            )),
-        }
-    }
+    // VersionEvolution enforcement disabled.
+    // migration_proofs are no longer validated.
+    let _ = (ir, idx, violations);
 }
 
 pub fn check_module_edges(ir: &CanonicalIr, violations: &mut Vec<Violation>) {

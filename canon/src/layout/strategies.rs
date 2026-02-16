@@ -72,7 +72,6 @@ impl LayoutStrategy for SingleFileLayoutStrategy {
 
 /// Routes each struct/trait/enum into its own file (plus `mod.rs` for glue).
 pub struct PerTypeLayoutStrategy;
-
 impl LayoutStrategy for PerTypeLayoutStrategy {
     fn name(&self) -> &'static str {
         "per_type"
@@ -303,4 +302,200 @@ fn slugify(value: &str) -> String {
             }
         })
         .collect()
+}
+
+/// Fully atomic layout:
+/// Every semantic node gets its own file.
+pub struct FlatNodeLayoutStrategy;
+
+impl LayoutStrategy for FlatNodeLayoutStrategy {
+    fn name(&self) -> &'static str {
+        "flat_nodes"
+    }
+
+    fn description(&self) -> &'static str {
+        "Every struct/enum/trait/impl/function is placed into its own file."
+    }
+
+    fn plan(&self, semantic: &SemanticGraph) -> LayoutGraph {
+        let mut modules = Vec::new();
+        let mut routing = Vec::new();
+
+        // Deterministic module ordering
+        let mut sorted_modules = semantic.modules.clone();
+        sorted_modules.sort_by(|a, b| a.id.cmp(&b.id));
+
+        for module in &sorted_modules {
+            let mut files = Vec::new();
+
+            // ---- STRUCTS ----
+            let mut structs: Vec<_> = semantic
+                .structs
+                .iter()
+                .filter(|s| s.module == module.id)
+                .cloned()
+                .collect();
+            structs.sort_by(|a, b| a.id.cmp(&b.id));
+
+            for structure in structs {
+                let slug = slugify(structure.name.as_str());
+                let file_id = format!("file.{}.struct.{}", sanitize_module(module.id.as_str()), slug);
+                files.push(LayoutFile {
+                    id: file_id.clone(),
+                    path: format!("struct_{}.rs", slug),
+                    use_block: Vec::new(),
+                });
+                routing.push(LayoutAssignment {
+                    node: LayoutNode::Struct(structure.id),
+                    file_id,
+                    rationale: "LAY-ATOM-001".to_owned(),
+                });
+            }
+
+            // ---- ENUMS ----
+            let mut enums: Vec<_> = semantic
+                .enums
+                .iter()
+                .filter(|e| e.module == module.id)
+                .cloned()
+                .collect();
+            enums.sort_by(|a, b| a.id.cmp(&b.id));
+
+            for enumeration in enums {
+                let slug = slugify(enumeration.name.as_str());
+                let file_id = format!("file.{}.enum.{}", sanitize_module(module.id.as_str()), slug);
+                files.push(LayoutFile {
+                    id: file_id.clone(),
+                    path: format!("enum_{}.rs", slug),
+                    use_block: Vec::new(),
+                });
+                routing.push(LayoutAssignment {
+                    node: LayoutNode::Enum(enumeration.id),
+                    file_id,
+                    rationale: "LAY-ATOM-001".to_owned(),
+                });
+            }
+
+            // ---- TRAITS ----
+            let mut traits: Vec<_> = semantic
+                .traits
+                .iter()
+                .filter(|t| t.module == module.id)
+                .cloned()
+                .collect();
+            traits.sort_by(|a, b| a.id.cmp(&b.id));
+
+            for tr in traits {
+                let slug = slugify(tr.name.as_str());
+                let file_id = format!("file.{}.trait.{}", sanitize_module(module.id.as_str()), slug);
+                files.push(LayoutFile {
+                    id: file_id.clone(),
+                    path: format!("trait_{}.rs", slug),
+                    use_block: Vec::new(),
+                });
+                routing.push(LayoutAssignment {
+                    node: LayoutNode::Trait(tr.id),
+                    file_id,
+                    rationale: "LAY-ATOM-001".to_owned(),
+                });
+            }
+
+            // ---- IMPLS ----
+            let mut impls: Vec<_> = semantic
+                .impls
+                .iter()
+                .filter(|b| b.module == module.id)
+                .cloned()
+                .collect();
+            impls.sort_by(|a, b| a.id.cmp(&b.id));
+
+            for block in impls {
+                let slug = slugify(block.id.as_str());
+                let file_id = format!("file.{}.impl.{}", sanitize_module(module.id.as_str()), slug);
+                files.push(LayoutFile {
+                    id: file_id.clone(),
+                    path: format!("impl_{}.rs", slug),
+                    use_block: Vec::new(),
+                });
+                routing.push(LayoutAssignment {
+                    node: LayoutNode::Impl(block.id),
+                    file_id,
+                    rationale: "LAY-ATOM-001".to_owned(),
+                });
+            }
+
+            // ---- FUNCTIONS ----
+            let mut functions: Vec<_> = semantic
+                .functions
+                .iter()
+                .filter(|f| f.module == module.id)
+                .cloned()
+                .collect();
+            functions.sort_by(|a, b| a.id.cmp(&b.id));
+
+            for function in functions {
+                let slug = slugify(function.name.as_str());
+                let file_id = format!("file.{}.fn.{}", sanitize_module(module.id.as_str()), slug);
+                files.push(LayoutFile {
+                    id: file_id.clone(),
+                    path: format!("fn_{}.rs", slug),
+                    use_block: Vec::new(),
+                });
+                routing.push(LayoutAssignment {
+                    node: LayoutNode::Function(function.id),
+                    file_id,
+                    rationale: "LAY-ATOM-001".to_owned(),
+                });
+            }
+
+            // Sort files deterministically
+            files.sort_by(|a, b| a.id.cmp(&b.id));
+
+            modules.push(LayoutModule {
+                id: module.id.clone(),
+                name: module.name.clone(),
+                files,
+                imports: Vec::new(),
+            });
+        }
+
+        // Sort routing deterministically
+        routing.sort_by(|a, b| {
+            let (a_id, a_kind) = super::layout_node_key(&a.node);
+            let (b_id, b_kind) = super::layout_node_key(&b.node);
+            (a_kind, a_id).cmp(&(b_kind, b_id))
+        });
+
+        LayoutGraph { modules, routing }
+    }
+}
+
+/// Canonical normalization strategy:
+/// Deterministic, sorted, stable ordering of files and routing.
+pub struct CanonicalNormalizationStrategy;
+
+impl LayoutStrategy for CanonicalNormalizationStrategy {
+    fn name(&self) -> &'static str {
+        "canonical_normalized"
+    }
+
+    fn description(&self) -> &'static str {
+        "Deterministic stable layout ordering for hashing and reproducibility."
+    }
+
+    fn plan(&self, semantic: &SemanticGraph) -> LayoutGraph {
+        let base = FlatNodeLayoutStrategy.plan(semantic);
+        normalize_layout_graph(base)
+    }
+}
+
+fn normalize_layout_graph(mut graph: LayoutGraph) -> LayoutGraph {
+    graph.modules.sort_by(|a, b| a.id.cmp(&b.id));
+    for module in &mut graph.modules {
+        module.files.sort_by(|a, b| a.id.cmp(&b.id));
+    }
+    graph.routing.sort_by(|a, b| {
+        format!("{:?}", a.node).cmp(&format!("{:?}", b.node))
+    });
+    graph
 }
