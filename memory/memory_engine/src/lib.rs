@@ -2,24 +2,23 @@
 #![allow(dead_code)]
 #![allow(hidden_glob_reexports)]
 
-pub mod primitives;
-
-// Memory engine - canonical truth owner
 pub mod memory_engine;
 
-// Core data structures
-pub mod delta;
-pub mod epoch;
-pub mod graph_log;
-pub mod page;
-pub mod tlog;
+// Internal modules — NOT externally accessible
+pub(crate) mod primitives;
+pub(crate) mod delta;
+pub(crate) mod epoch;
+pub(crate) mod graph_log;
+pub(crate) mod page;
+pub(crate) mod tlog;
+pub(crate) mod proofs;
 
-// Proof artifacts
-pub mod proofs;
-
-pub use delta::Delta;
+// Only expose the authority surface
 pub use memory_engine::{
-    AdmissionError, CanonicalState, CommitError, MemoryEngine, MemoryEngineConfig,
-    MemoryEngineError, StateSlice,
+    AdmissionError,
+    CommitError,
+    MemoryEngine,
+    MemoryEngineConfig,
+    MemoryEngineError,
+    StateSlice,
 };
-pub use tlog::{TlogEntry, TlogManager};
