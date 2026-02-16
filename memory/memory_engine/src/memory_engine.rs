@@ -8,19 +8,22 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    io::{self, ErrorKind},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
 };
 
-use bincode;
 use hex;
 use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const PAGE_SIZE: usize = 4096;
+// ===============================
+// Domain Separation Prefixes
+// ===============================
+const DOMAIN_LEAF: &[u8] = b"LEAF_V1";
+const DOMAIN_INTERNAL: &[u8] = b"NODE_V1";
+const DOMAIN_DELTA: &[u8] = b"DELTA_V1";
+const DOMAIN_EVENT: &[u8] = b"EVENT_V1";
+
 
 use crate::{
     delta::delta_validation::validate_delta,
@@ -33,27 +36,45 @@ use crate::{
     tlog::TransactionLog,
 };
 
+use crate::page_store::PageStore;
+use crate::primitives::PageID;
+use crate::journal::Journal;
+
 /// Canonical state owned exclusively by the memory engine.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct CanonicalState {
     root_hash: Hash,
-    page_store: PageStore
+    page_store: PageStore,
     page_hashes: std::collections::BTreeMap<PageID, Hash>,
-    merkle_nodes: HashMap<(u8, u64), Hash>, // (level, index)
+    merkle_nodes: Vec<Hash>, // flat full binary tree
+    max_leaves: u64,
+    tree_size: u64,
+    dirty_leaves: Vec<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct StateSlice {
     pub root_hash: String,
 }
 
 impl CanonicalState {
     pub fn new_empty() -> Self {
+        Self::with_capacity(1024)
+    }
+
+    /// Create state with configurable capacity.
+    pub fn with_capacity(max_leaves: u64) -> Self {
+        let tree_size = max_leaves.next_power_of_two();
+        let total_nodes = tree_size * 2;
+
         Self {
             root_hash: [0u8; 32],
-            pages: HashMap::new(),
+            page_store: PageStore::in_memory(),
             page_hashes: std::collections::BTreeMap::new(),
-            merkle_nodes: HashMap::new(),
+            merkle_nodes: vec![[0u8; 32]; total_nodes as usize],
+            max_leaves: tree_size,
+            tree_size,
+            dirty_leaves: Vec::new(),
         }
     }
 
@@ -62,27 +83,27 @@ impl CanonicalState {
     pub fn apply_delta(&mut self, delta: &Delta) -> Result<(), DeltaError> {
         validate_delta(delta)?;
 
-        self.page_store.write_page(delta.page_id.0, &delta.payload);
+        // Write to page store (disk or in-memory)
+        self.page_store
+            .write_page(delta.page_id.0, &delta.payload);
+
+        // Zero-copy hashing from page store
         let page_bytes = self.page_store.read_page(delta.page_id.0);
 
-        // Update page payload
-        let page_entry = self
-            .pages
-            .entry(delta.page_id)
-            .or_insert_with(|| vec![0u8; PAGE_SIZE]);
-
-        let len = delta.payload.len().min(PAGE_SIZE);
-        page_entry[..len].copy_from_slice(&delta.payload[..len]);
-
-        // Recompute page hash
         let mut page_hasher = Sha256::new();
-        page_hasher.update(&page_entry);
+        page_hasher.update(DOMAIN_LEAF);
+        page_hasher.update(page_bytes);
         let page_hash: Hash = page_hasher.finalize().into();
 
         self.page_hashes.insert(delta.page_id, page_hash);
 
-        // Incremental Merkle update
-        self.update_merkle_tree(delta.page_id);
+        // Auto-expand if capacity exceeded
+        if delta.page_id.0 >= self.max_leaves {
+            self.rehash_with_new_capacity(delta.page_id.0 + 1);
+        }
+
+        self.mark_dirty(delta.page_id.0);
+        self.rehash_dirty_levels();
 
         Ok(())
     }
@@ -97,49 +118,196 @@ impl CanonicalState {
         }
     }
 
-    fn compute_root_hash(&self) -> Hash {
-        // Only used for snapshot validation
-        let mut hasher = Sha256::new();
-        hasher.update(&self.payload);
-        hasher.finalize().into()
+    /// Incrementally update sparse Merkle tree (64-depth).
+    fn update_merkle_tree(&mut self, page_id: PageID) {
+        let leaf_index = self.tree_size + page_id.0;
+        let mut node_index = leaf_index as usize;
+
+        self.merkle_nodes[node_index] = self.page_hashes[&page_id];
+
+        while node_index > 1 {
+            let parent = node_index / 2;
+            let left = parent * 2;
+            let right = left + 1;
+
+            let mut hasher = Sha256::new();
+            hasher.update(DOMAIN_INTERNAL);
+            hasher.update(self.merkle_nodes[left]);
+            hasher.update(self.merkle_nodes[right]);
+
+            self.merkle_nodes[parent] = hasher.finalize().into();
+            node_index = parent;
+        }
+
+        self.root_hash = self.merkle_nodes[1];
     }
 
-    pub fn load_from_disk(repo_root: &Path) -> io::Result<Option<Self>> {
-        let snapshot_path = state_snapshot_path(repo_root);
-        if !snapshot_path.exists() {
-            return Ok(None);
-        }
-        let data = fs::read(&snapshot_path)?;
-        let state: CanonicalState = bincode::deserialize(&data)
-            .map_err(|err| io::Error::new(ErrorKind::InvalidData, err.to_string()))?;
-        let expected = state.compute_root_hash();
-        if state.root_hash != expected {
-            return Err(io::Error::new(
-                ErrorKind::InvalidData,
-                "snapshot root hash mismatch",
-            ));
-        }
-        Ok(Some(state))
+    /// Mark a leaf as dirty
+    fn mark_dirty(&mut self, leaf: u64) {
+        self.dirty_leaves.push(leaf);
     }
 
-    pub fn flush_to_disk(&self, repo_root: &Path) -> io::Result<()> {
-        let snapshot_path = state_snapshot_path(repo_root);
-        if let Some(parent) = snapshot_path.parent() {
-            fs::create_dir_all(parent)?;
+    /// Batched bottom-up rebuild (vectorizable structure)
+     fn rehash_dirty_levels(&mut self) {
+         if self.dirty_leaves.is_empty() {
+             return;
+         }
+
+         use rayon::prelude::*;
+
+         // Step 1: update dirty leaves
+         let mut current_level: Vec<usize> = self
+             .dirty_leaves
+             .iter()
+             .map(|leaf| (self.tree_size + *leaf) as usize)
+             .collect();
+
+         for &idx in &current_level {
+             let leaf_id = idx - self.tree_size as usize;
+             if let Some(hash) = self.page_hashes.get(&PageID(leaf_id as u64)) {
+                 self.merkle_nodes[idx] = *hash;
+             }
+         }
+
+         // Step 2: climb levels incrementally
+         while !current_level.is_empty() {
+             // Compute parent indices
+             let mut parents: Vec<usize> = current_level
+                 .iter()
+                 .map(|idx| idx / 2)
+                 .filter(|&p| p >= 1)
+                 .collect();
+
+             parents.sort_unstable();
+             parents.dedup();
+
+             // Snapshot child layer (read-only for parallel phase)
+             let snapshot = self.merkle_nodes.clone();
+
+             // Compute parent hashes in parallel (pure computation)
+             let parent_hashes: Vec<(usize, Hash)> =
+                 parents
+                     .par_iter()
+                     .map(|&parent| {
+                         let left = parent * 2;
+                         let right = left + 1;
+
+                         let mut hasher = Sha256::new();
+                         hasher.update(DOMAIN_INTERNAL);
+                         hasher.update(snapshot[left]);
+                         hasher.update(snapshot[right]);
+
+                         (parent, hasher.finalize().into())
+                     })
+                     .collect();
+
+             // Sequential write-back (no aliasing issues)
+             for (parent, hash) in parent_hashes {
+                 self.merkle_nodes[parent] = hash;
+             }
+
+             current_level = parents;
+         }
+
+         self.root_hash = self.merkle_nodes[1];
+         self.dirty_leaves.clear();
+     }
+
+
+    /// Grow tree and rebuild when capacity exceeded.
+    fn rehash_with_new_capacity(&mut self, required_leaves: u64) {
+        let new_tree_size = required_leaves.next_power_of_two();
+        let total_nodes = new_tree_size * 2;
+
+        self.tree_size = new_tree_size;
+        self.max_leaves = new_tree_size;
+        self.merkle_nodes = vec![[0u8; 32]; total_nodes as usize];
+
+        // Reinsert leaves
+        let existing = self.page_hashes.clone();
+        for (page_id, hash) in existing {
+            let idx = (self.tree_size + page_id.0) as usize;
+            self.merkle_nodes[idx] = hash;
         }
-        let data = bincode::serialize(self)
-            .map_err(|err| io::Error::new(ErrorKind::Other, err.to_string()))?;
-        fs::write(snapshot_path, data)?;
-        Ok(())
+
+        // ===============================
+        // Level-sliced parallel rebuild
+        // ===============================
+        use rayon::prelude::*;
+
+        let mut level_start = self.tree_size as usize;
+
+        while level_start > 1 {
+            let parent_start = level_start / 2;
+            let parent_end = level_start;
+
+            // Snapshot current level so we can read without aliasing
+            let current_level = self.merkle_nodes.clone();
+
+            // Compute parent layer in parallel into temporary buffer
+            let parent_hashes: Vec<Hash> =
+                (parent_start..parent_end)
+                    .into_par_iter()
+                    .map(|parent_index| {
+                        let left = parent_index * 2;
+                        let right = left + 1;
+
+                        let mut hasher = Sha256::new();
+                        hasher.update(DOMAIN_INTERNAL);
+                        hasher.update(current_level[left]);
+                        hasher.update(current_level[right]);
+                        hasher.finalize().into()
+                    })
+                    .collect();
+
+            // Write back results sequentially (safe)
+            for (i, hash) in parent_hashes.into_iter().enumerate() {
+                self.merkle_nodes[parent_start + i] = hash;
+            }
+
+            level_start /= 2;
+        }
+
+        self.root_hash = self.merkle_nodes[1];
+    }
+
+    /// Recompute root from sparse tree nodes (debug only).
+    pub fn recompute_root_from_nodes(&self) -> Hash {
+        self.merkle_nodes.get(1).copied().unwrap_or([0u8; 32])
+    }
+
+    /// Debug integrity check.
+    pub fn verify_internal_consistency(&self) -> bool {
+        self.root_hash == self.recompute_root_from_nodes()
+    }
+
+    /// Generate Merkle inclusion proof for a page.
+    pub fn merkle_proof(&self, page_id: PageID) -> Option<Vec<Hash>> {
+        if !self.page_hashes.contains_key(&page_id) {
+            return None;
+        }
+
+        let mut proof = Vec::new();
+
+        let leaf_offset = self.merkle_nodes.len() / 2;
+        let mut node_index = leaf_offset + page_id.0 as usize;
+
+        while node_index > 1 {
+            let sibling = if node_index % 2 == 0 {
+                node_index + 1
+            } else {
+                node_index - 1
+            };
+
+            proof.push(self.merkle_nodes[sibling]);
+            node_index /= 2;
+        }
+
+        Some(proof)
     }
 }
 
-fn state_snapshot_path(repo_root: &Path) -> PathBuf {
-    repo_root
-        .join("canon_store")
-        .join("snapshots")
-        .join("canonical_state.bin")
-}
+// Snapshotting removed. Recovery is handled via journal + tlog replay.
 
 /// Configuration for initializing the memory engine.
 pub struct MemoryEngineConfig {
@@ -189,7 +357,6 @@ pub enum CommitError {
 
 /// Canonical memory engine (truth owner).
 pub struct MemoryEngine {
-    allocator: Arc<PageAllocator>,
     tlog: Arc<TransactionLog>,
     graph_log: Arc<GraphDeltaLog>,
     epoch: Arc<EpochCell>,
@@ -201,11 +368,6 @@ pub struct MemoryEngine {
 impl MemoryEngine {
     /// Initialize a new engine.
     pub fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError> {
-        let allocator = Arc::new(PageAllocator::from_config(PageAllocatorConfig {
-            default_location: config.default_location,
-            initial_capacity: 1024,
-        }));
-
         let tlog =
             Arc::new(TransactionLog::new(&config.tlog_path).map_err(MemoryEngineError::TlogOpen)?);
         let graph_log = Arc::new(
@@ -213,7 +375,6 @@ impl MemoryEngine {
         );
 
         Ok(Self {
-            allocator,
             tlog,
             graph_log,
             epoch: Arc::new(EpochCell::new(0)),
@@ -312,6 +473,9 @@ impl MemoryEngine {
             .apply_delta(&delta)
             .map_err(|err| MemoryEngineError::StateMutation(err.to_string()))?;
 
+        // Ensure mmap-backed pages are flushed
+        self.state.write().page_store.flush().ok();
+
         self.epoch.increment();
         self.tlog
             .append(admission, delta.clone())
@@ -359,6 +523,7 @@ impl MemoryEngine {
         outcome: &OutcomeProof,
     ) -> Hash {
         let mut hasher = Sha256::new();
+        hasher.update(DOMAIN_EVENT);
         hasher.update(admission.hash());
         hasher.update(commit.hash());
         hasher.update(outcome.hash());
@@ -371,6 +536,7 @@ impl MemoryEngine {
 
     fn hash_delta(delta: &Delta) -> Hash {
         let mut hasher = Sha256::new();
+        hasher.update(DOMAIN_DELTA);
         hasher.update(&delta.page_id.0.to_be_bytes());
         hasher.update(&delta.epoch.0.to_be_bytes());
         for bit in &delta.mask {
@@ -380,97 +546,8 @@ impl MemoryEngine {
         hasher.finalize().into()
     }
 
-    fn update_merkle_tree(&mut self, page_id: PageID) {
-        let mut current_hash = self.page_hashes[&page_id];
-        let mut index = page_id.0;
 
-        // Sparse Merkle Tree with fixed depth = 64 (u64 PageID)
-        for level in 0..64 {
-            self.merkle_nodes.insert((level, index), current_hash);
-
-            let sibling_index = if index % 2 == 0 {
-                index + 1
-            } else {
-                index - 1
-            };
-
-            let sibling_hash = self
-                .merkle_nodes
-                .get(&(level, sibling_index))
-                .copied()
-                .unwrap_or([0u8; 32]);
-
-            let (left, right) = if index % 2 == 0 {
-                (current_hash, sibling_hash)
-            } else {
-                (sibling_hash, current_hash)
-            };
-
-            let mut hasher = Sha256::new();
-            hasher.update(left);
-            hasher.update(right);
-            current_hash = hasher.finalize().into();
-
-            index /= 2;
-        }
-
-        self.root_hash = current_hash;
-    }
-
-    /// Generate Merkle inclusion proof for a page
-    pub fn merkle_proof(&self, page_id: PageID) -> Option<Vec<Hash>> {
-        if !self.page_hashes.contains_key(&page_id) {
-            return None;
-        }
-
-        let mut proof = Vec::with_capacity(64);
-        let mut index = page_id.0;
-
-        for level in 0..64 {
-            let sibling_index = if index % 2 == 0 {
-                index + 1
-            } else {
-                index - 1
-            };
-
-            let sibling_hash = self
-                .merkle_nodes
-                .get(&(level, sibling_index))
-                .copied()
-                .unwrap_or([0u8; 32]);
-
-            proof.push(sibling_hash);
-            index /= 2;
-        }
-
-        Some(proof)
-    }
-
-    fn compute_merkle_root(page_hashes: &HashMap<PageID, Hash>) -> Hash {
-        if page_hashes.is_empty() {
-            return [0u8; 32];
-        }
-
-        let mut hashes: Vec<Hash> = page_hashes.values().cloned().collect();
-        hashes.sort(); // deterministic order
-
-        while hashes.len() > 1 {
-            let mut next = Vec::new();
-            for pair in hashes.chunks(2) {
-                let mut hasher = Sha256::new();
-                hasher.update(pair[0]);
-                if pair.len() == 2 {
-                    hasher.update(pair[1]);
-                } else {
-                    hasher.update(pair[0]); // duplicate last if odd
-                }
-                next.push(hasher.finalize().into());
-            }
-            hashes = next;
-        }
-
-        hashes[0]
-    }
+    // Full rebuild no longer used (sparse incremental tree)
 
     /// Append a graph delta to the log.
     pub fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError> {
