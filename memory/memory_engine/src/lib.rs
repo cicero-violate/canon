@@ -1,5 +1,5 @@
 // mmsb-memory - Domain-separated MMSB architecture
-#![allow(dead_code)]
+// #![allow(dead_code)]
 #![allow(hidden_glob_reexports)]
 
 pub mod memory_engine;
