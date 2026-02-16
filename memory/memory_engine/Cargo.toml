@@ -24,5 +24,4 @@ cuda = ["cuda-sys"]
 [dev-dependencies]
 rand = "0.8"
 
-[package]
-build = "build.rs"
+
