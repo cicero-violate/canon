@@ -12,7 +12,7 @@
 //! - Recovery is performed exclusively via replay
 
 use crate::delta::Delta;
-use crate::memory_engine::CanonicalState;
+use crate::canonical_state::CanonicalState;
 use crate::primitives::Hash;
 use crate::proofs::AdmissionProof;
 use parking_lot::RwLock;
