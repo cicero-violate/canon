@@ -1,5 +1,5 @@
 use crate::delta::Delta;
-use crate::memory_engine::CanonicalState;
+use crate::canonical_state::CanonicalState;
 use crate::page::Page;
 use crate::page::{DeltaAppliable, PageAccess};
 use crate::tlog::TlogManager;
