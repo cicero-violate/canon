@@ -30,7 +30,7 @@ pub struct CanonicalIr {
     pub meta: CanonicalMeta,
     pub version_contract: VersionContract,
     pub project: Project,
-    // pub modules: Vec<Module>,
+    pub modules: Vec<Module>,
     pub module_edges: Vec<ModuleEdge>,
     pub structs: Vec<Struct>,
     #[serde(default)]
