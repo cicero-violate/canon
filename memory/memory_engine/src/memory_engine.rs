@@ -147,7 +147,7 @@ impl CanonicalState {
         self.dirty_leaves.push(leaf);
     }
 
-    /// Batched bottom-up rebuild (vectorizable structure)
+     /// Batched bottom-up rebuild (vectorizable structure)
      fn rehash_dirty_levels(&mut self) {
          if self.dirty_leaves.is_empty() {
              return;
@@ -171,7 +171,6 @@ impl CanonicalState {
 
          // Step 2: climb levels incrementally
          while !current_level.is_empty() {
-             // Compute parent indices
              let mut parents: Vec<usize> = current_level
                  .iter()
                  .map(|idx| idx / 2)
@@ -181,27 +180,26 @@ impl CanonicalState {
              parents.sort_unstable();
              parents.dedup();
 
-             // Snapshot child layer (read-only for parallel phase)
-             let snapshot = self.merkle_nodes.clone();
+             // Immutable snapshot slice (no clone)
+             let snapshot: &[Hash] = &self.merkle_nodes;
 
-             // Compute parent hashes in parallel (pure computation)
-             let parent_hashes: Vec<(usize, Hash)> =
-                 parents
-                     .par_iter()
-                     .map(|&parent| {
-                         let left = parent * 2;
-                         let right = left + 1;
+             // Compute parent hashes in parallel into temp buffer
+             let parent_hashes: Vec<(usize, Hash)> = parents
+                 .par_iter()
+                 .map(|&parent| {
+                     let left = parent * 2;
+                     let right = left + 1;
 
-                         let mut hasher = Sha256::new();
-                         hasher.update(DOMAIN_INTERNAL);
-                         hasher.update(snapshot[left]);
-                         hasher.update(snapshot[right]);
+                     let mut hasher = Sha256::new();
+                     hasher.update(DOMAIN_INTERNAL);
+                     hasher.update(snapshot[left]);
+                     hasher.update(snapshot[right]);
 
-                         (parent, hasher.finalize().into())
-                     })
-                     .collect();
+                     (parent, hasher.finalize().into())
+                 })
+                 .collect();
 
-             // Sequential write-back (no aliasing issues)
+             // Sequential write-back (safe, no aliasing)
              for (parent, hash) in parent_hashes {
                  self.merkle_nodes[parent] = hash;
              }
