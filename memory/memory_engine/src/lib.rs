@@ -15,8 +15,10 @@ pub mod tlog;
 pub mod proofs;
 pub mod page_store;
 pub mod journal;
+pub mod engine;
 
-pub mod memory_engine;
+
+pub use engine::Engine;
 pub use canonical_state::CanonicalState;
 
 pub use memory_engine::{
