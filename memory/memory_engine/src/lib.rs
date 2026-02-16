@@ -23,6 +23,4 @@ pub use memory_engine::{
 };
 
 // expose proof types needed by canon
-// pub use crate::proofs::JudgmentProof;
-// pub use primitives::Hash;
 pub use proofs::{JudgmentProof, AdmissionProof, CommitProof, OutcomeProof};
