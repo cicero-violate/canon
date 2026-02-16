@@ -52,6 +52,7 @@ pub struct CanonicalState {
     dirty_leaves: Vec<u64>,
 }
 
+
 #[derive(Debug)]
 pub struct StateSlice {
     pub root_hash: String,
@@ -277,6 +278,34 @@ impl CanonicalState {
     /// Debug integrity check.
     pub fn verify_internal_consistency(&self) -> bool {
         self.root_hash == self.recompute_root_from_nodes()
+    }
+
+    /// Deterministic full rebuild of the Merkle tree.
+    /// This ignores dirty tracking and recomputes everything bottom-up.
+    /// Used for correctness verification and property testing.
+    pub fn full_recompute_root(&self) -> Hash {
+        let mut nodes = vec![[0u8; 32]; self.merkle_nodes.len()];
+
+        // Insert leaves
+        for (page_id, hash) in &self.page_hashes {
+            let idx = (self.tree_size + page_id.0) as usize;
+            nodes[idx] = *hash;
+        }
+
+        // Recompute internal nodes bottom-up
+        for i in (1..self.tree_size as usize).rev() {
+            let left = i * 2;
+            let right = left + 1;
+
+            let mut hasher = Sha256::new();
+            hasher.update(DOMAIN_INTERNAL);
+            hasher.update(nodes[left]);
+            hasher.update(nodes[right]);
+
+            nodes[i] = hasher.finalize().into();
+        }
+
+        nodes[1]
     }
 
     /// Generate Merkle inclusion proof for a page.
