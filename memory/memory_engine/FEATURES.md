@@ -1,80 +1,63 @@
-# memory_engine – Feature Matrix (Accurate)
+1️⃣ Canonical State & Merkle Layer
+| Feature                              | Status | Category     | Pure GPU Implementation              | Lose / Gain                    |
+| ------------------------------------ | ------ | ------------ | -----------------------------------  | -----------------------------  |
+| Page-based canonical state           | ✅     | Core         | ❌ Hard (GPU memory paging required) | ❌ Likely lose flexibility     |
+| Flat array Merkle tree (`Vec<Hash>`) | ✅     | Core         | ⚠️ Needs device memory layout         | ➖ Neutral                     |
+| Deterministic root hash              | ✅     | Core         | ✅ Yes                               | ➕ Gain performance            |
+| Domain-separated hashing             | ✅     | Core         | ✅ Yes                               | ➖ Neutral                     |
+| Incremental bubbling update          | ✅     | Core         | ⚠️ Hard (branch divergence)           | ❌ Likely lose simplicity      |
+| Full tree recompute                  | ✅     | Core         | ✅ Ideal for GPU                     | ➕ Major gain                  |
+| Dirty leaf batching                  | ✅     | Optimization | ❌ CPU concept                       | ❌ Lose                        |
+| Parallel parent hashing (Rayon)      | ✅     | Optimization | ❌ Replaced by GPU grid              | ➕ Gain scale                  |
+| Deterministic full recompute check   | ✅     | Safety       | ✅ Yes                               | ➖ Neutral                     |
+| Inclusion proofs                     | ✅     | Core         | ⚠️ Possible but inefficient           | ❌ Likely lose                 |
+| Stateless proof verification         | ✅     | Core         | ⚠️ Possible                           | ➖ Neutral                     |
+| O(log n) update                      | ✅     | Optimization | ❌ No (GPU prefers full rebuild)     | ❌ Lose incremental efficiency |
 
----
+2️⃣ Hashing Backend
+| Feature                             | Status | Category      | Pure GPU Implementation | Lose / Gain         |
+| ----------------------------------- | ------ | ------------- | ----------------------- | ------------------  |
+| CPU SHA256                          | ✅     | Legacy        | ❌ Removed              | ➖ Neutral          |
+| GPU SHA256                          | ✅     | Upgrade       | ✅ Native               | ➕ Massive gain     |
+| Backend abstraction (`HashBackend`) | ✅     | Architecture  | ❌ Not needed           | ❌ Lose abstraction |
+| CPU/GPU hybrid                      | ✅     | Upgrade       | ❌ Not applicable       | ➖ Neutral          |
+| GPU batched Merkle rebuild          | ✅     | Upgrade       | ✅ Native               | ➕ Massive gain     |
+| CUDA feature flag                   | ✅     | Compatibility | ❌ Remove               | ➖ Simpler build    |
 
-## State Model
+3️⃣ Storage Layer
+| Feature                         | Status | Category       | Pure GPU Implementation     | Lose / Gain               |
+| ------------------------------- | ------ | -------------- | --------------------------  | ------------------------  |
+| In-memory PageStore             | ✅     | Core           | ❌ CPU-side only            | ➖ Neutral                |
+| mmap PageStore                  | ✅     | Persistence    | ❌ CPU only                 | ➖ Neutral                |
+| Flush-on-commit                 | ✅     | Durability     | ❌ GPU not involved         | ➖ Neutral                |
+| Zero-copy leaf hashing          | ✅     | Optimization   | ❌ GPU needs copy to device | ❌ Lose                   |
+| Delta apply with scratch buffer | ⚠️      | Technical debt | ❌ GPU rewrite needed       | ➕ Opportunity to improve |
 
-| Feature                      | Status | Notes                                      |
-|------------------------------+--------+--------------------------------------------|
-| Page-based canonical state   | ✅     | Logical pages, mutable via deltas          |
-| Flat array Merkle tree       | ✅     | Full binary tree stored in `Vec<Hash>`     |
-| Deterministic root hash      | ✅     | Root stored at index `1`                   |
-| Configurable capacity        | ✅     | `with_capacity(max_leaves)`                |
-| Auto-resize + full rebuild   | ✅     | Grows via `next_power_of_two`              |
-| Domain-separated hashing     | ✅     | LEAF / NODE / DELTA / EVENT prefixes       |
-| Incremental leaf updates     | ✅     | Dirty leaf tracking + bubbling             |
-| Batched rehash (dirty set)   | ✅     | Deduped dirty leaves per update cycle      |
-| Parallel level hashing       | ✅     | Rayon used during parent layer computation |
-| Deterministic full recompute | ✅     | `full_recompute_root()`                    |
-| Merkle inclusion proofs      | ✅     | Proof path generation                      |
-| Stateless proof verification | ✅     | External verification API                  |
-| Internal consistency check   | ✅     | Root compared to recomputed tree           |
-| O(log n) update complexity   | ✅     | Per delta after leaf insertion             |
+4️⃣ Engine Layer (Public API Boundary)
+| Feature                 | Status | Category          | Pure GPU Implementation     | Lose / Gain |
+| ----------------------- | ------ | ----------------- | --------------------------  | ----------- |
+| `Engine` trait boundary | ✅     | Core Architecture | ✅ Still valid              | ➖ Neutral  |
+| Admission logic         | ✅     | Core              | ❌ CPU                      | ➖ Neutral  |
+| Delta registry          | ✅     | Core              | ❌ CPU                      | ➖ Neutral  |
+| Commit delta            | ✅     | Core              | ⚠️ State mutation CPU        | ➖ Neutral  |
+| Commit batch            | ✅     | Core              | ✅ GPU-backed state rebuild | ➕ Gain     |
+| Event hash computation  | ✅     | Core              | ❌ CPU fine                 | ➖ Neutral  |
+| Graph delta log         | ✅     | Core              | ❌ CPU                      | ➖ Neutral  |
 
----
+5️⃣ Logging & Persistence
+| Feature                     | Status | Category   | Pure GPU Implementation | Lose / Gain      |
+| --------------------------- | ------ | ---------- | ----------------------- | ---------------  |
+| Append-only transaction log | ✅     | Core       | ❌ CPU only             | ➖ Neutral       |
+| Replay verification         | ✅     | Core       | ⚠️ GPU rebuild root      | ➕ Faster replay |
+| Graph delta log             | ✅     | Core       | ❌ CPU                  | ➖ Neutral       |
+| Journal recovery            | ⚠️      | Incomplete | ❌ GPU irrelevant       | ➖ Neutral       |
 
-## Storage Layer
-
-| Feature                     | Status | Notes                                                                  |
-|-----------------------------+--------+------------------------------------------------------------------------|
-| In-memory PageStore         | ✅     | Default backend                                                        |
-| Memory-mapped PageStore     | ✅     | `memmap2` backend                                                      |
-| Automatic in-memory growth  | ✅     | `Vec` resize fallback                                                  |
-| mmap bounds guard           | ✅     | Assert on overflow                                                     |
-| Flush on commit             | ✅     | Ensures mmap durability                                                |
-| Zero-copy hashing           | ✅     | Leaf hash reads directly from `PageStore::read_page()` slice           |
-| Zero-allocation delta apply | ❌     | Current delta apply uses `read_page(...).to_vec()` as a scratch buffer |
-
----
-
-## Logging
-
-| Feature                     | Status | Notes                                    |
-|-----------------------------+--------+------------------------------------------|
-| Append-only transaction log | ✅     | Durable delta commits                    |
-| Tlog replay (manager path)  | ✅     | Root verified during replay              |
-| Graph delta log             | ✅     | Append-only graph layer                  |
-| Journal structure           | ⚠️      | Present but not integrated with recovery |
-| Crash recovery guarantees   | ⚠️      | Partial; relies on replay correctness    |
-
----
-
-## Performance Characteristics
-
-| Feature                       | Status | Notes                                |
-|-------------------------------+--------+--------------------------------------|
-| Flat contiguous Merkle layout | ✅     | Cache-friendly                       |
-| Batched dirty rehash          | ✅     | Multiple leaf updates deduped        |
-| Parallel parent hashing       | ✅     | Level-isolated mutation              |
-| Parallel commit batch         | ❌     | Current implementation is sequential |
-| GPU-ready structure           | ❌     | No GPU implementation present        |
-
----
-
-## What Is Not Implemented
-
-- Zero-allocation delta application (scratch buffer still allocated per apply)
-- Parallel delta commit execution
-- GPU compute path
-- Journal-backed recovery
-- Crash-consistent multi-layer durability protocol
-
----
-
-## What Is Architecturally Solid
-
-- Deterministic Merkle model
-- Domain separation discipline
-- Incremental + full recompute equivalence
-- Clean proof object layering
-- Append-only log design
+6️⃣ Performance Model
+| Feature                       | Status | Category         | Pure GPU Implementation | Lose / Gain              |
+| ----------------------------- | ------ | ---------------- | ----------------------- | -----------------------  |
+| Flat contiguous layout        | ✅     | Core             | ✅ Required             | ➕ Essential             |
+| Batched delta commit          | ❌     | Missing          | ✅ Ideal for GPU        | ➕ Major upgrade         |
+| Incremental updates           | ✅     | CPU optimization | ❌ Remove               | ❌ Lose micro-efficiency |
+| Full tree rebuild             | ✅     | Core             | ✅ Primary mode         | ➕ Major gain            |
+| Massive parallel hashing      | ✅     | Upgrade          | ✅ Native               | ➕ Massive gain          |
+| Deterministic reproducibility | ✅     | Core             | ✅ Yes                  | ➖ Neutral               |
