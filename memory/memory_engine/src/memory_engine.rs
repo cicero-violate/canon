@@ -89,15 +89,13 @@ pub enum CommitError {
 // ===============================
 // Engine
 // ===============================
-
 pub struct MemoryEngine {
-    tlog: Arc<TransactionLog>,
-    graph_log: Arc<GraphDeltaLog>,
-    epoch: Arc<EpochCell>,
-
-    admitted: RwLock<HashSet<Hash>>,
-    deltas: RwLock<HashMap<Hash, Delta>>,
-    state: Arc<RwLock<CanonicalState>>,
+    pub(crate) tlog: Arc<TransactionLog>,
+    pub(crate) graph_log: Arc<GraphDeltaLog>,
+    pub(crate) epoch: Arc<EpochCell>,
+    pub(crate) admitted: RwLock<HashSet<Hash>>,
+    pub(crate) deltas: RwLock<HashMap<Hash, Delta>>,
+    pub(crate) state: Arc<RwLock<CanonicalState>>,
 }
 
 impl MemoryEngine {
