@@ -4,13 +4,13 @@ use rustc_lint::{LateContext, LateLintPass};
 use serde_json;
 
 use crate::classify::classify_item;
-use crate::law::{FILE_TOO_LONG, enforce_file_length, reset_cache};
+use crate::law::{DEAD_INTEGRATION, FILE_TOO_LONG, enforce_dead_integration, enforce_file_length, reset_cache};
 use crate::policy::API_TRAITS_ONLY;
 use crate::signal::{LINT_SIGNALS, LintSignal};
 
 use rustc_session::declare_lint_pass;
 
-declare_lint_pass!(ApiTraitsOnly => [API_TRAITS_ONLY, FILE_TOO_LONG]);
+declare_lint_pass!(ApiTraitsOnly => [API_TRAITS_ONLY, FILE_TOO_LONG, DEAD_INTEGRATION]);
 
 impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
     fn check_crate(&mut self, _: &LateContext<'tcx>) {
@@ -19,6 +19,7 @@ impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
 
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         enforce_file_length(cx, item.span);
+        enforce_dead_integration(cx, item);
         // Only public items
         let vis = cx.tcx.visibility(item.owner_id.def_id);
         if !vis.is_public() {
