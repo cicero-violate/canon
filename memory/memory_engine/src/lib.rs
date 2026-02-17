@@ -11,7 +11,6 @@ mod memory_engine;
 mod engine_commit;
 mod page_store;
 mod page;
-mod tlog;
 
 // ===== Public domain modules =====
 
