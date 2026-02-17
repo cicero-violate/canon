@@ -1,13 +1,12 @@
 
 use std::ptr::null_mut;
+use core::ffi::c_void;
+#[cfg(feature = "cuda")]
+use crate::hash::cuda_ffi::*;
 
 const PAGE_SIZE: usize = 4096;
 
-#[cfg(feature = "cuda")]
-extern "C" {
-    fn cudaMallocManaged(ptr: *mut *mut u8, size: usize, flags: u32) -> i32;
-    fn cudaFree(ptr: *mut u8) -> i32;
-}
+// CUDA FFI centralized in hash::cuda_ffi
 
 #[derive(Debug)]
 pub struct PageStore {
@@ -26,26 +25,20 @@ impl PageStore {
 
         #[cfg(feature = "cuda")]
         unsafe {
-            let mut ptr: *mut u8 = null_mut();
-            let err = cudaMallocManaged(&mut ptr as *mut *mut u8, capacity, 1);
-
-            if err == 0 {
-                std::ptr::write_bytes(ptr, 0, capacity);
+            let mut raw: *mut c_void = null_mut();
+            let err = cudaMallocManaged(&mut raw as *mut *mut c_void, capacity, 0);
+            if err == 0 && !raw.is_null() {
+                let ptr = raw as *mut u8;
+                core::ptr::write_bytes(ptr, 0, capacity);
                 return Self { ptr, capacity };
             }
         }
 
-        #[cfg(not(feature = "cuda"))]
-        {
-        }
-
-        // Fallback heap allocation if CUDA unavailable
-        {
-            let mut vec = vec![0u8; capacity];
-            let ptr = vec.as_mut_ptr();
-            std::mem::forget(vec);
-            return Self { ptr, capacity };
-        }
+        // Deterministic heap fallback when CUDA runtime unavailable
+        let mut vec = vec![0u8; capacity];
+        let ptr = vec.as_mut_ptr();
+        core::mem::forget(vec);
+        Self { ptr, capacity }
     }
 
     pub fn write_page(&mut self, page_id: u64, data: &[u8]) {
@@ -77,12 +70,27 @@ impl PageStore {
 
     fn grow(&mut self, required: usize) {
         let new_capacity = required.next_power_of_two();
+        #[cfg(feature = "cuda")]
+        unsafe {
+            let mut raw: *mut c_void = null_mut();
+            let err = cudaMallocManaged(&mut raw as *mut *mut c_void, new_capacity, 0);
+            if err == 0 && !raw.is_null() {
+                let new_ptr = raw as *mut u8;
+                core::ptr::copy_nonoverlapping(self.ptr, new_ptr, self.capacity);
+                cudaFree(self.ptr as *mut c_void);
+                self.ptr = new_ptr;
+                self.capacity = new_capacity;
+                return;
+            }
+        }
+
+        // Heap fallback grow
         let mut vec = vec![0u8; new_capacity];
         unsafe {
-            std::ptr::copy_nonoverlapping(self.ptr, vec.as_mut_ptr(), self.capacity);
+            core::ptr::copy_nonoverlapping(self.ptr, vec.as_mut_ptr(), self.capacity);
         }
         let new_ptr = vec.as_mut_ptr();
-        std::mem::forget(vec);
+        core::mem::forget(vec);
         self.ptr = new_ptr;
         self.capacity = new_capacity;
     }
@@ -91,8 +99,6 @@ impl PageStore {
 impl Drop for PageStore {
     fn drop(&mut self) {
         #[cfg(feature = "cuda")]
-        unsafe {
-            cudaFree(self.ptr);
-        }
+        unsafe { cudaFree(self.ptr as *mut c_void); }
     }
 }

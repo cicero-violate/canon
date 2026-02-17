@@ -10,3 +10,4 @@ pub trait HashBackend: Send + Sync {
 }
 
 pub mod gpu;
+pub mod cuda_ffi;
