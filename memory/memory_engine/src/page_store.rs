@@ -68,6 +68,10 @@ impl PageStore {
         self.ptr as *const u8
     }
 
+    pub fn capacity_bytes(&self) -> usize {
+        self.capacity
+    }
+
     fn grow(&mut self, required: usize) {
         let new_capacity = required.next_power_of_two();
         #[cfg(feature = "cuda")]

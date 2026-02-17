@@ -119,6 +119,14 @@ impl MemoryEngine {
         })
     }
 
+    pub fn checkpoint<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> std::io::Result<()> {
+        let state = self.state.read();
+        state.checkpoint(path)
+    }
+
     // ===============================
     // Admission
     // ===============================

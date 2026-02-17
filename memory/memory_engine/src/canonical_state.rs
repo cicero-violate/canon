@@ -4,6 +4,8 @@ use crate::{
     page_store::PageStore,
     primitives::Hash,
 };
+use std::io::{Read, Write};
+use std::path::Path;
 use crate::hash::HashBackend;
 
 pub struct CanonicalState {
@@ -124,6 +126,64 @@ impl CanonicalState {
 
     pub fn root_hash(&self) -> Hash {
         self.root_hash
+    }
+
+    pub fn checkpoint<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path)?;
+
+        file.write_all(&self.tree_size.to_le_bytes())?;
+        file.write_all(&self.root_hash)?;
+
+        let total = self.page_store.capacity_bytes();
+        let slice = unsafe {
+            std::slice::from_raw_parts(
+                self.page_store.as_device_ptr(),
+                total,
+            )
+        };
+        file.write_all(slice)?;
+
+        Ok(())
+    }
+
+    pub fn restore_from_checkpoint<P: AsRef<Path>>(
+        path: P,
+        backend: Box<dyn HashBackend>,
+    ) -> std::io::Result<Self> {
+        let mut file = std::fs::File::open(path)?;
+
+        let mut size_buf = [0u8; 8];
+        file.read_exact(&mut size_buf)?;
+        let tree_size = u64::from_le_bytes(size_buf);
+
+        let mut root = [0u8; 32];
+        file.read_exact(&mut root)?;
+
+        let mut state = Self::with_capacity(tree_size, backend);
+
+        let total = state.page_store.capacity_bytes();
+        let slice = unsafe {
+            std::slice::from_raw_parts_mut(
+                state.page_store.as_device_ptr() as *mut u8,
+                total,
+            )
+        };
+        file.read_exact(slice)?;
+
+        state.backend.rebuild_merkle_tree(
+            unsafe {
+                std::slice::from_raw_parts_mut(
+                    state.device_tree_ptr as *mut Hash,
+                    (state.tree_size * 2) as usize,
+                )
+            },
+            state.tree_size,
+            state.page_store.as_device_ptr(),
+        );
+
+        state.root_hash = root;
+
+        Ok(state)
     }
 
     /// Deterministic full Merkle recompute (CPU validation path).
