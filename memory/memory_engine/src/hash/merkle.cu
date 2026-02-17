@@ -180,50 +180,44 @@ __device__ void sha256_page(
         out[i*4+3] = h[i] & 0xff;
     }
 }
-// ---------------- Multi-level kernel ----------------
+// ---------------- Leaf kernel ----------------
 
 extern "C" __global__
-void hash_leaves_and_rebuild_kernel(
+void hash_leaves_kernel(
     uint8_t* tree,
     uint64_t tree_size,
     const uint8_t* pages
 )
 {
-    uint64_t level_size   = tree_size;
-    uint64_t level_offset = tree_size;
-
-    // Leaf hashing phase
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < tree_size) {
-        const uint8_t* page = &pages[tid * 4096];
-        uint8_t* leaf = &tree[(tree_size + tid) * HASH_SIZE];
-        sha256_page(page, leaf);
-    }
+    if (tid >= tree_size) return;
 
-    __syncthreads();
+    const uint8_t* page = &pages[tid * PAGE_SIZE];
+    uint8_t* leaf = &tree[(tree_size + tid) * HASH_SIZE];
+    sha256_page(page, leaf);
+}
 
-    while (level_size > 1)
-    {
-        uint64_t parent_count = level_size >> 1;
-        uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+// ---------------- Parent reduction kernel ----------------
 
-        if (tid < parent_count)
-        {
-            uint64_t left_index   = level_offset + tid * 2;
-            uint64_t right_index  = left_index + 1;
-            uint64_t parent_index = (level_offset >> 1) + tid;
+extern "C" __global__
+void hash_parents_kernel(
+    uint8_t* tree,
+    uint64_t level_offset,
+    uint64_t parent_count
+)
+{
+    uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid >= parent_count) return;
 
-            uint8_t* left  = &tree[left_index  * HASH_SIZE];
-            uint8_t* right = &tree[right_index * HASH_SIZE];
-            uint8_t* out   = &tree[parent_index * HASH_SIZE];
+    uint64_t left_index   = level_offset + tid * 2;
+    uint64_t right_index  = left_index + 1;
+    uint64_t parent_index = (level_offset >> 1) + tid;
 
-            sha256_internal(left, right, out);
-        }
+    uint8_t* left  = &tree[left_index  * HASH_SIZE];
+    uint8_t* right = &tree[right_index * HASH_SIZE];
+    uint8_t* out   = &tree[parent_index * HASH_SIZE];
 
-        __syncthreads();
-        level_offset >>= 1;
-        level_size   >>= 1;
-    }
+    sha256_internal(left, right, out);
 }
 
 // -------- Proper launch wrapper --------
@@ -237,13 +231,47 @@ void launch_hash_leaves_and_rebuild(
     if (tree_size == 0) return;
 
     const int threads = 256;
-    const int blocks  = (tree_size + threads - 1) / threads;
 
-    hash_leaves_and_rebuild_kernel<<<blocks, threads>>>(
+    cudaStream_t stream_leaf;
+    cudaStream_t stream_reduce;
+    cudaEvent_t  leaf_done;
+
+    cudaStreamCreate(&stream_leaf);
+    cudaStreamCreate(&stream_reduce);
+    cudaEventCreate(&leaf_done);
+
+    int leaf_blocks = (tree_size + threads - 1) / threads;
+
+    hash_leaves_kernel<<<leaf_blocks, threads, 0, stream_leaf>>>(
         tree,
         tree_size,
         pages
     );
 
-    cudaDeviceSynchronize();
+    cudaEventRecord(leaf_done, stream_leaf);
+    cudaStreamWaitEvent(stream_reduce, leaf_done, 0);
+
+    uint64_t level_size   = tree_size;
+    uint64_t level_offset = tree_size;
+
+    while (level_size > 1)
+    {
+        uint64_t parent_count = level_size >> 1;
+        int blocks = (parent_count + threads - 1) / threads;
+
+        hash_parents_kernel<<<blocks, threads, 0, stream_reduce>>>(
+            tree,
+            level_offset,
+            parent_count
+        );
+
+        level_offset >>= 1;
+        level_size   >>= 1;
+    }
+
+    cudaStreamSynchronize(stream_reduce);
+
+    cudaEventDestroy(leaf_done);
+    cudaStreamDestroy(stream_leaf);
+    cudaStreamDestroy(stream_reduce);
 }
