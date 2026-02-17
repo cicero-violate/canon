@@ -1,9 +1,13 @@
+use super::view::PageView;
 use super::{PageError, PageLocation};
 use crate::delta::Delta;
 use crate::epoch::Epoch;
+use crate::primitives::PageID;
 
 /// Read/write access capability
 pub trait PageAccess {
+    fn id(&self) -> PageID;
+    fn size(&self) -> usize;
     fn location(&self) -> PageLocation;
 
     fn epoch(&self) -> Epoch;
@@ -16,4 +20,9 @@ pub trait PageAccess {
 /// Delta mutation capability
 pub trait DeltaAppliable {
     fn apply_delta(&mut self, delta: &Delta) -> Result<(), PageError>;
+}
+
+/// Authority-gated view minting
+pub trait PageViewProvider {
+    fn view(&self) -> PageView;
 }

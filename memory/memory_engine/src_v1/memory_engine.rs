@@ -185,7 +185,8 @@ impl MemoryEngine {
         admission: &AdmissionProof,
         delta_hashes: &[Hash],
     ) -> Result<Vec<CommitProof>, MemoryEngineError> {
-        // Resolve deltas
+        use rayon::prelude::*;
+
         let deltas: Vec<Delta> = delta_hashes
             .iter()
             .map(|h| {
@@ -194,17 +195,16 @@ impl MemoryEngine {
             })
             .collect::<Result<_, _>>()?;
 
-        // Apply all deltas (device writes only)
         {
             let mut state = self.state.write();
             state
                 .apply_deltas_batch(&deltas)
                 .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+            state.page_store.flush().ok();
         }
 
         self.epoch.increment();
 
-        // Persist log
         for delta in &deltas {
             self.tlog
                 .append(admission, delta.clone())
@@ -214,7 +214,7 @@ impl MemoryEngine {
         let root = self.state.read().root_hash();
 
         Ok(delta_hashes
-            .iter()
+            .par_iter()
             .map(|delta_hash| CommitProof {
                 admission_proof_hash: admission.hash(),
                 delta_hash: *delta_hash,

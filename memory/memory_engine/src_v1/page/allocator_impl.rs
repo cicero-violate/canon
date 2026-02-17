@@ -83,4 +83,13 @@ impl PageAllocatorLike for PageAllocator {
         Ok(())
     }
 
+    fn free(&self, id: PageID) {
+        self.pages.lock().remove(&id);
+    }
+
+    fn get(&self, _id: PageID) -> Option<&Page> {
+        // Cannot return reference due to Mutex guard lifetime
+        // Use with_page or with_page_mut instead
+        None
+    }
 }

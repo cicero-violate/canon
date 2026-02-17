@@ -1,0 +1,235 @@
+journal.rs:
+  struct Journal  { file }  (line 5)
+  impl Journal  { fn open(path: &Path) -> std::io::Result<Self>, fn begin(&mut self, tx_id: u64) -> std::io::Result<()>, fn commit(&mut self, tx_id: u64) -> std::io::Result<()>, fn recover(&mut self) -> std::io::Result<Vec<u64>> }  (line 9)
+
+page/page_impl.rs:
+  impl std::fmt::Debug for Page  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 6)
+  struct Page  { id, epoch, data, location }  (line 17)
+  impl Page  { fn new(id: PageID, size: usize, location: PageLocation) -> Result<Self, PageError> }  (line 24)
+  impl PageAccess for Page  { fn id(&self) -> PageID, fn size(&self) -> usize, fn location(&self) -> PageLocation, fn epoch(&self) -> Epoch, fn set_epoch(&self, epoch: Epoch), fn data_slice(&self) -> &[u8], fn data_mut_slice(&mut self) -> &mut [u8] }  (line 39)
+  impl DeltaAppliable for Page  { fn apply_delta(&mut self, delta: &Delta) -> Result<(), PageError> }  (line 66)
+  impl PageViewProvider for Page  { fn view(&self) -> PageView }  (line 91)
+
+page/allocator_impl.rs:
+  struct PageAllocator  { pages, default_location }  (line 7)
+  impl PageAllocator  { fn new(default_location: PageLocation) -> Self, fn from_config(config: PageAllocatorConfig) -> Self, fn with_page(&self, id: PageID, f: F) -> Option<R>, fn with_page_mut(&self, id: PageID, f: F) -> Option<R>, fn snapshot(&self, id: PageID) -> Option<PageSnapshotData>, fn restore(&self, snapshot: &PageSnapshotData) -> Result<(), PageError>, fn snapshot_pages(&self) -> Vec<PageSnapshotData>, fn page_infos(&self) -> Vec<PageSnapshotData> }  (line 12)
+  impl PageAllocatorLike for PageAllocator  { fn allocate(&self, id: PageID, size: usize) -> Result<(), PageError>, fn free(&self, id: PageID), fn get(&self, _id: PageID) -> Option<&Page> }  (line 79)
+
+page/types.rs:
+  enum PageLocation  { Cpu, Gpu, Unified }  (line 5)
+  impl PageLocation  { fn from_tag(tag: i32) -> Result<Self, PageError> }  (line 11)
+  enum PageError  { InvalidSize, InvalidLocation, MaskSizeMismatch, PageIDMismatch, AllocationFailed, MetadataDecode, PageNotFound }  (line 23)
+  struct PageAllocatorConfig  { default_location, initial_capacity }  (line 48)
+  impl Default for PageAllocatorConfig  { fn default() -> Self }  (line 53)
+  struct PageSnapshotData  { page_id, data, location, epoch }  (line 64)
+
+page/allocator_trait.rs:
+  trait PageAllocatorLike  (line 5)
+
+page/traits.rs:
+  trait PageAccess  (line 8)
+  trait DeltaAppliable  (line 21)
+  trait PageViewProvider  (line 26)
+
+page/view.rs:
+  struct PageView  { id, location, data }  (line 5)
+  impl PageView  { fn data_slice(&self) -> &[u8] }  (line 11)
+
+memory_engine.rs:
+  struct MemoryEngineConfig  { tlog_path, graph_log_path }  (line 41)
+  enum MemoryEngineError  { TlogOpen, GraphLogOpen, GraphLogIo, Admission, Commit, DeltaNotFound }  (line 51)
+  enum AdmissionError  { InvalidJudgmentProof, StaleEpoch, AlreadyAdmitted }  (line 72)
+  enum CommitError  { TlogWrite }  (line 84)
+  struct MemoryEngine  { tlog, graph_log, epoch, admitted, deltas, state }  (line 92)
+  impl MemoryEngine  { fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError>, fn admit_execution(
+        &self,
+        judgment_proof: &JudgmentProof,
+    ) -> Result<AdmissionProof, AdmissionError>, fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof, fn register_delta(&self, delta: Delta) -> Hash, fn fetch_delta_by_hash(&self, hash: &Hash) -> Option<Delta>, fn commit_batch(
+        &self,
+        admission: &AdmissionProof,
+        delta_hashes: &[Hash],
+    ) -> Result<Vec<CommitProof>, MemoryEngineError>, fn compute_event_hash(
+        &self,
+        admission: &AdmissionProof,
+        commit: &CommitProof,
+        outcome: &OutcomeProof,
+    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError>, fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError>, fn verify_judgment_proof(&self, proof: &JudgmentProof) -> bool, fn hash_delta(delta: &Delta) -> Hash }  (line 101)
+  impl Engine for MemoryEngine  { fn admit_execution(
+        &self,
+        judgment_proof: &JudgmentProof,
+    ) -> Result<AdmissionProof, Self::Error>, fn register_delta(&self, delta: Delta) -> Hash, fn fetch_delta_by_hash(&self, hash: &Hash) -> Option<Delta>, fn commit_delta(
+        &self,
+        admission: &AdmissionProof,
+        delta_hash: &Hash,
+    ) -> Result<CommitProof, Self::Error>, fn commit_batch(
+        &self,
+        admission: &AdmissionProof,
+        delta_hashes: &[Hash],
+    ) -> Result<Vec<CommitProof>, Self::Error>, fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof, fn compute_event_hash(
+        &self,
+        admission: &AdmissionProof,
+        commit: &CommitProof,
+        outcome: &OutcomeProof,
+    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), Self::Error>, fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> }  (line 289)
+
+graph_log.rs:
+  struct GraphDelta  { payload }  (line 14)
+  struct GraphSnapshot  { payload }  (line 20)
+  enum GraphDeltaError  { Materialization }  (line 26)
+  struct GraphMaterializer  (line 31)
+  impl GraphMaterializer  { fn replay(entries: Vec<GraphDelta>) -> Result<GraphSnapshot, GraphDeltaError> }  (line 33)
+  struct GraphDeltaLog  { entries, writer }  (line 44)
+  impl GraphDeltaLog  { fn new(path: impl Into<PathBuf>) -> std::io::Result<Self>, fn append(&self, delta: GraphDelta) -> std::io::Result<()>, fn entries(&self) -> Vec<GraphDelta>, fn replay_snapshot(&self) -> Result<GraphSnapshot, GraphDeltaError> }  (line 49)
+  fn validate_magic(path: &PathBuf) -> std::io::Result<()>  (line 92)
+  fn load_entries(path: &PathBuf) -> std::io::Result<Vec<GraphDelta>>  (line 105)
+
+canonical_state.rs:
+  struct CanonicalState  { root_hash, page_store, page_hashes, merkle_nodes, max_leaves, tree_size, dirty_leaves, backend }  (line 10)
+  impl CanonicalState  { fn new_empty(backend: Box<dyn HashBackend>) -> Self, fn with_capacity(
+        max_leaves: u64,
+        backend: Box<dyn HashBackend>,
+    ) -> Self, fn apply_delta(
+        &mut self,
+        delta: &crate::delta::Delta,
+    ) -> Result<(), DeltaError>, fn apply_deltas_batch(
+        &mut self,
+        deltas: &[crate::delta::Delta],
+    ) -> Result<(), DeltaError>, fn root_hash(&self) -> Hash, fn full_recompute_root(&self) -> Hash, fn rehash_with_new_capacity(&mut self, required_leaves: u64) }  (line 21)
+
+hash/mod.rs:
+  trait HashBackend  (line 3)
+
+hash/gpu.rs:
+  struct GpuBackend  (line 13)
+  impl HashBackend for GpuBackend  { fn hash_leaf(&self, data: &[u8]) -> Hash, fn hash_internal(&self, left: Hash, right: Hash) -> Hash, fn hash_internal_layer(&self, out: &mut [Hash], children: &[Hash]), fn rebuild_merkle_tree(
+        &self,
+        nodes: &mut [Hash],
+        tree_size: u64,
+        _dirty_leaves: &[u64],
+    ) }  (line 15)
+  fn create_gpu_backend() -> Box<dyn HashBackend>  (line 54)
+
+page_store.rs:
+  struct PageStore  { mmap, in_memory }  (line 8)
+  impl PageStore  { fn open(path: &Path, max_pages: u64) -> std::io::Result<Self>, fn in_memory() -> Self, fn write_page(&mut self, page_id: u64, data: &[u8]), fn read_page(&self, page_id: u64) -> &[u8], fn flush(&mut self) -> std::io::Result<()> }  (line 13)
+
+engine.rs:
+  trait Engine  (line 13)
+
+proofs.rs:
+  struct JudgmentProof  { approved, timestamp, hash }  (line 11)
+  impl JudgmentProof  { fn hash(&self) -> Hash }  (line 17)
+  struct AdmissionProof  { judgment_proof_hash, epoch, nonce }  (line 25)
+  impl AdmissionProof  { fn hash(&self) -> Hash }  (line 31)
+  struct CommitProof  { admission_proof_hash, delta_hash, state_hash }  (line 39)
+  impl CommitProof  { fn hash(&self) -> Hash }  (line 45)
+  struct OutcomeProof  { commit_proof_hash, success }  (line 53)
+  impl OutcomeProof  { fn hash(&self) -> Hash }  (line 58)
+
+delta/delta_types.rs:
+  struct Source  (line 11)
+  enum DeltaError  { SizeMismatch, PageIDMismatch, MaskSizeMismatch }  (line 14)
+
+delta/delta.rs:
+  struct Delta  { delta_id, page_id, epoch, mask, payload, is_sparse, timestamp, source, intent_metadata }  (line 13)
+  impl Delta  { fn new_dense(
+        delta_id: DeltaID,
+        page_id: PageID,
+        epoch: Epoch,
+        data: Vec<u8>,
+        mask: Vec<bool>,
+        source: Source,
+    ) -> Result<Self, DeltaError>, fn new_sparse(
+        delta_id: DeltaID,
+        page_id: PageID,
+        epoch: Epoch,
+        mask: Vec<bool>,
+        payload: Vec<u8>,
+        source: Source,
+    ) -> Result<Self, DeltaError>, fn merge(&self, other: &Delta) -> Result<Delta, DeltaError>, fn to_dense(&self) -> Vec<u8>, fn apply_to(&self, page: &mut Page) -> Result<(), PageError>, fn hash(&self) -> Hash }  (line 25)
+  fn now_ns() -> u64  (line 161)
+
+delta/delta_validation.rs:
+  fn validate_delta(delta: &Delta) -> Result<(), DeltaError>  (line 4)
+
+delta/shell_delta.rs:
+  struct ShellDelta  { shell_id, epoch, command, state_hash }  (line 14)
+  enum ShellDeltaError  { MissingHeader, UnsupportedVersion, Serialization, Delta }  (line 22)
+  impl From<serde_json::Error> for ShellDeltaError  { fn from(err: serde_json::Error) -> Self }  (line 33)
+  impl ShellDelta  { fn new(
+        shell_id: u64,
+        epoch: u64,
+        command: impl Into<String>,
+        state_hash: impl Into<String>,
+    ) -> Self, fn into_delta(
+        &self,
+        delta_id: DeltaID,
+        page_id: PageID,
+        epoch: Epoch,
+    ) -> Result<Delta, ShellDeltaError>, fn try_from_delta(delta: &Delta) -> Result<Option<ShellDelta>, ShellDeltaError>, fn encode_payload(&self) -> Result<Vec<u8>, ShellDeltaError>, fn decode_payload(bytes: &[u8]) -> Result<Option<ShellDelta>, ShellDeltaError> }  (line 39)
+
+engine_commit.rs:
+  impl MemoryEngine  { fn commit_delta(
+        &self,
+        admission: &AdmissionProof,
+        delta_hash: &Hash,
+    ) -> Result<CommitProof, MemoryEngineError> }  (line 10)
+
+tlog/tlog.rs:
+  fn delta_hash(delta: &Delta) -> String  (line 27)
+  struct TransactionLog  { entries, writer, path }  (line 50)
+  struct LogSummary  { total_deltas, total_bytes, last_epoch }  (line 58)
+  impl TransactionLog  { fn new(path: impl Into<PathBuf>) -> std::io::Result<Self>, fn clear_entries(&self), fn append(&self, admission_proof: &AdmissionProof, delta: Delta) -> std::io::Result<()>, fn summary(&self) -> std::io::Result<LogSummary>, fn replay(&self, _start_epoch: u32) -> std::io::Result<Vec<Delta>>, fn current_offset(&self) -> std::io::Result<u64> }  (line 64)
+  struct TlogEntry  { delta, root_hash, proof_hash }  (line 150)
+  struct TlogManager  { path, writer }  (line 157)
+  impl TlogManager  { fn new(path: impl Into<PathBuf>) -> io::Result<Self>, fn append(&self, delta: &Delta, root_hash: Hash, proof_hash: Hash) -> io::Result<()>, fn replay_all(&self, state: &mut CanonicalState) -> io::Result<Option<Hash>>, fn read_entries(&self) -> io::Result<Vec<TlogEntry>> }  (line 162)
+  fn validate_manager_header(path: &Path) -> io::Result<()>  (line 222)
+  fn read_entries_from_path(path: &Path) -> io::Result<Vec<TlogEntry>>  (line 244)
+
+tlog/tlog_replay.rs:
+  fn apply_log(pages: &mut [Page], deltas: &[Delta])  (line 9)
+  fn replay(path: &Path) -> std::io::Result<CanonicalState>  (line 17)
+
+tlog/tlog_serialization.rs:
+  fn read_log(path: impl AsRef<Path>) -> std::io::Result<Vec<Delta>>  (line 8)
+
+tlog/tlog_compression.rs:
+  fn encode_rle(mask: &[bool]) -> Vec<u8>  (line 4)
+  fn bitpack_mask(mask: &[bool]) -> Vec<u8>  (line 28)
+  enum CompressionMode  { None, Rle, Bitpack }  (line 43)
+  struct CompressionStats  { original_size, compressed_size, ratio }  (line 49)
+  fn compress_delta_mask(mask: &[bool], mode: CompressionMode) -> (Vec<u8>, CompressionStats)  (line 55)
+  fn compact(deltas: &[Delta]) -> Vec<Delta>  (line 73)
+
+epoch/gc.rs:
+  struct GCMetrics  { reclaimed_pages, reclaimed_bytes, duration }  (line 5)
+  trait MemoryPressureHandler  (line 12)
+
+epoch/checkpoint.rs:
+  fn write_checkpoint(
+    allocator: &PageAllocator,
+    tlog: &TransactionLog,
+    path: impl AsRef<Path>,
+) -> std::io::Result<()>  (line 12)
+  fn load_checkpoint(
+    allocator: &PageAllocator,
+    _tlog: &TransactionLog,
+    path: impl AsRef<Path>,
+) -> std::io::Result<()>  (line 39)
+
+epoch/epoch_types.rs:
+  struct Epoch  (line 19)
+  impl Epoch  { fn new(value: u32) -> Self }  (line 21)
+  struct EpochCell  { inner }  (line 29)
+  impl EpochCell  { fn new(value: u32) -> Self, fn load(&self) -> Epoch, fn store(&self, value: Epoch), fn increment(&self) -> Epoch }  (line 33)
+
+primitives.rs:
+  type Hash  (line 10)
+  struct PageID  (line 25)
+  struct DeltaID  (line 29)
+  struct Epoch  (line 33)
+  type Timestamp  (line 36)
+  type EventId  (line 39)
+  impl std::fmt::Display for PageID  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 41)
+
+

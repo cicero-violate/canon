@@ -37,6 +37,12 @@ impl Page {
 }
 
 impl PageAccess for Page {
+    fn id(&self) -> PageID {
+        self.id
+    }
+    fn size(&self) -> usize {
+        self.data.len()
+    }
     fn location(&self) -> PageLocation {
         self.location
     }
@@ -79,5 +85,15 @@ impl DeltaAppliable for Page {
 
         self.set_epoch(delta.epoch);
         Ok(())
+    }
+}
+
+impl PageViewProvider for Page {
+    fn view(&self) -> PageView {
+        PageView {
+            id: self.id,
+            location: self.location,
+            data: self.data.clone(),
+        }
     }
 }

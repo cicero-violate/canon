@@ -4,11 +4,12 @@
 
 // ===== Internal modules (private) =====
 
-pub mod canonical_state;
-pub mod hash;
+mod canonical_state;
+mod hash;
 mod memory_engine;
 mod engine_commit;
 mod page_store;
+mod journal;
 mod page;
 mod tlog;
 
@@ -32,9 +33,6 @@ pub use memory_engine::{
     AdmissionError,
     CommitError,
 };
-
-// Re-export CanonicalState for integration tests
-pub use canonical_state::CanonicalState;
 
 // Proof types Canon needs
 pub use proofs::{

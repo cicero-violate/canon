@@ -7,12 +7,12 @@
 | Domain-separated hashing             | ✅     | Core         | ✅ Yes                               | ➖ Neutral                     |
 | Incremental bubbling update          | ✅     | Core         | ⚠️ Hard (branch divergence)           | ❌ Likely lose simplicity      |
 | Full tree recompute                  | ✅     | Core         | ✅ Ideal for GPU                     | ➕ Major gain                  |
-| Dirty leaf batching                  | ✅     | Optimization | ❌ CPU concept                       | ❌ Lose                        |
-| Parallel parent hashing (Rayon)      | ✅     | Optimization | ❌ Replaced by GPU grid              | ➕ Gain scale                  |
+| Dirty leaf batching                  | ⚠️     | Optimization | ⚠️ Present but not fully exploited   | ➖ Partial                     |
+| Parallel parent hashing (Rayon)      | ❌     | Optimization | ❌ Not implemented                   | ➖ N/A                         |
 | Deterministic full recompute check   | ✅     | Safety       | ✅ Yes                               | ➖ Neutral                     |
-| Inclusion proofs                     | ✅     | Core         | ⚠️ Possible but inefficient           | ❌ Likely lose                 |
-| Stateless proof verification         | ✅     | Core         | ⚠️ Possible                           | ➖ Neutral                     |
-| O(log n) update                      | ✅     | Optimization | ❌ No (GPU prefers full rebuild)     | ❌ Lose incremental efficiency |
+| Inclusion proofs                     | ❌     | Core         | ❌ Not implemented                    | ➖ N/A                         |
+| Stateless proof verification         | ❌     | Core         | ❌ Not implemented                    | ➖ N/A                         |
+| O(log n) update                      | ❌     | Optimization | ❌ Not implemented                    | ➖ N/A                         |
 
 2️⃣ Hashing Backend
 | Feature                             | Status | Category      | Pure GPU Implementation | Lose / Gain         |
@@ -28,10 +28,10 @@
 | Feature                         | Status | Category       | Pure GPU Implementation     | Lose / Gain               |
 | ------------------------------- | ------ | -------------- | --------------------------  | ------------------------  |
 | In-memory PageStore             | ✅     | Core           | ❌ CPU-side only            | ➖ Neutral                |
-| mmap PageStore                  | ✅     | Persistence    | ❌ CPU only                 | ➖ Neutral                |
+| mmap PageStore                  | ⚠️     | Persistence    | ⚠️ Struct exists, not wired | ➖ Partial                |
 | Flush-on-commit                 | ✅     | Durability     | ❌ GPU not involved         | ➖ Neutral                |
 | Zero-copy leaf hashing          | ✅     | Optimization   | ❌ GPU needs copy to device | ❌ Lose                   |
-| Delta apply with scratch buffer | ⚠️      | Technical debt | ❌ GPU rewrite needed       | ➕ Opportunity to improve |
+| Delta apply with scratch buffer | ❌     | Technical debt | ❌ Not implemented          | ➖ N/A                    |
 
 4️⃣ Engine Layer (Public API Boundary)
 | Feature                 | Status | Category          | Pure GPU Implementation     | Lose / Gain |
@@ -50,14 +50,14 @@
 | Append-only transaction log | ✅     | Core       | ❌ CPU only             | ➖ Neutral       |
 | Replay verification         | ✅     | Core       | ⚠️ GPU rebuild root      | ➕ Faster replay |
 | Graph delta log             | ✅     | Core       | ❌ CPU                  | ➖ Neutral       |
-| Journal recovery            | ⚠️      | Incomplete | ❌ GPU irrelevant       | ➖ Neutral       |
+| Journal recovery            | ❌     | Incomplete | ❌ Not implemented      | ➖ N/A           |
 
 6️⃣ Performance Model
 | Feature                       | Status | Category         | Pure GPU Implementation | Lose / Gain              |
 | ----------------------------- | ------ | ---------------- | ----------------------- | -----------------------  |
 | Flat contiguous layout        | ✅     | Core             | ✅ Required             | ➕ Essential             |
-| Batched delta commit          | ❌     | Missing          | ✅ Ideal for GPU        | ➕ Major upgrade         |
-| Incremental updates           | ✅     | CPU optimization | ❌ Remove               | ❌ Lose micro-efficiency |
+| Batched delta commit          | ✅     | Core             | ✅ Implemented          | ➕ Major gain            |
+| Incremental updates           | ⚠️     | CPU optimization | ⚠️ Partial (dirty list) | ➖ Partial               |
 | Full tree rebuild             | ✅     | Core             | ✅ Primary mode         | ➕ Major gain            |
 | Massive parallel hashing      | ✅     | Upgrade          | ✅ Native               | ➕ Massive gain          |
 | Deterministic reproducibility | ✅     | Core             | ✅ Yes                  | ➖ Neutral               |
