@@ -19,7 +19,7 @@ proptest = "1"
 cuda-sys = { version = "0.2", optional = true }
 
 [features]
-default=[]
+default=["cuda"]
 cuda = []
 
 [dev-dependencies]
