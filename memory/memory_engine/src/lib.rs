@@ -6,6 +6,7 @@
 
 pub mod canonical_state;
 pub mod hash;
+pub mod persistence;
 mod memory_engine;
 mod engine_commit;
 mod page_store;
