@@ -17,6 +17,7 @@ memmap2 = "0.9"
 proptest = "1"
 # cust = "0.8"
 cuda-sys = { version = "0.2", optional = true }
+bytemuck = { version = "1.14", features = ["derive"] }
 
 [features]
 default=["cuda"]
