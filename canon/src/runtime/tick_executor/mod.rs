@@ -13,7 +13,6 @@ pub use types::{TickExecutionMode, TickExecutionResult};
 use std::collections::{BTreeMap, HashMap};
 use std::time::Instant;
 
-use crate::agent::epoch;
 use crate::ir::{CanonicalIr, TickGraph};
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::FunctionExecutor;
@@ -130,10 +129,6 @@ impl<'a> TickExecutor<'a> {
             planning_depth,
             predicted_deltas,
         );
-
-        // --- Item 4: auto-fire meta-tick at epoch boundaries ---
-        let epoch_count = self.ir.tick_epochs.len();
-        crate::agent::epoch::maybe_fire_meta_tick(self.ir, epoch_count, result.reward, tick_id);
 
         Ok(result)
     }

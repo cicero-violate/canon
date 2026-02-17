@@ -124,11 +124,7 @@ pub fn render_module(
         lines.push(render_trait(t));
     }
 
-    let mut impls: Vec<_> = ir
-        .impls
-        .iter()
-        .filter(|i| i.module == module.id)
-        .collect();
+    let mut impls: Vec<_> = ir.impls.iter().filter(|i| i.module == module.id).collect();
     impls.sort_by_key(|i| i.id.as_str());
     for block in impls {
         lines.push(render_impl(block, struct_map, trait_map, function_map));

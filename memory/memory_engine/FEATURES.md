@@ -30,8 +30,9 @@
 | ------------------------------- | ------- | -------------- | -------------------------- | ------------------------ |
 | Unified managed memory store    | ✅      | Core           | ✅ GPU-visible             | ➕ Zero-copy hashing     |
 | In-memory PageStore             | ✅      | Core           | ⚠️ Fallback alloc only      | ➕ Passes tests          |
-| mmap PageStore                  | ⚠️       | Persistence    | ⚠️ Not wired yet            | ➖ Partial               |
-| Flush-on-commit                 | ❌      | Durability     | ❌ GPU not involved        | ➖ Not implemented       |
+| mmap Write-Ahead Log (WAL)      | ✅      | Persistence    | ❌ CPU-backed              | ➕ Crash-safe root       |
+| Double-buffered root header     | ✅      | Durability     | ❌ CPU-backed              | ➕ Atomic root updates   |
+| Deterministic WAL replay        | ✅      | Durability     | ⚠️ CPU deserialize         | ➕ Verified recovery     |
 | Zero-copy leaf hashing          | ✅      | Optimization   | ✅ Direct device pointer   | ➕ Major gain            |
 | GPU-side capacity growth        | ✅      | Upgrade        | ⚠️ Partial                  | ➕ Removes hard cap      |
 
@@ -50,10 +51,11 @@
 5️⃣ Logging & Persistence
 | Feature                     | Status | Category   | Pure GPU Implementation | Lose / Gain      |
 | --------------------------- | ------ | ---------- | ----------------------- | ---------------- |
-| Append-only transaction log | ✅     | Core       | ❌ CPU only             | ➖ Neutral       |
-| Replay verification         | ⚠️      | Core       | ⚠️ CPU hash              | ➕ Faster replay |
+| mmap WAL (append-only)      | ✅     | Core       | ❌ CPU                  | ➕ Deterministic |
+| Crash-safe fsync discipline | ✅     | Core       | ❌ CPU                  | ➕ Durability    |
+| Replay verification         | ✅     | Core       | ⚠️ CPU deserialize + GPU rebuild | ➕ Strong safety |
 | Graph delta log             | ✅     | Core       | ❌ CPU                  | ➖ Neutral       |
-| Journal recovery            | ❌     | Incomplete | ❌ Not implemented      | ➖ N/A           |
+| Journal recovery            | ✅     | Core       | ⚠️ Hybrid               | ➕ Root-validated |
 
 6️⃣ Performance Model
 | Feature                       | Status | Category         | Pure GPU Implementation | Lose / Gain             |
@@ -64,3 +66,4 @@
 | Full tree rebuild             | ✅     | Core             | ✅ Primary mode         | ➕ Major gain           |
 | Massive parallel hashing      | ✅     | Upgrade          | ✅ Native               | ➕ Massive gain         |
 | Deterministic reproducibility | ✅     | Core             | ✅ Yes                  | ➖ Neutral              |
+| Single-rebuild replay model   | ✅     | Core             | ✅ GPU rebuild once     | ➕ Predictable recovery |

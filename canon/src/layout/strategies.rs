@@ -339,7 +339,11 @@ impl LayoutStrategy for FlatNodeLayoutStrategy {
 
             for structure in structs {
                 let slug = slugify(structure.name.as_str());
-                let file_id = format!("file.{}.struct.{}", sanitize_module(module.id.as_str()), slug);
+                let file_id = format!(
+                    "file.{}.struct.{}",
+                    sanitize_module(module.id.as_str()),
+                    slug
+                );
                 files.push(LayoutFile {
                     id: file_id.clone(),
                     path: format!("struct_{}.rs", slug),
@@ -387,7 +391,11 @@ impl LayoutStrategy for FlatNodeLayoutStrategy {
 
             for tr in traits {
                 let slug = slugify(tr.name.as_str());
-                let file_id = format!("file.{}.trait.{}", sanitize_module(module.id.as_str()), slug);
+                let file_id = format!(
+                    "file.{}.trait.{}",
+                    sanitize_module(module.id.as_str()),
+                    slug
+                );
                 files.push(LayoutFile {
                     id: file_id.clone(),
                     path: format!("trait_{}.rs", slug),
@@ -494,8 +502,8 @@ fn normalize_layout_graph(mut graph: LayoutGraph) -> LayoutGraph {
     for module in &mut graph.modules {
         module.files.sort_by(|a, b| a.id.cmp(&b.id));
     }
-    graph.routing.sort_by(|a, b| {
-        format!("{:?}", a.node).cmp(&format!("{:?}", b.node))
-    });
+    graph
+        .routing
+        .sort_by(|a, b| format!("{:?}", a.node).cmp(&format!("{:?}", b.node)));
     graph
 }

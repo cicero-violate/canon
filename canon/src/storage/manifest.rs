@@ -1,0 +1,115 @@
+use serde::{Deserialize, Serialize};
+
+use crate::ir::CanonicalIr;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManifestEntry {
+    pub id: String,
+    pub slot: u64,
+}
+
+impl ManifestEntry {
+    fn new(id: String, slot: u64) -> Self {
+        Self { id, slot }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArtifactManifest {
+    pub modules: Vec<ManifestEntry>,
+    pub structs: Vec<ManifestEntry>,
+    pub enums: Vec<ManifestEntry>,
+    pub traits: Vec<ManifestEntry>,
+    pub impls: Vec<ManifestEntry>,
+    pub functions: Vec<ManifestEntry>,
+    pub module_edges: Vec<ManifestEntry>,
+    pub call_edges: Vec<ManifestEntry>,
+    pub ticks: Vec<ManifestEntry>,
+    pub tick_graphs: Vec<ManifestEntry>,
+    pub system_graphs: Vec<ManifestEntry>,
+    pub loop_policies: Vec<ManifestEntry>,
+    pub tick_epochs: Vec<ManifestEntry>,
+    pub policies: Vec<ManifestEntry>,
+    pub plans: Vec<ManifestEntry>,
+    pub executions: Vec<ManifestEntry>,
+    pub admissions: Vec<ManifestEntry>,
+    pub applied_deltas: Vec<ManifestEntry>,
+    pub gpu_functions: Vec<ManifestEntry>,
+    pub proposals: Vec<ManifestEntry>,
+    pub judgments: Vec<ManifestEntry>,
+    pub judgment_predicates: Vec<ManifestEntry>,
+    pub delta_defs: Vec<ManifestEntry>,
+    pub proofs: Vec<ManifestEntry>,
+    pub learnings: Vec<ManifestEntry>,
+    pub errors: Vec<ManifestEntry>,
+    pub dependencies: Vec<ManifestEntry>,
+    pub file_hashes: Vec<ManifestEntry>,
+    pub rewards: Vec<ManifestEntry>,
+    pub goal_mutations: Vec<ManifestEntry>,
+}
+
+impl ArtifactManifest {
+    pub fn from_ir(ir: &CanonicalIr) -> Self {
+        Self {
+            modules: assign_slots(ir.modules.iter().map(|m| m.id.clone())),
+            structs: assign_slots(ir.structs.iter().map(|s| s.id.clone())),
+            enums: assign_slots(ir.enums.iter().map(|e| e.id.clone())),
+            traits: assign_slots(ir.traits.iter().map(|t| t.id.clone())),
+            impls: assign_slots(ir.impls.iter().map(|i| i.id.clone())),
+            functions: assign_slots(ir.functions.iter().map(|f| f.id.clone())),
+            module_edges: assign_slots(
+                ir.module_edges
+                    .iter()
+                    .map(|edge| format!("edge.module.{}->{}", edge.source, edge.target)),
+            ),
+            call_edges: assign_slots(
+                ir.call_edges
+                    .iter()
+                    .map(|edge| format!("edge.call.{}->{}", edge.caller, edge.callee)),
+            ),
+            ticks: assign_slots(ir.ticks.iter().map(|t| t.id.clone())),
+            tick_graphs: assign_slots(ir.tick_graphs.iter().map(|g| g.id.clone())),
+            system_graphs: assign_slots(ir.system_graphs.iter().map(|g| g.id.clone())),
+            loop_policies: assign_slots(ir.loop_policies.iter().map(|p| p.id.clone())),
+            tick_epochs: assign_slots(ir.tick_epochs.iter().map(|e| e.id.clone())),
+            policies: assign_slots(ir.policy_parameters.iter().map(|p| p.id.clone())),
+            plans: assign_slots(ir.plans.iter().map(|p| p.id.clone())),
+            executions: assign_slots(ir.executions.iter().map(|e| e.id.clone())),
+            admissions: assign_slots(ir.admissions.iter().map(|a| a.id.clone())),
+            applied_deltas: assign_slots(ir.applied_deltas.iter().map(|d| d.id.clone())),
+            gpu_functions: assign_slots(ir.gpu_functions.iter().map(|g| g.id.clone())),
+            proposals: assign_slots(ir.proposals.iter().map(|p| p.id.clone())),
+            judgments: assign_slots(ir.judgments.iter().map(|j| j.id.clone())),
+            judgment_predicates: assign_slots(ir.judgment_predicates.iter().map(|p| p.id.clone())),
+            delta_defs: assign_slots(ir.deltas.iter().map(|d| d.id.clone())),
+            proofs: assign_slots(ir.proofs.iter().map(|p| p.id.clone())),
+            learnings: assign_slots(ir.learning.iter().map(|l| l.id.clone())),
+            errors: assign_slots(ir.errors.iter().map(|e| e.id.clone())),
+            dependencies: assign_slots(
+                ir.dependencies
+                    .iter()
+                    .map(|d| format!("dependency::{}", d.name)),
+            ),
+            file_hashes: assign_slots(
+                ir.file_hashes
+                    .keys()
+                    .cloned()
+                    .map(|path| format!("filehash::{path}")),
+            ),
+            rewards: assign_slots(ir.reward_deltas.iter().map(|r| r.id.clone())),
+            goal_mutations: assign_slots(ir.goal_mutations.iter().map(|g| g.id.clone())),
+        }
+    }
+}
+
+fn assign_slots<I>(ids: I) -> Vec<ManifestEntry>
+where
+    I: IntoIterator<Item = String>,
+{
+    ids.into_iter()
+        .enumerate()
+        .map(|(slot, id)| ManifestEntry::new(id, slot as u64))
+        .collect()
+}

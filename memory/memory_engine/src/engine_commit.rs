@@ -1,8 +1,8 @@
 use crate::{
-    memory_engine::{MemoryEngineError, CommitError},
-    proofs::{AdmissionProof, CommitProof},
-    primitives::Hash,
     delta::DeltaError,
+    memory_engine::{CommitError, MemoryEngineError},
+    primitives::Hash,
+    proofs::{AdmissionProof, CommitProof},
 };
 
 use crate::memory_engine::MemoryEngine;
@@ -21,18 +21,17 @@ impl MemoryEngine {
             .write()
             .apply_delta(&delta)
             .map_err(|err: DeltaError| {
-                MemoryEngineError::Commit(CommitError::TlogWrite(
-                    std::io::Error::new(std::io::ErrorKind::Other, err.to_string()),
-                ))
+                MemoryEngineError::Commit(CommitError::TlogWrite(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    err.to_string(),
+                )))
             })?;
 
         self.state.write().page_store.flush().ok();
 
         self.epoch.increment();
 
-        self.tlog
-            .append(admission, delta.clone())
-            .map_err(CommitError::TlogWrite)?;
+        // TransactionLog removed. WAL handled directly in MemoryEngine.
 
         Ok(CommitProof {
             admission_proof_hash: admission.hash(),

@@ -1,19 +1,14 @@
-journal.rs:
-  struct Journal  { file }  (line 5)
-  impl Journal  { fn open(path: &Path) -> std::io::Result<Self>, fn begin(&mut self, tx_id: u64) -> std::io::Result<()>, fn commit(&mut self, tx_id: u64) -> std::io::Result<()>, fn recover(&mut self) -> std::io::Result<Vec<u64>> }  (line 9)
-
 page/page_impl.rs:
   impl std::fmt::Debug for Page  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 6)
   struct Page  { id, epoch, data, location }  (line 17)
   impl Page  { fn new(id: PageID, size: usize, location: PageLocation) -> Result<Self, PageError> }  (line 24)
-  impl PageAccess for Page  { fn id(&self) -> PageID, fn size(&self) -> usize, fn location(&self) -> PageLocation, fn epoch(&self) -> Epoch, fn set_epoch(&self, epoch: Epoch), fn data_slice(&self) -> &[u8], fn data_mut_slice(&mut self) -> &mut [u8] }  (line 39)
-  impl DeltaAppliable for Page  { fn apply_delta(&mut self, delta: &Delta) -> Result<(), PageError> }  (line 66)
-  impl PageViewProvider for Page  { fn view(&self) -> PageView }  (line 91)
+  impl PageAccess for Page  { fn location(&self) -> PageLocation, fn epoch(&self) -> Epoch, fn set_epoch(&self, epoch: Epoch), fn data_slice(&self) -> &[u8], fn data_mut_slice(&mut self) -> &mut [u8] }  (line 39)
+  impl DeltaAppliable for Page  { fn apply_delta(&mut self, delta: &Delta) -> Result<(), PageError> }  (line 60)
 
 page/allocator_impl.rs:
   struct PageAllocator  { pages, default_location }  (line 7)
   impl PageAllocator  { fn new(default_location: PageLocation) -> Self, fn from_config(config: PageAllocatorConfig) -> Self, fn with_page(&self, id: PageID, f: F) -> Option<R>, fn with_page_mut(&self, id: PageID, f: F) -> Option<R>, fn snapshot(&self, id: PageID) -> Option<PageSnapshotData>, fn restore(&self, snapshot: &PageSnapshotData) -> Result<(), PageError>, fn snapshot_pages(&self) -> Vec<PageSnapshotData>, fn page_infos(&self) -> Vec<PageSnapshotData> }  (line 12)
-  impl PageAllocatorLike for PageAllocator  { fn allocate(&self, id: PageID, size: usize) -> Result<(), PageError>, fn free(&self, id: PageID), fn get(&self, _id: PageID) -> Option<&Page> }  (line 79)
+  impl PageAllocatorLike for PageAllocator  { fn allocate(&self, id: PageID, size: usize) -> Result<(), PageError> }  (line 79)
 
 page/types.rs:
   enum PageLocation  { Cpu, Gpu, Unified }  (line 5)
@@ -24,24 +19,22 @@ page/types.rs:
   struct PageSnapshotData  { page_id, data, location, epoch }  (line 64)
 
 page/allocator_trait.rs:
-  trait PageAllocatorLike  (line 5)
+  trait PageAllocatorLike  (line 4)
 
 page/traits.rs:
-  trait PageAccess  (line 8)
-  trait DeltaAppliable  (line 21)
-  trait PageViewProvider  (line 26)
-
-page/view.rs:
-  struct PageView  { id, location, data }  (line 5)
-  impl PageView  { fn data_slice(&self) -> &[u8] }  (line 11)
+  trait PageAccess  (line 6)
+  trait DeltaAppliable  (line 17)
 
 memory_engine.rs:
-  struct MemoryEngineConfig  { tlog_path, graph_log_path }  (line 41)
-  enum MemoryEngineError  { TlogOpen, GraphLogOpen, GraphLogIo, Admission, Commit, DeltaNotFound }  (line 51)
-  enum AdmissionError  { InvalidJudgmentProof, StaleEpoch, AlreadyAdmitted }  (line 72)
-  enum CommitError  { TlogWrite }  (line 84)
-  struct MemoryEngine  { tlog, graph_log, epoch, admitted, deltas, state }  (line 92)
-  impl MemoryEngine  { fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError>, fn admit_execution(
+  struct MemoryEngineConfig  { tlog_path, graph_log_path }  (line 42)
+  enum MemoryEngineError  { TlogOpen, GraphLogOpen, GraphLogIo, Admission, Commit, DeltaNotFound }  (line 52)
+  enum AdmissionError  { InvalidJudgmentProof, StaleEpoch, AlreadyAdmitted }  (line 73)
+  enum CommitError  { TlogWrite }  (line 85)
+  struct MemoryEngine  { wal, graph_log, epoch, admitted, deltas, state }  (line 93)
+  impl MemoryEngine  { fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError>, fn checkpoint(
+        &self,
+        path: P,
+    ) -> std::io::Result<()>, fn current_root_hash(&self) -> Hash, fn compact(&self) -> std::io::Result<()>, fn admit_execution(
         &self,
         judgment_proof: &JudgmentProof,
     ) -> Result<AdmissionProof, AdmissionError>, fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof, fn register_delta(&self, delta: Delta) -> Hash, fn fetch_delta_by_hash(&self, hash: &Hash) -> Option<Delta>, fn commit_batch(
@@ -53,7 +46,7 @@ memory_engine.rs:
         admission: &AdmissionProof,
         commit: &CommitProof,
         outcome: &OutcomeProof,
-    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError>, fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError>, fn verify_judgment_proof(&self, proof: &JudgmentProof) -> bool, fn hash_delta(delta: &Delta) -> Hash }  (line 101)
+    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError>, fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError>, fn verify_judgment_proof(&self, proof: &JudgmentProof) -> bool, fn hash_delta(delta: &Delta) -> Hash }  (line 102)
   impl Engine for MemoryEngine  { fn admit_execution(
         &self,
         judgment_proof: &JudgmentProof,
@@ -70,7 +63,7 @@ memory_engine.rs:
         admission: &AdmissionProof,
         commit: &CommitProof,
         outcome: &OutcomeProof,
-    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), Self::Error>, fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> }  (line 289)
+    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), Self::Error>, fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> }  (line 363)
 
 graph_log.rs:
   struct GraphDelta  { payload }  (line 14)
@@ -84,8 +77,11 @@ graph_log.rs:
   fn load_entries(path: &PathBuf) -> std::io::Result<Vec<GraphDelta>>  (line 105)
 
 canonical_state.rs:
-  struct CanonicalState  { root_hash, page_store, page_hashes, merkle_nodes, max_leaves, tree_size, dirty_leaves, backend }  (line 10)
-  impl CanonicalState  { fn new_empty(backend: Box<dyn HashBackend>) -> Self, fn with_capacity(
+  struct MerkleState  { root_hash, page_store, device_tree_ptr, device_tree_bytes, max_leaves, tree_size, backend }  (line 11)
+  impl Send for MerkleState  (line 25)
+  impl Sync for MerkleState  (line 26)
+  impl Drop for MerkleState  { fn drop(&mut self) }  (line 28)
+  impl MerkleState  { fn new_empty(backend: Box<dyn HashBackend>) -> Self, fn with_capacity(
         max_leaves: u64,
         backend: Box<dyn HashBackend>,
     ) -> Self, fn apply_delta(
@@ -94,24 +90,36 @@ canonical_state.rs:
     ) -> Result<(), DeltaError>, fn apply_deltas_batch(
         &mut self,
         deltas: &[crate::delta::Delta],
-    ) -> Result<(), DeltaError>, fn root_hash(&self) -> Hash, fn full_recompute_root(&self) -> Hash, fn rehash_with_new_capacity(&mut self, required_leaves: u64) }  (line 21)
+    ) -> Result<(), DeltaError>, fn root_hash(&self) -> Hash, fn checkpoint(&self, path: P) -> std::io::Result<()>, fn restore_from_checkpoint(
+        path: P,
+        backend: Box<dyn HashBackend>,
+    ) -> std::io::Result<Self>, fn full_recompute_root(&self) -> Hash, fn rehash_with_new_capacity(&mut self, required_leaves: u64) }  (line 35)
 
 hash/mod.rs:
   trait HashBackend  (line 3)
 
 hash/gpu.rs:
-  struct GpuBackend  (line 13)
-  impl HashBackend for GpuBackend  { fn hash_leaf(&self, data: &[u8]) -> Hash, fn hash_internal(&self, left: Hash, right: Hash) -> Hash, fn hash_internal_layer(&self, out: &mut [Hash], children: &[Hash]), fn rebuild_merkle_tree(
+  struct GpuBackend  { _ctx }  (line 6)
+  struct CudaContext  { stream }  (line 10)
+  impl Send for CudaContext  (line 17)
+  impl Sync for CudaContext  (line 18)
+  impl CudaContext  { fn new() -> Self }  (line 20)
+  impl Drop for CudaContext  { fn drop(&mut self) }  (line 34)
+  impl GpuBackend  { fn allocate_tree_bytes(bytes: usize) -> *mut u8, fn free_tree(ptr: *mut u8) }  (line 40)
+  impl HashBackend for GpuBackend  { fn rebuild_merkle_tree(
         &self,
         nodes: &mut [Hash],
         tree_size: u64,
-        _dirty_leaves: &[u64],
-    ) }  (line 15)
-  fn create_gpu_backend() -> Box<dyn HashBackend>  (line 54)
+        pages_ptr: *const u8,
+    ) }  (line 73)
+  fn create_gpu_backend() -> Box<dyn HashBackend>  (line 94)
 
 page_store.rs:
-  struct PageStore  { mmap, in_memory }  (line 8)
-  impl PageStore  { fn open(path: &Path, max_pages: u64) -> std::io::Result<Self>, fn in_memory() -> Self, fn write_page(&mut self, page_id: u64, data: &[u8]), fn read_page(&self, page_id: u64) -> &[u8], fn flush(&mut self) -> std::io::Result<()> }  (line 13)
+  struct PageStore  { ptr, capacity }  (line 12)
+  impl Send for PageStore  (line 19)
+  impl Sync for PageStore  (line 20)
+  impl PageStore  { fn in_memory() -> Self, fn write_page(&mut self, page_id: u64, data: &[u8]), fn read_page(&self, page_id: u64) -> &[u8], fn flush(&mut self) -> std::io::Result<()>, fn as_device_ptr(&self) -> *const u8, fn capacity_bytes(&self) -> usize, fn grow(&mut self, required: usize) }  (line 22)
+  impl Drop for PageStore  { fn drop(&mut self) }  (line 103)
 
 engine.rs:
   trait Engine  (line 13)
@@ -175,31 +183,18 @@ engine_commit.rs:
         delta_hash: &Hash,
     ) -> Result<CommitProof, MemoryEngineError> }  (line 10)
 
+persistence/mmap_log.rs:
+  struct MmapLog  { file, mmap, write_offset }  (line 15)
+  impl MmapLog  { fn open(path: &Path, size: usize) -> std::io::Result<Self>, fn append(&mut self, data: &[u8]) -> std::io::Result<()>, fn write_root_header(&mut self, header: &RootHeader) -> std::io::Result<()>, fn read_latest_root(&self) -> std::io::Result<Option<RootHeader>>, fn scan_records(&self) -> Vec<Vec<u8>>, fn flush(&mut self) -> std::io::Result<()>, fn truncate(&mut self) -> std::io::Result<()> }  (line 21)
+
+persistence/root_header.rs:
+  struct RootHeader  { generation, tree_size, root_hash }  (line 5)
+  impl RootHeader  { fn is_valid(&self) -> bool }  (line 11)
+
 tlog/tlog.rs:
-  fn delta_hash(delta: &Delta) -> String  (line 27)
-  struct TransactionLog  { entries, writer, path }  (line 50)
-  struct LogSummary  { total_deltas, total_bytes, last_epoch }  (line 58)
-  impl TransactionLog  { fn new(path: impl Into<PathBuf>) -> std::io::Result<Self>, fn clear_entries(&self), fn append(&self, admission_proof: &AdmissionProof, delta: Delta) -> std::io::Result<()>, fn summary(&self) -> std::io::Result<LogSummary>, fn replay(&self, _start_epoch: u32) -> std::io::Result<Vec<Delta>>, fn current_offset(&self) -> std::io::Result<u64> }  (line 64)
-  struct TlogEntry  { delta, root_hash, proof_hash }  (line 150)
-  struct TlogManager  { path, writer }  (line 157)
-  impl TlogManager  { fn new(path: impl Into<PathBuf>) -> io::Result<Self>, fn append(&self, delta: &Delta, root_hash: Hash, proof_hash: Hash) -> io::Result<()>, fn replay_all(&self, state: &mut CanonicalState) -> io::Result<Option<Hash>>, fn read_entries(&self) -> io::Result<Vec<TlogEntry>> }  (line 162)
-  fn validate_manager_header(path: &Path) -> io::Result<()>  (line 222)
-  fn read_entries_from_path(path: &Path) -> io::Result<Vec<TlogEntry>>  (line 244)
-
-tlog/tlog_replay.rs:
-  fn apply_log(pages: &mut [Page], deltas: &[Delta])  (line 9)
-  fn replay(path: &Path) -> std::io::Result<CanonicalState>  (line 17)
-
-tlog/tlog_serialization.rs:
-  fn read_log(path: impl AsRef<Path>) -> std::io::Result<Vec<Delta>>  (line 8)
-
-tlog/tlog_compression.rs:
-  fn encode_rle(mask: &[bool]) -> Vec<u8>  (line 4)
-  fn bitpack_mask(mask: &[bool]) -> Vec<u8>  (line 28)
-  enum CompressionMode  { None, Rle, Bitpack }  (line 43)
-  struct CompressionStats  { original_size, compressed_size, ratio }  (line 49)
-  fn compress_delta_mask(mask: &[bool], mode: CompressionMode) -> (Vec<u8>, CompressionStats)  (line 55)
-  fn compact(deltas: &[Delta]) -> Vec<Delta>  (line 73)
+  struct TransactionLog  { entries, writer, path }  (line 31)
+  struct LogSummary  { total_deltas, total_bytes, last_epoch }  (line 39)
+  impl TransactionLog  { fn new(path: impl Into<PathBuf>) -> std::io::Result<Self>, fn clear_entries(&self), fn append(&self, admission_proof: &AdmissionProof, delta: Delta) -> std::io::Result<()>, fn summary(&self) -> std::io::Result<LogSummary>, fn replay(&self, _start_epoch: u32) -> std::io::Result<Vec<Delta>>, fn current_offset(&self) -> std::io::Result<u64> }  (line 45)
 
 epoch/gc.rs:
   struct GCMetrics  { reclaimed_pages, reclaimed_bytes, duration }  (line 5)
@@ -208,12 +203,12 @@ epoch/gc.rs:
 epoch/checkpoint.rs:
   fn write_checkpoint(
     allocator: &PageAllocator,
-    tlog: &TransactionLog,
+    _tlog: &(),
     path: impl AsRef<Path>,
 ) -> std::io::Result<()>  (line 12)
   fn load_checkpoint(
     allocator: &PageAllocator,
-    _tlog: &TransactionLog,
+    _tlog: &(),
     path: impl AsRef<Path>,
 ) -> std::io::Result<()>  (line 39)
 

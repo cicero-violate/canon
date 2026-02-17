@@ -1,5 +1,3 @@
-use std::fs;
-
 use crate::agent::bootstrap::{bootstrap_graph, bootstrap_proposal};
 use crate::agent::call::AgentCallOutput;
 use crate::agent::io::{load_capability_graph, save_capability_graph};
@@ -19,8 +17,12 @@ use crate::materialize::render_fn::render_impl_function;
 use crate::materialize::{materialize, write_file_tree};
 use crate::runtime::{TickExecutionMode, TickExecutor};
 use crate::schema::generate_schema;
+use crate::semantic_builder::SemanticIrBuilder;
+use crate::storage::builder::MemoryIrBuilder;
 use crate::validate::validate_ir;
 use crate::version_gate::enforce_version_gate;
+use memory_engine::{MemoryEngine, MemoryEngineConfig};
+use std::fs;
 
 pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
@@ -111,7 +113,10 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             semantic_out,
             layout_out,
         } => {
-            let layout_map = ingest::ingest_workspace(&IngestOptions::new(src))?;
+            let layout_map = ingest::ingest_workspace(&IngestOptions::new(src.clone()))?;
+            if let Some(parent) = semantic_out.parent() {
+                fs::create_dir_all(parent)?;
+            }
             let semantic_json = serde_json::to_string_pretty(&layout_map.semantic)?;
             fs::write(&semantic_out, &semantic_json)?;
             println!("Semantic IR written to `{}`.", semantic_out.display());
@@ -123,6 +128,30 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             let layout_json = serde_json::to_string_pretty(&layout_map.layout)?;
             fs::write(&layout_path, &layout_json)?;
             println!("Layout written to `{}`.", layout_path.display());
+
+            let workspace_name = src
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("workspace");
+            let semantic_ir = SemanticIrBuilder::new(workspace_name).build(layout_map.semantic);
+
+            let mut tlog_path = semantic_out.clone();
+            tlog_path.set_extension("tlog");
+            if let Some(parent) = tlog_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            let engine = MemoryEngine::new(MemoryEngineConfig {
+                tlog_path: tlog_path.clone(),
+            })?;
+            let builder = MemoryIrBuilder::new(&engine);
+            builder.persist_ir(&semantic_ir)?;
+            let mut checkpoint_path = semantic_out.clone();
+            checkpoint_path.set_extension("bin");
+            engine.checkpoint(&checkpoint_path)?;
+            println!(
+                "MemoryEngine snapshot written to `{}`.",
+                checkpoint_path.display()
+            );
         }
 
         Command::ObserveEvents { .. } => {

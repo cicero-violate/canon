@@ -163,27 +163,18 @@ fn trace_cluster(rule: CanonRule, violations: &[&Violation], ir: &CanonicalIr) -
     let structured_report = match rule {
         CanonRule::ImplBinding => {
             // Only report first failing impl in cluster for now.
-            let failing_impl_id = violations
-                .iter()
-                .filter_map(|v| v.subject_id())
-                .next();
+            let failing_impl_id = violations.iter().filter_map(|v| v.subject_id()).next();
 
             if let Some(impl_id) = failing_impl_id {
                 if let Some(block) = ir.impls.iter().find(|b| b.id == impl_id) {
-                    let trait_resolves =
-                        ir.traits.iter().any(|t| t.id == block.trait_id);
+                    let trait_resolves = ir.traits.iter().any(|t| t.id == block.trait_id);
 
-                    let struct_resolves =
-                        ir.structs.iter().any(|s| s.id == block.struct_id);
+                    let struct_resolves = ir.structs.iter().any(|s| s.id == block.struct_id);
 
                     let trait_name_exists_elsewhere = ir.traits.iter().any(|t| {
-                        t.name.as_str().eq_ignore_ascii_case(
-                            block
-                                .trait_id
-                                .split('.')
-                                .last()
-                                .unwrap_or("")
-                        )
+                        t.name
+                            .as_str()
+                            .eq_ignore_ascii_case(block.trait_id.split('.').last().unwrap_or(""))
                     });
 
                     Some(StructuredReport::Rule26(Rule26Report {

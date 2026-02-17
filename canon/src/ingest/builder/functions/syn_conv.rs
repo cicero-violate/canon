@@ -21,7 +21,7 @@ pub(crate) fn struct_from_syn(module_id: &str, item: &syn::ItemStruct) -> Struct
             slugify(&item.ident.to_string())
         ),
         name: word_from_ident(&item.ident, "Struct"),
-        module: slugify(module_id),
+        module: module_id.to_owned(),
         visibility: map_visibility(&item.vis),
         derives: collect_derives(&item.attrs),
         doc: None,
@@ -39,7 +39,7 @@ pub(crate) fn enum_from_syn(module_id: &str, item: &syn::ItemEnum) -> EnumNode {
             slugify(&item.ident.to_string())
         ),
         name: word_from_ident(&item.ident, "Enum"),
-        module: slugify(module_id),
+        module: module_id.to_owned(),
         visibility: map_visibility(&item.vis),
         variants: item.variants.iter().map(enum_variant_from_syn).collect(),
         history: Vec::new(),
@@ -103,7 +103,7 @@ pub(crate) fn trait_from_syn(module_id: &str, item: &syn::ItemTrait) -> Trait {
     Trait {
         id: trait_id,
         name: word_from_ident(&item.ident, "Trait"),
-        module: slugify(module_id),
+        module: module_id.to_owned(),
         visibility: map_visibility(&item.vis),
         generic_params: convert_generics(&item.generics),
         functions,
@@ -156,7 +156,7 @@ pub(crate) fn function_from_syn(
     Function {
         id: fn_id,
         name: word_from_ident(&item.sig.ident, "Function"),
-        module: slugify(module_id),
+        module: module_id.to_owned(),
         impl_id,
         trait_function: trait_function.unwrap_or_default(),
         visibility: map_visibility(&item.vis),
@@ -209,9 +209,16 @@ pub(crate) fn impl_block_from_syn(
     block: &syn::ItemImpl,
     trait_name_to_id: &std::collections::HashMap<String, String>,
     type_slug_to_id: &std::collections::HashMap<String, String>,
+    type_id_to_module: &std::collections::HashMap<String, String>,
 ) -> ImplMapping {
     let Some((_, trait_path, _)) = &block.trait_ else {
-        return build_standalone(module_id, block, trait_name_to_id, type_slug_to_id);
+        return build_standalone(
+            module_id,
+            block,
+            trait_name_to_id,
+            type_slug_to_id,
+            type_id_to_module,
+        );
     };
     let syn::Type::Path(self_path) = block.self_ty.as_ref() else {
         return ImplMapping::Unsupported;
@@ -230,23 +237,14 @@ pub(crate) fn impl_block_from_syn(
     if !trait_name_to_id.contains_key(&trait_name) {
         return ImplMapping::Unsupported;
     }
-    let struct_slug = struct_id
-        .split('.')
-        .last()
-        .unwrap_or("unknown");
+    let struct_slug = struct_id.split('.').last().unwrap_or("unknown");
 
-    let trait_slug = trait_id
-        .split('.')
-        .last()
-        .unwrap_or("unknown");
+    let trait_slug = trait_id.split('.').last().unwrap_or("unknown");
 
-    // Canonical impl identity must derive from the struct's owning module,
-    // not the file/module where the impl block appears.
-    let struct_module = struct_id
-        .split('.')
-        .nth(1)
-        .unwrap_or(&slugify(module_id))
-        .to_string();
+    let struct_module = type_id_to_module
+        .get(&struct_id)
+        .cloned()
+        .unwrap_or_else(|| module_id.to_owned());
 
     let impl_id = make_impl_id(&struct_module, struct_slug, Some(trait_slug));
     let mut bindings = Vec::new();
@@ -277,7 +275,7 @@ pub(crate) fn impl_block_from_syn(
     ImplMapping::ImplBlock(
         ImplBlock {
             id: impl_id,
-            module: struct_module,
+            module: struct_module.clone(),
             struct_id,
             trait_id,
             functions: bindings,
@@ -291,6 +289,7 @@ fn build_standalone(
     block: &syn::ItemImpl,
     trait_name_to_id: &std::collections::HashMap<String, String>,
     type_slug_to_id: &std::collections::HashMap<String, String>,
+    type_id_to_module: &std::collections::HashMap<String, String>,
 ) -> ImplMapping {
     let self_ty_slug = match block.self_ty.as_ref() {
         syn::Type::Path(p) => slugify(
@@ -302,17 +301,16 @@ fn build_standalone(
         ),
         _ => "unknown".to_owned(),
     };
-    // Standalone impl identity must also derive from struct ownership.
-    let struct_module = type_slug_to_id
-        .get(self_ty_slug.as_str())
-        .and_then(|id| id.split('.').nth(1))
-        .unwrap_or(module_id);
-
-    let standalone_impl_id = make_impl_id(struct_module, &self_ty_slug, None);
     let struct_id = type_slug_to_id
         .get(self_ty_slug.as_str())
         .cloned()
         .unwrap_or_default();
+    let struct_module = type_id_to_module
+        .get(&struct_id)
+        .cloned()
+        .unwrap_or_else(|| module_id.to_owned());
+
+    let standalone_impl_id = make_impl_id(&struct_module, &self_ty_slug, None);
     let funcs = block
         .items
         .iter()
@@ -331,7 +329,7 @@ fn build_standalone(
         .collect();
     let impl_block = ImplBlock {
         id: standalone_impl_id,
-        module: slugify(module_id),
+        module: struct_module,
         struct_id,
         trait_id: String::new(),
         functions: Vec::new(),
@@ -347,19 +345,10 @@ fn make_impl_id(module_id: &str, struct_slug: &str, trait_slug: Option<&str>) ->
 
     match trait_slug {
         Some(trait_slug) => {
-            format!(
-                "impl.{}.{}.{}",
-                module_slug,
-                struct_slug,
-                trait_slug
-            )
+            format!("impl.{}.{}.{}", module_slug, struct_slug, trait_slug)
         }
         None => {
-            format!(
-                "impl.{}.{}.standalone",
-                module_slug,
-                struct_slug
-            )
+            format!("impl.{}.{}.standalone", module_slug, struct_slug)
         }
     }
 }

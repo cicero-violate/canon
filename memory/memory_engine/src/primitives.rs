@@ -10,18 +10,7 @@ use serde::{Deserialize, Serialize};
 pub type Hash = [u8; 32];
 
 /// Logical page identifier
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct PageID(pub u64);
 
 /// Delta mutation identifier

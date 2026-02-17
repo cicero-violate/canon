@@ -1,8 +1,7 @@
-
-use std::ptr::null_mut;
-use core::ffi::c_void;
 #[cfg(feature = "cuda")]
 use crate::hash::cuda_ffi::*;
+use core::ffi::c_void;
+use std::ptr::null_mut;
 
 const PAGE_SIZE: usize = 4096;
 
@@ -103,6 +102,8 @@ impl PageStore {
 impl Drop for PageStore {
     fn drop(&mut self) {
         #[cfg(feature = "cuda")]
-        unsafe { cudaFree(self.ptr as *mut c_void); }
+        unsafe {
+            cudaFree(self.ptr as *mut c_void);
+        }
     }
 }

@@ -386,82 +386,104 @@ impl Violation {
     pub fn detail(&self) -> &str {
         match &self.detail {
             ViolationDetail::Message(msg) => msg.as_str(),
-            other => {
-                match other {
-                    ViolationDetail::MissingModule { module } => module.as_str(),
-                    ViolationDetail::MissingStruct { struct_id } => struct_id.as_str(),
-                    ViolationDetail::MissingTrait { trait_id } => trait_id.as_str(),
-                    ViolationDetail::MissingFunction { function_id } => function_id.as_str(),
-                    ViolationDetail::MissingDelta { delta_id } => delta_id.as_str(),
-                    ViolationDetail::TickCycle { graph } => graph.as_str(),
-                    ViolationDetail::Duplicate { name } => name.as_str(),
+            other => match other {
+                ViolationDetail::MissingModule { module } => module.as_str(),
+                ViolationDetail::MissingStruct { struct_id } => struct_id.as_str(),
+                ViolationDetail::MissingTrait { trait_id } => trait_id.as_str(),
+                ViolationDetail::MissingFunction { function_id } => function_id.as_str(),
+                ViolationDetail::MissingDelta { delta_id } => delta_id.as_str(),
+                ViolationDetail::TickCycle { graph } => graph.as_str(),
+                ViolationDetail::Duplicate { name } => name.as_str(),
 
-                    ViolationDetail::FunctionMissingImpl { function_id, impl_id } => {
-                        return Box::leak(format!(
+                ViolationDetail::FunctionMissingImpl {
+                    function_id,
+                    impl_id,
+                } => {
+                    return Box::leak(
+                        format!(
                             "function `{}` references missing impl `{}`",
                             function_id, impl_id
-                        ).into_boxed_str());
-                    }
+                        )
+                        .into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::ImplMissingStruct { impl_id, struct_id } => {
-                        return Box::leak(format!(
+                ViolationDetail::ImplMissingStruct { impl_id, struct_id } => {
+                    return Box::leak(
+                        format!(
                             "impl `{}` references missing struct `{}`",
                             impl_id, struct_id
-                        ).into_boxed_str());
-                    }
+                        )
+                        .into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::ImplMissingTrait { impl_id, trait_id } => {
-                        return Box::leak(format!(
-                            "impl `{}` references missing trait `{}`",
-                            impl_id, trait_id
-                        ).into_boxed_str());
-                    }
+                ViolationDetail::ImplMissingTrait { impl_id, trait_id } => {
+                    return Box::leak(
+                        format!("impl `{}` references missing trait `{}`", impl_id, trait_id)
+                            .into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::ImplWrongModuleForStruct { impl_id } => {
-                        return Box::leak(format!(
-                            "impl `{}` has wrong module for struct",
-                            impl_id
-                        ).into_boxed_str());
-                    }
+                ViolationDetail::ImplWrongModuleForStruct { impl_id } => {
+                    return Box::leak(
+                        format!("impl `{}` has wrong module for struct", impl_id).into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::ImplWrongModuleForTrait { impl_id } => {
-                        return Box::leak(format!(
-                            "impl `{}` has wrong module for trait",
-                            impl_id
-                        ).into_boxed_str());
-                    }
+                ViolationDetail::ImplWrongModuleForTrait { impl_id } => {
+                    return Box::leak(
+                        format!("impl `{}` has wrong module for trait", impl_id).into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::FunctionMissingImpl { function_id, impl_id } => {
-                        return Box::leak(format!(
+                ViolationDetail::FunctionMissingImpl {
+                    function_id,
+                    impl_id,
+                } => {
+                    return Box::leak(
+                        format!(
                             "function `{}` references missing impl `{}`",
                             function_id, impl_id
-                        ).into_boxed_str());
-                    }
+                        )
+                        .into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::FunctionWrongModule { function_id, module } => {
-                        return Box::leak(format!(
+                ViolationDetail::FunctionWrongModule {
+                    function_id,
+                    module,
+                } => {
+                    return Box::leak(
+                        format!(
                             "function `{}` is in wrong module (expected `{}`)",
                             function_id, module
-                        ).into_boxed_str());
-                    }
+                        )
+                        .into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::FunctionWrongTraitBinding { function_id } => {
-                        return Box::leak(format!(
-                            "function `{}` bound to wrong trait",
-                            function_id
-                        ).into_boxed_str());
-                    }
+                ViolationDetail::FunctionWrongTraitBinding { function_id } => {
+                    return Box::leak(
+                        format!("function `{}` bound to wrong trait", function_id).into_boxed_str(),
+                    );
+                }
 
-                    ViolationDetail::FunctionUnknownTraitFunction { function_id, trait_fn } => {
-                        return Box::leak(format!(
+                ViolationDetail::FunctionUnknownTraitFunction {
+                    function_id,
+                    trait_fn,
+                } => {
+                    return Box::leak(
+                        format!(
                             "function `{}` references unknown trait function `{}`",
                             function_id, trait_fn
-                        ).into_boxed_str());
-                    }
-
-                    _ => "structured violation",
+                        )
+                        .into_boxed_str(),
+                    );
                 }
-            }
+
+                _ => "structured violation",
+            },
         }
     }
 

@@ -11,18 +11,17 @@ fn main() {
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let obj_path = out_dir.join("merkle.o");
+    let lib_path = out_dir.join("libmerkle.a");
 
     let status = Command::new("/opt/cuda/bin/nvcc")
-        .args([
-            "src/hash/merkle.cu",
-            "-c",
-            "-o",
-        ])
+        .args(["src/hash/merkle.cu", "-c", "-o"])
         .arg(&obj_path)
         .args([
-            "-Xcompiler", "-fPIC",
+            "-Xcompiler",
+            "-fPIC",
             "-std=c++17",
-            "-ccbin", "/usr/bin/g++",
+            "-ccbin",
+            "/usr/bin/g++",
         ])
         .status()
         .expect("failed to execute nvcc");
@@ -31,8 +30,18 @@ fn main() {
         panic!("nvcc failed");
     }
 
-    // Link object file
-    println!("cargo:rustc-link-arg={}", obj_path.display());
+    // Archive into static library so downstream crates can link it.
+    let ar = env::var("AR").unwrap_or_else(|_| "ar".to_string());
+    let status = Command::new(ar)
+        .args(["crus", lib_path.to_str().unwrap(), obj_path.to_str().unwrap()])
+        .status()
+        .expect("failed to run ar");
+    if !status.success() {
+        panic!("ar failed");
+    }
+
+    println!("cargo:rustc-link-search=native={}", out_dir.display());
+    println!("cargo:rustc-link-lib=static=merkle");
 
     // CUDA runtime
     println!("cargo:rustc-link-search=native=/opt/cuda/lib64");

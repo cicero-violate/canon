@@ -2,7 +2,6 @@
 
 use crate::ir::world_model::{PredictionRecord, StateSnapshot};
 
-use super::planning::update_epoch_entropy;
 use super::types::{PredictionContext, TickExecutionResult};
 use crate::ir::CanonicalIr;
 
@@ -35,7 +34,4 @@ pub(super) fn reconcile_prediction(
 
     ir.world_model
         .record_prediction(record.clone(), actual_snapshot);
-
-    let entropy = (record.error.max(1e-6_f64)).ln();
-    update_epoch_entropy(ir, &result.tick_id, entropy);
 }

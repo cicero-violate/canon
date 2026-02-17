@@ -1,6 +1,7 @@
 mod lean_gate;
 mod shell_flow;
 mod state_io;
+mod tlog;
 mod verify_flow;
 
 use crate::shell_flow::run_shell_flow;

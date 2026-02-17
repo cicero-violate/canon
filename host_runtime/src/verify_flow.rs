@@ -62,9 +62,7 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
     println!("Intent: lhs={}, rhs={}", intent.lhs, intent.rhs);
 
     let config = memory_engine::MemoryEngineConfig {
-        tlog_path: repo_root.join("canon_store").join("canon.tlog"),
-        graph_log_path: repo_root.join("canon_store").join("graph.log"),
-        default_location: memory_engine::page::PageLocation::from_tag(0).unwrap(),  // Handling Result here
+        tlog_path: repo_root.join("canon_store").join("engine.wal"),
     };
     let engine = memory_engine::MemoryEngine::new(config)?;
     let interpreter = SystemInterpreter::new(&ir, &engine);
@@ -78,7 +76,7 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
         .map(|dv| {
             memory_engine::delta::Delta::new_dense(
                 memory_engine::primitives::DeltaID(
-                    dv.delta_id.parse().expect("delta_id must be a valid u64")
+                    dv.delta_id.parse().expect("delta_id must be a valid u64"),
                 ),
                 PageID(0),
                 memory_engine::epoch::Epoch(0),
@@ -164,6 +162,48 @@ fn report_execution(result: &SystemExecutionResult) -> Result<()> {
     if let Some(last_node) = result.execution_order.last() {
         if let Some(outputs) = result.node_results.get(last_node) {
             println!("Final outputs: {outputs:?}");
+        }
+    }
+
+    if let Some(root) = result.state_root {
+        println!("[engine] committed state root {}", hex::encode(root));
+    } else {
+        println!("[engine] no deltas committed via MemoryEngine");
+    }
+
+    if let Some(judgment) = &result.judgment_proof {
+        println!(
+            "[engine] judgment proof hash={} approved={} ts={}",
+            hex::encode(judgment.hash),
+            judgment.approved,
+            judgment.timestamp
+        );
+    }
+
+    if let Some(admission) = &result.admission_proof {
+        println!(
+            "[engine] admission hash={} epoch={} nonce={}",
+            hex::encode(admission.judgment_proof_hash),
+            admission.epoch,
+            admission.nonce
+        );
+    }
+
+    for (idx, commit) in result.commit_proofs.iter().enumerate() {
+        println!(
+            "[engine] commit[{idx}] delta_hash={} state_hash={}",
+            hex::encode(commit.delta_hash),
+            hex::encode(commit.state_hash)
+        );
+        if let Some(outcome) = result.outcome_proofs.get(idx) {
+            println!(
+                "           outcome success={} hash={}",
+                outcome.success,
+                hex::encode(outcome.commit_proof_hash)
+            );
+        }
+        if let Some(event_hash) = result.event_hashes.get(idx) {
+            println!("           event hash={}", hex::encode(event_hash));
         }
     }
 

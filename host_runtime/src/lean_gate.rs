@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, anyhow};
-use memory_engine::StateSlice;
+use crate::state_io::StateSlice;
 use serde::{Deserialize, Serialize};
 
 /// Deterministic proposal payload shared with Lean.

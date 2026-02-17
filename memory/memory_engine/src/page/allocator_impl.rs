@@ -82,5 +82,4 @@ impl PageAllocatorLike for PageAllocator {
         self.pages.lock().insert(id, page);
         Ok(())
     }
-
 }

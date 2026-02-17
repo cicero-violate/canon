@@ -72,6 +72,11 @@ pub(crate) fn build_layout_map(
             (slug, e.id.clone())
         }))
         .collect();
+    let type_id_to_module: std::collections::HashMap<String, String> = structs
+        .iter()
+        .map(|s| (s.id.clone(), s.module.clone()))
+        .chain(enums.iter().map(|e| (e.id.clone(), e.module.clone())))
+        .collect();
     let (impls, fns) = functions::build_impls_and_functions(
         &parsed,
         &module_lookup,
@@ -79,6 +84,7 @@ pub(crate) fn build_layout_map(
         &mut layout_acc,
         &trait_name_to_id,
         &type_slug_to_id,
+        &type_id_to_module,
     );
     let call_edges = edges::build_call_edges(&parsed, &module_lookup, &fns);
     let semantic = SemanticGraph {

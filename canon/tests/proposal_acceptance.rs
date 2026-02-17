@@ -114,7 +114,7 @@ fn accept_proposal_generates_structural_artifacts() {
     assert!(next.structs.iter().any(|s| s.id == "struct.future_state"));
     assert!(next.traits.iter().any(|t| t.id == "trait.future_ops"));
     assert!(next
-        .impl_blocks
+        .impls
         .iter()
         .any(|blk| blk.struct_id == "struct.future_state" && blk.trait_id == "trait.future_ops"));
     assert!(

@@ -122,14 +122,6 @@ pub(super) fn finalize_execution(
     );
 }
 
-pub(super) fn update_epoch_entropy(ir: &mut CanonicalIr, tick_id: &str, delta: f64) {
-    for epoch in &mut ir.tick_epochs {
-        if epoch.ticks.iter().any(|id| id == tick_id) {
-            epoch.entropy_reduction += delta;
-        }
-    }
-}
-
 fn register_plan_and_execution(
     ir: &mut CanonicalIr,
     tick_id: &str,

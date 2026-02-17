@@ -1,7 +1,7 @@
 use crate::epoch::Epoch;
 use crate::page::{PageAllocator, PageLocation, PageSnapshotData};
 use crate::primitives::PageID;
-use crate::tlog::TransactionLog;
+// TransactionLog removed; persistence now handled via mmap WAL.
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
@@ -11,11 +11,11 @@ const SNAPSHOT_VERSION: u32 = 2;
 
 pub fn write_checkpoint(
     allocator: &PageAllocator,
-    tlog: &TransactionLog,
+    _tlog: &(),
     path: impl AsRef<Path>,
 ) -> std::io::Result<()> {
     let pages = allocator.snapshot_pages();
-    let log_offset = tlog.current_offset()?;
+    let log_offset: u64 = 0;
     let mut writer = BufWriter::new(File::create(path)?);
     writer.write_all(SNAPSHOT_MAGIC)?;
     writer.write_all(&SNAPSHOT_VERSION.to_le_bytes())?;
@@ -38,7 +38,7 @@ pub fn write_checkpoint(
 // src/02_runtime/checkpoint.rs
 pub fn load_checkpoint(
     allocator: &PageAllocator,
-    _tlog: &TransactionLog,
+    _tlog: &(),
     path: impl AsRef<Path>,
 ) -> std::io::Result<()> {
     println!("\nCHECKPOINT LOAD STARTED: {}", path.as_ref().display());

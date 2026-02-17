@@ -19,6 +19,7 @@ pub mod proof;
 pub mod runtime;
 pub mod schema;
 pub mod semantic_builder;
+pub mod storage;
 pub mod validate;
 pub mod version_gate;
 

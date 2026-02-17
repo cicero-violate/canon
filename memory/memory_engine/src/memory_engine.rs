@@ -13,19 +13,19 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::{RwLock, Mutex};
-use sha2::{Digest, Sha256};
 use crate::hash::gpu::create_gpu_backend;
+use parking_lot::{Mutex, RwLock};
+use sha2::{Digest, Sha256};
 
 use crate::{
     canonical_state::MerkleState,
     delta::Delta,
     epoch::EpochCell,
-    graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
-    primitives::Hash,
-    proofs::{AdmissionProof, CommitProof, JudgmentProof, OutcomeProof},
+    graph_log::{GraphDelta, GraphSnapshot},
     persistence::mmap_log::MmapLog,
     persistence::root_header::RootHeader,
+    primitives::{DeltaID, Hash, PageID},
+    proofs::{AdmissionProof, CommitProof, JudgmentProof, OutcomeProof},
 };
 
 // ===============================
@@ -41,7 +41,6 @@ const DOMAIN_EVENT: &[u8] = b"EVENT_V1";
 
 pub struct MemoryEngineConfig {
     pub tlog_path: PathBuf,
-    pub graph_log_path: PathBuf,
 }
 
 // ===============================
@@ -92,7 +91,6 @@ pub enum CommitError {
 // ===============================
 pub struct MemoryEngine {
     pub(crate) wal: Arc<Mutex<MmapLog>>,
-    pub(crate) graph_log: Arc<GraphDeltaLog>,
     pub(crate) epoch: Arc<EpochCell>,
     pub(crate) admitted: RwLock<HashSet<Hash>>,
     pub(crate) deltas: RwLock<HashMap<Hash, Delta>>,
@@ -101,35 +99,43 @@ pub struct MemoryEngine {
 
 impl MemoryEngine {
     pub fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError> {
-        let wal =
-            Arc::new(Mutex::new(
-                MmapLog::open(&config.tlog_path, 64 * 1024 * 1024)
-                    .map_err(MemoryEngineError::TlogOpen)?
-            ));
-
-        let graph_log =
-            Arc::new(GraphDeltaLog::new(&config.graph_log_path)
-                .map_err(MemoryEngineError::GraphLogOpen)?);
+        let wal = Arc::new(Mutex::new(
+            MmapLog::open(&config.tlog_path, 64 * 1024 * 1024)
+                .map_err(MemoryEngineError::TlogOpen)?,
+        ));
 
         let backend = create_gpu_backend();
 
         let mut state = MerkleState::new_empty(backend);
 
-        if let Some(header) = wal.lock().read_latest_root()
-            .map_err(MemoryEngineError::TlogOpen)? {
-            let records = wal.lock().scan_records();
+        if let Some(header) = wal
+            .lock()
+            .read_latest_root()
+            .map_err(MemoryEngineError::TlogOpen)?
+        {
+            // Extract records and drop WAL lock before any heavy work
+            let records = {
+                let guard = wal.lock();
+                guard.scan_records()
+            };
+
             for rec in records {
-                let (admission, delta): (AdmissionProof, Delta) =
-                    bincode::deserialize(&rec)
-                        .map_err(|e| MemoryEngineError::TlogOpen(
-                            std::io::Error::new(std::io::ErrorKind::Other, e)
-                        ))?;
+                let (admission, delta): (AdmissionProof, Delta) = bincode::deserialize(&rec)
+                    .map_err(|e| {
+                        MemoryEngineError::TlogOpen(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            e,
+                        ))
+                    })?;
                 let _ = admission;
-                state.apply_delta(&delta)
+                state
+                    .apply_delta(&delta)
                     .map_err(|_| MemoryEngineError::DeltaNotFound)?;
             }
 
-            state.apply_deltas_batch(&[])
+            // Single canonical rebuild to compute final root
+            state
+                .apply_deltas_batch(&[])
                 .map_err(|_| MemoryEngineError::DeltaNotFound)?;
 
             if state.root_hash() != header.root_hash {
@@ -141,7 +147,6 @@ impl MemoryEngine {
 
         Ok(Self {
             wal,
-            graph_log,
             epoch: Arc::new(EpochCell::new(0)),
             admitted: RwLock::new(HashSet::new()),
             deltas: RwLock::new(HashMap::new()),
@@ -149,10 +154,7 @@ impl MemoryEngine {
         })
     }
 
-    pub fn checkpoint<P: AsRef<std::path::Path>>(
-        &self,
-        path: P,
-    ) -> std::io::Result<()> {
+    pub fn checkpoint<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let state = self.state.read();
         state.checkpoint(path)
     }
@@ -265,11 +267,12 @@ impl MemoryEngine {
 
         // Persist log
         for delta in &deltas {
-            let encoded = bincode::serialize(&(admission, delta))
-                .map_err(|e| MemoryEngineError::TlogOpen(
-                    std::io::Error::new(std::io::ErrorKind::Other, e)
-                ))?;
-            self.wal.lock().append(&encoded)
+            let encoded = bincode::serialize(&(admission, delta)).map_err(|e| {
+                MemoryEngineError::TlogOpen(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?;
+            self.wal
+                .lock()
+                .append(&encoded)
                 .map_err(MemoryEngineError::TlogOpen)?;
         }
 
@@ -282,7 +285,8 @@ impl MemoryEngine {
                 tree_size: self.state.read().tree_size,
                 root_hash: root,
             };
-            self.wal.lock()
+            self.wal
+                .lock()
                 .write_root_header(&header)
                 .map_err(MemoryEngineError::TlogOpen)?;
         }
@@ -296,7 +300,6 @@ impl MemoryEngine {
             })
             .collect())
     }
-
 
     // ===============================
     // Event Hash
@@ -321,18 +324,46 @@ impl MemoryEngine {
     // ===============================
 
     pub fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError> {
-        self.graph_log
-            .append(delta)
-            .map_err(MemoryEngineError::GraphLogIo)
+        const GRAPH_BASE: u64 = 1 << 48;
+
+        let page_id = GRAPH_BASE + self.epoch.increment().0 as u64;
+
+        let mask = vec![true; delta.payload.len()];
+
+        let d = Delta::new_dense(
+            DeltaID(page_id),
+            PageID(page_id),
+            crate::epoch::Epoch(0),
+            delta.payload,
+            mask,
+            crate::delta::Source("graph.partition".into()),
+        )
+        .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+
+        {
+            let mut state = self.state.write();
+            state
+                .apply_delta(&d)
+                .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+        }
+
+        Ok(())
     }
 
     pub fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError> {
-        self.graph_log
-            .replay_snapshot()
-            .map_err(|e| MemoryEngineError::GraphLogIo(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            )))
+        const GRAPH_BASE: u64 = 1 << 48;
+
+        let state = self.state.read();
+        let mut snapshot = GraphSnapshot::default();
+
+        for page_id in GRAPH_BASE..state.max_leaves {
+            let page = state.read_page(page_id);
+            if page.iter().any(|b| *b != 0) {
+                snapshot.payload.extend_from_slice(page);
+            }
+        }
+
+        Ok(snapshot)
     }
 
     // ===============================
@@ -367,8 +398,7 @@ impl Engine for MemoryEngine {
         &self,
         judgment_proof: &JudgmentProof,
     ) -> Result<AdmissionProof, Self::Error> {
-        MemoryEngine::admit_execution(self, judgment_proof)
-            .map_err(MemoryEngineError::Admission)
+        MemoryEngine::admit_execution(self, judgment_proof).map_err(MemoryEngineError::Admission)
     }
 
     fn register_delta(&self, delta: Delta) -> Hash {

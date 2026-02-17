@@ -19,6 +19,7 @@ mod proof;
 mod runtime;
 mod schema;
 mod semantic_builder;
+mod storage;
 mod validate;
 mod version_gate;
 

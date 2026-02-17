@@ -98,6 +98,7 @@ pub(crate) fn build_impls_and_functions(
     layout: &mut LayoutAccumulator,
     trait_name_to_id: &HashMap<String, String>,
     type_slug_to_id: &HashMap<String, String>,
+    type_id_to_module: &HashMap<String, String>,
 ) -> (Vec<ImplBlock>, Vec<Function>) {
     let mut impls = Vec::new();
     let mut functions = Vec::new();
@@ -119,6 +120,7 @@ pub(crate) fn build_impls_and_functions(
                         impl_block,
                         trait_name_to_id,
                         type_slug_to_id,
+                        type_id_to_module,
                     ) {
                         ImplMapping::Standalone(block, funcs) => {
                             for f in &funcs {

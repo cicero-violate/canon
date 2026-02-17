@@ -1,12 +1,7 @@
-
-use crate::{
-    delta::DeltaError,
-    page_store::PageStore,
-    primitives::Hash,
-};
+use crate::hash::HashBackend;
+use crate::{delta::DeltaError, page_store::PageStore, primitives::Hash};
 use std::io::{Read, Write};
 use std::path::Path;
-use crate::hash::HashBackend;
 
 pub struct MerkleState {
     pub(crate) root_hash: Hash,
@@ -37,16 +32,12 @@ impl MerkleState {
         Self::with_capacity(1024, backend)
     }
 
-    pub fn with_capacity(
-        max_leaves: u64,
-        backend: Box<dyn HashBackend>,
-    ) -> Self {
+    pub fn with_capacity(max_leaves: u64, backend: Box<dyn HashBackend>) -> Self {
         let tree_size = max_leaves.next_power_of_two();
         let total_nodes = tree_size * 2;
         let total_bytes = total_nodes as usize * 32;
 
-        let device_tree_ptr =
-            crate::hash::gpu::GpuBackend::allocate_tree_bytes(total_bytes);
+        let device_tree_ptr = crate::hash::gpu::GpuBackend::allocate_tree_bytes(total_bytes);
 
         let root_hash = [0u8; 32];
 
@@ -61,10 +52,7 @@ impl MerkleState {
         }
     }
 
-    pub fn apply_delta(
-        &mut self,
-        delta: &crate::delta::Delta,
-    ) -> Result<(), DeltaError> {
+    pub fn apply_delta(&mut self, delta: &crate::delta::Delta) -> Result<(), DeltaError> {
         // STRICT: single-delta path is write-only.
         // Perform full rebuild to maintain correct root.
         crate::delta::validate_delta(delta)?;
@@ -94,10 +82,7 @@ impl MerkleState {
     }
 
     /// Batch apply without intermediate rehash.
-    pub fn apply_deltas_batch(
-        &mut self,
-        deltas: &[crate::delta::Delta],
-    ) -> Result<(), DeltaError> {
+    pub fn apply_deltas_batch(&mut self, deltas: &[crate::delta::Delta]) -> Result<(), DeltaError> {
         // capacity pre-scan
         let mut required = self.max_leaves;
         for delta in deltas {
@@ -137,6 +122,10 @@ impl MerkleState {
         self.root_hash
     }
 
+    pub fn read_page(&self, page_id: u64) -> &[u8] {
+        self.page_store.read_page(page_id)
+    }
+
     pub fn checkpoint<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path)?;
 
@@ -144,12 +133,7 @@ impl MerkleState {
         file.write_all(&self.root_hash)?;
 
         let total = self.page_store.capacity_bytes();
-        let slice = unsafe {
-            std::slice::from_raw_parts(
-                self.page_store.as_device_ptr(),
-                total,
-            )
-        };
+        let slice = unsafe { std::slice::from_raw_parts(self.page_store.as_device_ptr(), total) };
         file.write_all(slice)?;
 
         Ok(())
@@ -172,10 +156,7 @@ impl MerkleState {
 
         let total = state.page_store.capacity_bytes();
         let slice = unsafe {
-            std::slice::from_raw_parts_mut(
-                state.page_store.as_device_ptr() as *mut u8,
-                total,
-            )
+            std::slice::from_raw_parts_mut(state.page_store.as_device_ptr() as *mut u8, total)
         };
         file.read_exact(slice)?;
 
@@ -210,7 +191,6 @@ impl MerkleState {
         nodes[1]
     }
 
-
     fn rehash_with_new_capacity(&mut self, required_leaves: u64) {
         let new_tree_size = required_leaves.next_power_of_two();
         let total_nodes = new_tree_size * 2;
@@ -220,17 +200,13 @@ impl MerkleState {
         self.max_leaves = new_tree_size;
 
         crate::hash::gpu::GpuBackend::free_tree(self.device_tree_ptr);
-        self.device_tree_ptr =
-            crate::hash::gpu::GpuBackend::allocate_tree_bytes(total_bytes);
+        self.device_tree_ptr = crate::hash::gpu::GpuBackend::allocate_tree_bytes(total_bytes);
         self.device_tree_bytes = total_bytes;
 
         // No incremental page hash restore — full GPU rebuild only
 
         let nodes = unsafe {
-            std::slice::from_raw_parts_mut(
-                self.device_tree_ptr as *mut Hash,
-                total_nodes as usize,
-            )
+            std::slice::from_raw_parts_mut(self.device_tree_ptr as *mut Hash, total_nodes as usize)
         };
 
         self.backend
@@ -238,11 +214,7 @@ impl MerkleState {
 
         unsafe {
             let root_ptr = self.device_tree_ptr.add(32);
-            std::ptr::copy_nonoverlapping(
-                root_ptr,
-                self.root_hash.as_mut_ptr(),
-                32,
-            );
+            std::ptr::copy_nonoverlapping(root_ptr, self.root_hash.as_mut_ptr(), 32);
         }
     }
 }

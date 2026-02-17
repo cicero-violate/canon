@@ -8,9 +8,5 @@ extern "C" {
     pub fn cudaStreamDestroy(stream: *mut c_void) -> i32;
     pub fn cudaStreamSynchronize(stream: *mut c_void) -> i32;
 
-    pub fn launch_hash_leaves_and_rebuild(
-        tree: *mut u8,
-        tree_size: u64,
-        pages: *const u8,
-    );
+    pub fn launch_hash_leaves_and_rebuild(tree: *mut u8, tree_size: u64, pages: *const u8);
 }

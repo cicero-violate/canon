@@ -6,6 +6,7 @@ extern crate rustc_lint;
 extern crate rustc_session;
 extern crate rustc_span;
 extern crate serde;
+extern crate rustc_middle;
 
 mod classify;
 mod law;

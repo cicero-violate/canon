@@ -1,0 +1,231 @@
+use super::error::{Violation, ViolationDetail};
+use super::helpers::{Indexes, module_has_permission};
+use super::rules::CanonRule;
+use crate::ir::*;
+use petgraph::algo::is_cyclic_directed;
+use petgraph::graphmap::DiGraphMap;
+use std::collections::{HashMap, HashSet};
+
+pub fn check<'a>(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>) {
+    let module_adj = check_module_graph(ir, idx, violations);
+    check_call_graph(ir, idx, &module_adj, violations);
+    check_tick_graphs(ir, idx, violations);
+    check_loop_policies(ir, idx, violations);
+}
+
+fn check_module_graph<'a>(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    violations: &mut Vec<Violation>,
+) -> HashMap<&'a str, Vec<&'a str>> {
+    let mut graph: DiGraphMap<&str, ()> = DiGraphMap::new();
+    for id in idx.modules.keys() {
+        graph.add_node(*id);
+    }
+    let mut direct: HashMap<&str, Vec<&str>> = HashMap::new();
+    for edge in &ir.module_edges {
+        let from = edge.source.as_str();
+        let to = edge.target.as_str();
+        if idx.modules.get(from).is_none() || idx.modules.get(to).is_none() {
+            violations.push(Violation::structured(
+                CanonRule::ExplicitArtifacts,
+                edge.source.clone(),
+                ViolationDetail::MissingModule {
+                    module: edge.source.clone(),
+                },
+            ));
+            continue;
+        }
+        if from == to {
+            violations.push(Violation::structured(
+                CanonRule::ModuleSelfImport,
+                from.to_string(),
+                ViolationDetail::InvalidContract,
+            ));
+            continue;
+        }
+        graph.add_edge(from, to, ());
+        direct.entry(from).or_default().push(to);
+    }
+    if is_cyclic_directed(&graph) {
+        violations.push(Violation::structured(
+            CanonRule::ModuleDag,
+            "module_graph",
+            ViolationDetail::ModuleCycle,
+        ));
+    }
+    // Compute transitive closure for permission checks
+    let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
+
+    for node in graph.nodes() {
+        let mut visited: HashSet<&str> = HashSet::new();
+        let mut stack: Vec<&str> = vec![node];
+
+        while let Some(curr) = stack.pop() {
+            if let Some(neighbors) = direct.get(curr) {
+                for next in neighbors {
+                    if visited.insert(*next) {
+                        stack.push(*next);
+                    }
+                }
+            }
+        }
+
+        adj.insert(node, visited.into_iter().collect());
+    }
+
+    adj
+}
+
+fn check_call_graph<'a>(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    module_adj: &HashMap<&'a str, Vec<&'a str>>,
+    violations: &mut Vec<Violation>,
+) {
+    let mut call_graph: DiGraphMap<&str, ()> = DiGraphMap::new();
+    for id in idx.functions.keys() {
+        call_graph.add_node(*id);
+    }
+    let mut call_pairs: HashSet<(FunctionId, FunctionId)> = HashSet::new();
+    let mut perm_cache: HashMap<&str, HashSet<&str>> = HashMap::new();
+
+    for edge in &ir.call_edges {
+        let Some(caller) = idx.functions.get(edge.caller.as_str()) else {
+            violations.push(Violation::structured(
+                CanonRule::CallGraphPublicApis,
+                edge.caller.clone(),
+                ViolationDetail::MissingFunction {
+                    function_id: edge.caller.clone(),
+                },
+            ));
+            continue;
+        };
+        let Some(callee) = idx.functions.get(edge.callee.as_str()) else {
+            violations.push(Violation::structured(
+                CanonRule::CallGraphPublicApis,
+                edge.callee.clone(),
+                ViolationDetail::MissingFunction {
+                    function_id: edge.callee.clone(),
+                },
+            ));
+            continue;
+        };
+        call_pairs.insert((edge.caller.clone(), edge.callee.clone()));
+        call_graph.add_edge(edge.caller.as_str(), edge.callee.as_str(), ());
+        if callee.visibility != Visibility::Public {
+            violations.push(Violation::structured(
+                CanonRule::CallGraphPublicApis,
+                callee.id.clone(),
+                ViolationDetail::PermissionDenied {
+                    caller_module: caller.module.clone(),
+                    callee_module: callee.module.clone(),
+                },
+            ));
+        }
+        if !module_has_permission(
+            caller.module.as_str(),
+            callee.module.as_str(),
+            module_adj,
+            &mut perm_cache,
+        ) {
+            println!("Permission failure: {} -> {}", caller.module, callee.module);
+            violations.push(Violation::structured(
+                CanonRule::CallGraphRespectsDag,
+                caller.module.clone(),
+                ViolationDetail::PermissionDenied {
+                    caller_module: caller.module.clone(),
+                    callee_module: callee.module.clone(),
+                },
+            ));
+        }
+    }
+    if is_cyclic_directed(&call_graph) {
+        violations.push(Violation::structured(
+            CanonRule::CallGraphAcyclic,
+            "call_graph",
+            ViolationDetail::CallCycle,
+        ));
+    }
+}
+
+fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
+    let call_pairs: HashSet<(FunctionId, FunctionId)> = ir
+        .call_edges
+        .iter()
+        .map(|e| (e.caller.clone(), e.callee.clone()))
+        .collect();
+
+    for graph in &ir.tick_graphs {
+        let mut tg: DiGraphMap<&str, ()> = DiGraphMap::new();
+        let mut node_set: HashSet<&str> = HashSet::new();
+        for node in &graph.nodes {
+            if idx.functions.get(node.as_str()).is_none() {
+                violations.push(Violation::structured(
+                    CanonRule::TickGraphEdgesDeclared,
+                    node.clone(),
+                    ViolationDetail::MissingFunction {
+                        function_id: node.to_string(),
+                    },
+                ));
+                continue;
+            }
+            node_set.insert(node.as_str());
+            tg.add_node(node.as_str());
+        }
+        for edge in &graph.edges {
+            if !node_set.contains(edge.from.as_str()) || !node_set.contains(edge.to.as_str()) {
+                violations.push(Violation::structured(
+                    CanonRule::TickGraphEdgesDeclared,
+                    edge.from.clone(),
+                    ViolationDetail::MissingFunction {
+                        function_id: edge.from.to_string(),
+                    },
+                ));
+                continue;
+            }
+            if !call_pairs.contains(&(edge.from.clone(), edge.to.clone())) {
+                violations.push(Violation::structured(
+                    CanonRule::TickGraphEdgesDeclared,
+                    edge.from.clone(),
+                    ViolationDetail::MissingFunction {
+                        function_id: edge.from.to_string(),
+                    },
+                ));
+            }
+            tg.add_edge(edge.from.as_str(), edge.to.as_str(), ());
+        }
+        if is_cyclic_directed(&tg) {
+            violations.push(Violation::structured(
+                CanonRule::TickGraphAcyclic,
+                graph.name.to_string(),
+                ViolationDetail::TickCycle {
+                    graph: graph.name.to_string(),
+                },
+            ));
+        }
+    }
+}
+
+fn check_loop_policies(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>) {
+    for p in &ir.loop_policies {
+        if idx.tick_graphs.get(p.graph.as_str()).is_none() {
+            violations.push(Violation::structured(
+                CanonRule::LoopContinuationJudgment,
+                p.id.clone(),
+                ViolationDetail::MissingModule {
+                    module: p.graph.clone(),
+                },
+            ));
+        }
+        if idx.predicates.get(p.continuation.as_str()).is_none() {
+            violations.push(Violation::structured(
+                CanonRule::LoopContinuationJudgment,
+                p.id.clone(),
+                ViolationDetail::MissingFunction {
+                    function_id: p.continuation.clone(),
+                },
+            ));
+        }
+    }
+}

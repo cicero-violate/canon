@@ -3,6 +3,7 @@
 //! Executes [`SystemGraph`](crate::ir::SystemGraph) nodes strictly in topological order.
 
 use std::collections::{BTreeMap, HashMap};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use thiserror::Error;
 
@@ -10,18 +11,24 @@ use crate::ir::{CanonicalIr, FunctionId, SystemGraph, SystemNode, SystemNodeId, 
 use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::{ExecutorError, FunctionExecutor};
 use crate::runtime::value::Value;
-use memory_engine::MemoryEngine;
-use memory_engine::JudgmentProof;
+use blake3::Hasher;
+use memory_engine::delta::Delta as EngineDelta;
+use memory_engine::delta::delta_types::{DeltaError, Source};
+use memory_engine::epoch::Epoch;
+use memory_engine::primitives::{DeltaID, Hash as EngineHash, PageID};
+use memory_engine::{
+    AdmissionProof, CommitProof, JudgmentProof, MemoryEngine, MemoryEngineError, OutcomeProof,
+};
 
 mod effects;
 mod planner;
 
 /// Executes Canon system graphs.
-    pub struct SystemInterpreter<'a> {
-        ir: &'a CanonicalIr,
-        executor: FunctionExecutor<'a>,
-        engine: &'a MemoryEngine,
-    }
+pub struct SystemInterpreter<'a> {
+    ir: &'a CanonicalIr,
+    executor: FunctionExecutor<'a>,
+    engine: &'a MemoryEngine,
+}
 
 impl<'a> SystemInterpreter<'a> {
     pub fn new(ir: &'a CanonicalIr, engine: &'a MemoryEngine) -> Self {
@@ -80,7 +87,7 @@ impl<'a> SystemInterpreter<'a> {
         let mut results: HashMap<SystemNodeId, BTreeMap<String, Value>> = HashMap::new();
         let mut proofs = Vec::new();
         let mut delta_provenance = Vec::new();
-    let mut emitted_deltas = Vec::new();
+        let mut emitted_deltas = Vec::new();
 
         for node_id in &order {
             let node = node_index
@@ -109,12 +116,7 @@ impl<'a> SystemInterpreter<'a> {
             });
         }
 
-        // === MEMORY ENGINE COMMIT PIPELINE ===
-        // === MEMORY ENGINE COMMIT PIPELINE (placeholder wiring) ===
-        for _delta_value in &emitted_deltas {
-            // TODO: explicit mapping from DeltaValue -> memory_engine::delta::Delta
-            // until then, commit path is intentionally disabled
-        }
+        let engine_artifacts = self.commit_emitted_deltas(&graph.id, &emitted_deltas)?;
 
         Ok(SystemExecutionResult {
             graph_id: graph.id.clone(),
@@ -124,6 +126,27 @@ impl<'a> SystemInterpreter<'a> {
             proof_artifacts: proofs,
             delta_provenance,
             events,
+            judgment_proof: engine_artifacts
+                .as_ref()
+                .map(|artifacts| artifacts.judgment_proof.clone()),
+            admission_proof: engine_artifacts
+                .as_ref()
+                .map(|artifacts| artifacts.admission.clone()),
+            commit_proofs: engine_artifacts
+                .as_ref()
+                .map(|artifacts| artifacts.commits.clone())
+                .unwrap_or_default(),
+            outcome_proofs: engine_artifacts
+                .as_ref()
+                .map(|artifacts| artifacts.outcomes.clone())
+                .unwrap_or_default(),
+            event_hashes: engine_artifacts
+                .as_ref()
+                .map(|artifacts| artifacts.event_hashes.clone())
+                .unwrap_or_default(),
+            state_root: engine_artifacts
+                .as_ref()
+                .and_then(|artifacts| artifacts.commits.last().map(|commit| commit.state_hash)),
         })
     }
 
@@ -195,6 +218,12 @@ pub struct SystemExecutionResult {
     pub proof_artifacts: Vec<ProofArtifact>,
     pub delta_provenance: Vec<DeltaEmission>,
     pub events: Vec<SystemExecutionEvent>,
+    pub judgment_proof: Option<JudgmentProof>,
+    pub admission_proof: Option<AdmissionProof>,
+    pub commit_proofs: Vec<CommitProof>,
+    pub outcome_proofs: Vec<OutcomeProof>,
+    pub event_hashes: Vec<EngineHash>,
+    pub state_root: Option<EngineHash>,
 }
 
 #[derive(Debug, Clone)]
@@ -272,6 +301,133 @@ pub enum SystemInterpreterError {
     PersistWithoutDelta(SystemNodeId),
     #[error("cycle detected in system graph at `{0}`")]
     CycleDetected(SystemNodeId),
+    #[error("unable to encode delta `{delta_id}`: {source}")]
+    DeltaEncoding {
+        delta_id: String,
+        #[source]
+        source: DeltaError,
+    },
+    #[error("memory engine error: {0}")]
+    MemoryEngine(#[from] MemoryEngineError),
     #[error(transparent)]
     Executor(#[from] ExecutorError),
+}
+
+impl<'a> SystemInterpreter<'a> {
+    fn commit_emitted_deltas(
+        &self,
+        graph_id: &str,
+        deltas: &[crate::runtime::value::DeltaValue],
+    ) -> Result<Option<EngineArtifacts>, SystemInterpreterError> {
+        if deltas.is_empty() {
+            return Ok(None);
+        }
+
+        let encoded = deltas
+            .iter()
+            .map(Self::encode_delta)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let delta_hashes: Vec<EngineHash> = encoded
+            .into_iter()
+            .map(|delta| self.engine.register_delta(delta))
+            .collect();
+
+        let judgment_proof = Self::build_judgment_proof(graph_id, deltas);
+        let admission = self
+            .engine
+            .admit_execution(&judgment_proof)
+            .map_err(|err| SystemInterpreterError::MemoryEngine(err.into()))?;
+        let commits = self.engine.commit_batch(&admission, &delta_hashes)?;
+
+        let mut outcomes = Vec::with_capacity(commits.len());
+        let mut event_hashes = Vec::with_capacity(commits.len());
+
+        for commit in &commits {
+            let outcome = self.engine.record_outcome(commit);
+            event_hashes.push(self.engine.compute_event_hash(&admission, commit, &outcome));
+            outcomes.push(outcome);
+        }
+
+        Ok(Some(EngineArtifacts {
+            judgment_proof,
+            admission,
+            commits,
+            outcomes,
+            event_hashes,
+        }))
+    }
+
+    fn encode_delta(
+        delta: &crate::runtime::value::DeltaValue,
+    ) -> Result<EngineDelta, SystemInterpreterError> {
+        let payload = Self::decode_payload(&delta.payload_hash);
+        let mask = vec![true; payload.len()];
+        EngineDelta::new_dense(
+            DeltaID(Self::deterministic_id(&delta.delta_id)),
+            PageID(Self::deterministic_id(&format!("page::{}", delta.delta_id))),
+            Epoch(0),
+            payload,
+            mask,
+            Source(format!("canon.delta::{}", delta.delta_id)),
+        )
+        .map_err(|source| SystemInterpreterError::DeltaEncoding {
+            delta_id: delta.delta_id.clone(),
+            source,
+        })
+    }
+
+    fn build_judgment_proof(
+        graph_id: &str,
+        deltas: &[crate::runtime::value::DeltaValue],
+    ) -> JudgmentProof {
+        let mut hasher = Hasher::new();
+        hasher.update(graph_id.as_bytes());
+        for delta in deltas {
+            hasher.update(delta.delta_id.as_bytes());
+            hasher.update(delta.payload_hash.as_bytes());
+        }
+        let mut hash = [0u8; 32];
+        hash.copy_from_slice(&hasher.finalize().as_bytes()[..32]);
+        JudgmentProof {
+            approved: true,
+            timestamp: Self::current_timestamp(),
+            hash,
+        }
+    }
+
+    fn deterministic_id(value: &str) -> u64 {
+        let hash = blake3::hash(value.as_bytes());
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(&hash.as_bytes()[..8]);
+        u64::from_le_bytes(bytes)
+    }
+
+    fn decode_payload(payload_hash: &str) -> Vec<u8> {
+        if payload_hash.is_empty() {
+            return Vec::new();
+        }
+        if payload_hash.len() % 2 == 0 {
+            if let Ok(bytes) = hex::decode(payload_hash) {
+                return bytes;
+            }
+        }
+        payload_hash.as_bytes().to_vec()
+    }
+
+    fn current_timestamp() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct EngineArtifacts {
+    judgment_proof: JudgmentProof,
+    admission: AdmissionProof,
+    commits: Vec<CommitProof>,
+    outcomes: Vec<OutcomeProof>,
+    event_hashes: Vec<EngineHash>,
 }

@@ -5,16 +5,73 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow, bail};
 use hex;
 use host_state_controller::{RunReceipt, StateController};
-use memory_engine::memory_engine::CanonicalState;
-use memory_engine::tlog::{TlogEntry, TlogManager};
 use memory_engine::delta::{Delta, ShellDelta};
+use memory_engine::hash::gpu::create_gpu_backend;
+use memory_engine::primitives::Hash;
+use memory_engine::MerkleState;
+use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
 use crate::lean_gate::{self, ShellMetadata};
+use crate::tlog::{TlogEntry, TlogManager};
 
 pub const ZERO_PROOF_HASH: [u8; 32] = [0u8; 32];
 pub const SHELL_GRAPH_ID: &str = "system.shell";
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StateSlice {
+    pub root_hash: String,
+}
+
+impl StateSlice {
+    fn new(hash: Hash) -> Self {
+        Self {
+            root_hash: hex::encode(hash),
+        }
+    }
+}
+
+pub struct CanonicalState {
+    inner: MerkleState,
+}
+
+impl CanonicalState {
+    pub fn new_empty() -> Self {
+        Self {
+            inner: MerkleState::new_empty(create_gpu_backend()),
+        }
+    }
+
+    pub fn root_hash(&self) -> Hash {
+        self.inner.root_hash()
+    }
+
+    pub fn apply_delta(&mut self, delta: &Delta) -> Result<(), memory_engine::delta::DeltaError> {
+        self.inner.apply_delta(delta)
+    }
+
+    pub fn to_slice(&self) -> StateSlice {
+        StateSlice::new(self.inner.root_hash())
+    }
+
+    pub fn flush_to_disk(&self, repo_root: &Path) -> std::io::Result<()> {
+        let path = snapshot_path(repo_root);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        self.inner.checkpoint(&path)
+    }
+
+    pub fn load_from_disk(repo_root: &Path) -> std::io::Result<Option<Self>> {
+        let path = snapshot_path(repo_root);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let inner = MerkleState::restore_from_checkpoint(&path, create_gpu_backend())?;
+        Ok(Some(Self { inner }))
+    }
+}
 
 pub fn resolve_fixture_path(repo_root: &Path) -> Result<PathBuf> {
     let fixture = env::var("CANON_FIXTURE").unwrap_or_else(|_| "simple_add".to_string());
@@ -31,6 +88,12 @@ pub fn state_dir(repo_root: &Path) -> PathBuf {
 
 pub fn tlog_path(repo_root: &Path) -> PathBuf {
     state_dir(repo_root).join("canon.tlog")
+}
+
+fn snapshot_path(repo_root: &Path) -> PathBuf {
+    state_dir(repo_root)
+        .join("snapshots")
+        .join("canonical_state.bin")
 }
 
 pub fn shell_state_dir(repo_root: &Path) -> PathBuf {

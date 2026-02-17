@@ -16,8 +16,10 @@ use thiserror::Error;
 mod strategies;
 mod validation;
 
+pub use strategies::{
+    FlatNodeLayoutStrategy, OriginalLayoutStrategy, PerTypeLayoutStrategy, SingleFileLayoutStrategy,
+};
 pub use validation::{LayoutValidationError, validate_layout};
-pub use strategies::{OriginalLayoutStrategy, PerTypeLayoutStrategy, SingleFileLayoutStrategy, FlatNodeLayoutStrategy};
 
 /// Container that pairs the semantic and layout graphs used during
 /// ingestion/materialization.

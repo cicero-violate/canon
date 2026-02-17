@@ -20,35 +20,14 @@ pub(crate) fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, 
     eprintln!("INGEST DEBUG: root.exists() = {}", root.exists());
     eprintln!("INGEST DEBUG: root.is_dir() = {}", root.is_dir());
 
-    let expected_src = root.join("src");
-    let src_root = if expected_src.is_dir() {
-        expected_src.clone()
-    } else {
-        root.to_path_buf() // fallback: allow ingesting when src/ is missing or root is already src/
-    };
+    let src_root = resolve_src_root(root)?;
 
-    eprintln!("INGEST DEBUG: expected_src = {}", expected_src.display());
-    eprintln!(
-        "INGEST DEBUG: expected_src.exists() = {}",
-        expected_src.exists()
-    );
-    eprintln!(
-        "INGEST DEBUG: expected_src.is_dir() = {}",
-        expected_src.is_dir()
-    );
     eprintln!("INGEST DEBUG: final src_root = {}", src_root.display());
     eprintln!(
         "INGEST DEBUG: final src_root.is_dir() = {}",
         src_root.is_dir()
     );
 
-    if !src_root.is_dir() {
-        return Err(IngestError::UnsupportedFeature(format!(
-            "ING-001: no readable source directory in `{}` (final src_root: {})",
-            root.display(),
-            src_root.display()
-        )));
-    }
     let mut files = Vec::new();
     for entry in WalkDir::new(&src_root)
         .into_iter()
@@ -62,8 +41,11 @@ pub(crate) fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, 
         if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
             continue;
         }
-        let relative = strip_prefix_components(path, root)
-            .unwrap_or_else(|| path.strip_prefix(&src_root).unwrap_or(path).to_path_buf());
+        let relative = path
+            .strip_prefix(root)
+            .or_else(|_| path.strip_prefix(&src_root))
+            .unwrap_or(path)
+            .to_path_buf();
         files.push(DiscoveredFile {
             absolute: path.to_path_buf(),
             relative,
@@ -89,9 +71,25 @@ fn is_ignored(path: &Path) -> bool {
     false
 }
 
-fn strip_prefix_components(path: &Path, root: &Path) -> Option<PathBuf> {
-    let src_root = root.join("src");
-    path.strip_prefix(&src_root).ok().map(|p| p.to_path_buf())
+fn resolve_src_root(root: &Path) -> Result<PathBuf, IngestError> {
+    if root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name == "src")
+        .unwrap_or(false)
+    {
+        return Ok(root.to_path_buf());
+    }
+
+    let candidate = root.join("src");
+    if candidate.is_dir() {
+        return Ok(candidate);
+    }
+
+    Err(IngestError::UnsupportedFeature(format!(
+        "ING-001: ingest expects a crate directory containing `src/` or the `src/` directory itself. Provided root `{}` does not contain readable sources.",
+        root.display()
+    )))
 }
 
 fn map_walkdir_error(err: walkdir::Error) -> IngestError {
