@@ -236,9 +236,6 @@ impl MemoryEngine {
 
         // Persist log
         for delta in &deltas {
-            // self.tlog
-            //     .append(admission, delta.clone())
-            //     .map_err(CommitError::TlogWrite)?;
             let encoded = bincode::serialize(&(admission, delta))?;
             self.wal.append(&encoded)?;
         }
