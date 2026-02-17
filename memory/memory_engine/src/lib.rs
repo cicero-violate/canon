@@ -34,7 +34,7 @@ pub use memory_engine::{
 };
 
 // Re-export CanonicalState for integration tests
-pub use canonical_state::CanonicalState;
+pub use canonical_state::PhysicalState;
 
 // Proof types Canon needs
 pub use proofs::{
