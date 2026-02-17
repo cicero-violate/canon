@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use crate::hash::HashBackend;
 
-pub struct PhysicalState {
+pub struct MerkleState {
     pub(crate) root_hash: Hash,
     pub(crate) page_store: PageStore,
     pub(crate) device_tree_ptr: *mut u8,
@@ -22,17 +22,17 @@ pub struct PhysicalState {
 // device_tree_ptr is CUDA-managed memory.
 // All access is externally synchronized via RwLock in MemoryEngine.
 // No concurrent mutation occurs without write lock.
-unsafe impl Send for PhysicalState {}
-unsafe impl Sync for PhysicalState {}
+unsafe impl Send for MerkleState {}
+unsafe impl Sync for MerkleState {}
 
-impl Drop for PhysicalState {
+impl Drop for MerkleState {
     fn drop(&mut self) {
         if !self.device_tree_ptr.is_null() {
             crate::hash::gpu::GpuBackend::free_tree(self.device_tree_ptr);
         }
     }
 }
-impl PhysicalState {
+impl MerkleState {
     pub fn new_empty(backend: Box<dyn HashBackend>) -> Self {
         Self::with_capacity(1024, backend)
     }
