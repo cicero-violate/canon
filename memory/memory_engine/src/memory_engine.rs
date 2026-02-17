@@ -24,7 +24,8 @@ use crate::{
     graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
     primitives::Hash,
     proofs::{AdmissionProof, CommitProof, JudgmentProof, OutcomeProof},
-    tlog::TransactionLog,
+    persistence::mmap_log::MmapLog,
+    persistence::root_header::RootHeader,
 };
 
 // ===============================
@@ -90,7 +91,7 @@ pub enum CommitError {
 // Engine
 // ===============================
 pub struct MemoryEngine {
-    pub(crate) tlog: Arc<TransactionLog>,
+    pub(crate) wal: Arc<MmapLog>,
     pub(crate) graph_log: Arc<GraphDeltaLog>,
     pub(crate) epoch: Arc<EpochCell>,
     pub(crate) admitted: RwLock<HashSet<Hash>>,
@@ -100,22 +101,36 @@ pub struct MemoryEngine {
 
 impl MemoryEngine {
     pub fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError> {
-        let tlog =
-            Arc::new(TransactionLog::new(&config.tlog_path).map_err(MemoryEngineError::TlogOpen)?);
+        let wal =
+            Arc::new(MmapLog::open(&config.tlog_path).map_err(MemoryEngineError::TlogOpen)?);
 
         let graph_log =
             Arc::new(GraphDeltaLog::new(&config.graph_log_path)
                 .map_err(MemoryEngineError::GraphLogOpen)?);
 
+        let backend = create_gpu_backend();
+
+        let state = if let Some(header) = wal.read_latest_root()? {
+            Arc::new(RwLock::new(
+                CanonicalState::restore_from_checkpoint(
+                    &config.tlog_path,
+                    backend,
+                )
+                .unwrap_or_else(|_| CanonicalState::new_empty(create_gpu_backend())),
+            ))
+        } else {
+            Arc::new(RwLock::new(
+                CanonicalState::new_empty(create_gpu_backend()),
+            ))
+        };
+
         Ok(Self {
-            tlog,
+            wal,
             graph_log,
             epoch: Arc::new(EpochCell::new(0)),
             admitted: RwLock::new(HashSet::new()),
             deltas: RwLock::new(HashMap::new()),
-            state: Arc::new(RwLock::new(
-                CanonicalState::new_empty(create_gpu_backend()),
-            )),
+            state,
         })
     }
 
@@ -125,6 +140,13 @@ impl MemoryEngine {
     ) -> std::io::Result<()> {
         let state = self.state.read();
         state.checkpoint(path)
+    }
+
+    pub fn compact(&self) -> std::io::Result<()> {
+        let state = self.state.read();
+        state.checkpoint("checkpoint.bin")?;
+        self.wal.truncate()?;
+        Ok(())
     }
 
     // ===============================
@@ -214,12 +236,25 @@ impl MemoryEngine {
 
         // Persist log
         for delta in &deltas {
-            self.tlog
-                .append(admission, delta.clone())
-                .map_err(CommitError::TlogWrite)?;
+            // self.tlog
+            //     .append(admission, delta.clone())
+            //     .map_err(CommitError::TlogWrite)?;
+            let encoded = bincode::serialize(&(admission, delta))?;
+            self.wal.append(&encoded)?;
         }
 
         let root = self.state.read().root_hash();
+
+        // Crash-consistent root update
+        {
+            let header = RootHeader {
+                tree_size: self.state.read().tree_size,
+                root_hash: root,
+            };
+            self.wal
+                .write_root_header(&header)
+                .map_err(CommitError::TlogWrite)?;
+        }
 
         Ok(delta_hashes
             .iter()
