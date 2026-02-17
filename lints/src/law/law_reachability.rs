@@ -1,86 +1,80 @@
-use std::sync::Mutex;
+use std::cell::RefCell;
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 
-use lazy_static::lazy_static;
-use rustc_hir::{Item, ItemKind};
+use rustc_hir::def::DefKind;
+use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_lint::LateContext;
+use rustc_middle::ty::{self, Ty, TyCtxt};
 
-lazy_static! {
-    /// Accumulates (def_path, kind, module_path) for unreachable items.
-    pub static ref DEAD_ITEMS: Mutex<Vec<DeadItem>> = Mutex::new(Vec::new());
+thread_local! {
+    static LIVE_SET: RefCell<HashSet<LocalDefId>> = RefCell::new(HashSet::new());
+    static LIVE_SIGNATURES: RefCell<HashMap<String, FnSignature>> = RefCell::new(HashMap::new());
 }
 
+#[derive(Clone)]
 pub struct DeadItem {
     pub def_path: String,
-    pub kind: String,
     pub module_path: String,
-    pub reachable_caller: String,
+    pub domain_inputs: Vec<String>,
 }
 
-pub fn reset_reachability() {
-    DEAD_ITEMS.lock().unwrap().clear();
+#[derive(Clone)]
+pub struct FnSignature {
+    pub module_path: String,
+    pub domain_inputs: Vec<String>,
 }
 
-/// Check if item is reachable from main via tcx.reachable_set().
-/// If not reachable, find the closest reachable item in the same module
-/// and record it as the reconnect target.
-pub fn collect_dead_item<'tcx>(cx: &LateContext<'tcx>, item: &Item<'tcx>) {
-    let def_id = item.owner_id.def_id;
+struct MatchResult {
+    path: String,
+    score: f32,
+    module: String,
+}
 
-    // Skip items with no meaningful body or identity.
-    match item.kind {
-        ItemKind::Fn { .. }
-        | ItemKind::Struct(..)
-        | ItemKind::Enum(..)
-        | ItemKind::Trait(..)
-        | ItemKind::Impl(..) => {}
-        _ => return,
-    }
-
-    // tcx.reachable_set() returns LocalDefId set of all reachable items.
-    let reachable_set = cx.tcx.reachable_set(());
-
-    if reachable_set.contains(&def_id) {
+pub fn reset_reachability(cx: &LateContext<'_>) {
+    let Ok((live_symbols, _)) = cx
+        .tcx
+        .live_symbols_and_ignored_derived_traits(())
+        .as_ref()
+    else {
+        LIVE_SET.with(|slot| slot.borrow_mut().clear());
+        LIVE_SIGNATURES.with(|slot| slot.borrow_mut().clear());
         return;
-    }
-
-    let def_path = cx.tcx.def_path_str(def_id.to_def_id());
-    let def_path_clone = def_path.clone();
-    let module_path = module_of(&def_path_clone);
-
-    // Find closest reachable item in same module by walking all local def ids.
-    let reachable_caller = cx.tcx
-        .hir_body_owners()
-        .filter_map(|local_def_id| {
-            if !reachable_set.contains(&local_def_id) {
-                return None;
-            }
-            let p = cx.tcx.def_path_str(local_def_id.to_def_id());
-            if module_of(&p) == module_path {
-                Some(p)
-            } else {
-                None
-            }
-        })
-        .next()
-        .unwrap_or_else(|| "<no reachable peer in module>".to_string());
-
-    let kind = match item.kind {
-        ItemKind::Fn { .. } => "fn",
-        ItemKind::Struct(..) => "struct",
-        ItemKind::Enum(..) => "enum",
-        ItemKind::Trait(..) => "trait",
-        ItemKind::Impl(..) => "impl",
-        _ => "other",
     };
 
-    DEAD_ITEMS.lock().unwrap().push(DeadItem {
-        def_path,
-        kind: kind.to_string(),
-        module_path: module_path.to_string(),
-        reachable_caller,
+    LIVE_SET.with(|slot| {
+        let mut set = slot.borrow_mut();
+        set.clear();
+        for def_id in cx.tcx.hir_body_owners() {
+            if live_symbols.contains(&def_id) {
+                set.insert(def_id);
+            }
+        }
+    });
+
+    LIVE_SIGNATURES.with(|slot| {
+        let mut map = slot.borrow_mut();
+        map.clear();
+        for def_id in cx.tcx.hir_body_owners() {
+            if !live_symbols.contains(&def_id) || !is_function_like(cx, def_id) {
+                continue;
+            }
+            if let Some((def_path, signature)) = build_signature(cx, def_id) {
+                map.insert(def_path, signature);
+            }
+        }
     });
 }
 
-fn module_of(def_path: &str) -> &str {
-    def_path.rsplit_once("::").map(|(m, _)| m).unwrap_or(def_path)
-}
+pub fn collect_dead_items<'tcx>(cx: &LateContext<'tcx>) -> Vec<DeadItem> {
+    cx.tcx
+        .hir_body_owners()
+        .filter(|&def_id| is_function_like(cx, def_id) && !is_live(def_id))
+        .filter_map(|def_id| build_signature(cx, def_id))
+        .map(|(def_path, signature)| DeadItem {
+            def_path,
+            module_path: signature.module_path.clone(),
+            domain_inputs: signature.domain_inputs.clone(),
+        })
+        .collect()
+
