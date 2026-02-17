@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::hash::gpu::create_gpu_backend;
 
 use crate::{
-    canonical_state::PhysicalState,
+    canonical_state::MerkleState,
     delta::Delta,
     epoch::EpochCell,
     graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
@@ -96,7 +96,7 @@ pub struct MemoryEngine {
     pub(crate) epoch: Arc<EpochCell>,
     pub(crate) admitted: RwLock<HashSet<Hash>>,
     pub(crate) deltas: RwLock<HashMap<Hash, Delta>>,
-    pub(crate) state: Arc<RwLock<PhysicalState>>,
+    pub(crate) state: Arc<RwLock<MerkleState>>,
 }
 
 impl MemoryEngine {
@@ -113,7 +113,7 @@ impl MemoryEngine {
 
         let backend = create_gpu_backend();
 
-        let mut state = PhysicalState::new_empty(backend);
+        let mut state = MerkleState::new_empty(backend);
 
         if let Some(header) = wal.lock().read_latest_root()
             .map_err(MemoryEngineError::TlogOpen)? {
