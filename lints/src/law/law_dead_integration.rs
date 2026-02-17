@@ -1,7 +1,5 @@
 use rustc_lint::{LateContext, LintContext, LintStore};
 
-use crate::classify::classify_item;
-use crate::law::DEAD_ITEMS;
 use rustc_session::declare_lint;
 
 declare_lint! {
@@ -52,12 +50,5 @@ pub fn enforce_dead_integration(cx: &LateContext<'_>, item: &rustc_hir::Item<'_>
         ));
     });
 
-    let (kind, _severity) = classify_item(&item.kind);
-    let def_path = cx.tcx.def_path_str(item.owner_id.def_id.to_def_id());
-    DEAD_ITEMS.lock().unwrap().push(crate::law::law_reachability::DeadItem {
-        def_path,
-        kind: kind.to_string(),
-        module_path: String::new(),
-        reachable_caller: String::new(),
-    });
+    let _def_path = cx.tcx.def_path_str(item.owner_id.def_id.to_def_id());
 }

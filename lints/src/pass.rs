@@ -4,8 +4,10 @@ use rustc_lint::{LateContext, LateLintPass};
 use serde_json;
 
 use crate::classify::classify_item;
-use crate::law::{DEAD_INTEGRATION, FILE_TOO_LONG, enforce_dead_integration, enforce_file_length, reset_cache};
-use crate::law::{DEAD_ITEMS, collect_dead_item, reset_reachability};
+use crate::law::{
+    best_reconnect_target, collect_dead_items, reset_reachability, DEAD_INTEGRATION, FILE_TOO_LONG,
+    enforce_dead_integration, enforce_file_length, reset_cache,
+};
 use crate::policy::API_TRAITS_ONLY;
 use crate::signal::{LINT_SIGNALS, LintSignal};
 
@@ -14,15 +16,14 @@ use rustc_session::declare_lint_pass;
 declare_lint_pass!(ApiTraitsOnly => [API_TRAITS_ONLY, FILE_TOO_LONG, DEAD_INTEGRATION]);
 
 impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
-    fn check_crate(&mut self, _: &LateContext<'tcx>) {
+    fn check_crate(&mut self, cx: &LateContext<'tcx>) {
         reset_cache();
-        reset_reachability();
+        reset_reachability(cx);
     }
 
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         enforce_file_length(cx, item.span);
         enforce_dead_integration(cx, item);
-        collect_dead_item(cx, item);
         // Only public items
         let vis = cx.tcx.visibility(item.owner_id.def_id);
         if !vis.is_public() {
@@ -78,15 +79,16 @@ impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
         // Signal-only; no human-facing lint emission
     }
 
-    fn check_crate_post(&mut self, _cx: &LateContext<'tcx>) {
-        let dead_items = DEAD_ITEMS.lock().unwrap();
+    fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
+        let dead_items = collect_dead_items(cx);
         for item in dead_items.iter() {
+            let (reconnect, score) = best_reconnect_target(item);
             let signal = crate::signal::LintSignal {
                 policy: "DEAD_INTEGRATION".into(),
                 def_path: item.def_path.clone(),
-                kind: item.kind.clone(),
-                module: item.reachable_caller.clone(),
-                severity: 1.0,
+                kind: "fn".into(),
+                module: reconnect,
+                severity: score,
             };
             crate::signal::LINT_SIGNALS.lock().unwrap().push(signal);
         }
