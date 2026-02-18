@@ -75,9 +75,8 @@ fn main() {
     }
 
     let mut args = Vec::with_capacity(argv.len().saturating_sub(1));
-    // args.push("rustc".to_string());
-    // args.extend(argv.drain(2..));
-    let args: Vec<String> = argv.drain(1..).collect();
+    args.push("rustc".to_string());
+    args.extend(argv.drain(2..));
 
     let _diag = EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
     rustc_driver::run_compiler(&args, &mut callbacks);
