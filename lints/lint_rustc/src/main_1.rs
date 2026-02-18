@@ -74,18 +74,12 @@ fn main() {
         exec_real_rustc(&real_rustc, &argv[2..], "dependency");
     }
 
-    let args: Vec<String> = std::iter::once(argv[0].clone())
-        .chain(argv.iter().skip(2).cloned())
-        .collect();
+    let mut args = Vec::with_capacity(argv.len().saturating_sub(1));
+    args.push("rustc".to_string());
+    args.extend(argv.drain(2..));
 
     let _diag = EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
-    let result = rustc_driver::catch_fatal_errors(|| {
-        rustc_driver::run_compiler(&args, &mut callbacks);
-    });
-
-    if result.is_err() {
-        std::process::exit(1);
-    }
+    rustc_driver::run_compiler(&args, &mut callbacks);
 
     let signals = {
         let guard = lints::LINT_SIGNALS.lock().unwrap();

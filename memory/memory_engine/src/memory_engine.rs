@@ -34,6 +34,7 @@ use crate::{
 
 const DOMAIN_DELTA: &[u8] = b"DELTA_V1";
 const DOMAIN_EVENT: &[u8] = b"EVENT_V1";
+const DOMAIN_TRANSITION_JUDGMENT: &[u8] = b"TRANSITION_JUDGMENT_V1";
 
 // ===============================
 // Config
@@ -66,6 +67,9 @@ pub enum MemoryEngineError {
 
     #[error("Delta not found for hash")]
     DeltaNotFound,
+
+    #[error("state hash mismatch (expected {expected:?}, got {provided:?})")]
+    StateMismatch { expected: Hash, provided: Hash },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -374,6 +378,19 @@ impl MemoryEngine {
         proof.approved && proof.hash != [0u8; 32]
     }
 
+    fn transition_judgment(&self, previous_state: Hash, delta_hash: Hash) -> JudgmentProof {
+        let mut hasher = Sha256::new();
+        hasher.update(DOMAIN_TRANSITION_JUDGMENT);
+        hasher.update(previous_state);
+        hasher.update(delta_hash);
+
+        JudgmentProof {
+            approved: true,
+            timestamp: self.epoch.load().0 as u64,
+            hash: hasher.finalize().into(),
+        }
+    }
+
     fn hash_delta(delta: &Delta) -> Hash {
         let mut hasher = Sha256::new();
         hasher.update(DOMAIN_DELTA);
@@ -389,7 +406,7 @@ impl MemoryEngine {
     }
 }
 
-use crate::engine::Engine;
+use crate::{engine::Engine, transition::MemoryTransition};
 
 impl Engine for MemoryEngine {
     type Error = MemoryEngineError;
@@ -444,5 +461,28 @@ impl Engine for MemoryEngine {
 
     fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> {
         MemoryEngine::materialized_graph(self)
+    }
+}
+
+impl MemoryTransition for MemoryEngine {
+    fn genesis(&self) -> Hash {
+        self.current_root_hash()
+    }
+
+    fn step(&self, state: Hash, delta: Delta) -> Result<(Hash, CommitProof), MemoryEngineError> {
+        let current = self.current_root_hash();
+        if current != state {
+            return Err(MemoryEngineError::StateMismatch {
+                expected: current,
+                provided: state,
+            });
+        }
+
+        let delta_hash = self.register_delta(delta);
+        let judgment = self.transition_judgment(state, delta_hash);
+        let admission = self.admit_execution(&judgment)?;
+        let commit = self.commit_delta(&admission, &delta_hash)?;
+
+        Ok((self.current_root_hash(), commit))
     }
 }

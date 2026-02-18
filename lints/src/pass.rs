@@ -17,6 +17,8 @@ declare_lint_pass!(ApiTraitsOnly => [API_TRAITS_ONLY, FILE_TOO_LONG, DEAD_INTEGR
 
 impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
     fn check_crate(&mut self, cx: &LateContext<'tcx>) {
+        // Clear global signals every compilation unit to avoid stale state
+        crate::signal::LINT_SIGNALS.lock().unwrap().clear();
         reset_cache();
         reset_reachability(cx);
     }
@@ -80,7 +82,17 @@ impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
     }
 
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
+        // Always recompute reachability at crate end to avoid stale incremental state
+        reset_reachability(cx);
+
         let dead_items = collect_dead_items(cx);
+
+        // Clear previous DEAD_INTEGRATION signals only
+        {
+            let mut guard = crate::signal::LINT_SIGNALS.lock().unwrap();
+            guard.retain(|s| s.policy != "DEAD_INTEGRATION");
+        }
+
         for item in dead_items.iter() {
             let (reconnect, score) = best_reconnect_target(item);
             let signal = crate::signal::LintSignal {

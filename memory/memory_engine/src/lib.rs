@@ -11,6 +11,7 @@ mod memory_engine;
 mod page;
 mod page_store;
 pub mod persistence;
+pub mod transition;
 
 // ===== Public domain modules =====
 
@@ -24,6 +25,7 @@ pub mod proofs;
 // ===== Canon-facing API =====
 
 pub use engine::Engine;
+pub use transition::MemoryTransition;
 
 pub use memory_engine::{
     AdmissionError, CommitError, MemoryEngine, MemoryEngineConfig, MemoryEngineError,

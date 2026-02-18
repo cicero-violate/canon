@@ -1,3 +1,3 @@
-fn main() {
+fn main_renamed() {
     println!("Hello, world!");
 }
