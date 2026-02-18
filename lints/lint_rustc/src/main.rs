@@ -11,8 +11,7 @@ extern crate serde_json;
 use rustc_driver::Callbacks;
 use rustc_session::EarlyDiagCtxt;
 use std::{
-    fs,
-    io,
+    fs, io,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -58,7 +57,9 @@ fn main() {
 
     let is_probe = argv.iter().any(|a| a.starts_with("--print="))
         || argv.iter().any(|a| a == "-")
-        || argv.windows(2).any(|w| w[0] == "--crate-name" && w[1] == "___")
+        || argv
+            .windows(2)
+            .any(|w| w[0] == "--crate-name" && w[1] == "___")
         || argv.iter().any(|a| a == "-vV" || a == "--version");
 
     if is_probe {
@@ -74,8 +75,9 @@ fn main() {
     }
 
     let mut args = Vec::with_capacity(argv.len().saturating_sub(1));
-    args.push("rustc".to_string());
-    args.extend(argv.drain(2..));
+    // args.push("rustc".to_string());
+    // args.extend(argv.drain(2..));
+    let args: Vec<String> = argv.drain(1..).collect();
 
     let _diag = EarlyDiagCtxt::new(rustc_session::config::ErrorOutputType::default());
     rustc_driver::run_compiler(&args, &mut callbacks);
@@ -88,16 +90,13 @@ fn main() {
         if let Some(repo_root) = workspace_root.as_ref() {
             if let Some(crate_name) = crate_name.as_deref() {
                 if let Err(err) = persist_signals(&repo_root, crate_name, &signals) {
-                    eprintln!(
-                        "warning: failed to persist lint signals for {crate_name}: {err}"
-                    );
+                    eprintln!("warning: failed to persist lint signals for {crate_name}: {err}");
                 }
             }
         }
         println!(
             "{}",
-            serde_json::to_string_pretty(&signals)
-                .expect("failed to serialize judgment signals")
+            serde_json::to_string_pretty(&signals).expect("failed to serialize judgment signals")
         );
     }
 
@@ -105,9 +104,7 @@ fn main() {
 }
 
 fn find_flag_value(args: &[String], flag: &str) -> Option<String> {
-    args.windows(2)
-        .find(|w| w[0] == flag)
-        .map(|w| w[1].clone())
+    args.windows(2).find(|w| w[0] == flag).map(|w| w[1].clone())
 }
 
 fn workspace_root_from_exe() -> Option<PathBuf> {
