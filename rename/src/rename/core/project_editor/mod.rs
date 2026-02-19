@@ -303,20 +303,8 @@ fn run_use_path_rewrite(
 
     let mut touched = HashSet::new();
     let config = StructuredEditOptions::new(false, false, true);
-    let project_root = find_project_root(registry)?;
     for (file, ast) in registry.asts.iter_mut() {
-        let module_path = project_root
-            .as_ref()
-            .map(|root| module_path_for_file(root, file));
-        let scoped_updates: HashMap<String, String> = updates
-            .iter()
-            .filter(|update| update.applies_to(module_path.as_deref()))
-            .map(|update| (update.from.clone(), update.to.clone()))
-            .collect();
-        if scoped_updates.is_empty() {
-            continue;
-        }
-        let mut pass = UsePathRewritePass::new(scoped_updates, Vec::new(), config.clone());
+        let mut pass = UsePathRewritePass::new(updates.clone(), Vec::new(), config.clone());
         if pass.execute(file, "", ast)? {
             touched.insert(file.clone());
         }
@@ -326,8 +314,8 @@ fn run_use_path_rewrite(
 
 fn collect_use_path_updates(
     changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
-) -> Vec<UsePathUpdate> {
-    let mut updates = Vec::new();
+) -> HashMap<String, String> {
+    let mut updates = HashMap::new();
     for ops in changesets.values() {
         for queued in ops {
             match &queued.op {
@@ -337,53 +325,7 @@ fn collect_use_path_updates(
                 } => {
                     let old_id = normalize_symbol_id(&queued.symbol_id);
                     if let Some(new_id) = replace_last_segment(&old_id, new_name) {
-                        updates.push(UsePathUpdate::new(old_id, new_id, None));
-                    }
-                }
-                NodeOp::MoveSymbol {
-                    new_module_path,
-                    ..
-                } => {
-                    let old_id = normalize_symbol_id(&queued.symbol_id);
-                    let name = old_id.rsplit("::").next().unwrap_or(&old_id);
-                    let new_module = normalize_symbol_id(new_module_path);
-                    let new_id = format!("{new_module}::{name}");
-                    let scope_prefix = parent_module_path(&old_id);
-                    updates.push(UsePathUpdate::new(
-                        old_id.clone(),
-                        new_id,
-                        scope_prefix.clone(),
-                    ));
-                    if let Some(old_module) = parent_module_path(&old_id) {
-                        updates.push(UsePathUpdate::new(
-                            old_module.clone(),
-                            new_module.clone(),
-                            scope_prefix.clone(),
-                        ));
-                        if let (Some(old_leaf), Some(new_leaf)) =
-                            (old_module.rsplit("::").next(), new_module.rsplit("::").next())
-                        {
-                            updates.push(UsePathUpdate::new(
-                                old_leaf.to_string(),
-                                new_leaf.to_string(),
-                                scope_prefix.clone(),
-                            ));
-                            updates.push(UsePathUpdate::new(
-                                format!("super::{old_leaf}"),
-                                format!("super::{new_leaf}"),
-                                scope_prefix.clone(),
-                            ));
-                            updates.push(UsePathUpdate::new(
-                                format!("self::{old_leaf}"),
-                                format!("self::{new_leaf}"),
-                                scope_prefix.clone(),
-                            ));
-                            updates.push(UsePathUpdate::new(
-                                format!("crate::{old_leaf}"),
-                                format!("crate::{new_leaf}"),
-                                scope_prefix,
-                            ));
-                        }
+                        updates.insert(old_id, new_id);
                     }
                 }
                 _ => {}
@@ -393,48 +335,12 @@ fn collect_use_path_updates(
     updates
 }
 
-#[derive(Clone, Debug)]
-struct UsePathUpdate {
-    from: String,
-    to: String,
-    scope_prefix: Option<String>,
-}
-
-impl UsePathUpdate {
-    fn new(from: String, to: String, scope_prefix: Option<String>) -> Self {
-        Self {
-            from,
-            to,
-            scope_prefix,
-        }
-    }
-
-    fn applies_to(&self, module_path: Option<&str>) -> bool {
-        match (&self.scope_prefix, module_path) {
-            (None, _) => true,
-            (Some(prefix), Some(path)) => {
-                path == prefix || path.starts_with(&format!("{prefix}::"))
-            }
-            (Some(_), None) => false,
-        }
-    }
-}
-
 fn replace_last_segment(path: &str, new_name: &str) -> Option<String> {
     let mut parts: Vec<&str> = path.split("::").collect();
     if parts.is_empty() {
         return None;
     }
     *parts.last_mut().unwrap() = new_name;
-    Some(parts.join("::"))
-}
-
-fn parent_module_path(path: &str) -> Option<String> {
-    let mut parts: Vec<&str> = path.split("::").collect();
-    if parts.len() <= 1 {
-        return None;
-    }
-    parts.pop();
     Some(parts.join("::"))
 }
 

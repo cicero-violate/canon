@@ -201,7 +201,8 @@ fn propagate_move(
     let project_root = find_project_root(registry)?;
     let old_module_path = normalize_symbol_id(&module_path_for_file(&project_root, &handle.file));
     let from_path = ModulePath::from_string(&old_module_path);
-    let to_path = ModulePath::from_string(new_module_path);
+    let new_module_path = normalize_symbol_id(new_module_path);
+    let to_path = ModulePath::from_string(&new_module_path);
     let plan = ModuleMovePlan::new(from_path.clone(), to_path.clone(), handle.file.clone(), &project_root)?;
 
     file_renames.push(FileRename {
@@ -212,11 +213,85 @@ fn propagate_move(
         new_module_id: to_path.to_string(),
     });
 
+    let (_symbol_table, occurrences, alias_graph) =
+        build_symbol_index_and_occurrences(registry)?;
+    let mut rewrites = Vec::new();
+    let mut seen = HashSet::new();
+
+    let symbol_name = norm_id.rsplit("::").next().unwrap_or(&norm_id).to_string();
+    let new_module_leaf = new_module_path
+        .rsplit("::")
+        .next()
+        .unwrap_or(&new_module_path)
+        .to_string();
+
+    for occ in occurrences.iter().filter(|occ| occ.id == norm_id && occ.kind == "use") {
+        push_unique_edit(&mut rewrites, &mut seen, occ, &symbol_name);
+    }
+
+    if let Some(old_module) = parent_module_path(&norm_id) {
+        if old_module != new_module_path {
+            for occ in occurrences
+                .iter()
+                .filter(|occ| occ.id == old_module && occ.kind == "use_path")
+            {
+                push_unique_edit(&mut rewrites, &mut seen, occ, &new_module_leaf);
+            }
+        }
+    }
+
+    let mut importer_files: HashSet<String> = HashSet::new();
+    for node in alias_graph.get_importers(&norm_id) {
+        importer_files.insert(node.file.clone());
+    }
+    for chain in alias_graph.find_reexport_chains(&norm_id) {
+        for node in chain {
+            importer_files.insert(node.file.clone());
+        }
+    }
+
+    for file in importer_files {
+        for occ in occurrences.iter().filter(|occ| {
+            occ.file == file && occ.id == norm_id && occ.kind == "use"
+        }) {
+            push_unique_edit(&mut rewrites, &mut seen, occ, &symbol_name);
+        }
+    }
+
     Ok(PropagationResult {
-        rewrites: Vec::new(),
+        rewrites,
         conflicts,
         file_renames,
     })
+}
+
+fn parent_module_path(path: &str) -> Option<String> {
+    let mut parts: Vec<&str> = path.split("::").collect();
+    if parts.len() <= 1 {
+        return None;
+    }
+    parts.pop();
+    Some(parts.join("::"))
+}
+
+fn push_unique_edit(
+    rewrites: &mut Vec<SymbolEdit>,
+    seen: &mut HashSet<String>,
+    occ: &SymbolOccurrence,
+    new_name: &str,
+) {
+    let key = format!(
+        "{}:{}:{}:{}:{}:{}",
+        occ.file,
+        occ.span.start.line,
+        occ.span.start.column,
+        occ.span.end.line,
+        occ.span.end.column,
+        new_name
+    );
+    if seen.insert(key) {
+        rewrites.push(occurrence_to_edit(occ, new_name));
+    }
 }
 
 fn propagate_remove_field(

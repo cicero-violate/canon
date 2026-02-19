@@ -1,35 +1,6 @@
-rustc_integration/frontends/rustc/context.rs:
-  struct FrontendMetadata  { edition, rust_version, crate_type, target_triple, target_name, workspace_root, package_name, package_version, package_features, cfg_flags }  (line 5)
-
-rustc_integration/frontends/rustc/types.rs:
-  fn capture_function_types(
-    builder: &mut KernelGraphBuilder,
-    tcx: TyCtxt<'tcx>,
-    local_def: LocalDefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-)  (line 13)
-  fn collect_type_dependencies(
-    tcx: TyCtxt<'tcx>,
-    ty: ty::Ty<'tcx>,
-    seen: &mut HashSet<DefId>,
-)  (line 49)
-
-rustc_integration/frontends/rustc/hir_bodies.rs:
-  fn encode_hir_body_json(
-    tcx: TyCtxt<'tcx>,
-    def_id: LocalDefId,
-) -> Option<String>  (line 10)
-
-rustc_integration/frontends/rustc/mod.rs:
-  enum RustcFrontendError  { Unavailable, Io, Sysroot, MissingSnapshot }  (line 29)
-  impl std::fmt::Display for RustcFrontendError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 43)
-  impl std::error::Error for RustcFrontendError  (line 57)
-  impl From<std::io::Error> for RustcFrontendError  { fn from(err: std::io::Error) -> Self }  (line 60)
-
-rustc_integration/frontends/rustc/collector.rs:
-  struct RustcFrontend  { edition, crate_type, rust_version, target_name, workspace_root, package_name, package_version, package_features, cfg_flags }  (line 27)
-  impl Default for RustcFrontend  { fn default() -> Self }  (line 39)
+rustc_integration/frontends/rustc/frontend_driver.rs:
+  struct RustcFrontend  { edition, crate_type, rust_version, target_name, workspace_root, package_name, package_version, package_features, cfg_flags }  (line 24)
+  impl Default for RustcFrontend  { fn default() -> Self }  (line 35)
   impl RustcFrontend  { fn new() -> Self, fn with_crate_type(mut self, crate_type: impl Into<String>) -> Self, fn with_edition(mut self, edition: impl Into<String>) -> Self, fn with_rust_version(mut self, rust_version: impl Into<String>) -> Self, fn with_target_name(mut self, target_name: impl Into<String>) -> Self, fn with_workspace_root(mut self, root: impl Into<PathBuf>) -> Self, fn with_package_info(
         mut self,
         name: impl Into<String>,
@@ -39,72 +10,72 @@ rustc_integration/frontends/rustc/collector.rs:
         entry: P,
         extra_args: &[String],
         env_vars: &[(String, String)],
-    ) -> Result<GraphSnapshot, RustcFrontendError> }  (line 55)
-  struct SnapshotCallbacks  { snapshot, metadata }  (line 194)
-  impl SnapshotCallbacks  { fn new(metadata: FrontendMetadata) -> Self, fn into_snapshot(self) -> Option<GraphSnapshot> }  (line 199)
-  impl Callbacks for SnapshotCallbacks  { fn after_analysis(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation }  (line 212)
-  fn parse_cfg_flags(extra_args: &[String]) -> Vec<String>  (line 219)
-  fn build_snapshot_from_tcx(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> GraphSnapshot  (line 237)
-  fn is_supported_def(kind: DefKind) -> bool  (line 289)
-  fn resolve_sysroot() -> Result<PathBuf, std::io::Error>  (line 293)
+    ) -> Result<GraphSnapshot, RustcFrontendError> }  (line 50)
+  struct SnapshotCallbacks  { snapshot, metadata }  (line 174)
+  impl SnapshotCallbacks  { fn new(metadata: FrontendMetadata) -> Self, fn into_snapshot(self) -> Option<GraphSnapshot> }  (line 178)
+  impl Callbacks for SnapshotCallbacks  { fn after_analysis(
+        &mut self,
+        _compiler: &Compiler,
+        tcx: TyCtxt<'tcx>,
+    ) -> Compilation }  (line 186)
+  fn parse_cfg_flags(extra_args: &[String]) -> Vec<String>  (line 196)
+  fn build_snapshot_from_tcx(
+    tcx: TyCtxt<'tcx>,
+    metadata: &FrontendMetadata,
+) -> GraphSnapshot  (line 213)
+  fn is_supported_def(kind: DefKind) -> bool  (line 254)
+  fn resolve_sysroot() -> Result<PathBuf, std::io::Error>  (line 257)
 
-rustc_integration/frontends/rustc/items.rs:
+rustc_integration/frontends/rustc/item_capture.rs:
   fn capture_adt(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
     def_id: DefId,
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
-) -> NodeId  (line 13)
+) -> NodeId  (line 11)
   fn capture_type_alias(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
     def_id: DefId,
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
-) -> NodeId  (line 58)
+) -> NodeId  (line 48)
   fn capture_const_static(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
     def_id: DefId,
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
-) -> NodeId  (line 91)
-  fn serialize_struct_fields(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String>  (line 124)
-  fn serialize_enum_variants(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String>  (line 157)
-  fn classify_adt_kind(adt_def: ty::AdtDef<'_>) -> String  (line 204)
-
-rustc_integration/frontends/rustc/traits.rs:
-  fn capture_trait(
-    builder: &mut KernelGraphBuilder,
+) -> NodeId  (line 75)
+  fn serialize_struct_fields(
     tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-) -> NodeId  (line 14)
-  fn capture_impl(
-    builder: &mut KernelGraphBuilder,
+    adt_def: ty::AdtDef<'tcx>,
+) -> Option<String>  (line 102)
+  fn serialize_enum_variants(
     tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-    of_trait_hint: bool,
-) -> NodeId  (line 52)
-  fn serialize_associated_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 108)
-  fn serialize_impl_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 136)
+    adt_def: ty::AdtDef<'tcx>,
+) -> Option<String>  (line 130)
+  fn classify_adt_kind(adt_def: ty::AdtDef<'_>) -> String  (line 174)
 
-rustc_integration/frontends/rustc/nodes.rs:
+rustc_integration/frontends/rustc/node_builder.rs:
   fn ensure_node(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
     def_id: DefId,
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
-) -> NodeId  (line 15)
-  fn serialize_locals(tcx: TyCtxt<'tcx>, local_def: LocalDefId) -> Option<String>  (line 84)
-  fn serialize_fn_signature(tcx: TyCtxt<'tcx>, def_id: DefId) -> Option<String>  (line 112)
+) -> NodeId  (line 13)
+  fn serialize_locals(tcx: TyCtxt<'tcx>, local_def: LocalDefId) -> Option<String>  (line 72)
+  fn serialize_fn_signature(tcx: TyCtxt<'tcx>, def_id: DefId) -> Option<String>  (line 97)
 
-rustc_integration/frontends/rustc/mir.rs:
+rustc_integration/frontends/rustc/hir_dump.rs:
+  fn encode_hir_body_json(
+    tcx: TyCtxt<'tcx>,
+    def_id: LocalDefId,
+) -> Option<String>  (line 7)
+
+rustc_integration/frontends/rustc/mir_capture.rs:
   fn capture_function(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
@@ -112,7 +83,7 @@ rustc_integration/frontends/rustc/mir.rs:
     function_node: NodeId,
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
-)  (line 17)
+)  (line 15)
   fn collect_calls(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
@@ -121,55 +92,103 @@ rustc_integration/frontends/rustc/mir.rs:
     local_def: LocalDefId,
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
-)  (line 97)
-  fn call_span(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span  (line 138)
-  fn serialize_statements(bb_data: &mir::BasicBlockData<'tcx>) -> Option<String>  (line 143)
-  fn serialize_cfg_graph(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 163)
-  fn serialize_dfg(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 228)
-  fn serialize_mir_dump(body: &mir::Body<'tcx>) -> Option<String>  (line 260)
+)  (line 84)
+  fn call_span(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span  (line 123)
+  fn serialize_statements(bb_data: &mir::BasicBlockData<'tcx>) -> Option<String>  (line 126)
+  fn serialize_cfg_graph(
+    tcx: TyCtxt<'tcx>,
+    body: &mir::Body<'tcx>,
+) -> Option<String>  (line 143)
+  fn serialize_dfg(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 209)
+  fn serialize_mir_dump(body: &mir::Body<'tcx>) -> Option<String>  (line 240)
   fn compute_metrics(
     tcx: TyCtxt<'tcx>,
     local_def: LocalDefId,
     body: &mir::Body<'tcx>,
-) -> Option<String>  (line 264)
-  fn compute_effects(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 316)
+) -> Option<String>  (line 243)
+  fn compute_effects(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 293)
 
-rustc_integration/frontends/rustc/metadata.rs:
+rustc_integration/frontends/rustc/mod.rs:
+  enum RustcFrontendError  { Unavailable, Io, Sysroot, MissingSnapshot }  (line 26)
+  impl std::fmt::Display for RustcFrontendError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 39)
+  impl std::error::Error for RustcFrontendError  (line 58)
+  impl From<std::io::Error> for RustcFrontendError  { fn from(err: std::io::Error) -> Self }  (line 60)
+
+rustc_integration/frontends/rustc/frontend_context.rs:
+  struct FrontendMetadata  { edition, rust_version, crate_type, target_triple, target_name, workspace_root, package_name, package_version, package_features, cfg_flags }  (line 4)
+
+rustc_integration/frontends/rustc/crate_metadata.rs:
+  fn capture_crate_metadata(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    metadata: &FrontendMetadata,
+)  (line 9)
+  fn serialize_dependencies(tcx: TyCtxt<'_>) -> String  (line 52)
+
+rustc_integration/frontends/rustc/trait_capture.rs:
+  fn capture_trait(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+) -> NodeId  (line 12)
+  fn capture_impl(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+    of_trait_hint: bool,
+) -> NodeId  (line 44)
+  fn serialize_associated_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 87)
+  fn serialize_impl_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 108)
+
+rustc_integration/frontends/rustc/type_capture.rs:
+  fn capture_function_types(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    local_def: LocalDefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+)  (line 11)
+  fn collect_type_dependencies(
+    tcx: TyCtxt<'tcx>,
+    ty: ty::Ty<'tcx>,
+    seen: &mut HashSet<DefId>,
+)  (line 43)
+
+rustc_integration/frontends/rustc/metadata_capture.rs:
   fn apply_common_metadata(
     mut payload: NodePayload,
     tcx: TyCtxt<'tcx>,
     def_id: DefId,
     frontend: &FrontendMetadata,
-) -> NodePayload  (line 16)
-  fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 144)
-  fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 185)
-  fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 189)
-  fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 202)
-  fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 230)
-  fn format_param_kind(kind: &GenericParamDefKind) -> String  (line 245)
-  fn param_has_default(kind: &GenericParamDefKind) -> bool  (line 253)
-  struct GenericsCapture  { params, parent, predicates }  (line 262)
-  struct GenericParamCapture  { index, name, kind, has_default }  (line 269)
-  struct AttributeData  { raw, flags }  (line 276)
-  struct AttributeFlags  { inline, inline_hint, test, bench, no_mangle, doc_hidden, thread_local, reprs, derives, doc }  (line 282)
-  impl AttributeFlags  { fn apply(&mut self, attr: &HirAttribute) }  (line 295)
-  fn apply_attribute_flags(mut payload: NodePayload, flags: AttributeFlags) -> NodePayload  (line 349)
-  struct FileStats  { hash, line_count, byte_len }  (line 387)
-  fn source_file_stats(file: &SourceFile) -> FileStats  (line 393)
-  fn resolve_absolute_path(filename: &FileName) -> String  (line 413)
-  fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 421)
-  fn classify_node_kind(def_kind: DefKind) -> String  (line 430)
-  fn module_path(def_path: &str) -> String  (line 450)
-  fn format_display(module: &str, name: &str) -> String  (line 454)
-  fn classify_symbol_kind(def_kind: DefKind) -> String  (line 462)
-
-rustc_integration/frontends/rustc/crate_meta.rs:
-  fn capture_crate_metadata(
-    builder: &mut KernelGraphBuilder,
-    tcx: TyCtxt<'tcx>,
-    metadata: &FrontendMetadata,
-)  (line 12)
-  fn serialize_dependencies(tcx: TyCtxt<'_>) -> String  (line 58)
+) -> NodePayload  (line 13)
+  fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 135)
+  fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 169)
+  fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 172)
+  fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 184)
+  fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 207)
+  fn format_param_kind(kind: &GenericParamDefKind) -> String  (line 216)
+  fn param_has_default(kind: &GenericParamDefKind) -> bool  (line 223)
+  struct GenericsCapture  { params, parent, predicates }  (line 231)
+  struct GenericParamCapture  { index, name, kind, has_default }  (line 237)
+  struct AttributeData  { raw, flags }  (line 243)
+  struct AttributeFlags  { inline, inline_hint, test, bench, no_mangle, doc_hidden, thread_local, reprs, derives, doc }  (line 248)
+  impl AttributeFlags  { fn apply(&mut self, attr: &HirAttribute) }  (line 260)
+  fn apply_attribute_flags(
+    mut payload: NodePayload,
+    flags: AttributeFlags,
+) -> NodePayload  (line 313)
+  struct FileStats  { hash, line_count, byte_len }  (line 353)
+  fn source_file_stats(file: &SourceFile) -> FileStats  (line 358)
+  fn resolve_absolute_path(filename: &FileName) -> String  (line 377)
+  fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 384)
+  fn classify_node_kind(def_kind: DefKind) -> String  (line 390)
+  fn module_path(def_path: &str) -> String  (line 409)
+  fn format_display(module: &str, name: &str) -> String  (line 412)
+  fn classify_symbol_kind(def_kind: DefKind) -> String  (line 415)
 
 rustc_integration/frontends/rustc/stub.rs:
   struct RustcFrontend  (line 6)
@@ -638,14 +657,13 @@ rename/core/project_editor/mod.rs:
   fn collect_use_path_updates(
     changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
 ) -> HashMap<String, String>  (line 315)
-  fn replace_last_segment(path: &str, new_name: &str) -> Option<String>  (line 351)
-  fn parent_module_path(path: &str) -> Option<String>  (line 360)
-  fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<SymbolIndex>  (line 369)
-  fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>>  (line 390)
-  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 414)
-  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 424)
-  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 474)
-  struct ImplContext  { struct_path, trait_path }  (line 569)
+  fn replace_last_segment(path: &str, new_name: &str) -> Option<String>  (line 338)
+  fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<SymbolIndex>  (line 347)
+  fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>>  (line 368)
+  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 392)
+  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 402)
+  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 452)
+  struct ImplContext  { struct_path, trait_path }  (line 547)
 
 rename/core/project_editor/ops.rs:
   fn apply_node_op(
@@ -769,56 +787,63 @@ rename/core/project_editor/propagate.rs:
     registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
 ) -> Result<PropagationResult>  (line 156)
+  fn parent_module_path(path: &str) -> Option<String>  (line 268)
+  fn push_unique_edit(
+    rewrites: &mut Vec<SymbolEdit>,
+    seen: &mut HashSet<String>,
+    occ: &SymbolOccurrence,
+    new_name: &str,
+)  (line 277)
   fn propagate_remove_field(
     symbol_id: &str,
     field_name: &str,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 222)
+) -> Result<PropagationResult>  (line 297)
   fn propagate_remove_variant(
     symbol_id: &str,
     variant_name: &str,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 243)
+) -> Result<PropagationResult>  (line 318)
   fn propagate_visibility(
     symbol_id: &str,
     _new_vis: &syn::Visibility,
     registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 264)
+) -> Result<PropagationResult>  (line 339)
   fn propagate_signature(
     symbol_id: &str,
     new_sig: &syn::Signature,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 292)
+) -> Result<PropagationResult>  (line 367)
   fn propagate_add_field(
     symbol_id: &str,
     field: &syn::Field,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 315)
+) -> Result<PropagationResult>  (line 390)
   fn propagate_add_variant(
     symbol_id: &str,
     variant: &syn::Variant,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 341)
-  fn occurrence_to_edit(occ: &SymbolOccurrence, new_name: &str) -> SymbolEdit  (line 363)
+) -> Result<PropagationResult>  (line 416)
+  fn occurrence_to_edit(occ: &SymbolOccurrence, new_name: &str) -> SymbolEdit  (line 438)
   fn build_symbol_index_and_occurrences(
     registry: &NodeRegistry,
-) -> Result<(SymbolIndex, Vec<SymbolOccurrence>, AliasGraph)>  (line 374)
+) -> Result<(SymbolIndex, Vec<SymbolOccurrence>, AliasGraph)>  (line 449)
   fn build_visibility_map(
     registry: &NodeRegistry,
     _alias_graph: &AliasGraph,
-) -> Result<HashMap<String, VisibilityScope>>  (line 418)
-  fn leak_conflicts(analysis: &VisibilityLeakAnalysis) -> Vec<EditConflict>  (line 452)
-  fn find_project_root(registry: &NodeRegistry) -> Result<PathBuf>  (line 463)
+) -> Result<HashMap<String, VisibilityScope>>  (line 493)
+  fn leak_conflicts(analysis: &VisibilityLeakAnalysis) -> Vec<EditConflict>  (line 527)
+  fn find_project_root(registry: &NodeRegistry) -> Result<PathBuf>  (line 538)
   fn apply_rewrites(
     registry: &mut NodeRegistry,
     rewrites: &[SymbolEdit],
-) -> Result<HashSet<PathBuf>>  (line 481)
+) -> Result<HashSet<PathBuf>>  (line 556)
 
 rename/core/collect/mod.rs:
   fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 21)
