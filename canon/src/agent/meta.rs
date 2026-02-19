@@ -11,41 +11,30 @@
 //!
 //! This is the Φ: G → G' operator made concrete.
 //! No LLM calls. No unsafe. Pure graph arithmetic.
-
 use crate::ir::PipelineStage;
-
 use super::capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode};
-use super::reward::RewardLedger;
-
+use super::reward::NodeRewardLedger;
 /// Minimum number of nodes the capability graph must retain after a meta-tick.
 pub const MIN_NODES: usize = 3;
-
 /// Maximum entropy deviation allowed between G and Φ(G).
 pub const MAX_ENTROPY_DELTA: f64 = 0.5;
-
 /// EMA reward below this threshold marks a node as underperforming.
 pub const UNDERPERFORM_THRESHOLD: f64 = -0.1;
-
 /// A single proposed mutation to the CapabilityGraph topology.
 #[derive(Debug, Clone)]
 pub enum GraphMutation {
     /// Remove a node and all its edges.
     RemoveNode { node_id: String },
     /// Add a new edge between two existing nodes.
-    AddEdge {
-        from: String,
-        to: String,
-        proof_confidence: f64,
-    },
+    AddEdge { from: String, to: String, proof_confidence: f64 },
     /// Remove an edge between two nodes.
     RemoveEdge { from: String, to: String },
     /// Promote a node to MetaAgent kind.
     PromoteToMetaAgent { node_id: String },
 }
-
 /// Error returned when a meta-tick mutation is rejected.
 #[derive(Debug, Clone)]
-pub enum MetaTickError {
+pub enum GraphEvolutionError {
     /// Graph entropy deviated beyond MAX_ENTROPY_DELTA.
     EntropyBoundExceeded { before: f64, after: f64, delta: f64 },
     /// Mutation would drop graph below MIN_NODES.
@@ -57,100 +46,93 @@ pub enum MetaTickError {
     /// No mutations were proposed (graph is already optimal).
     NothingToDo,
 }
-
-impl std::fmt::Display for MetaTickError {
+impl std::fmt::Display for GraphEvolutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MetaTickError::EntropyBoundExceeded {
-                before,
-                after,
-                delta,
-            } => write!(
-                f,
-                "entropy deviation {delta:.4} exceeds bound {MAX_ENTROPY_DELTA:.4} \
+            GraphEvolutionError::EntropyBoundExceeded { before, after, delta } => {
+                write!(
+                    f,
+                    "entropy deviation {delta:.4} exceeds bound {MAX_ENTROPY_DELTA:.4} \
                  (before={before:.4} after={after:.4})"
-            ),
-            MetaTickError::TooFewNodes { remaining } => write!(
-                f,
-                "mutation would leave only {remaining} nodes (minimum {MIN_NODES})"
-            ),
-            MetaTickError::UnknownNode(id) => write!(f, "unknown node: {id}"),
-            MetaTickError::DisconnectedNode(id) => {
+                )
+            }
+            GraphEvolutionError::TooFewNodes { remaining } => {
+                write!(
+                    f,
+                    "mutation would leave only {remaining} nodes (minimum {MIN_NODES})"
+                )
+            }
+            GraphEvolutionError::UnknownNode(id) => write!(f, "unknown node: {id}"),
+            GraphEvolutionError::DisconnectedNode(id) => {
                 write!(f, "mutation would disconnect node: {id}")
             }
-            MetaTickError::NothingToDo => write!(f, "no mutations proposed"),
+            GraphEvolutionError::NothingToDo => write!(f, "no mutations proposed"),
         }
     }
 }
-
-impl std::error::Error for MetaTickError {}
-
+impl std::error::Error for GraphEvolutionError {}
 /// Result of a successful meta-tick.
 #[derive(Debug)]
-pub struct MetaTickResult {
+pub struct GraphEvolutionResult {
     /// The mutated capability graph.
     pub graph: CapabilityGraph,
     /// Mutations that were applied.
     pub applied: Vec<GraphMutation>,
     /// Mutations that were rejected by safety checks.
-    pub rejected: Vec<(GraphMutation, MetaTickError)>,
+    pub rejected: Vec<(GraphMutation, GraphEvolutionError)>,
     /// Entropy before mutation.
     pub entropy_before: f64,
     /// Entropy after mutation.
     pub entropy_after: f64,
 }
-
 /// Drives one meta-tick over the capability graph.
 ///
 /// Reads the reward ledger to identify underperforming nodes,
 /// proposes graph mutations, applies each through safety checks,
 /// and returns the mutated graph.
 ///
-/// Returns Err(MetaTickError::NothingToDo) if no mutations are warranted.
-pub fn run_meta_tick(
+    /// Returns Err(GraphEvolutionError::NothingToDo) if no mutations are warranted.
+pub fn evolve_capability_graph(
     graph: &CapabilityGraph,
-    ledger: &RewardLedger,
-) -> Result<MetaTickResult, MetaTickError> {
+    ledger: &NodeRewardLedger,
+) -> Result<GraphEvolutionResult, GraphEvolutionError> {
     let mutations = propose_mutations(graph, ledger);
     if mutations.is_empty() {
-        return Err(MetaTickError::NothingToDo);
+        return Err(GraphEvolutionError::NothingToDo);
     }
-
     let entropy_before = graph.entropy();
     let mut current = graph.clone();
     let mut applied = Vec::new();
     let mut rejected = Vec::new();
-
     for mutation in mutations {
         match apply_mutation(&current, &mutation) {
             Ok(candidate) => {
-                // Safety check 1: entropy bound.
                 let entropy_after = candidate.entropy();
                 let delta = (entropy_after - entropy_before).abs();
                 if delta > MAX_ENTROPY_DELTA {
-                    rejected.push((
-                        mutation,
-                        MetaTickError::EntropyBoundExceeded {
-                            before: entropy_before,
-                            after: entropy_after,
-                            delta,
-                        },
-                    ));
+                    rejected
+                        .push((
+                            mutation,
+                            GraphEvolutionError::EntropyBoundExceeded {
+                                before: entropy_before,
+                                after: entropy_after,
+                                delta,
+                            },
+                        ));
                     continue;
                 }
-                // Safety check 2: minimum nodes.
                 if candidate.nodes.len() < MIN_NODES {
-                    rejected.push((
-                        mutation,
-                        MetaTickError::TooFewNodes {
-                            remaining: candidate.nodes.len(),
-                        },
-                    ));
+                    rejected
+                        .push((
+                            mutation,
+                            GraphEvolutionError::TooFewNodes {
+                                remaining: candidate.nodes.len(),
+                            },
+                        ));
                     continue;
                 }
-                // Safety check 3: no disconnected nodes (must have at least one edge).
                 if let Some(id) = find_disconnected(&candidate) {
-                    rejected.push((mutation, MetaTickError::DisconnectedNode(id)));
+                    rejected.push((mutation, GraphEvolutionError::DisconnectedNode(id)));
                     continue;
                 }
                 applied.push(mutation);
@@ -161,9 +143,8 @@ pub fn run_meta_tick(
             }
         }
     }
-
     let entropy_after = current.entropy();
-    Ok(MetaTickResult {
+    Ok(GraphEvolutionResult {
         graph: current,
         applied,
         rejected,
@@ -171,78 +152,69 @@ pub fn run_meta_tick(
         entropy_after,
     })
 }
-
 /// Proposes graph mutations based on reward ledger state.
-fn propose_mutations(graph: &CapabilityGraph, ledger: &RewardLedger) -> Vec<GraphMutation> {
+fn propose_mutations(
+    graph: &CapabilityGraph,
+    ledger: &NodeRewardLedger,
+) -> Vec<GraphMutation> {
     let mut mutations = Vec::new();
     let ranked = ledger.ranked_nodes();
-
     for entry in &ranked {
         if entry.ema_reward < UNDERPERFORM_THRESHOLD {
-            // Underperforming node — propose removal if it is not a MetaAgent.
             if let Some(node) = graph.node(&entry.node_id) {
                 if node.kind != CapabilityKind::MetaAgent {
-                    mutations.push(GraphMutation::RemoveNode {
-                        node_id: entry.node_id.clone(),
-                    });
+                    mutations
+                        .push(GraphMutation::RemoveNode {
+                            node_id: entry.node_id.clone(),
+                        });
                 }
             }
         }
     }
-
-    // Promote the top-ranked non-MetaAgent node if no MetaAgent exists.
-    let has_meta = graph
-        .nodes
-        .iter()
-        .any(|n| n.kind == CapabilityKind::MetaAgent);
+    let has_meta = graph.nodes.iter().any(|n| n.kind == CapabilityKind::MetaAgent);
     if !has_meta {
         if let Some(top) = ranked.first() {
             if top.ema_reward > 0.0 {
                 if let Some(node) = graph.node(&top.node_id) {
                     if node.kind != CapabilityKind::MetaAgent {
-                        mutations.push(GraphMutation::PromoteToMetaAgent {
-                            node_id: top.node_id.clone(),
-                        });
+                        mutations
+                            .push(GraphMutation::PromoteToMetaAgent {
+                                node_id: top.node_id.clone(),
+                            });
                     }
                 }
             }
         }
     }
-
     mutations
 }
-
 /// Applies a single GraphMutation to a cloned graph, returning the candidate.
 fn apply_mutation(
     graph: &CapabilityGraph,
     mutation: &GraphMutation,
-) -> Result<CapabilityGraph, MetaTickError> {
+) -> Result<CapabilityGraph, GraphEvolutionError> {
     let mut next = graph.clone();
     match mutation {
         GraphMutation::RemoveNode { node_id } => {
             if !next.nodes.iter().any(|n| n.id == *node_id) {
-                return Err(MetaTickError::UnknownNode(node_id.clone()));
+                return Err(GraphEvolutionError::UnknownNode(node_id.clone()));
             }
             next.nodes.retain(|n| n.id != *node_id);
-            next.edges
-                .retain(|e| e.from != *node_id && e.to != *node_id);
+            next.edges.retain(|e| e.from != *node_id && e.to != *node_id);
         }
-        GraphMutation::AddEdge {
-            from,
-            to,
-            proof_confidence,
-        } => {
+        GraphMutation::AddEdge { from, to, proof_confidence } => {
             if !next.nodes.iter().any(|n| &n.id == from) {
-                return Err(MetaTickError::UnknownNode(from.clone()));
+                return Err(GraphEvolutionError::UnknownNode(from.clone()));
             }
             if !next.nodes.iter().any(|n| &n.id == to) {
-                return Err(MetaTickError::UnknownNode(to.clone()));
+                return Err(GraphEvolutionError::UnknownNode(to.clone()));
             }
-            next.edges.push(CapabilityEdge {
-                from: from.clone(),
-                to: to.clone(),
-                proof_confidence: *proof_confidence,
-            });
+            next.edges
+                .push(CapabilityEdge {
+                    from: from.clone(),
+                    to: to.clone(),
+                    proof_confidence: *proof_confidence,
+                });
         }
         GraphMutation::RemoveEdge { from, to } => {
             next.edges.retain(|e| !(e.from == *from && e.to == *to));
@@ -252,25 +224,20 @@ fn apply_mutation(
                 .nodes
                 .iter_mut()
                 .find(|n| n.id == *node_id)
-                .ok_or_else(|| MetaTickError::UnknownNode(node_id.clone()))?;
+                .ok_or_else(|| GraphEvolutionError::UnknownNode(node_id.clone()))?;
             node.kind = CapabilityKind::MetaAgent;
             node.stage = PipelineStage::Act;
         }
     }
     Ok(next)
 }
-
 /// Returns the id of the first node that has no edges at all, or None.
 fn find_disconnected(graph: &CapabilityGraph) -> Option<String> {
-    // Single-node graphs are always connected.
     if graph.nodes.len() <= 1 {
         return None;
     }
     for node in &graph.nodes {
-        let has_edge = graph
-            .edges
-            .iter()
-            .any(|e| e.from == node.id || e.to == node.id);
+        let has_edge = graph.edges.iter().any(|e| e.from == node.id || e.to == node.id);
         if !has_edge {
             return Some(node.id.clone());
         }

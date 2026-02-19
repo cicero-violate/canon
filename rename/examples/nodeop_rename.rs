@@ -3,54 +3,130 @@
 #[cfg(feature = "rustc_frontend")]
 extern crate rustc_driver;
 
-use rename::rename::core::project_editor::ProjectEditor;
+use rename::rename::core::{NullOracle, project_editor::ProjectEditor};
 use rename::rename::structured::FieldMutation;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename");
-    let mut editor = ProjectEditor::load_with_rustc(project_path)?;
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/canon");
+    let mut editor = ProjectEditor::load(project_path, Box::new(NullOracle))?;
 
     let renames = [
         (
-            "crate::rustc_integration::frontends::rustc::metadata_capture::serialize_generics",
-            "serialize_generic_params",
+            "crate::agent::observe::observe_ir",
+            "analyze_ir",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::metadata_capture::serialize_predicates",
-            "serialize_where_predicates",
+            "crate::agent::observe::observation_to_payload",
+            "ir_observation_to_json",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::metadata_capture::format_param_kind",
-            "format_generic_param_kind",
+            "crate::agent::observe::IrObservation",
+            "IrAnalysisReport",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::metadata_capture::param_has_default",
-            "generic_param_has_default",
+            "crate::agent::pipeline::run_pipeline",
+            "run_refactor_pipeline",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::metadata_capture::source_file_stats",
-            "compute_source_file_stats",
+            "crate::agent::pipeline::record_pipeline_outcome",
+            "record_refactor_reward",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::crate_metadata::serialize_dependencies",
-            "serialize_crate_dependencies",
+            "crate::agent::pipeline::PipelineResult",
+            "RefactorResult",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::mir_capture::serialize_statements",
-            "serialize_statement_kinds",
+            "crate::agent::pipeline::PipelineError",
+            "RefactorError",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::mir_capture::serialize_mir_dump",
-            "serialize_mir_body",
+            "crate::agent::meta::run_meta_tick",
+            "evolve_capability_graph",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::mir_capture::call_span",
-            "callsite_span",
+            "crate::agent::meta::MetaTickResult",
+            "GraphEvolutionResult",
         ),
         (
-            "crate::rustc_integration::frontends::rustc::item_capture::serialize_struct_fields",
-            "serialize_struct_field_list",
+            "crate::agent::meta::MetaTickError",
+            "GraphEvolutionError",
+        ),
+        (
+            "crate::agent::runner::persist_ir",
+            "write_ir_to_disk",
+        ),
+        (
+            "crate::agent::runner::persist_ledger",
+            "write_ledger_to_disk",
+        ),
+        (
+            "crate::storage::builder::MemoryIrBuilder::persist_segment",
+            "write_artifact_page",
+        ),
+        (
+            "crate::storage::builder::MemoryIrBuilder::synthetic_judgment",
+            "build_builder_judgment_proof",
+        ),
+        (
+            "crate::storage::builder::MemoryIrBuilder::commit_deltas",
+            "admit_and_commit_pages",
+        ),
+        (
+            "crate::storage::reader::MemoryIrReader::from_checkpoint",
+            "read_ir_from_checkpoint",
+        ),
+        (
+            "crate::io_utils::load_ir_any",
+            "load_ir_from_path",
+        ),
+        (
+            "crate::storage::builder::ManifestSlotLookup::slot_or_err",
+            "require_slot",
+        ),
+        (
+            "crate::storage::manifest::assign_slots",
+            "assign_manifest_slots",
+        ),
+        (
+            "crate::agent::slice::build_ir_slice",
+            "slice_ir_fields",
+        ),
+        (
+            "crate::observe::execution_events_to_observe_deltas",
+            "execution_events_to_deltas",
+        ),
+        (
+            "crate::evolution::lyapunov::check_topology_drift",
+            "enforce_lyapunov_bound",
+        ),
+        (
+            "crate::agent::bootstrap::bootstrap_proposal",
+            "seed_refactor_proposal",
+        ),
+        (
+            "crate::agent::bootstrap::bootstrap_graph",
+            "seed_capability_graph",
+        ),
+        (
+            "crate::decision::auto_dsl::auto_accept_dsl_proposal",
+            "apply_dsl_proposal",
+        ),
+        (
+            "crate::agent::reward::NodeOutcome",
+            "PipelineNodeOutcome",
+        ),
+        (
+            "crate::agent::reward::RewardLedger",
+            "NodeRewardLedger",
+        ),
+        (
+            "crate::agent::dispatcher::AgentCallDispatcher",
+            "CapabilityNodeDispatcher",
+        ),
+        (
+            "crate::agent::dispatcher::AgentCallDispatcher::dispatch_order",
+            "topological_call_order",
         ),
     ];
 

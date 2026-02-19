@@ -220,6 +220,7 @@ pub fn apply_rename_with_map(
     update_use_paths(
         project,
         &file_renames,
+        &mapping,
         &structured_config,
         &global_alias_graph,
         &mut structured_tracker,

@@ -1,35 +1,31 @@
 //! Top-level agent runner — drives the full Tier 7 loop.
 //!
 //! Loop per tick:
-//!   1. AgentCallDispatcher::dispatch_order() → ordered node list
+//!   1. CapabilityNodeDispatcher::topological_call_order() → ordered node list
 //!   2. For each node: dispatcher.dispatch() → AgentCallInput
 //!                     call_llm()             → AgentCallOutput
 //!                     dispatcher.record_output()
-//!   3. run_pipeline(ir, layout, proposal, stage_outputs) → PipelineResult
-//!   4. record_pipeline_outcome(ledger, node_id, result)
-//!   5. Every meta_tick_interval ticks: run_meta_tick(graph, ledger) → Φ(G)
+//!   3. run_refactor_pipeline(ir, layout, proposal, stage_outputs) → RefactorResult
+//!   4. record_refactor_reward(ledger, node_id, result)
+//!   5. Every meta_tick_interval ticks: evolve_capability_graph(graph, ledger) → Φ(G)
 //!   6. Every policy_update_interval ticks: ledger.update_policy()
 //!
 //! No LLM calls inside this file — delegated entirely to llm_provider::call_llm().
 //! Async — requires a tokio runtime. WsBridge is passed in from main.
-
 use std::fs;
 use std::path::{Path, PathBuf};
-
 use crate::agent::io::{load_capability_graph, save_capability_graph};
 use crate::ir::CanonicalIr;
 use crate::layout::LayoutGraph;
-
 use super::call::AgentCallOutput;
 use super::capability::CapabilityGraph;
-use super::dispatcher::AgentCallDispatcher;
+use super::dispatcher::CapabilityNodeDispatcher;
 use super::llm_provider::{LlmProviderError, call_llm};
-use super::meta::run_meta_tick;
-use super::pipeline::{PipelineError, record_pipeline_outcome, run_pipeline};
+use super::meta::evolve_capability_graph;
+use super::pipeline::{RefactorError, record_refactor_reward, run_refactor_pipeline};
 use super::refactor::{RefactorKind, RefactorProposal, RefactorTarget};
-use super::reward::RewardLedger;
+use super::reward::NodeRewardLedger;
 use super::ws_server::WsBridge;
-
 /// Configuration for one agent run session.
 #[derive(Debug, Clone)]
 pub struct RunnerConfig {
@@ -50,7 +46,6 @@ pub struct RunnerConfig {
     /// Path to save the mutated IR after each successful pipeline run.
     pub ir_out: PathBuf,
 }
-
 impl RunnerConfig {
     pub fn new(graph_out: PathBuf, ledger_out: PathBuf, ir_out: PathBuf) -> Self {
         Self {
@@ -65,23 +60,18 @@ impl RunnerConfig {
         }
     }
 }
-
 /// Errors from the agent runner.
 #[derive(Debug)]
 pub enum RunnerError {
     /// Dispatcher could not produce a call order.
     Dispatch(crate::agent::call::AgentCallError),
     /// LLM provider failed for a node.
-    Llm {
-        node_id: String,
-        error: LlmProviderError,
-    },
+    Llm { node_id: String, error: LlmProviderError },
     /// No stage outputs were collected (empty graph).
     NoOutputs,
     /// I/O error persisting graph or ledger.
     Io(String),
 }
-
 impl std::fmt::Display for RunnerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -89,14 +79,14 @@ impl std::fmt::Display for RunnerError {
             RunnerError::Llm { node_id, error } => {
                 write!(f, "llm error on node {node_id}: {error}")
             }
-            RunnerError::NoOutputs => write!(f, "no stage outputs collected — graph may be empty"),
+            RunnerError::NoOutputs => {
+                write!(f, "no stage outputs collected — graph may be empty")
+            }
             RunnerError::Io(e) => write!(f, "i/o error: {e}"),
         }
     }
 }
-
 impl std::error::Error for RunnerError {}
-
 /// Statistics for one completed tick.
 #[derive(Debug)]
 pub struct TickStats {
@@ -108,7 +98,6 @@ pub struct TickStats {
     pub meta_tick_fired: bool,
     pub policy_updated: bool,
 }
-
 /// Runs the Tier 7 agent loop.
 ///
 /// `ir` and `layout` are the starting state — they are updated in-place
@@ -124,26 +113,20 @@ pub async fn run_agent(
     config: &RunnerConfig,
     bridge: &WsBridge,
 ) -> Result<Vec<TickStats>, RunnerError> {
-    let mut ledger = RewardLedger::new(config.ledger_alpha, config.base_trust_threshold);
+    let mut ledger = NodeRewardLedger::new(config.ledger_alpha, config.base_trust_threshold);
     let mut stats: Vec<TickStats> = Vec::new();
     let mut tick_number: u64 = 0;
-
-    // Wait for the extension to connect — tabs are opened per LLM call.
     eprintln!("[runner] waiting for extension to connect...");
     bridge.wait_for_connection().await;
     eprintln!("[runner] extension connected — starting tick loop");
-
     loop {
         tick_number += 1;
         if config.max_ticks > 0 && tick_number > config.max_ticks {
             break;
         }
-
         eprintln!(
-            "[runner] tick {tick_number} — dispatching {} nodes",
-            graph.nodes.len()
+            "[runner] tick {tick_number} — dispatching {} nodes", graph.nodes.len()
         );
-
         let mut tick_stats = TickStats {
             tick_number,
             nodes_called: 0,
@@ -153,17 +136,13 @@ pub async fn run_agent(
             meta_tick_fired: false,
             policy_updated: false,
         };
-
-        // --- Step 1: dispatch all nodes in topological order ---
-        let mut dispatcher =
-            AgentCallDispatcher::new(graph, ir).with_trust_threshold(config.base_trust_threshold);
-
-        let order = dispatcher.dispatch_order().map_err(RunnerError::Dispatch)?;
-
+        let mut dispatcher = CapabilityNodeDispatcher::new(graph, ir)
+            .with_trust_threshold(config.base_trust_threshold);
+        let order = dispatcher
+            .topological_call_order()
+            .map_err(RunnerError::Dispatch)?;
         let mut stage_outputs: Vec<AgentCallOutput> = Vec::new();
-
         for node_id in &order {
-            // Rebuild dispatcher each iteration so record_output is visible.
             let input = match dispatcher.dispatch(node_id) {
                 Ok(inp) => inp,
                 Err(e) => {
@@ -171,12 +150,7 @@ pub async fn run_agent(
                     continue;
                 }
             };
-
-            eprintln!(
-                "[runner]   → calling node {node_id} (stage={:?})",
-                input.stage
-            );
-
+            eprintln!("[runner]   → calling node {node_id} (stage={:?})", input.stage);
             match call_llm(bridge, &input).await {
                 Ok(output) => {
                     eprintln!("[runner]   ✓ node {node_id} responded");
@@ -187,30 +161,28 @@ pub async fn run_agent(
                 Err(e) => {
                     eprintln!("[runner]   ✗ node {node_id} llm error: {e}");
                     tick_stats.llm_errors += 1;
-                    // Continue — partial outputs may still be enough for pipeline.
                 }
             }
         }
-
         if stage_outputs.is_empty() {
             eprintln!("[runner] tick {tick_number} — no outputs, skipping pipeline");
             stats.push(tick_stats);
             continue;
         }
-
-        // --- Step 2: construct proposal for this tick ---
         let mut proposal = proposal_seed.clone();
         proposal.id = format!("{}-tick-{}", proposal_seed.id, tick_number);
-
-        // --- Step 3: run pipeline ---
-        let pipeline_result = run_pipeline(ir, layout, proposal, &stage_outputs);
-
-        // --- Step 4: record outcome in ledger ---
-        // Use the first node id as the primary ledger key for this tick.
+        let pipeline_result = run_refactor_pipeline(
+            ir,
+            layout,
+            proposal,
+            &stage_outputs,
+        );
         let primary_node = order.first().map(|s| s.as_str()).unwrap_or("unknown");
-        let _threshold =
-            record_pipeline_outcome(&mut ledger, primary_node, pipeline_result.as_ref());
-
+        let _threshold = record_refactor_reward(
+            &mut ledger,
+            primary_node,
+            pipeline_result.as_ref(),
+        );
         match &pipeline_result {
             Ok(result) => {
                 eprintln!(
@@ -218,41 +190,35 @@ pub async fn run_agent(
                     result.reward, result.admission_id
                 );
                 tick_stats.pipeline_reward = Some(result.reward);
-                // Update live IR and layout.
                 *ir = result.ir.clone();
                 *layout = result.layout.clone();
-                // Persist IR.
-                persist_ir(ir, &config.ir_out)?;
+                write_ir_to_disk(ir, &config.ir_out)?;
             }
-            Err(super::pipeline::PipelineError::StageSkipped { stage }) => {
+            Err(super::pipeline::RefactorError::StageSkipped { stage }) => {
                 eprintln!(
                     "[runner] tick {tick_number} — pipeline incomplete: stage {stage} skipped (trust building)"
                 );
-                // Not an error — node trust is still accumulating.
             }
             Err(e) => {
                 eprintln!("[runner] tick {tick_number} — pipeline error: {e}");
                 tick_stats.pipeline_error = Some(e.to_string());
             }
         }
-
-        // --- Step 5: meta-tick ---
-        if config.meta_tick_interval > 0 && tick_number % config.meta_tick_interval == 0 {
+        if config.meta_tick_interval > 0 && tick_number % config.meta_tick_interval == 0
+        {
             tick_stats.meta_tick_fired = true;
-            match run_meta_tick(graph, &ledger) {
+            match evolve_capability_graph(graph, &ledger) {
                 Ok(result) => {
                     eprintln!(
                         "[runner] meta-tick fired — applied={} rejected={} H={:.4}→{:.4}",
-                        result.applied.len(),
-                        result.rejected.len(),
-                        result.entropy_before,
-                        result.entropy_after,
+                        result.applied.len(), result.rejected.len(), result
+                        .entropy_before, result.entropy_after,
                     );
                     *graph = result.graph;
                     save_capability_graph(graph, &config.graph_out)
                         .map_err(|e| RunnerError::Io(e.to_string()))?;
                 }
-                Err(crate::agent::meta::MetaTickError::NothingToDo) => {
+                Err(crate::agent::meta::GraphEvolutionError::NothingToDo) => {
                     eprintln!("[runner] meta-tick — nothing to do");
                 }
                 Err(e) => {
@@ -260,9 +226,9 @@ pub async fn run_agent(
                 }
             }
         }
-
-        // --- Step 6: policy update ---
-        if config.policy_update_interval > 0 && tick_number % config.policy_update_interval == 0 {
+        if config.policy_update_interval > 0
+            && tick_number % config.policy_update_interval == 0
+        {
             if let Some(current_policy) = ir.policy_parameters.last() {
                 match ledger.update_policy(current_policy) {
                     Ok(new_policy) => {
@@ -279,26 +245,21 @@ pub async fn run_agent(
                 }
             }
         }
-
-        // Persist ledger every tick.
-        persist_ledger(&ledger, &config.ledger_out)?;
-
+        write_ledger_to_disk(&ledger, &config.ledger_out)?;
         stats.push(tick_stats);
     }
-
     Ok(stats)
 }
-
-// ---------------------------------------------------------------------------
-// Persistence helpers
-// ---------------------------------------------------------------------------
-
-fn persist_ir(ir: &CanonicalIr, path: &Path) -> Result<(), RunnerError> {
-    let json = serde_json::to_string_pretty(ir).map_err(|e| RunnerError::Io(e.to_string()))?;
+fn write_ir_to_disk(ir: &CanonicalIr, path: &Path) -> Result<(), RunnerError> {
+    let json = serde_json::to_string_pretty(ir)
+        .map_err(|e| RunnerError::Io(e.to_string()))?;
     fs::write(path, json).map_err(|e| RunnerError::Io(e.to_string()))
 }
-
-fn persist_ledger(ledger: &RewardLedger, path: &Path) -> Result<(), RunnerError> {
-    let json = serde_json::to_string_pretty(ledger).map_err(|e| RunnerError::Io(e.to_string()))?;
+fn write_ledger_to_disk(
+    ledger: &NodeRewardLedger,
+    path: &Path,
+) -> Result<(), RunnerError> {
+    let json = serde_json::to_string_pretty(ledger)
+        .map_err(|e| RunnerError::Io(e.to_string()))?;
     fs::write(path, json).map_err(|e| RunnerError::Io(e.to_string()))
 }

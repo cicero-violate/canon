@@ -82,7 +82,7 @@ pub fn capture_project(
 
     // Find OUT_DIR for build scripts
     let mut env_vars = vec![];
-    if let Some(out_dir) = find_out_dir(project) {
+    if let Some(out_dir) = find_build_out_dir(project) {
         env_vars.push(("OUT_DIR".to_string(), out_dir.display().to_string()));
         eprintln!("Using OUT_DIR: {}", out_dir.display());
     }
@@ -191,7 +191,7 @@ fn open_engine(root: &std::path::Path) -> Result<MemoryEngine, CaptureError> {
     Ok(MemoryEngine::new(MemoryEngineConfig { tlog_path })?)
 }
 
-fn find_out_dir(project: &CargoProject) -> Option<std::path::PathBuf> {
+fn find_build_out_dir(project: &CargoProject) -> Option<std::path::PathBuf> {
     let build_dir = project.workspace_root().join("target/debug/build");
 
     // Try to find the package-specific build output directory

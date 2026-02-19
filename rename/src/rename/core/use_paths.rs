@@ -9,17 +9,30 @@ use std::path::PathBuf;
 pub(crate) fn update_use_paths(
     project: &std::path::Path,
     file_renames: &[super::types::FileRename],
+    symbol_mapping: &HashMap<String, String>,
     structured_config: &StructuredEditOptions,
     alias_graph: &AliasGraph,
     structured_tracker: &mut StructuredEditTracker,
     touched_files: &mut HashSet<PathBuf>,
 ) -> Result<()> {
-    if file_renames.is_empty() {
-        return Ok(());
-    }
     let mut path_updates: HashMap<String, String> = HashMap::new();
     for rename in file_renames {
         path_updates.insert(rename.old_module_id.clone(), rename.new_module_id.clone());
+    }
+    // Also cover pure symbol renames: patch `pub use module::OldName` → `pub use module::NewName`.
+    // The symbol id has the form `module_path::SymbolName`; the last segment is the ident.
+    for (old_id, new_name) in symbol_mapping {
+        path_updates.insert(old_id.clone(), {
+            // Replace only the last segment of the path.
+            if let Some(pos) = old_id.rfind("::") {
+                format!("{}{}{}", &old_id[..pos + 2], new_name, "")
+            } else {
+                new_name.clone()
+            }
+        });
+    }
+    if path_updates.is_empty() {
+        return Ok(());
     }
     let files = fs::collect_rs_files(project)?;
     for file in &files {

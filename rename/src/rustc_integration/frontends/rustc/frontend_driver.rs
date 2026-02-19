@@ -120,7 +120,7 @@ impl RustcFrontend {
         if let Some(name) = entry.file_stem().and_then(|s| s.to_str()) {
             args.push(format!("--crate-name={}", name.replace('-', "_")));
         }
-        let sysroot = resolve_sysroot().map_err(RustcFrontendError::Sysroot)?;
+        let sysroot = resolve_rustc_sysroot().map_err(RustcFrontendError::Sysroot)?;
         args.push("--sysroot".into());
         args.push(sysroot.to_string_lossy().into());
         args.extend(extra_args.iter().cloned());
@@ -140,7 +140,7 @@ impl RustcFrontend {
             package_features: self.package_features.clone(),
             cfg_flags: {
                 let mut cfgs = self.cfg_flags.clone();
-                cfgs.extend(parse_cfg_args(extra_args));
+                cfgs.extend(extract_cfg_flags(extra_args));
                 cfgs.sort();
                 cfgs.dedup();
                 cfgs
@@ -189,11 +189,11 @@ impl Callbacks for SnapshotCallbacks {
         _compiler: &Compiler,
         tcx: TyCtxt<'tcx>,
     ) -> Compilation {
-        self.snapshot = Some(build_snapshot(tcx, &self.metadata));
+        self.snapshot = Some(build_graph_snapshot(tcx, &self.metadata));
         Compilation::Stop
     }
 }
-fn parse_cfg_args(extra_args: &[String]) -> Vec<String> {
+fn extract_cfg_flags(extra_args: &[String]) -> Vec<String> {
     let mut cfgs = Vec::new();
     let mut iter = extra_args.iter().peekable();
     while let Some(arg) = iter.next() {
@@ -210,7 +210,7 @@ fn parse_cfg_args(extra_args: &[String]) -> Vec<String> {
     }
     cfgs
 }
-fn build_snapshot<'tcx>(
+fn build_graph_snapshot<'tcx>(
     tcx: TyCtxt<'tcx>,
     metadata: &FrontendMetadata,
 ) -> GraphSnapshot {
@@ -242,7 +242,7 @@ fn build_snapshot<'tcx>(
     }
     for &local_def in tcx.mir_keys(()).iter() {
         let def_id = local_def.to_def_id();
-        if !is_supported_def(tcx.def_kind(def_id)) || !tcx.is_mir_available(def_id) {
+        if !is_supported_def_kind(tcx.def_kind(def_id)) || !tcx.is_mir_available(def_id) {
             continue;
         }
         let caller_id = ensure_node(&mut builder, tcx, def_id, &mut cache, metadata);
@@ -251,10 +251,10 @@ fn build_snapshot<'tcx>(
     }
     builder.finalize()
 }
-fn is_supported_def(kind: DefKind) -> bool {
+fn is_supported_def_kind(kind: DefKind) -> bool {
     matches!(kind, DefKind::Fn | DefKind::AssocFn)
 }
-fn resolve_sysroot() -> Result<PathBuf, std::io::Error> {
+fn resolve_rustc_sysroot() -> Result<PathBuf, std::io::Error> {
     if let Ok(sysroot) = std::env::var("SYSROOT") {
         return Ok(PathBuf::from(sysroot));
     }

@@ -6,7 +6,6 @@
 //!
 //! State lives exclusively in CanonicalIr and CapabilityGraph edges.
 //! Nothing inside a node is stateful.
-
 pub mod bootstrap;
 pub mod call;
 pub mod capability;
@@ -22,22 +21,25 @@ pub mod runner;
 pub mod slice;
 pub mod sse;
 pub mod ws_server;
-
-pub use bootstrap::{bootstrap_graph, bootstrap_proposal};
-pub use call::{AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult};
-pub use capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField};
-pub use dispatcher::{AgentCallDispatcher, DEFAULT_TRUST_THRESHOLD};
+pub use bootstrap::{seed_capability_graph, seed_refactor_proposal};
+pub use call::{
+    AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
+};
+pub use capability::{
+    CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
+};
+pub use dispatcher::{CapabilityNodeDispatcher, DEFAULT_TRUST_THRESHOLD};
 pub use io::{load_capability_graph, save_capability_graph};
 pub use llm_provider::{LlmProviderError, call_llm};
 pub use meta::{
-    GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, MetaTickError, MetaTickResult,
-    UNDERPERFORM_THRESHOLD, run_meta_tick,
+    GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, GraphEvolutionError,
+    GraphEvolutionResult, UNDERPERFORM_THRESHOLD, evolve_capability_graph,
 };
-pub use observe::{IrObservation, IrTotals, observation_to_payload, observe_ir};
-pub use pipeline::record_pipeline_outcome;
-pub use pipeline::{PipelineError, PipelineResult, RefactorStage, run_pipeline};
+pub use observe::{IrAnalysisReport, IrTotals, ir_observation_to_json, analyze_ir};
+pub use pipeline::record_refactor_reward;
+pub use pipeline::{RefactorError, RefactorResult, RefactorStage, run_refactor_pipeline};
 pub use refactor::{RefactorKind, RefactorProposal, RefactorTarget};
-pub use reward::{NodeOutcome, NodeRewardEntry, RewardLedger};
+pub use reward::{PipelineNodeOutcome, NodeRewardEntry, NodeRewardLedger};
 pub use runner::{RunnerConfig, RunnerError, TickStats, run_agent};
-pub use slice::build_ir_slice;
+pub use slice::slice_ir_fields;
 pub use ws_server::WsBridge;

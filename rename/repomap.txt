@@ -18,13 +18,13 @@ rustc_integration/frontends/rustc/frontend_driver.rs:
         _compiler: &Compiler,
         tcx: TyCtxt<'tcx>,
     ) -> Compilation }  (line 186)
-  fn parse_cfg_args(extra_args: &[String]) -> Vec<String>  (line 196)
-  fn build_snapshot(
+  fn extract_cfg_flags(extra_args: &[String]) -> Vec<String>  (line 196)
+  fn build_graph_snapshot(
     tcx: TyCtxt<'tcx>,
     metadata: &FrontendMetadata,
 ) -> GraphSnapshot  (line 213)
-  fn is_supported_def(kind: DefKind) -> bool  (line 254)
-  fn resolve_sysroot() -> Result<PathBuf, std::io::Error>  (line 257)
+  fn is_supported_def_kind(kind: DefKind) -> bool  (line 254)
+  fn resolve_rustc_sysroot() -> Result<PathBuf, std::io::Error>  (line 257)
 
 rustc_integration/frontends/rustc/item_capture.rs:
   fn capture_adt(
@@ -170,30 +170,33 @@ rustc_integration/frontends/rustc/metadata_capture.rs:
     def_id: DefId,
     frontend: &FrontendMetadata,
 ) -> NodePayload  (line 13)
-  fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 132)
-  fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 166)
-  fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 169)
-  fn serialize_generic_params(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 181)
-  fn serialize_where_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 204)
-  fn format_generic_param_kind(kind: &GenericParamDefKind) -> String  (line 213)
-  fn generic_param_has_default(kind: &GenericParamDefKind) -> bool  (line 220)
-  struct GenericsCapture  { params, parent, predicates }  (line 228)
-  struct GenericParamCapture  { index, name, kind, has_default }  (line 234)
-  struct AttributeData  { raw, flags }  (line 240)
-  struct AttributeFlags  { inline, inline_hint, test, bench, no_mangle, doc_hidden, thread_local, reprs, derives, doc }  (line 245)
-  impl AttributeFlags  { fn apply(&mut self, attr: &HirAttribute) }  (line 257)
+  fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 138)
+  fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 172)
+  fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 175)
+  fn serialize_generic_param_list(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 187)
+  fn serialize_where_clause_predicates(
+    tcx: TyCtxt<'_>,
+    def_id: DefId,
+) -> Option<Vec<String>>  (line 210)
+  fn format_generic_param_kind_label(kind: &GenericParamDefKind) -> String  (line 222)
+  fn generic_param_has_default_value(kind: &GenericParamDefKind) -> bool  (line 229)
+  struct GenericsCapture  { params, parent, predicates }  (line 237)
+  struct GenericParamCapture  { index, name, kind, has_default }  (line 243)
+  struct AttributeData  { raw, flags }  (line 249)
+  struct AttributeFlags  { inline, inline_hint, test, bench, no_mangle, doc_hidden, thread_local, reprs, derives, doc }  (line 254)
+  impl AttributeFlags  { fn apply(&mut self, attr: &HirAttribute) }  (line 266)
   fn apply_attribute_flags(
     mut payload: NodePayload,
     flags: AttributeFlags,
-) -> NodePayload  (line 310)
-  struct FileStats  { hash, line_count, byte_len }  (line 350)
-  fn compute_source_file_stats(file: &SourceFile) -> FileStats  (line 355)
-  fn resolve_absolute_path(filename: &FileName) -> String  (line 374)
-  fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 381)
-  fn node_kind_label(def_kind: DefKind) -> String  (line 387)
-  fn module_path_from_def(def_path: &str) -> String  (line 406)
-  fn format_symbol_display(module: &str, name: &str) -> String  (line 409)
-  fn symbol_kind_label(def_kind: DefKind) -> String  (line 412)
+) -> NodePayload  (line 319)
+  struct FileStats  { hash, line_count, byte_len }  (line 359)
+  fn compute_source_file_metrics(file: &SourceFile) -> FileStats  (line 364)
+  fn resolve_source_path_abs(filename: &FileName) -> String  (line 383)
+  fn resolve_source_path_rel(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 390)
+  fn format_node_kind_label(def_kind: DefKind) -> String  (line 396)
+  fn derive_module_path(def_path: &str) -> String  (line 415)
+  fn format_symbol_label(module: &str, name: &str) -> String  (line 418)
+  fn symbol_kind_label(def_kind: DefKind) -> String  (line 421)
 
 rustc_integration/frontends/rustc/stub.rs:
   struct RustcFrontend  (line 6)
@@ -241,7 +244,7 @@ rustc_integration/multi_capture.rs:
     extra_args: &[String],
 ) -> Result<CaptureArtifacts, CaptureError>  (line 64)
   fn open_engine(root: &std::path::Path) -> Result<MemoryEngine, CaptureError>  (line 187)
-  fn find_out_dir(project: &CargoProject) -> Option<std::path::PathBuf>  (line 194)
+  fn find_build_out_dir(project: &CargoProject) -> Option<std::path::PathBuf>  (line 194)
 
 rustc_integration/capture/validation.rs:
   fn validate(result: &ExtractionResult) -> bool  (line 6)

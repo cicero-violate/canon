@@ -1,19 +1,21 @@
 commands.rs:
-  fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>>  (line 33)
+  fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>>  (line 32)
 
 storage/types.rs:
   struct FileHashRecord  { path, hash }  (line 5)
 
 storage/manifest.rs:
-  struct ManifestEntry  { id, slot }  (line 7)
-  impl ManifestEntry  { fn new(id: String, slot: u64) -> Self }  (line 12)
-  struct ArtifactManifest  { modules, structs, enums, traits, impls, functions, module_edges, call_edges, ticks, tick_graphs, system_graphs, loop_policies, tick_epochs, policies, plans, executions, admissions, applied_deltas, gpu_functions, proposals, judgments, judgment_predicates, delta_defs, proofs, learnings, errors, dependencies, file_hashes, rewards, goal_mutations }  (line 20)
-  impl ArtifactManifest  { fn from_ir(ir: &CanonicalIr) -> Self }  (line 53)
-  fn assign_slots(ids: I) -> Vec<ManifestEntry>  (line 107)
+  struct ManifestEntry  { id, slot }  (line 5)
+  impl ManifestEntry  { fn new(id: String, slot: u64) -> Self }  (line 9)
+  struct ArtifactManifest  { modules, structs, enums, traits, impls, functions, module_edges, call_edges, ticks, tick_graphs, system_graphs, loop_policies, tick_epochs, policies, plans, executions, admissions, applied_deltas, gpu_functions, proposals, judgments, judgment_predicates, delta_defs, proofs, learnings, errors, dependencies, file_hashes, rewards, goal_mutations }  (line 16)
+  impl ArtifactManifest  { fn from_ir(ir: &CanonicalIr) -> Self }  (line 48)
+  fn assign_manifest_slots(ids: I) -> Vec<ManifestEntry>  (line 122)
 
 storage/reader.rs:
-  struct MemoryIrReader  { state, layout }  (line 27)
-  impl MemoryIrReader<'a>  { fn new(state: &'a MerkleState) -> Self, fn read_ir(&self) -> Result<CanonicalIr, MemoryIrReadError>, fn from_checkpoint(path: P) -> Result<CanonicalIr, MemoryIrReadError>, fn read_collection(
+  struct MemoryIrReader  { state, layout }  (line 24)
+  impl MemoryIrReader<'a>  { fn new(state: &'a MerkleState) -> Self, fn read_ir(&self) -> Result<CanonicalIr, MemoryIrReadError>, fn read_ir_from_checkpoint(
+        path: P,
+    ) -> Result<CanonicalIr, MemoryIrReadError>, fn read_collection(
         &self,
         segment: ArtifactSegment,
         entries: &[ManifestEntry],
@@ -31,8 +33,8 @@ storage/reader.rs:
         segment: ArtifactSegment,
         artifact_id: &str,
         slot: u64,
-    ) -> Result<Vec<u8>, MemoryIrReadError> }  (line 32)
-  enum MemoryIrReadError  { Layout, Decode, Io, Corrupt }  (line 224)
+    ) -> Result<Vec<u8>, MemoryIrReadError> }  (line 28)
+  enum MemoryIrReadError  { Layout, Decode, Io, Corrupt }  (line 219)
 
 storage/layout.rs:
   enum ArtifactSegment  { Meta, VersionContract, Project, Module, Struct, Enum, Trait, ImplBlock, Function, ModuleEdge, CallEdge, Tick, TickGraph, SystemGraph, LoopPolicy, TickEpoch, Policy, Plan, Execution, Admission, AppliedDelta, GpuFunction, Proposal, Judgment, JudgmentPredicate, DeltaDef, Proof, Learning, ErrorArtifact, Dependency, FileHash, Reward, WorldModel, GoalMutation }  (line 21)
@@ -49,8 +51,12 @@ storage/layout.rs:
   enum LayoutError  { ChunkOverflow, SlotOverflow }  (line 147)
 
 storage/builder.rs:
-  struct MemoryIrBuilder  { engine, layout, judgment_counter }  (line 29)
-  impl MemoryIrBuilder<'engine>  { fn new(engine: &'engine MemoryEngine) -> Self, fn persist_ir(&self, ir: &CanonicalIr) -> Result<(), MemoryIrBuilderError>, fn persist_module(&self, module: &Module, slot: u64) -> Result<(), MemoryIrBuilderError>, fn persist_struct(
+  struct MemoryIrBuilder  { engine, layout, judgment_counter }  (line 28)
+  impl MemoryIrBuilder<'engine>  { fn new(engine: &'engine MemoryEngine) -> Self, fn write_ir_to_disk(&self, ir: &CanonicalIr) -> Result<(), MemoryIrBuilderError>, fn persist_module(
+        &self,
+        module: &Module,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_struct(
         &self,
         structure: &Struct,
         slot: u64,
@@ -58,7 +64,15 @@ storage/builder.rs:
         &self,
         enum_node: &EnumNode,
         slot: u64,
-    ) -> Result<(), MemoryIrBuilderError>, fn persist_trait(&self, tr: &Trait, slot: u64) -> Result<(), MemoryIrBuilderError>, fn persist_impl(&self, block: &ImplBlock, slot: u64) -> Result<(), MemoryIrBuilderError>, fn persist_function(
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_trait(
+        &self,
+        tr: &Trait,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_impl(
+        &self,
+        block: &ImplBlock,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_function(
         &self,
         function: &Function,
         slot: u64,
@@ -85,34 +99,34 @@ storage/builder.rs:
         key: &str,
         slot: u64,
         value: &T,
-    ) -> Result<(), MemoryIrBuilderError>, fn persist_segment(
+    ) -> Result<(), MemoryIrBuilderError>, fn write_artifact_page(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
         slot: u64,
         value: &T,
-    ) -> Result<(), MemoryIrBuilderError>, fn encode(&self, value: &T) -> Result<Vec<u8>, MemoryIrBuilderError>, fn commit_deltas(
+    ) -> Result<(), MemoryIrBuilderError>, fn encode(&self, value: &T) -> Result<Vec<u8>, MemoryIrBuilderError>, fn admit_and_commit_pages(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
         deltas: Vec<Delta>,
-    ) -> Result<(), MemoryIrBuilderError>, fn synthetic_judgment(
+    ) -> Result<(), MemoryIrBuilderError>, fn build_builder_judgment_proof(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
         hashes: &[EngineHash],
-    ) -> JudgmentProof }  (line 35)
-  enum MemoryIrBuilderError  { Serialize, Layout, MissingSlot, Delta, Memory, Admission }  (line 401)
-  struct ManifestSlotLookup  { slots }  (line 423)
+    ) -> JudgmentProof }  (line 33)
+  enum MemoryIrBuilderError  { Serialize, Layout, MissingSlot, Delta, Memory, Admission }  (line 443)
+  struct ManifestSlotLookup  { slots }  (line 457)
   impl ManifestSlotLookup  { fn new(manifest: &ArtifactManifest) -> Self, fn index_segment(
         slots: &mut HashMap<ArtifactSegment, HashMap<String, u64>>,
         segment: ArtifactSegment,
         entries: &[ManifestEntry],
-    ), fn slot_or_err(
+    ), fn require_slot(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
-    ) -> Result<u64, MemoryIrBuilderError> }  (line 427)
+    ) -> Result<u64, MemoryIrBuilderError> }  (line 460)
 
 main.rs:
   fn main()  (line 33)
@@ -643,9 +657,9 @@ evolution/mod.rs:
   fn apply_deltas(
     ir: &CanonicalIr,
     admission_ids: &[AdmissionId],
-) -> Result<CanonicalIr, EvolutionError>  (line 27)
-  fn enforce_delta_application(delta: &Delta) -> Result<(), EvolutionError>  (line 113)
-  enum EvolutionError  { UnknownAdmission, UnknownJudgment, UnknownDelta, JudgmentNotAccepted, MissingContext, UnknownStruct, UnknownField, UnknownModule, UnknownImpl, UnknownTrait, UnknownTraitFunction, UnknownExecution, UnknownFunction, UnknownEnum, DuplicateArtifact, PayloadHash, Kernel, VerificationFailed, TopologyDrift }  (line 123)
+) -> Result<CanonicalIr, EvolutionError>  (line 22)
+  fn enforce_delta_application(delta: &Delta) -> Result<(), EvolutionError>  (line 109)
+  enum EvolutionError  { UnknownAdmission, UnknownJudgment, UnknownDelta, JudgmentNotAccepted, MissingContext, UnknownStruct, UnknownField, UnknownModule, UnknownImpl, UnknownTrait, UnknownTraitFunction, UnknownExecution, UnknownFunction, UnknownEnum, DuplicateArtifact, PayloadHash, Kernel, VerificationFailed, TopologyDrift }  (line 118)
 
 evolution/goal_mutation.rs:
   fn mutate_goal(
@@ -655,17 +669,21 @@ evolution/goal_mutation.rs:
   enum GoalMutationError  { MissingProof, InvariantViolated, DriftExceeded, NotAccepted, UnknownMutation }  (line 33)
 
 evolution/lyapunov.rs:
-  struct TopologyFingerprint  { module_count, module_edge_count, struct_count, trait_count, function_count, call_edge_count, tick_graph_count, delta_count }  (line 24)
-  impl TopologyFingerprint  { fn of(ir: &CanonicalIr) -> Self, fn as_token_string(&self) -> String, fn drift_from(&self, other: &TopologyFingerprint, theta: f64) -> GoalDriftMetric }  (line 35)
-  enum LyapunovError  { DriftExceeded, NoInvariantProofs }  (line 76)
-  impl std::fmt::Display for LyapunovError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 86)
-  impl std::error::Error for LyapunovError  (line 106)
-  fn check_topology_drift(
+  struct TopologyFingerprint  { module_count, module_edge_count, struct_count, trait_count, function_count, call_edge_count, tick_graph_count, delta_count }  (line 18)
+  impl TopologyFingerprint  { fn of(ir: &CanonicalIr) -> Self, fn as_token_string(&self) -> String, fn drift_from(
+        &self,
+        other: &TopologyFingerprint,
+        theta: f64,
+    ) -> GoalDriftMetric }  (line 28)
+  enum LyapunovError  { DriftExceeded, NoInvariantProofs }  (line 67)
+  impl std::fmt::Display for LyapunovError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 73)
+  impl std::error::Error for LyapunovError  (line 88)
+  fn enforce_lyapunov_bound(
     before: &CanonicalIr,
     after: &CanonicalIr,
     invariant_proof_ids: &[String],
     theta: f64,
-) -> Result<GoalDriftMetric, LyapunovError>  (line 119)
+) -> Result<GoalDriftMetric, LyapunovError>  (line 100)
 
 evolution/kernel_bridge.rs:
   fn build_proof_registry(proofs: &[Proof]) -> KernelProofRegistry  (line 16)
@@ -1178,13 +1196,15 @@ ingest/parser.rs:
   fn infer_module_path(relative: &Path) -> Vec<String>  (line 48)
 
 io_utils.rs:
-  fn load_ir_any(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 12)
-  fn load_ir(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 35)
-  fn load_ir_or_semantic(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 42)
-  fn load_layout(path: PathBuf) -> Result<LayoutGraph, Box<dyn std::error::Error>>  (line 46)
-  fn resolve_layout(arg: Option<PathBuf>, ir: &Path) -> PathBuf  (line 51)
-  fn default_layout_path_for(ir_path: &Path) -> PathBuf  (line 55)
-  fn default_graph_path_for(ir_path: &Path) -> PathBuf  (line 67)
+  fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 8)
+  fn load_ir(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 26)
+  fn load_ir_or_semantic(
+    path: &Path,
+) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 32)
+  fn load_layout(path: PathBuf) -> Result<LayoutGraph, Box<dyn std::error::Error>>  (line 37)
+  fn resolve_layout(arg: Option<PathBuf>, ir: &Path) -> PathBuf  (line 41)
+  fn default_layout_path_for(ir_path: &Path) -> PathBuf  (line 44)
+  fn default_graph_path_for(ir_path: &Path) -> PathBuf  (line 55)
 
 ir/reward.rs:
   struct RewardRecord  { id, tick, execution, reward, delta }  (line 10)
@@ -1467,12 +1487,12 @@ version_gate.rs:
   fn enforce_version_gate(ir: &CanonicalIr) -> Result<(), Box<dyn std::error::Error>>  (line 3)
 
 decision/auto_dsl.rs:
-  enum AutoAcceptDslError  { Proposal, Accept, MissingTickGraph }  (line 16)
-  fn auto_accept_dsl_proposal(
+  enum AutoAcceptDslError  { Proposal, Accept, MissingTickGraph }  (line 15)
+  fn apply_dsl_proposal(
     ir: &CanonicalIr,
     layout: &LayoutGraph,
     dsl_source: &str,
-) -> Result<ProposalAcceptance, AutoAcceptDslError>  (line 25)
+) -> Result<ProposalAcceptance, AutoAcceptDslError>  (line 23)
 
 decision/accept/mod.rs:
   struct ProposalAcceptanceInput  { proposal_id, proof_id, predicate_id, judgment_id, admission_id, tick_id, rationale }  (line 28)
@@ -1604,14 +1624,14 @@ agent/sse.rs:
   fn is_done(raw: &str) -> bool  (line 85)
 
 agent/reward.rs:
-  enum NodeOutcome  { Accepted, Rejected, Halted }  (line 17)
-  impl NodeOutcome  { fn reward_value(&self) -> f64, fn was_accepted(&self) -> bool }  (line 26)
-  struct NodeRewardEntry  { node_id, outcome, ema_reward, run_count }  (line 42)
-  struct RewardLedger  { entries, alpha, base_threshold }  (line 53)
-  impl RewardLedger  { fn new(alpha: f64, base_threshold: f64) -> Self, fn record(&mut self, node_id: impl Into<String>, outcome: NodeOutcome), fn trust_threshold_for(&self, node_id: &str) -> f64, fn update_policy(
+  enum PipelineNodeOutcome  { Accepted, Rejected, Halted }  (line 14)
+  impl PipelineNodeOutcome  { fn reward_value(&self) -> f64, fn was_accepted(&self) -> bool }  (line 22)
+  struct NodeRewardEntry  { node_id, outcome, ema_reward, run_count }  (line 36)
+  struct NodeRewardLedger  { entries, alpha, base_threshold }  (line 46)
+  impl NodeRewardLedger  { fn new(alpha: f64, base_threshold: f64) -> Self, fn record(&mut self, node_id: impl Into<String>, outcome: PipelineNodeOutcome), fn trust_threshold_for(&self, node_id: &str) -> f64, fn update_policy(
         &self,
         current: &PolicyParameters,
-    ) -> Result<PolicyParameters, PolicyUpdateError>, fn aggregate_reward(&self) -> f64, fn ranked_nodes(&self) -> Vec<&NodeRewardEntry>, fn entry_for(&self, node_id: &str) -> Option<&NodeRewardEntry> }  (line 62)
+    ) -> Result<PolicyParameters, PolicyUpdateError>, fn aggregate_reward(&self) -> f64, fn ranked_nodes(&self) -> Vec<&NodeRewardEntry>, fn entry_for(&self, node_id: &str) -> Option<&NodeRewardEntry> }  (line 54)
 
 agent/capability.rs:
   enum IrField  { Modules, ModuleEdges, Structs, Enums, Traits, ImplBlocks, Functions, CallEdges, TickGraphs, SystemGraphs, LoopPolicies, Ticks, TickEpochs, PolicyParameters, Plans, Executions, Admissions, AppliedDeltas, GpuFunctions, Proposals, Judgments, JudgmentPredicates, Deltas, Proofs, Learning, Errors, Dependencies, FileHashes, RewardDeltas, WorldModel, GoalMutations }  (line 7)
@@ -1629,51 +1649,51 @@ agent/io.rs:
 ) -> Result<(), Box<dyn std::error::Error>>  (line 17)
 
 agent/dispatcher.rs:
-  struct AgentCallDispatcher  { graph, ir, completed, trust_threshold }  (line 19)
-  impl AgentCallDispatcher<'a>  { fn new(graph: &'a CapabilityGraph, ir: &'a CanonicalIr) -> Self, fn with_trust_threshold(mut self, threshold: f64) -> Self, fn record_output(&mut self, output: AgentCallOutput), fn dispatch(&self, node_id: &str) -> Result<AgentCallInput, AgentCallError>, fn dispatch_order(&self) -> Result<Vec<String>, AgentCallError>, fn visit(
+  struct CapabilityNodeDispatcher  { graph, ir, completed, trust_threshold }  (line 14)
+  impl CapabilityNodeDispatcher<'a>  { fn new(graph: &'a CapabilityGraph, ir: &'a CanonicalIr) -> Self, fn with_trust_threshold(mut self, threshold: f64) -> Self, fn record_output(&mut self, output: AgentCallOutput), fn dispatch(&self, node_id: &str) -> Result<AgentCallInput, AgentCallError>, fn topological_call_order(&self) -> Result<Vec<String>, AgentCallError>, fn visit(
         &self,
         node_id: &str,
         visited: &mut std::collections::HashSet<String>,
         in_progress: &mut std::collections::HashSet<String>,
         order: &mut Vec<String>,
-    ) -> Result<(), AgentCallError> }  (line 27)
+    ) -> Result<(), AgentCallError> }  (line 21)
 
 agent/pipeline.rs:
-  enum RefactorStage  { Observe, Reason, Prove, Judge, Mutate, Complete }  (line 31)
-  impl std::fmt::Display for RefactorStage  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 40)
-  enum PipelineError  { MissingPayloadField, MissingProof, Rejected, TopologyDrift, Evolution, MissingAdmission, StageSkipped }  (line 55)
-  impl std::fmt::Display for PipelineError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 73)
-  impl std::error::Error for PipelineError  (line 95)
-  struct PipelineResult  { ir, layout, proposal, admission_id, reward }  (line 99)
-  fn run_pipeline(
+  enum RefactorStage  { Observe, Reason, Prove, Judge, Mutate, Complete }  (line 27)
+  impl std::fmt::Display for RefactorStage  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 35)
+  enum RefactorError  { MissingPayloadField, MissingProof, Rejected, TopologyDrift, Evolution, MissingAdmission, StageSkipped }  (line 49)
+  impl std::fmt::Display for RefactorError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 66)
+  impl std::error::Error for RefactorError  (line 89)
+  struct RefactorResult  { ir, layout, proposal, admission_id, reward }  (line 92)
+  fn run_refactor_pipeline(
     ir: &CanonicalIr,
     layout: &LayoutGraph,
     mut proposal: RefactorProposal,
     stage_outputs: &[AgentCallOutput],
-) -> Result<PipelineResult, PipelineError>  (line 124)
-  fn record_pipeline_outcome(
-    ledger: &mut RewardLedger,
+) -> Result<RefactorResult, RefactorError>  (line 116)
+  fn record_refactor_reward(
+    ledger: &mut NodeRewardLedger,
     node_id: &str,
-    result: Result<&PipelineResult, &PipelineError>,
-) -> f64  (line 193)
+    result: Result<&RefactorResult, &RefactorError>,
+) -> f64  (line 184)
   fn require_stage(
     outputs: &[AgentCallOutput],
     idx: usize,
     stage: RefactorStage,
-) -> Result<&AgentCallOutput, PipelineError>  (line 214)
+) -> Result<&AgentCallOutput, RefactorError>  (line 215)
   fn extract_str_field(
     payload: &'a Value,
     field: &str,
     stage: RefactorStage,
-) -> Result<String, PipelineError>  (line 224)
+) -> Result<String, RefactorError>  (line 226)
 
 agent/runner.rs:
-  struct RunnerConfig  { max_ticks, meta_tick_interval, policy_update_interval, ledger_alpha, base_trust_threshold, graph_out, ledger_out, ir_out }  (line 35)
-  impl RunnerConfig  { fn new(graph_out: PathBuf, ledger_out: PathBuf, ir_out: PathBuf) -> Self }  (line 54)
-  enum RunnerError  { Dispatch, Llm, NoOutputs, Io }  (line 71)
-  impl std::fmt::Display for RunnerError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 85)
-  impl std::error::Error for RunnerError  (line 98)
-  struct TickStats  { tick_number, nodes_called, llm_errors, pipeline_reward, pipeline_error, meta_tick_fired, policy_updated }  (line 102)
+  struct RunnerConfig  { max_ticks, meta_tick_interval, policy_update_interval, ledger_alpha, base_trust_threshold, graph_out, ledger_out, ir_out }  (line 31)
+  impl RunnerConfig  { fn new(graph_out: PathBuf, ledger_out: PathBuf, ir_out: PathBuf) -> Self }  (line 49)
+  enum RunnerError  { Dispatch, Llm, NoOutputs, Io }  (line 65)
+  impl std::fmt::Display for RunnerError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 75)
+  impl std::error::Error for RunnerError  (line 89)
+  struct TickStats  { tick_number, nodes_called, llm_errors, pipeline_reward, pipeline_error, meta_tick_fired, policy_updated }  (line 92)
   fn run_agent(
     ir: &mut CanonicalIr,
     layout: &mut LayoutGraph,
@@ -1681,15 +1701,18 @@ agent/runner.rs:
     proposal_seed: RefactorProposal,
     config: &RunnerConfig,
     bridge: &WsBridge,
-) -> Result<Vec<TickStats>, RunnerError>  (line 119)
-  fn persist_ir(ir: &CanonicalIr, path: &Path) -> Result<(), RunnerError>  (line 296)
-  fn persist_ledger(ledger: &RewardLedger, path: &Path) -> Result<(), RunnerError>  (line 301)
+) -> Result<Vec<TickStats>, RunnerError>  (line 108)
+  fn write_ir_to_disk(ir: &CanonicalIr, path: &Path) -> Result<(), RunnerError>  (line 253)
+  fn write_ledger_to_disk(
+    ledger: &NodeRewardLedger,
+    path: &Path,
+) -> Result<(), RunnerError>  (line 258)
 
 agent/slice.rs:
-  fn truncate_list(v: Value) -> Value  (line 17)
-  fn slim_function(f: &crate::ir::Function) -> Value  (line 36)
-  fn build_ir_slice(ir: &CanonicalIr, fields: &[IrField]) -> Value  (line 50)
-  fn extract_field(ir: &CanonicalIr, field: &IrField) -> (String, Value)  (line 60)
+  fn truncate_list(v: Value) -> Value  (line 12)
+  fn slim_function(f: &crate::ir::Function) -> Value  (line 31)
+  fn slice_ir_fields(ir: &CanonicalIr, fields: &[IrField]) -> Value  (line 39)
+  fn extract_field(ir: &CanonicalIr, field: &IrField) -> (String, Value)  (line 48)
 
 agent/llm_provider.rs:
   enum LlmProviderError  { Transport, MissingJsonFence, JsonDecodeFailure }  (line 26)
@@ -1709,8 +1732,8 @@ agent/llm_provider.rs:
   fn required_fields_for_stage(stage: &str) -> &'static str  (line 206)
 
 agent/bootstrap.rs:
-  fn bootstrap_graph() -> CapabilityGraph  (line 27)
-  fn bootstrap_proposal(target_module_id: &str) -> RefactorProposal  (line 151)
+  fn seed_capability_graph() -> CapabilityGraph  (line 25)
+  fn seed_refactor_proposal(target_module_id: &str) -> RefactorProposal  (line 108)
 
 agent/ws_server.rs:
   enum WsBridgeError  { NotConnected, NoTab, Timeout, Cancelled }  (line 42)
@@ -1751,39 +1774,42 @@ agent/call.rs:
   impl std::error::Error for AgentCallError  (line 85)
 
 agent/meta.rs:
-  enum GraphMutation  { RemoveNode, AddEdge, RemoveEdge, PromoteToMetaAgent }  (line 31)
-  enum MetaTickError  { EntropyBoundExceeded, TooFewNodes, UnknownNode, DisconnectedNode, NothingToDo }  (line 48)
-  impl std::fmt::Display for MetaTickError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 61)
-  impl std::error::Error for MetaTickError  (line 86)
-  struct MetaTickResult  { graph, applied, rejected, entropy_before, entropy_after }  (line 90)
-  fn run_meta_tick(
+  enum GraphMutation  { RemoveNode, AddEdge, RemoveEdge, PromoteToMetaAgent }  (line 25)
+  enum GraphEvolutionError  { EntropyBoundExceeded, TooFewNodes, UnknownNode, DisconnectedNode, NothingToDo }  (line 37)
+  impl std::fmt::Display for GraphEvolutionError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 49)
+  impl std::error::Error for GraphEvolutionError  (line 73)
+  struct GraphEvolutionResult  { graph, applied, rejected, entropy_before, entropy_after }  (line 76)
+  fn evolve_capability_graph(
     graph: &CapabilityGraph,
-    ledger: &RewardLedger,
-) -> Result<MetaTickResult, MetaTickError>  (line 110)
-  fn propose_mutations(graph: &CapabilityGraph, ledger: &RewardLedger) -> Vec<GraphMutation>  (line 176)
+    ledger: &NodeRewardLedger,
+) -> Result<GraphEvolutionResult, GraphEvolutionError>  (line 95)
+  fn propose_mutations(
+    graph: &CapabilityGraph,
+    ledger: &NodeRewardLedger,
+) -> Vec<GraphMutation>  (line 156)
   fn apply_mutation(
     graph: &CapabilityGraph,
     mutation: &GraphMutation,
-) -> Result<CapabilityGraph, MetaTickError>  (line 216)
-  fn find_disconnected(graph: &CapabilityGraph) -> Option<String>  (line 264)
+) -> Result<CapabilityGraph, GraphEvolutionError>  (line 192)
+  fn find_disconnected(graph: &CapabilityGraph) -> Option<String>  (line 235)
 
 agent/observe.rs:
-  struct IrObservation  { hottest_modules, largest_structs, deepest_call_chains, totals }  (line 24)
-  struct ModuleHeat  { module_id, module_name, in_degree }  (line 36)
-  struct StructSize  { struct_id, struct_name, field_count, module_id }  (line 44)
-  struct CallChainDepth  { function_id, function_name, depth, module_id }  (line 52)
-  struct IrTotals  { modules, functions, structs, traits, call_edges, deltas, proofs }  (line 60)
-  fn observe_ir(ir: &CanonicalIr) -> IrObservation  (line 74)
-  fn observation_to_payload(obs: &IrObservation) -> Value  (line 92)
-  fn hottest_modules(ir: &CanonicalIr) -> Vec<ModuleHeat>  (line 100)
-  fn largest_structs(ir: &CanonicalIr) -> Vec<StructSize>  (line 145)
-  fn deepest_call_chains(ir: &CanonicalIr) -> Vec<CallChainDepth>  (line 167)
+  struct IrAnalysisReport  { hottest_modules, largest_structs, deepest_call_chains, totals }  (line 19)
+  struct ModuleHeat  { module_id, module_name, in_degree }  (line 30)
+  struct StructSize  { struct_id, struct_name, field_count, module_id }  (line 37)
+  struct CallChainDepth  { function_id, function_name, depth, module_id }  (line 44)
+  struct IrTotals  { modules, functions, structs, traits, call_edges, deltas, proofs }  (line 51)
+  fn analyze_ir(ir: &CanonicalIr) -> IrAnalysisReport  (line 64)
+  fn ir_observation_to_json(obs: &IrAnalysisReport) -> Value  (line 81)
+  fn hottest_modules(ir: &CanonicalIr) -> Vec<ModuleHeat>  (line 85)
+  fn largest_structs(ir: &CanonicalIr) -> Vec<StructSize>  (line 118)
+  fn deepest_call_chains(ir: &CanonicalIr) -> Vec<CallChainDepth>  (line 133)
   fn chain_depth(
     node: &'a str,
     adj: &HashMap<&'a str, Vec<&'a str>>,
     memo: &mut HashMap<&'a str, usize>,
     path: &mut Vec<&'a str>,
-) -> usize  (line 218)
+) -> usize  (line 176)
 
 layout/validation.rs:
   struct LayoutValidationError  { message }  (line 10)
@@ -1987,10 +2013,10 @@ validate/check_project.rs:
   fn check(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 6)
 
 observe.rs:
-  fn execution_events_to_observe_deltas(
+  fn execution_events_to_deltas(
     execution: &ExecutionRecord,
     proof_id: &str,
-) -> Vec<Delta>  (line 3)
+) -> Vec<Delta>  (line 4)
   fn describe_event(execution_id: &str, idx: usize, event: &ExecutionEvent) -> String  (line 28)
 
 patch_protocol.rs:

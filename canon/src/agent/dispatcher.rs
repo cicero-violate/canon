@@ -2,29 +2,23 @@
 //!
 //! Does not make LLM calls. Produces a fully-formed AgentCallInput
 //! ready to hand to any LLM provider. Trust threshold enforced here.
-
 use std::collections::HashMap;
-
 use crate::ir::CanonicalIr;
-
 use super::call::{AgentCallError, AgentCallInput, AgentCallOutput};
 use super::capability::CapabilityGraph;
-use super::slice::build_ir_slice;
-
+use super::slice::slice_ir_fields;
 /// Minimum proof_confidence required on all incoming edges before
 /// a node is permitted to receive a call. Nodes with no predecessors
 /// are exempt (root axiom trust = 1.0).
 pub const DEFAULT_TRUST_THRESHOLD: f64 = 0.5;
-
-pub struct AgentCallDispatcher<'a> {
+pub struct CapabilityNodeDispatcher<'a> {
     graph: &'a CapabilityGraph,
     ir: &'a CanonicalIr,
     /// Completed outputs from earlier calls in this tick, keyed by node_id.
     completed: HashMap<String, AgentCallOutput>,
     trust_threshold: f64,
 }
-
-impl<'a> AgentCallDispatcher<'a> {
+impl<'a> CapabilityNodeDispatcher<'a> {
     pub fn new(graph: &'a CapabilityGraph, ir: &'a CanonicalIr) -> Self {
         Self {
             graph,
@@ -33,28 +27,22 @@ impl<'a> AgentCallDispatcher<'a> {
             trust_threshold: DEFAULT_TRUST_THRESHOLD,
         }
     }
-
     pub fn with_trust_threshold(mut self, threshold: f64) -> Self {
         self.trust_threshold = threshold;
         self
     }
-
     /// Record a completed call output so successors can access it.
     pub fn record_output(&mut self, output: AgentCallOutput) {
         self.completed.insert(output.node_id.clone(), output);
     }
-
     /// Build a fully-formed AgentCallInput for `node_id`.
     /// Returns Err if the node is unknown, trust is insufficient,
     /// or a required predecessor output is missing.
     pub fn dispatch(&self, node_id: &str) -> Result<AgentCallInput, AgentCallError> {
-        // 1. Resolve node.
         let node = self
             .graph
             .node(node_id)
             .ok_or_else(|| AgentCallError::UnknownNode(node_id.to_string()))?;
-
-        // 2. Check trust on all incoming edges.
         let trust_scores = self.graph.trust_scores();
         let score = trust_scores.get(node_id).copied().unwrap_or(1.0);
         let preds = self.graph.predecessors(node_id);
@@ -65,23 +53,18 @@ impl<'a> AgentCallDispatcher<'a> {
                 required: self.trust_threshold,
             });
         }
-
-        // 3. Build IR slice from declared reads.
-        let ir_slice = build_ir_slice(self.ir, &node.reads);
-
-        // 4. Collect predecessor outputs — all predecessors must have completed.
+        let ir_slice = slice_ir_fields(self.ir, &node.reads);
         let mut predecessor_outputs = Vec::new();
         for pred in &preds {
             let output = self
                 .completed
                 .get(pred.id.as_str())
-                .ok_or_else(|| AgentCallError::MissingPredecessorOutput(pred.id.clone()))?;
+                .ok_or_else(|| AgentCallError::MissingPredecessorOutput(
+                    pred.id.clone(),
+                ))?;
             predecessor_outputs.push(output.clone());
         }
-
-        // 5. Construct call id: node_id + count of completed calls.
         let call_id = format!("{}#{}", node_id, self.completed.len());
-
         Ok(AgentCallInput {
             call_id,
             node_id: node_id.to_string(),
@@ -90,14 +73,12 @@ impl<'a> AgentCallDispatcher<'a> {
             stage: node.stage,
         })
     }
-
     /// Returns node ids in topological dispatch order (predecessors first).
     /// Errors if the graph contains a cycle.
-    pub fn dispatch_order(&self) -> Result<Vec<String>, AgentCallError> {
+    pub fn topological_call_order(&self) -> Result<Vec<String>, AgentCallError> {
         let mut visited: std::collections::HashSet<String> = Default::default();
         let mut in_progress: std::collections::HashSet<String> = Default::default();
         let mut order: Vec<String> = Vec::new();
-
         for node in &self.graph.nodes {
             if !visited.contains(&node.id) {
                 self.visit(&node.id, &mut visited, &mut in_progress, &mut order)?;
@@ -105,7 +86,6 @@ impl<'a> AgentCallDispatcher<'a> {
         }
         Ok(order)
     }
-
     fn visit(
         &self,
         node_id: &str,
@@ -114,9 +94,9 @@ impl<'a> AgentCallDispatcher<'a> {
         order: &mut Vec<String>,
     ) -> Result<(), AgentCallError> {
         if in_progress.contains(node_id) {
-            return Err(AgentCallError::SliceError(format!(
-                "cycle detected at node: {node_id}"
-            )));
+            return Err(
+                AgentCallError::SliceError(format!("cycle detected at node: {node_id}")),
+            );
         }
         if visited.contains(node_id) {
             return Ok(());

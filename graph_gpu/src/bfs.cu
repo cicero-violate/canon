@@ -14,7 +14,7 @@ __global__ void bfs_kernel(
     uint32_t*       next_frontier,
     uint32_t*       next_size,
     int32_t         current_dist,
-    uint8_t         edge_filter,   // 255 = no filter
+    uint8_t         edge_mask,   // bitmask of allowed edge kinds
     uint32_t        n_nodes
 ) {
     uint32_t tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -25,7 +25,8 @@ __global__ void bfs_kernel(
     uint32_t end   = row_offsets[u + 1];
 
     for (uint32_t e = start; e < end; e++) {
-        if (edge_filter != 255 && edge_kinds[e] != edge_filter) continue;
+        uint8_t kind = edge_kinds[e];
+        if ((edge_mask & (1u << kind)) == 0) continue;
 
         uint32_t v = col_indices[e];
         if (v >= n_nodes) continue;
@@ -55,7 +56,7 @@ void launch_bfs_kernel(
     uint32_t*       next_frontier,
     uint32_t*       next_size,
     int32_t         current_dist,
-    uint8_t         edge_filter,
+    uint8_t         edge_mask,
     uint32_t        n_nodes
 ) {
     if (frontier_size == 0) return;
@@ -65,6 +66,6 @@ void launch_bfs_kernel(
         row_offsets, col_indices, edge_kinds,
         dist, frontier, frontier_size,
         next_frontier, next_size,
-        current_dist, edge_filter, n_nodes
+        current_dist, edge_mask, n_nodes
     );
 }

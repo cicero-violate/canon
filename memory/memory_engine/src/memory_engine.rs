@@ -179,10 +179,14 @@ impl MemoryEngine {
     }
 
     pub fn compact(&self) -> std::io::Result<()> {
+        self.compact_with("checkpoint.bin")
+    }
+
+    pub fn compact_with<P: AsRef<std::path::Path>>(&self, checkpoint_path: P) -> std::io::Result<()> {
         // 1) Write deterministic snapshot
         {
             let state = self.state.read();
-            state.checkpoint("checkpoint.bin")?;
+            state.checkpoint(checkpoint_path)?;
         }
 
         // 2) Truncate WAL only after snapshot succeeds

@@ -1,6 +1,7 @@
-use crate::ir::{Delta, DeltaKind, DeltaPayload, ExecutionEvent, ExecutionRecord, PipelineStage};
-
-pub fn execution_events_to_observe_deltas(
+use crate::ir::{
+    Delta, DeltaKind, DeltaPayload, ExecutionEvent, ExecutionRecord, PipelineStage,
+};
+pub fn execution_events_to_deltas(
     execution: &ExecutionRecord,
     proof_id: &str,
 ) -> Vec<Delta> {
@@ -24,11 +25,14 @@ pub fn execution_events_to_observe_deltas(
         })
         .collect()
 }
-
 fn describe_event(execution_id: &str, idx: usize, event: &ExecutionEvent) -> String {
     match event {
-        ExecutionEvent::Stdout { .. } => format!("Execution {execution_id} stdout #{idx}"),
-        ExecutionEvent::Stderr { .. } => format!("Execution {execution_id} stderr #{idx}"),
+        ExecutionEvent::Stdout { .. } => {
+            format!("Execution {execution_id} stdout #{idx}")
+        }
+        ExecutionEvent::Stderr { .. } => {
+            format!("Execution {execution_id} stderr #{idx}")
+        }
         ExecutionEvent::Artifact { path, .. } => {
             format!("Execution {execution_id} artifact `{path}`")
         }

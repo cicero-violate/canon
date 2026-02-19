@@ -262,6 +262,7 @@ mod tests {
         let edit = AstEdit::insert(&file, 0, &helper);
         let request = UpsertRequest {
             edits: vec![edit],
+            node_ops: Vec::new(),
             format: false,
         };
         let payload = serde_json::to_string(&request).unwrap();

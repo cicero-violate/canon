@@ -9,16 +9,10 @@
 //! We approximate the Frobenius norm over the adjacency matrix using
 //! compute_goal_drift() over topology fingerprints (module + edge counts).
 //! This keeps the gate purely data-structural — no LLM calls, no SMT.
-
-use crate::ir::{
-    CanonicalIr,
-    goals::{GoalDriftMetric, compute_goal_drift},
-};
-
+use crate::ir::{CanonicalIr, goals::{GoalDriftMetric, compute_goal_drift}};
 /// Default drift bound θ for structural mutations.
 /// Tighter than goal mutation (0.05) — topology changes must be small per tick.
 pub const DEFAULT_TOPOLOGY_THETA: f64 = 0.15;
-
 /// A fingerprint of IR topology: used to compute drift between before/after.
 #[derive(Debug, Clone)]
 pub struct TopologyFingerprint {
@@ -31,7 +25,6 @@ pub struct TopologyFingerprint {
     pub tick_graph_count: usize,
     pub delta_count: usize,
 }
-
 impl TopologyFingerprint {
     /// Captures the current IR topology.
     pub fn of(ir: &CanonicalIr) -> Self {
@@ -46,65 +39,53 @@ impl TopologyFingerprint {
             delta_count: ir.deltas.len(),
         }
     }
-
     /// Renders as a token string for drift computation.
     /// Each count is repeated as tokens so compute_goal_drift Jaccard distance
     /// reflects relative change in topology weight.
     pub fn as_token_string(&self) -> String {
         format!(
-            "{} {} {} {} {} {} {} {}",
-            "module ".repeat(self.module_count.max(1)),
-            "module_edge ".repeat(self.module_edge_count.max(1)),
-            "struct ".repeat(self.struct_count.max(1)),
-            "trait ".repeat(self.trait_count.max(1)),
-            "function ".repeat(self.function_count.max(1)),
-            "call_edge ".repeat(self.call_edge_count.max(1)),
-            "tick_graph ".repeat(self.tick_graph_count.max(1)),
-            "delta ".repeat(self.delta_count.max(1)),
+            "{} {} {} {} {} {} {} {}", "module ".repeat(self.module_count.max(1)),
+            "module_edge ".repeat(self.module_edge_count.max(1)), "struct ".repeat(self
+            .struct_count.max(1)), "trait ".repeat(self.trait_count.max(1)), "function "
+            .repeat(self.function_count.max(1)), "call_edge ".repeat(self.call_edge_count
+            .max(1)), "tick_graph ".repeat(self.tick_graph_count.max(1)), "delta "
+            .repeat(self.delta_count.max(1)),
         )
     }
-
     /// Frobenius-approximated drift between two fingerprints.
     /// Uses the same Jaccard-based compute_goal_drift as goal mutation.
-    pub fn drift_from(&self, other: &TopologyFingerprint, theta: f64) -> GoalDriftMetric {
+    pub fn drift_from(
+        &self,
+        other: &TopologyFingerprint,
+        theta: f64,
+    ) -> GoalDriftMetric {
         compute_goal_drift(&self.as_token_string(), &other.as_token_string(), theta)
     }
 }
-
 /// Error returned when the Lyapunov gate rejects a mutation.
 #[derive(Debug, Clone)]
 pub enum LyapunovError {
     /// Topology drift exceeded bound θ.
-    DriftExceeded {
-        cosine_distance: f64,
-        bound_theta: f64,
-    },
+    DriftExceeded { cosine_distance: f64, bound_theta: f64 },
     /// No invariant proofs were provided — gate requires at least one.
     NoInvariantProofs,
 }
-
 impl std::fmt::Display for LyapunovError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LyapunovError::DriftExceeded {
-                cosine_distance,
-                bound_theta,
-            } => write!(
-                f,
-                "topology drift {cosine_distance:.4} exceeds bound θ={bound_theta:.4}"
-            ),
-            LyapunovError::NoInvariantProofs => {
+            LyapunovError::DriftExceeded { cosine_distance, bound_theta } => {
                 write!(
                     f,
-                    "structural mutation requires at least one invariant proof"
+                    "topology drift {cosine_distance:.4} exceeds bound θ={bound_theta:.4}"
                 )
+            }
+            LyapunovError::NoInvariantProofs => {
+                write!(f, "structural mutation requires at least one invariant proof")
             }
         }
     }
 }
-
 impl std::error::Error for LyapunovError {}
-
 /// Gate a structural mutation by checking topology drift against θ.
 ///
 /// Call this with the IR *before* and *after* a proposed mutation.
@@ -116,7 +97,7 @@ impl std::error::Error for LyapunovError {}
 /// - `after`          — proposed IR after mutation
 /// - `invariant_proof_ids` — proof ids that must be non-empty
 /// - `theta`          — drift bound (use DEFAULT_TOPOLOGY_THETA if unsure)
-pub fn check_topology_drift(
+pub fn enforce_lyapunov_bound(
     before: &CanonicalIr,
     after: &CanonicalIr,
     invariant_proof_ids: &[String],
@@ -125,26 +106,18 @@ pub fn check_topology_drift(
     if invariant_proof_ids.is_empty() {
         return Err(LyapunovError::NoInvariantProofs);
     }
-
     let fp_before = TopologyFingerprint::of(before);
     let fp_after = TopologyFingerprint::of(after);
     let mut metric = fp_before.drift_from(&fp_after, theta);
-
-    // Reuse mutation_id field to record what we checked.
     metric.mutation_id = format!(
-        "topology:modules={}->{},functions={}->{}",
-        fp_before.module_count,
-        fp_after.module_count,
-        fp_before.function_count,
-        fp_after.function_count,
+        "topology:modules={}->{},functions={}->{}", fp_before.module_count, fp_after
+        .module_count, fp_before.function_count, fp_after.function_count,
     );
-
     if !metric.within_bound {
         return Err(LyapunovError::DriftExceeded {
             cosine_distance: metric.cosine_distance,
             bound_theta: theta,
         });
     }
-
     Ok(metric)
 }

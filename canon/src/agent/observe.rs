@@ -9,19 +9,14 @@
 //! Reasoner as structured JSON (not free text).
 //!
 //! No LLM calls. No unsafe. Pure graph analysis.
-
 use std::collections::HashMap;
-
 use serde_json::{Value, json};
-
 use crate::ir::CanonicalIr;
-
 /// Top-N limit for each observation category.
 const TOP_N: usize = 5;
-
 /// A fully structured observation produced by the Observer node.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct IrObservation {
+pub struct IrAnalysisReport {
     /// Modules ranked by in-degree in the call graph (most-called first).
     pub hottest_modules: Vec<ModuleHeat>,
     /// Structs ranked by field count (largest first).
@@ -31,7 +26,6 @@ pub struct IrObservation {
     /// Total counts snapshot.
     pub totals: IrTotals,
 }
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ModuleHeat {
     pub module_id: String,
@@ -39,7 +33,6 @@ pub struct ModuleHeat {
     /// Number of call edges that target functions inside this module.
     pub in_degree: usize,
 }
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct StructSize {
     pub struct_id: String,
@@ -47,7 +40,6 @@ pub struct StructSize {
     pub field_count: usize,
     pub module_id: String,
 }
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct CallChainDepth {
     pub function_id: String,
@@ -55,7 +47,6 @@ pub struct CallChainDepth {
     pub depth: usize,
     pub module_id: String,
 }
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct IrTotals {
     pub modules: usize,
@@ -66,13 +57,12 @@ pub struct IrTotals {
     pub deltas: usize,
     pub proofs: usize,
 }
-
 /// Produce a structured IrObservation from a CanonicalIr.
 ///
 /// This is the concrete implementation for the Observer CapabilityNode.
 /// The result serialises directly to JSON and is placed in AgentCallOutput.payload.
-pub fn observe_ir(ir: &CanonicalIr) -> IrObservation {
-    IrObservation {
+pub fn analyze_ir(ir: &CanonicalIr) -> IrAnalysisReport {
+    IrAnalysisReport {
         hottest_modules: hottest_modules(ir),
         largest_structs: largest_structs(ir),
         deepest_call_chains: deepest_call_chains(ir),
@@ -87,39 +77,28 @@ pub fn observe_ir(ir: &CanonicalIr) -> IrObservation {
         },
     }
 }
-
 /// Serialises an IrObservation to a JSON Value for use as AgentCallOutput.payload.
-pub fn observation_to_payload(obs: &IrObservation) -> Value {
-    serde_json::to_value(obs).unwrap_or_else(|_| json!({"error": "serialisation failed"}))
+pub fn ir_observation_to_json(obs: &IrAnalysisReport) -> Value {
+    serde_json::to_value(obs)
+        .unwrap_or_else(|_| json!({ "error" : "serialisation failed" }))
 }
-
-// ---------------------------------------------------------------------------
-// hottest_modules: rank by call-edge in-degree
-// ---------------------------------------------------------------------------
-
 fn hottest_modules(ir: &CanonicalIr) -> Vec<ModuleHeat> {
-    // Build function_id → module_id lookup.
     let fn_to_module: HashMap<&str, &str> = ir
         .functions
         .iter()
         .map(|f| (f.id.as_str(), f.module.as_str()))
         .collect();
-
-    // Count call-edge targets per module.
     let mut in_degree: HashMap<&str, usize> = HashMap::new();
     for edge in &ir.call_edges {
         if let Some(&module_id) = fn_to_module.get(edge.callee.as_str()) {
             *in_degree.entry(module_id).or_insert(0) += 1;
         }
     }
-
-    // Build module_id → name lookup.
     let module_name: HashMap<&str, &str> = ir
         .modules
         .iter()
         .map(|m| (m.id.as_str(), m.name.as_str()))
         .collect();
-
     let mut ranked: Vec<ModuleHeat> = in_degree
         .into_iter()
         .map(|(module_id, deg)| ModuleHeat {
@@ -132,16 +111,10 @@ fn hottest_modules(ir: &CanonicalIr) -> Vec<ModuleHeat> {
             in_degree: deg,
         })
         .collect();
-
     ranked.sort_by(|a, b| b.in_degree.cmp(&a.in_degree));
     ranked.truncate(TOP_N);
     ranked
 }
-
-// ---------------------------------------------------------------------------
-// largest_structs: rank by field count
-// ---------------------------------------------------------------------------
-
 fn largest_structs(ir: &CanonicalIr) -> Vec<StructSize> {
     let mut ranked: Vec<StructSize> = ir
         .structs
@@ -153,26 +126,15 @@ fn largest_structs(ir: &CanonicalIr) -> Vec<StructSize> {
             module_id: s.module.clone(),
         })
         .collect();
-
     ranked.sort_by(|a, b| b.field_count.cmp(&a.field_count));
     ranked.truncate(TOP_N);
     ranked
 }
-
-// ---------------------------------------------------------------------------
-// deepest_call_chains: longest path from each function via call edges
-// Uses iterative DFS with memoisation; cycle-safe via visited set.
-// ---------------------------------------------------------------------------
-
 fn deepest_call_chains(ir: &CanonicalIr) -> Vec<CallChainDepth> {
-    // Build adjacency: caller → Vec<callee>
     let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
     for edge in &ir.call_edges {
-        adj.entry(edge.caller.as_str())
-            .or_default()
-            .push(edge.callee.as_str());
+        adj.entry(edge.caller.as_str()).or_default().push(edge.callee.as_str());
     }
-
     let fn_name: HashMap<&str, &str> = ir
         .functions
         .iter()
@@ -183,9 +145,7 @@ fn deepest_call_chains(ir: &CanonicalIr) -> Vec<CallChainDepth> {
         .iter()
         .map(|f| (f.id.as_str(), f.module.as_str()))
         .collect();
-
     let mut memo: HashMap<&str, usize> = HashMap::new();
-
     let mut ranked: Vec<CallChainDepth> = ir
         .functions
         .iter()
@@ -207,12 +167,10 @@ fn deepest_call_chains(ir: &CanonicalIr) -> Vec<CallChainDepth> {
             }
         })
         .collect();
-
     ranked.sort_by(|a, b| b.depth.cmp(&a.depth));
     ranked.truncate(TOP_N);
     ranked
 }
-
 /// Recursive DFS with memoisation for longest chain depth.
 /// `path` tracks the current DFS path to detect cycles.
 fn chain_depth<'a>(
@@ -224,7 +182,6 @@ fn chain_depth<'a>(
     if let Some(&cached) = memo.get(node) {
         return cached;
     }
-    // Cycle detection: if node is already on current path, depth = 0.
     if path.contains(&node) {
         return 0;
     }
