@@ -151,6 +151,22 @@ impl ProjectEditor {
                 });
             }
         }
+        for ops in self.changesets.values() {
+            for queued in ops {
+                if let NodeOp::MutateField { mutation, .. } = &queued.op {
+                    if matches!(mutation, FieldMutation::ReplaceSignature(_)) {
+                        let impacts = self.oracle.impact_of(&queued.symbol_id);
+                        if !impacts.is_empty() {
+                            conflicts.push(EditConflict {
+                                symbol_id: queued.symbol_id.clone(),
+                                reason: "signature change may require updating call sites"
+                                    .to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
         Ok(conflicts)
     }
 
@@ -282,9 +298,13 @@ impl<'ast> syn::visit::Visit<'ast> for NodeRegistryBuilder<'_> {
         if let Some((_brace, items)) = &i.content {
             let prev = self.module_path.clone();
             self.module_path = module_child_path(&prev, i.ident.to_string());
-            for item in items {
+            let mod_index = self.item_index;
+            self.parent_path.push(mod_index);
+            for (idx, item) in items.iter().enumerate() {
+                self.item_index = idx;
                 self.visit_item(item);
             }
+            self.parent_path.pop();
             self.module_path = prev;
         }
     }
