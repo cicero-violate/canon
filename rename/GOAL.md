@@ -1,23 +1,12 @@
-Looking at the symbol index, significant progress has already been made. Let me map what exists against the goal.
-
----
-
 ## What Is Already Built
 
 **`state/node.rs`** — `NodeHandle`, `NodeKind`, `NodeRegistry` all exist. Layer 1 is done structurally.
-
 **`rename/structured/ops.rs`** — `NodeOp`, `FieldMutation`, `node_handle()` exist. Layer 2 is done.
-
 **`rename/core/oracle.rs`** — `StructuralEditOracle` trait exists (stub).
-
 **`rename/core/project_editor.rs`** — `ProjectEditor`, `NodeRegistryBuilder`, `apply_node_op`, `EditConflict`, `ChangeReport` all exist. Layer 3 is substantially built.
-
 **`rename/core/symbol_id.rs`** — `normalize_symbol_id` exists. The join key normalization is done.
-
 **`rename/structured/ast_render.rs`** — `render_file` exists alongside the node renderers.
-
 **`rustc_integration/project.rs`** — `CargoProject` already `impl StructuralEditOracle`. The bridge is stubbed.
-
 **`rename/api.rs`** — `UpsertRequest` already has `node_ops` field and `node_op()` builder. API surface is extended.
 
 ---
