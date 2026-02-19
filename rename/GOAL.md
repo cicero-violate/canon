@@ -1,231 +1,215 @@
+Looking at the symbol index, significant progress has already been made. Let me map what exists against the goal.
+
+---
+
+## What Is Already Built
+
+**`state/node.rs`** — `NodeHandle`, `NodeKind`, `NodeRegistry` all exist. Layer 1 is done structurally.
+
+**`rename/structured/ops.rs`** — `NodeOp`, `FieldMutation`, `node_handle()` exist. Layer 2 is done.
+
+**`rename/core/oracle.rs`** — `StructuralEditOracle` trait exists (stub).
+
+**`rename/core/project_editor.rs`** — `ProjectEditor`, `NodeRegistryBuilder`, `apply_node_op`, `EditConflict`, `ChangeReport` all exist. Layer 3 is substantially built.
+
+**`rename/core/symbol_id.rs`** — `normalize_symbol_id` exists. The join key normalization is done.
+
+**`rename/structured/ast_render.rs`** — `render_file` exists alongside the node renderers.
+
+**`rustc_integration/project.rs`** — `CargoProject` already `impl StructuralEditOracle`. The bridge is stubbed.
+
+**`rename/api.rs`** — `UpsertRequest` already has `node_ops` field and `node_op()` builder. API surface is extended.
+
+---
+
+## What Is Actually Missing
+
+The oracle implementation in `rustc_integration/project.rs` has all four methods returning empty/false stubs:
+
+```
+fn impact_of        -> Vec<String>   // returns []
+fn satisfies_bounds -> bool          // returns false
+fn is_macro_generated -> bool        // returns false  
+fn cross_crate_users -> Vec<String>  // returns []
+```
+
+This is the only real gap. Everything else is scaffolded. The `RustcFrontend` in `frontends/rustc/collector.rs` captures HIR, MIR, traits, types — but that captured data is not yet flowing into the oracle answers.
+
+---
+
+## Updated GOAL_PROMPT.md
+
+```markdown
 # GOAL_PROMPT.md — Structural AST Editor with rustc Integration
 
-## Project Location
-`canon_workspace/rename/src/`
-
-## What This Project Is
-
-A **project-level structural Rust AST editor** built on two pillars:
-
-1. `rename/` — syn-based symbol index, span tracking, structured pass pipeline
-2. `integration/` — rustc frontend (HIR, MIR, types, traits, metadata, capture pipeline)
-
-The rename side owns **write authority** (NodeHandle, NodeOp, render, commit).
-The integration side owns **read oracle** (type resolution, impact analysis, macro expansion, cross-crate visibility).
+## Status: Scaffolding Complete — Oracle Implementation Remaining
 
 ---
 
-## Architecture Equation
+## What Is Built
 
-```
-S_full = S_syn ⋈ S_rustc
-
-S_syn   → NodeHandle (live syn::Item pointer, editable)
-S_rustc → type truth (read-only, validation before commit)
-```
-
----
-
-## Layers To Build
-
-### Layer 1 — Node Identity (`NodeHandle`, `NodeRegistry`)
-
-**Location:** `rename/structured/` or new `rename/node/`
-
-Every symbol in `SymbolIndex` gains a `NodeHandle`:
-
-```rust
-struct NodeHandle {
-    file: PathBuf,
-    item_index: usize,       // index in syn::File::items
-    nested_path: Vec<usize>, // drill into impl blocks, mods
-    kind: NodeKind,
-}
-
-enum NodeKind { Fn, Struct, Enum, Trait, Impl, ImplFn, Use, Mod, Type, Const }
-
-struct NodeRegistry {
-    handles: HashMap<String, NodeHandle>,  // symbol_id -> handle
-    asts: HashMap<PathBuf, syn::File>,     // file -> live AST
-}
-```
-
-**Key invariant:** symbol ID string (`crate::module::Name`) is the join key
-between `NodeRegistry` and `integration/project.rs`.
+- `state/node.rs` — NodeHandle, NodeKind, NodeRegistry
+- `rename/structured/ops.rs` — NodeOp, FieldMutation
+- `rename/core/oracle.rs` — StructuralEditOracle trait
+- `rename/core/project_editor.rs` — ProjectEditor, NodeRegistryBuilder, apply_node_op
+- `rename/core/symbol_id.rs` — normalize_symbol_id (join key)
+- `rename/structured/ast_render.rs` — render_file via prettyplease
+- `rename/api.rs` — UpsertRequest with node_ops field
+- `rustc_integration/project.rs` — CargoProject impl StructuralEditOracle (STUB)
 
 ---
 
-### Layer 2 — Node Operations (`NodeOp`)
+## Architecture
 
-**Location:** `rename/structured/ops.rs` (new file)
+```
+S_full = S_syn ⋈ S_rustc   (joined on normalize_symbol_id)
 
-Replace span-anchored `AstEdit` with typed node operations:
-
-```rust
-enum NodeOp {
-    ReplaceNode   { handle: NodeHandle, new_node: syn::Item },
-    InsertBefore  { handle: NodeHandle, new_node: syn::Item },
-    InsertAfter   { handle: NodeHandle, new_node: syn::Item },
-    DeleteNode    { handle: NodeHandle },
-    MutateField   { handle: NodeHandle, mutation: FieldMutation },
-    ReorderItems  { file: PathBuf, new_order: Vec<String> },
-}
-
-enum FieldMutation {
-    RenameIdent(String),
-    ChangeVisibility(syn::Visibility),
-    AddAttribute(syn::Attribute),
-    RemoveAttribute(String),
-    ReplaceSignature(syn::Signature),
-    AddStructField(syn::Field),
-    RemoveStructField(String),
-    AddVariant(syn::Variant),
-    RemoveVariant(String),
-}
+S_syn   → NodeRegistry (write authority, live syn::File ASTs)
+S_rustc → CargoProject (read oracle, type truth from HIR/MIR)
 ```
 
-`AstEdit` (text/span edits) stays alive for `DocAttrPass` and `UsePathRewritePass`.
-`NodeOp` is additive — it does not replace the existing text edit path.
+State = NodeRegistry { handles, asts, changesets }
+
+Lifecycle:
+  load() → queue() → validate() → commit()
+  parse all    accumulate    oracle check   render+write
 
 ---
 
-### Layer 3 — Project Editor (`ProjectEditor`)
+## The Remaining Work: Oracle Implementation
 
-**Location:** `rename/core/project_editor.rs` (new file)
+File: `rustc_integration/project.rs`
+Struct: `CargoProject impl StructuralEditOracle`
 
-```rust
-struct ProjectEditor {
-    registry: NodeRegistry,
-    changesets: HashMap<PathBuf, Vec<NodeOp>>,
-    oracle: Box<dyn StructuralEditOracle>,
-}
+All four methods are stubs. They need to be wired to the
+rustc frontend capture pipeline.
 
-impl ProjectEditor {
-    fn load(project: &Path) -> Result<Self>
-    fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()>
-    fn apply(&mut self) -> Result<ChangeReport>
-    fn validate(&self) -> Result<Vec<EditConflict>>  // calls oracle
-    fn commit(&self) -> Result<Vec<PathBuf>>
-    fn preview(&self) -> Result<String>
-}
-```
+### 1. `impact_of(symbol_id) -> Vec<String>`
 
-Operations execute against `Vec<syn::Item>` by index — never by byte offset.
-Order of application within a file: declaration order, top to bottom.
+Answer: which other symbols reference this one?
 
----
+Source: `frontends/rustc/mir.rs` — `collect_calls` builds the
+call graph. Walk edges from the GraphSnapshot where
+`to == symbol_id`, return all `from` node keys.
 
-### Layer 4 — Oracle Trait (Bridge to `integration/`)
+Also check `frontends/rustc/types.rs` — `collect_type_dependencies`
+for type-level references (struct fields, function signatures).
 
-**Location:** `rename/core/oracle.rs` (new file)
+### 2. `satisfies_bounds(id, new_sig) -> bool`
 
-```rust
-trait StructuralEditOracle {
-    fn impact_of(&self, symbol_id: &str) -> Vec<String>;
-    fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool;
-    fn is_macro_generated(&self, symbol_id: &str) -> bool;
-    fn cross_crate_users(&self, symbol_id: &str) -> Vec<String>;
-}
-```
+Answer: does a proposed new function signature satisfy all
+trait bounds at call sites?
 
-`integration/project.rs` implements this trait.
-`ProjectEditor` holds `Box<dyn StructuralEditOracle>`.
-The two subsystems stay decoupled — joined only by symbol ID strings.
+Source: `frontends/rustc/traits.rs` — `capture_trait` and
+`capture_impl` have trait obligation data serialized via
+`serialize_associated_items`. Compare the new_sig against
+those predicates.
 
----
+This is the hardest method. For now, a conservative
+implementation that returns false when any trait impl
+references this symbol is acceptable — it surfaces
+conflicts without false negatives.
 
-### Layer 5 — Round-Trip Render
+### 3. `is_macro_generated(symbol_id) -> bool`
 
-**Location:** `rename/structured/ast_render.rs` (extend existing)
+Answer: does this symbol originate from macro expansion?
 
-Add `prettyplease` as a dependency.
+Source: `frontends/rustc/metadata.rs` — `capture_attributes`
+captures derive and proc_macro attributes. If the symbol's
+NodePayload has a `#[derive(...)]` or proc_macro attribute
+that would generate it, return true.
 
-```rust
-fn render_file(ast: &syn::File) -> String {
-    prettyplease::unparse(ast)
-}
-```
+Also: `frontends/rustc/items.rs` — check if the DefId's
+span origin is a macro expansion site.
 
-Fidelity guarantee: `parse(render(ast)) == ast` for all valid ASTs.
+### 4. `cross_crate_users(symbol_id) -> Vec<String>`
 
-Comment preservation caveat: comments are lost through syn. If needed,
-use a hybrid: keep original source, overwrite only changed node ranges
-using existing span infrastructure as fallback.
+Answer: which symbols in *other* crates use this one?
+
+Source: `multi_capture.rs` — `capture_project` runs the
+frontend across all crates. The resulting GraphSnapshot
+contains cross-crate edges. Filter edges where:
+  - `to` normalizes to symbol_id
+  - `from` originates in a different crate prefix
 
 ---
 
-## Symbol ID Normalization (Critical)
+## Wire-Up: CaptureArtifacts → Oracle
 
-Both `rename/core/collect/mod.rs` and `integration/project.rs` independently
-compute symbol IDs. Before any join works, verify they produce identical
-strings for the same symbol.
+`multi_capture.rs` produces `CaptureArtifacts { snapshot, workspace, graph_deltas }`.
 
-Write a normalization function in a shared location:
+`CargoProject` needs to hold a `GraphSnapshot` populated at
+`ProjectEditor::load` time:
 
 ```
-rename/core/symbol_id.rs  (new file)
-fn normalize_symbol_id(raw: &str) -> String
+struct CargoProject {
+    root, target_dir,
+    snapshot: Option<GraphSnapshot>,  // ADD THIS
+}
 ```
 
-Both sides call this. The join key must be identical or the oracle bridge silently fails.
+`ProjectEditor::load` calls:
+  1. `collect_names` (syn side) → NodeRegistry
+  2. `capture_project` (rustc side) → GraphSnapshot
+  3. Stores snapshot in CargoProject
+  4. Oracle methods query the snapshot
+
+The snapshot is the materialized read state.
+The NodeRegistry is the materialized write state.
+They are joined by normalize_symbol_id.
 
 ---
 
-## Minimal Rebuild State Needed
+## Symbol ID Join Key — Verify This First
 
-The integration crate needs to be wired into the rename crate's module tree.
-`src/lib.rs` needs `pub mod integration;`
-`integration/mod.rs` needs to compile cleanly against this crate's dependencies.
-`integration/project.rs` needs to implement `StructuralEditOracle`.
+`rename/core/symbol_id.rs` → `normalize_symbol_id`
+`rustc_integration/frontends/rustc/metadata.rs` → `module_path` + `format_display`
 
-This is the minimal state. Do not refactor integration internals until the
-oracle trait is implemented and the join key is verified.
+Before implementing oracle methods, verify both sides
+produce identical strings for the same symbol.
+
+Test case: pick one struct in the project, print its
+id from both sides, confirm they match after normalization.
+
+If they do not match, fix normalize_symbol_id first.
+Everything else depends on this.
+
+---
+
+## Files To Modify (in order)
+
+1. `rustc_integration/project.rs`
+   - Add `snapshot: Option<GraphSnapshot>` field to CargoProject
+   - Add `with_snapshot(mut self, s: GraphSnapshot) -> Self`
+   - Implement all four oracle methods against snapshot
+
+2. `rename/core/project_editor.rs`
+   - In `ProjectEditor::load`: call `capture_project` after `collect_names`
+   - Pass resulting snapshot into CargoProject
+
+3. `rustc_integration/frontends/rustc/metadata.rs`
+   - Verify `module_path()` output matches `normalize_symbol_id` format
+   - Add normalization call if needed
 
 ---
 
 ## What Is NOT Changing
 
-- `rename/core/collect/` — syn-based collection stays as-is
-- `rename/structured/orchestrator.rs` — pass pipeline stays as-is
-- `AstEdit` + text-level passes — stays as-is
-- `rename/api.rs` — `MutationRequest` / `UpsertRequest` stays, gains `NodeOp` variant later
-- All existing rename functionality continues to work unchanged
+- rename/core/collect/ — syn collection unchanged
+- rename/structured/orchestrator.rs — pass pipeline unchanged
+- AstEdit + text-level passes — unchanged
+- All existing rename functionality — unchanged
+- NodeHandle, NodeOp, ProjectEditor structure — unchanged
 
 ---
 
 ## Build Order
 
-1. Verify symbol ID normalization between both sides
-2. Build `NodeHandle` + `NodeRegistry`
-3. Build `NodeOp` + `FieldMutation`
-4. Build `StructuralEditOracle` trait
-5. Implement trait in `integration/project.rs`
-6. Build `ProjectEditor` with validate + commit
-7. Add `prettyplease` render
-8. Extend `api.rs` with `NodeOp` variant
-
----
-
-## Dependencies To Add
-
-```toml
-prettyplease = "0.2"
-```
-
-All other dependencies (syn, proc-macro2, quote) already present.
-
----
-
-## Files To Create
-
-- `rename/structured/ops.rs`
-- `rename/core/project_editor.rs`
-- `rename/core/oracle.rs`
-- `rename/core/symbol_id.rs`
-
-## Files To Extend
-
-- `rename/core/types.rs` — add `NodeHandle`, `NodeKind`, `NodeRegistry`
-- `rename/structured/ast_render.rs` — add `render_file` via prettyplease
-- `rename/api.rs` — add `NodeOp` variant to `UpsertRequest`
-- `src/lib.rs` — add `pub mod integration`
+1. Verify symbol ID join key (print both sides for one symbol)
+2. Add snapshot field to CargoProject
+3. Wire capture_project into ProjectEditor::load
+4. Implement impact_of via GraphSnapshot edge query
+5. Implement is_macro_generated via attribute metadata
+6. Implement cross_crate_users via multi-crate snapshot edges
+7. Implement satisfies_bounds (conservative: false on any trait ref)
+8. Integration test: queue a NodeOp, validate, confirm oracle fires
