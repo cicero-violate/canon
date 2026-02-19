@@ -51,7 +51,7 @@ impl GpuBackend {
 
         unsafe {
             let mut raw: *mut c_void = core::ptr::null_mut();
-            let err = cudaMallocManaged(&mut raw as *mut *mut c_void, bytes, 0);
+            let err = cudaMallocManaged(&mut raw as *mut *mut c_void, bytes, 1);
 
             if err != 0 || raw.is_null() {
                 return Self::heap_allocate(bytes);

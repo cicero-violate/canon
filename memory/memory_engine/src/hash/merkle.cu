@@ -41,7 +41,7 @@ __device__ void sha256_internal(
     #pragma unroll
     for (int i = 0; i < 32; i++) block[i] = left[i];
     #pragma unroll
-    for (int i = 0; i < 32; i++) block[i] = right[i];
+    for (int i = 0; i < 32; i++) block[i + 32] = right[i];
 
     uint32_t w[64];
 

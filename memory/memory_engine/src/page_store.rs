@@ -26,7 +26,7 @@ impl PageStore {
         if gpu::gpu_available() {
             unsafe {
                 let mut raw: *mut c_void = null_mut();
-                let err = cudaMallocManaged(&mut raw as *mut *mut c_void, capacity, 0);
+                let err = cudaMallocManaged(&mut raw as *mut *mut c_void, capacity, 1);
                 if err == 0 && !raw.is_null() {
                     let ptr = raw as *mut u8;
                     core::ptr::write_bytes(ptr, 0, capacity);
@@ -78,7 +78,7 @@ impl PageStore {
         #[cfg(feature = "cuda")]
         unsafe {
             let mut raw: *mut c_void = null_mut();
-            let err = cudaMallocManaged(&mut raw as *mut *mut c_void, new_capacity, 0);
+            let err = cudaMallocManaged(&mut raw as *mut *mut c_void, new_capacity, 1);
             if err == 0 && !raw.is_null() {
                 let new_ptr = raw as *mut u8;
                 core::ptr::copy_nonoverlapping(self.ptr, new_ptr, self.capacity);
