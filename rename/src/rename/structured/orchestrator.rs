@@ -1,7 +1,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
-
 use super::config::StructuredEditOptions;
 use super::doc_attr::DocAttrPass;
 use super::use_tree::UsePathRewritePass;
@@ -18,21 +17,17 @@ pub trait StructuredPass {
         true
     }
 }
-
 pub struct StructuredPassRunner {
     passes: Vec<Box<dyn StructuredPass>>,
 }
-
 impl StructuredPassRunner {
     pub fn new() -> Self {
         Self { passes: Vec::new() }
     }
-
     pub fn add_pass(&mut self, pass: Box<dyn StructuredPass>) {
         self.passes.push(pass);
     }
-
-    pub fn run_passes(
+    pub fn execute_passes(
         &mut self,
         file: &Path,
         content: &str,
@@ -49,18 +44,15 @@ impl StructuredPassRunner {
         }
         Ok(changed)
     }
-
-    pub fn enabled_count(&self) -> usize {
+    pub fn count_enabled_passes(&self) -> usize {
         self.passes.iter().filter(|p| p.is_enabled()).count()
     }
 }
-
 impl Default for StructuredPassRunner {
     fn default() -> Self {
         Self::new()
     }
 }
-
 pub fn create_rename_orchestrator(
     mapping: &HashMap<String, String>,
     path_updates: &HashMap<String, String>,
@@ -68,14 +60,10 @@ pub fn create_rename_orchestrator(
     config: StructuredEditOptions,
 ) -> StructuredPassRunner {
     let mut orchestrator = StructuredPassRunner::new();
-
     orchestrator.add_pass(Box::new(DocAttrPass::new(mapping.clone(), config.clone())));
-
-    orchestrator.add_pass(Box::new(UsePathRewritePass::new(
-        path_updates.clone(),
-        alias_nodes,
-        config,
-    )));
-
+    orchestrator
+        .add_pass(
+            Box::new(UsePathRewritePass::new(path_updates.clone(), alias_nodes, config)),
+        );
     orchestrator
 }

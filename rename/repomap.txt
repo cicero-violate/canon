@@ -181,8 +181,8 @@ rustc_integration/frontends/rustc/stub.rs:
     ) -> Result<GraphSnapshot, RustcFrontendError> }  (line 8)
 
 rustc_integration/kernel_root.rs:
-  fn kernel_root(project_root: &PathBuf) -> PathBuf  (line 7)
-  fn get_project_root() -> PathBuf  (line 14)
+  fn kernel_root(project_root: &PathBuf) -> PathBuf  (line 6)
+  fn resolve_project_root() -> PathBuf  (line 12)
 
 rustc_integration/mod.rs:
   trait FrontendExtractor  (line 29)
@@ -221,12 +221,15 @@ rustc_integration/capture/validation.rs:
   fn validate(result: &ExtractionResult) -> bool  (line 6)
 
 rustc_integration/capture/coordinator.rs:
-  struct CaptureCoordinator  { dedup, session }  (line 11)
-  impl CaptureCoordinator  { fn new() -> Self, fn capture_workspace(
+  struct CaptureCoordinator  { dedup, session }  (line 8)
+  impl CaptureCoordinator  { fn new() -> Self, fn capture_project_workspace(
         &mut self,
         workspace_root: &Path,
         frontend: &mut F,
-    ) -> Result<Vec<ExtractionResult>, Box<dyn Error>>, fn discover_crates(&self, workspace_root: &Path) -> Result<Vec<PathBuf>, std::io::Error> }  (line 16)
+    ) -> Result<Vec<ExtractionResult>, Box<dyn Error>>, fn discover_crates(
+        &self,
+        workspace_root: &Path,
+    ) -> Result<Vec<PathBuf>, std::io::Error> }  (line 12)
 
 rustc_integration/capture/dedup.rs:
   struct Deduplicator  (line 7)
@@ -400,28 +403,28 @@ rename/structured/ops.rs:
 ) -> NodeHandle  (line 31)
 
 rename/structured/orchestrator.rs:
-  trait StructuredPass  { fn is_enabled(&self) -> bool }  (line 9)
-  struct StructuredPassRunner  { passes }  (line 22)
-  impl StructuredPassRunner  { fn new() -> Self, fn add_pass(&mut self, pass: Box<dyn StructuredPass>), fn run_passes(
+  trait StructuredPass  { fn is_enabled(&self) -> bool }  (line 8)
+  struct StructuredPassRunner  { passes }  (line 20)
+  impl StructuredPassRunner  { fn new() -> Self, fn add_pass(&mut self, pass: Box<dyn StructuredPass>), fn execute_passes(
         &mut self,
         file: &Path,
         content: &str,
         ast: &mut syn::File,
-    ) -> Result<Vec<&'static str>>, fn enabled_count(&self) -> usize }  (line 26)
-  impl Default for StructuredPassRunner  { fn default() -> Self }  (line 58)
+    ) -> Result<Vec<&'static str>>, fn count_enabled_passes(&self) -> usize }  (line 23)
+  impl Default for StructuredPassRunner  { fn default() -> Self }  (line 51)
   fn create_rename_orchestrator(
     mapping: &HashMap<String, String>,
     path_updates: &HashMap<String, String>,
     alias_nodes: Vec<ImportNode>,
     config: StructuredEditOptions,
-) -> StructuredPassRunner  (line 64)
+) -> StructuredPassRunner  (line 56)
 
 rename/structured/config.rs:
   struct StructuredEditOptions  { doc_literals, attr_literals, use_statements }  (line 2)
-  impl StructuredEditOptions  { fn new(doc_literals: bool, attr_literals: bool, use_statements: bool) -> Self, fn disabled() -> Self, fn all_enabled() -> Self, fn is_enabled(&self) -> bool, fn doc_literals_enabled(&self) -> bool, fn attr_literals_enabled(&self) -> bool, fn doc_or_attr_enabled(&self) -> bool, fn use_statements_enabled(&self) -> bool, fn summary(&self) -> String }  (line 8)
-  fn structured_edits_enabled() -> bool  (line 64)
-  fn structured_edit_config() -> StructuredEditOptions  (line 68)
-  fn env_flag(key: &str, default: bool) -> bool  (line 85)
+  impl StructuredEditOptions  { fn new(doc_literals: bool, attr_literals: bool, use_statements: bool) -> Self, fn disabled() -> Self, fn are_all_passes_enabled() -> Self, fn is_enabled(&self) -> bool, fn doc_literals_enabled(&self) -> bool, fn attr_literals_enabled(&self) -> bool, fn doc_or_attr_enabled(&self) -> bool, fn use_statements_enabled(&self) -> bool, fn summary(&self) -> String }  (line 7)
+  fn are_structured_edits_enabled() -> bool  (line 50)
+  fn structured_edit_config() -> StructuredEditOptions  (line 53)
+  fn env_flag(key: &str, default: bool) -> bool  (line 67)
 
 rename/structured/edits.rs:
   struct AstEdit  { file, start, end, replacement }  (line 11)
@@ -481,31 +484,34 @@ rename/structured/ast_render.rs:
   fn render_trait(item: &syn::ItemTrait) -> String  (line 28)
 
 rename/module_path.rs:
-  struct ModulePath  { segments, is_inline }  (line 8)
-  impl ModulePath  { fn new(segments: Vec<String>) -> Self, fn from_string(path: &str) -> Self, fn to_string(&self) -> String, fn parent(&self) -> Option<ModulePath>, fn last_segment(&self) -> Option<&str> }  (line 15)
-  enum ModuleLayout  { Inline, File, DirectoryModRs, DirectoryNamed }  (line 48)
-  impl ModuleLayout  { fn file_path(&self) -> Option<&Path>, fn is_directory(&self) -> bool }  (line 59)
-  fn compute_module_path(project_root: &Path, file_path: &Path) -> Result<String>  (line 80)
-  fn determine_module_layout(file_path: &Path) -> ModuleLayout  (line 130)
-  struct ModuleMovePlan  { from_path, to_path, from_file, to_file, create_directory, layout_change }  (line 153)
-  enum LayoutChange  { InlineToFile, FileToInline, DirectoryLayoutChange }  (line 169)
+  struct ModulePath  { segments, is_inline }  (line 6)
+  impl ModulePath  { fn new(segments: Vec<String>) -> Self, fn from_string(path: &str) -> Self, fn to_string(&self) -> String, fn parent(&self) -> Option<ModulePath>, fn last_segment(&self) -> Option<&str> }  (line 12)
+  enum ModuleLayout  { Inline, File, DirectoryModRs, DirectoryNamed }  (line 35)
+  impl ModuleLayout  { fn file_path(&self) -> Option<&Path>, fn is_dir_path(&self) -> bool }  (line 45)
+  fn compute_module_path(project_root: &Path, file_path: &Path) -> Result<String>  (line 61)
+  fn detect_module_layout(file_path: &Path) -> ModuleLayout  (line 88)
+  struct ModuleMovePlan  { from_path, to_path, from_file, to_file, create_directory, layout_change }  (line 107)
+  enum LayoutChange  { InlineToFile, FileToInline, DirectoryLayoutChange }  (line 122)
   impl ModuleMovePlan  { fn new(
         from_path: ModulePath,
         to_path: ModulePath,
         from_file: PathBuf,
         project_root: &Path,
-    ) -> Result<Self> }  (line 181)
-  fn compute_new_file_path(module_path: &ModulePath, project_root: &Path) -> Result<PathBuf>  (line 209)
-  fn inline_to_file_plan(
+    ) -> Result<Self> }  (line 130)
+  fn compute_new_file_path(
+    module_path: &ModulePath,
+    project_root: &Path,
+) -> Result<PathBuf>  (line 155)
+  fn inline_mod_to_file_plan(
     module_name: &str,
     parent_file: &Path,
     project_root: &Path,
-) -> Result<ModuleMovePlan>  (line 238)
-  fn file_to_inline_plan(
+) -> Result<ModuleMovePlan>  (line 177)
+  fn file_mod_to_inline_plan(
     file_path: &Path,
     target_parent_file: &Path,
     project_root: &Path,
-) -> Result<ModuleMovePlan>  (line 267)
+) -> Result<ModuleMovePlan>  (line 202)
 
 rename/core/use_paths.rs:
   fn update_use_paths(
@@ -625,10 +631,10 @@ rename/core/project_editor/mod.rs:
   struct ProjectEditor  { registry, changesets, oracle }  (line 30)
   struct QueuedOp  { symbol_id, op }  (line 37)
   impl ProjectEditor  { fn load(project: &Path, oracle: Box<dyn StructuralEditOracle>) -> Result<Self>, fn load_with_rustc(project: &Path) -> Result<Self>, fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()>, fn queue_by_id(&mut self, symbol_id: &str, mutation: FieldMutation) -> Result<()>, fn apply(&mut self) -> Result<ChangeReport>, fn validate(&self) -> Result<Vec<EditConflict>>, fn commit(&self) -> Result<Vec<PathBuf>>, fn preview(&self) -> Result<String> }  (line 42)
-  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 181)
-  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 191)
-  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 241)
-  struct ImplContext  { struct_path, trait_path }  (line 336)
+  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 197)
+  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 207)
+  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 257)
+  struct ImplContext  { struct_path, trait_path }  (line 352)
 
 rename/core/project_editor/ops.rs:
   fn apply_node_op(
@@ -644,74 +650,88 @@ rename/core/project_editor/ops.rs:
     mutation: &FieldMutation,
 ) -> Result<()>  (line 33)
   fn rename_ident(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_name: &str) -> bool  (line 106)
-  fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<()>  (line 139)
+  fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<()>  (line 123)
   fn insert_node(
     ast: &mut syn::File,
     handle: &NodeHandle,
     new_node: syn::Item,
     before: bool,
-) -> Result<()>  (line 151)
-  fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<()>  (line 171)
+) -> Result<()>  (line 135)
+  fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<()>  (line 155)
   fn reorder_items(
     ast: &mut syn::File,
     handles: &HashMap<String, NodeHandle>,
     new_order: &[String],
-) -> Result<()>  (line 182)
+) -> Result<()>  (line 166)
   fn change_visibility(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     new_vis: &syn::Visibility,
-) -> bool  (line 214)
+) -> bool  (line 216)
   fn add_attribute(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     attr: syn::Attribute,
-) -> bool  (line 265)
+) -> bool  (line 267)
   fn remove_attribute(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     name: &str,
-) -> bool  (line 291)
+) -> bool  (line 293)
   fn replace_signature(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     sig: syn::Signature,
-) -> bool  (line 356)
+) -> bool  (line 358)
   fn add_struct_field(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     field: syn::Field,
-) -> bool  (line 379)
+) -> bool  (line 381)
   fn remove_struct_field(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     name: &str,
-) -> bool  (line 403)
+) -> bool  (line 405)
   fn add_variant(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     variant: syn::Variant,
-) -> bool  (line 431)
+) -> bool  (line 433)
   fn remove_variant(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     name: &str,
-) -> bool  (line 446)
-  enum TargetItemMut  { Top, ImplFn }  (line 467)
+) -> bool  (line 448)
+  enum TargetItemMut  { Top, ImplFn }  (line 469)
   fn resolve_target_mut(
     ast: &'a mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
-) -> Option<TargetItemMut<'a>>  (line 472)
-  fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> bool  (line 499)
+) -> Option<TargetItemMut<'a>>  (line 474)
+  fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> bool  (line 501)
+  fn split_impl_path(handle: &NodeHandle) -> Option<(&[usize], usize)>  (line 550)
+  fn get_item_mut(
+    items: &'a mut Vec<syn::Item>,
+    module_path: &[usize],
+    item_index: usize,
+) -> Option<&'a mut syn::Item>  (line 559)
+  fn resolve_items_container_mut(
+    ast: &'a mut syn::File,
+    module_path: &[usize],
+) -> Option<&'a mut Vec<syn::Item>>  (line 576)
+  fn resolve_items_container_from(
+    items: &'a mut Vec<syn::Item>,
+    module_path: &[usize],
+) -> Option<&'a mut Vec<syn::Item>>  (line 583)
 
 rename/core/collect/mod.rs:
   fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 21)
