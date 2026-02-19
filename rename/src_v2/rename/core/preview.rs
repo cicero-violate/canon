@@ -1,6 +1,6 @@
 use super::structured::StructuredEditTracker;
 use super::types::{FileRename, SymbolEdit};
-use crate::rename::structured::StructuredEditOptions;
+use crate::rename::structured::StructuredEditConfig;
 use anyhow::Result;
 use std::collections::BTreeMap;
 use std::path::Path;

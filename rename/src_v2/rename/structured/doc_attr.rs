@@ -5,7 +5,7 @@ use syn::visit_mut::VisitMut;
 
 use crate::rename::core::{SpanRange, span_to_range};
 
-use super::config::StructuredEditOptions;
+use super::config::StructuredEditConfig;
 use super::orchestrator::StructuredPass;
 
 pub struct StructuredAttributeResult {
@@ -28,11 +28,11 @@ impl StructuredAttributeResult {
 
 pub struct DocAttrPass {
     mapping: HashMap<String, String>,
-    config: StructuredEditOptions,
+    config: StructuredEditConfig,
 }
 
 impl DocAttrPass {
-    pub fn new(mapping: HashMap<String, String>, config: StructuredEditOptions) -> Self {
+    pub fn new(mapping: HashMap<String, String>, config: StructuredEditConfig) -> Self {
         Self { mapping, config }
     }
 }
@@ -68,7 +68,7 @@ pub fn rewrite_doc_and_attr_literals(
     _content: &str,
     ast: &mut syn::File,
     mapping: &HashMap<String, String>,
-    config: &StructuredEditOptions,
+    config: &StructuredEditConfig,
 ) -> Result<StructuredAttributeResult> {
     let mut visitor = AttributeRewriteVisitor::new(mapping, config);
     visitor.visit_file_mut(ast);
@@ -85,7 +85,7 @@ struct AttributeRewriteVisitor {
 impl AttributeRewriteVisitor {
     fn new(
         mapping: &HashMap<String, String>,
-        config: &StructuredEditOptions,
+        config: &StructuredEditConfig,
     ) -> Self {
         Self {
             replacements: build_replacements(mapping),

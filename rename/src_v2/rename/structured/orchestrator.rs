@@ -2,9 +2,9 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 
-use super::config::StructuredEditOptions;
+use super::config::StructuredEditConfig;
 use super::doc_attr::DocAttrPass;
-use super::use_tree::UsePathRewritePass;
+use super::use_tree::UseTreePass;
 use crate::rename::alias::ImportNode;
 pub trait StructuredPass {
     fn name(&self) -> &'static str;
@@ -19,11 +19,11 @@ pub trait StructuredPass {
     }
 }
 
-pub struct StructuredPassRunner {
+pub struct PassOrchestrator {
     passes: Vec<Box<dyn StructuredPass>>,
 }
 
-impl StructuredPassRunner {
+impl PassOrchestrator {
     pub fn new() -> Self {
         Self { passes: Vec::new() }
     }
@@ -55,7 +55,7 @@ impl StructuredPassRunner {
     }
 }
 
-impl Default for StructuredPassRunner {
+impl Default for PassOrchestrator {
     fn default() -> Self {
         Self::new()
     }
@@ -65,13 +65,13 @@ pub fn create_rename_orchestrator(
     mapping: &HashMap<String, String>,
     path_updates: &HashMap<String, String>,
     alias_nodes: Vec<ImportNode>,
-    config: StructuredEditOptions,
-) -> StructuredPassRunner {
-    let mut orchestrator = StructuredPassRunner::new();
+    config: StructuredEditConfig,
+) -> PassOrchestrator {
+    let mut orchestrator = PassOrchestrator::new();
 
     orchestrator.add_pass(Box::new(DocAttrPass::new(mapping.clone(), config.clone())));
 
-    orchestrator.add_pass(Box::new(UsePathRewritePass::new(
+    orchestrator.add_pass(Box::new(UseTreePass::new(
         path_updates.clone(),
         alias_nodes,
         config,

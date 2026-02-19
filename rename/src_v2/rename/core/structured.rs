@@ -1,4 +1,4 @@
-use crate::rename::structured::StructuredEditOptions;
+use crate::rename::structured::StructuredEditConfig;
 use std::collections::HashSet;
 /// B2: Structured files tracking for pipeline coordination
 ///

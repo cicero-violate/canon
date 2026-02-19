@@ -1,7 +1,7 @@
 use super::structured::StructuredEditTracker;
 use crate::fs;
 use crate::rename::alias::AliasGraph;
-use crate::rename::structured::StructuredEditOptions;
+use crate::rename::structured::StructuredEditConfig;
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -27,7 +27,7 @@ pub(crate) fn update_use_paths(
         let mut ast = syn::parse_file(&content)
             .with_context(|| format!("Failed to parse {}", file.display()))?;
         use crate::rename::structured::orchestrator::StructuredPass;
-        use crate::rename::structured::use_tree::UsePathRewritePass;
+        use crate::rename::structured::use_tree::UseTreePass;
         let file_key = file.to_string_lossy().to_string();
         let alias_nodes = alias_graph
             .nodes_in_file(&file_key)
@@ -37,9 +37,9 @@ pub(crate) fn update_use_paths(
         let use_config = if structured_config.use_statements_enabled() {
             structured_config.clone()
         } else {
-            StructuredEditOptions::new(false, false, true)
+            StructuredEditConfig::new(false, false, true)
         };
-        let mut pass = UsePathRewritePass::new(path_updates.clone(), alias_nodes, use_config);
+        let mut pass = UseTreePass::new(path_updates.clone(), alias_nodes, use_config);
         if pass.execute(file, &content, &mut ast)? {
             let rendered = prettyplease::unparse(&ast);
             if rendered != content {

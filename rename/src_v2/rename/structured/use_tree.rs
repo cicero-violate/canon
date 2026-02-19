@@ -5,20 +5,20 @@ use std::path::Path;
 use syn::visit_mut::VisitMut;
 
 use crate::rename::alias::ImportNode;
-use super::config::StructuredEditOptions;
+use super::config::StructuredEditConfig;
 use super::orchestrator::StructuredPass;
 
-pub struct UsePathRewritePass {
+pub struct UseTreePass {
     path_updates: HashMap<String, String>,
     _alias_nodes: Vec<ImportNode>, // retained for API parity
-    config: StructuredEditOptions,
+    config: StructuredEditConfig,
 }
 
-impl UsePathRewritePass {
+impl UseTreePass {
     pub fn new(
         path_updates: HashMap<String, String>,
         alias_nodes: Vec<ImportNode>,
-        config: StructuredEditOptions,
+        config: StructuredEditConfig,
     ) -> Self {
         Self {
             path_updates,
@@ -28,7 +28,7 @@ impl UsePathRewritePass {
     }
 }
 
-impl StructuredPass for UsePathRewritePass {
+impl StructuredPass for UseTreePass {
     fn name(&self) -> &'static str {
         "use_tree"
     }

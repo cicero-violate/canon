@@ -1,11 +1,11 @@
 #[derive(Clone, Debug)]
-pub struct StructuredEditOptions {
+pub struct StructuredEditConfig {
     doc_literals: bool,
     attr_literals: bool,
     use_statements: bool,
 }
 
-impl StructuredEditOptions {
+impl StructuredEditConfig {
     pub fn new(doc_literals: bool, attr_literals: bool, use_statements: bool) -> Self {
         Self {
             doc_literals,
@@ -65,17 +65,17 @@ pub fn structured_edits_enabled() -> bool {
     structured_edit_config().is_enabled()
 }
 
-pub fn structured_edit_config() -> StructuredEditOptions {
+pub fn structured_edit_config() -> StructuredEditConfig {
     let base_enabled = env_flag("SEMANTIC_LINT_STRUCTURED_EDITS", true);
     if !base_enabled {
-        return StructuredEditOptions::disabled();
+        return StructuredEditConfig::disabled();
     }
 
     let doc_literals = env_flag("SEMANTIC_LINT_STRUCTURED_DOCS", true);
     let attr_literals = env_flag("SEMANTIC_LINT_STRUCTURED_ATTRS", true);
     let use_statements = env_flag("SEMANTIC_LINT_STRUCTURED_USES", true);
 
-    StructuredEditOptions::new(
+    StructuredEditConfig::new(
         base_enabled && doc_literals,
         base_enabled && attr_literals,
         base_enabled && use_statements,

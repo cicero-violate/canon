@@ -14,53 +14,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Normalize unclear / overloaded names
 
     map.insert(
-        "crate::rename::scope::Scope".to_string(),
-        "LexicalScope".to_string(),
+        "crate::rename::scope::LexicalScope".to_string(),
+        "ScopeFrame".to_string(),
     );
 
     map.insert(
-        "crate::rename::scope::ScopedBinder".to_string(),
-        "LexicalBinder".to_string(),
+        "crate::rename::scope::LexicalBinder".to_string(),
+        "ScopeBinder".to_string(),
     );
 
     map.insert(
-        "crate::rename::core::SymbolTable".to_string(),
-        "SymbolIndex".to_string(),
+        "crate::rename::structured::StructuredEditConfig".to_string(),
+        "StructuredEditOptions".to_string(),
     );
 
     map.insert(
-        "crate::rename::core::OccurrenceEntry".to_string(),
-        "SymbolOccurrence".to_string(),
+        "crate::rename::structured::PassOrchestrator".to_string(),
+        "StructuredPassRunner".to_string(),
     );
 
     map.insert(
-        "crate::rename::core::OccurrenceVisitor".to_string(),
-        "SymbolOccurrenceVisitor".to_string(),
-    );
-
-    map.insert(
-        "crate::rename::core::TypeContext".to_string(),
-        "LocalTypeContext".to_string(),
-    );
-
-    map.insert(
-        "crate::rename::core::ModuleChange".to_string(),
-        "ModuleRenamePlan".to_string(),
-    );
-
-    map.insert(
-        "crate::rename::core::ModEdit".to_string(),
-        "ModuleDeclarationEdit".to_string(),
-    );
-
-    map.insert(
-        "crate::rename::core::ModEditKind".to_string(),
-        "ModuleDeclarationEditKind".to_string(),
-    );
-
-    map.insert(
-        "crate::rename::core::FlushResult".to_string(),
-        "RewriteSummary".to_string(),
+        "crate::rename::structured::UseTreePass".to_string(),
+        "UsePathRewritePass".to_string(),
     );
 
     // dry_run = false

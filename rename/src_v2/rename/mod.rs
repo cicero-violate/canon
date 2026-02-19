@@ -28,6 +28,6 @@ pub use api::{
 
 // C1: Re-export structured pass infrastructure
 pub use structured::{
-    AstEdit, DocAttrPass, StructuredPassRunner, StructuredEditOptions, StructuredPass, UsePathRewritePass,
+    AstEdit, DocAttrPass, PassOrchestrator, StructuredEditConfig, StructuredPass, UseTreePass,
     apply_ast_rewrites, ast_render, create_rename_orchestrator,
 };

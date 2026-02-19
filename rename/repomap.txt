@@ -10,10 +10,10 @@ fs.rs:
   fn is_ignored_dir(path: &Path) -> bool  (line 154)
 
 rename/scope.rs:
-  struct LexicalScope  { bindings, parent }  (line 8)
-  impl LexicalScope  { fn new(parent: Option<usize>) -> Self }  (line 15)
-  struct LexicalBinder  { scopes, current_scope, symbol_table_ref }  (line 26)
-  impl LexicalBinder  { fn new(symbol_table: &SymbolIndex) -> Self, fn push_scope(&mut self), fn pop_scope(&mut self), fn bind(&mut self, name: String, type_path: String), fn resolve(&self, name: &str) -> Option<&String>, fn resolve_method(&self, receiver_type: &str, method_name: &str) -> Option<String>, fn get_method_return_type(&self, receiver_type: &str, method_name: &str) -> Option<String> }  (line 35)
+  struct ScopeFrame  { bindings, parent }  (line 7)
+  impl ScopeFrame  { fn new(parent: Option<usize>) -> Self }  (line 13)
+  struct ScopeBinder  { scopes, current_scope, symbol_table_ref }  (line 23)
+  impl ScopeBinder  { fn new(symbol_table: &SymbolIndex) -> Self, fn push_scope(&mut self), fn pop_scope(&mut self), fn bind(&mut self, name: String, type_path: String), fn resolve(&self, name: &str) -> Option<&String>, fn resolve_method(&self, receiver_type: &str, method_name: &str) -> Option<String>, fn get_method_return_type(&self, receiver_type: &str, method_name: &str) -> Option<String> }  (line 31)
 
 rename/attributes.rs:
   fn extract_symbols_from_attributes(attrs: &[Attribute]) -> Vec<(String, Span)>  (line 8)
@@ -31,7 +31,7 @@ rename/structured/doc_attr.rs:
   struct StructuredAttributeResult  { literal_spans, changed }  (line 11)
   impl StructuredAttributeResult  { fn new() -> Self, fn should_skip(&self, span: &SpanRange) -> bool }  (line 16)
   struct DocAttrPass  { mapping, config }  (line 29)
-  impl DocAttrPass  { fn new(mapping: HashMap<String, String>, config: StructuredEditConfig) -> Self }  (line 34)
+  impl DocAttrPass  { fn new(mapping: HashMap<String, String>, config: StructuredEditOptions) -> Self }  (line 34)
   impl StructuredPass for DocAttrPass  { fn name(&self) -> &'static str, fn execute(
         &mut self,
         file: &Path,
@@ -43,12 +43,12 @@ rename/structured/doc_attr.rs:
     _content: &str,
     ast: &mut syn::File,
     mapping: &HashMap<String, String>,
-    config: &StructuredEditConfig,
+    config: &StructuredEditOptions,
 ) -> Result<StructuredAttributeResult>  (line 66)
   struct AttributeRewriteVisitor  { replacements, rewrite_docs, rewrite_attrs, result }  (line 78)
   impl AttributeRewriteVisitor  { fn new(
         mapping: &HashMap<String, String>,
-        config: &StructuredEditConfig,
+        config: &StructuredEditOptions,
     ) -> Self, fn finish(self) -> StructuredAttributeResult, fn process_attribute(&mut self, attr: &mut syn::Attribute) }  (line 85)
   impl VisitMut for AttributeRewriteVisitor  { fn visit_attribute_mut(&mut self, attr: &mut syn::Attribute) }  (line 130)
   fn build_replacements(mapping: &HashMap<String, String>) -> Vec<(String, String)>  (line 136)
@@ -59,26 +59,26 @@ rename/structured/doc_attr.rs:
 
 rename/structured/orchestrator.rs:
   trait StructuredPass  { fn is_enabled(&self) -> bool }  (line 9)
-  struct PassOrchestrator  { passes }  (line 22)
-  impl PassOrchestrator  { fn new() -> Self, fn add_pass(&mut self, pass: Box<dyn StructuredPass>), fn run_passes(
+  struct StructuredPassRunner  { passes }  (line 22)
+  impl StructuredPassRunner  { fn new() -> Self, fn add_pass(&mut self, pass: Box<dyn StructuredPass>), fn run_passes(
         &mut self,
         file: &Path,
         content: &str,
         ast: &mut syn::File,
     ) -> Result<Vec<&'static str>>, fn enabled_count(&self) -> usize }  (line 26)
-  impl Default for PassOrchestrator  { fn default() -> Self }  (line 58)
+  impl Default for StructuredPassRunner  { fn default() -> Self }  (line 58)
   fn create_rename_orchestrator(
     mapping: &HashMap<String, String>,
     path_updates: &HashMap<String, String>,
     alias_nodes: Vec<ImportNode>,
-    config: StructuredEditConfig,
-) -> PassOrchestrator  (line 64)
+    config: StructuredEditOptions,
+) -> StructuredPassRunner  (line 64)
 
 rename/structured/config.rs:
-  struct StructuredEditConfig  { doc_literals, attr_literals, use_statements }  (line 2)
-  impl StructuredEditConfig  { fn new(doc_literals: bool, attr_literals: bool, use_statements: bool) -> Self, fn disabled() -> Self, fn all_enabled() -> Self, fn is_enabled(&self) -> bool, fn doc_literals_enabled(&self) -> bool, fn attr_literals_enabled(&self) -> bool, fn doc_or_attr_enabled(&self) -> bool, fn use_statements_enabled(&self) -> bool, fn summary(&self) -> String }  (line 8)
+  struct StructuredEditOptions  { doc_literals, attr_literals, use_statements }  (line 2)
+  impl StructuredEditOptions  { fn new(doc_literals: bool, attr_literals: bool, use_statements: bool) -> Self, fn disabled() -> Self, fn all_enabled() -> Self, fn is_enabled(&self) -> bool, fn doc_literals_enabled(&self) -> bool, fn attr_literals_enabled(&self) -> bool, fn doc_or_attr_enabled(&self) -> bool, fn use_statements_enabled(&self) -> bool, fn summary(&self) -> String }  (line 8)
   fn structured_edits_enabled() -> bool  (line 64)
-  fn structured_edit_config() -> StructuredEditConfig  (line 68)
+  fn structured_edit_config() -> StructuredEditOptions  (line 68)
   fn env_flag(key: &str, default: bool) -> bool  (line 85)
 
 rename/structured/edits.rs:
@@ -107,13 +107,13 @@ rename/structured/edits.rs:
   fn span_to_line_column(point: proc_macro2::LineColumn) -> LineColumn  (line 170)
 
 rename/structured/use_tree.rs:
-  struct UseTreePass  { path_updates, _alias_nodes, config }  (line 11)
-  impl UseTreePass  { fn new(
+  struct UsePathRewritePass  { path_updates, _alias_nodes, config }  (line 11)
+  impl UsePathRewritePass  { fn new(
         path_updates: HashMap<String, String>,
         alias_nodes: Vec<ImportNode>,
-        config: StructuredEditConfig,
+        config: StructuredEditOptions,
     ) -> Self }  (line 17)
-  impl StructuredPass for UseTreePass  { fn name(&self) -> &'static str, fn execute(
+  impl StructuredPass for UsePathRewritePass  { fn name(&self) -> &'static str, fn execute(
         &mut self,
         _file: &Path,
         _content: &str,
@@ -168,11 +168,11 @@ rename/core/use_paths.rs:
   fn update_use_paths(
     project: &std::path::Path,
     file_renames: &[super::types::FileRename],
-    structured_config: &StructuredEditConfig,
+    structured_config: &StructuredEditOptions,
     alias_graph: &AliasGraph,
     structured_tracker: &mut StructuredEditTracker,
     touched_files: &mut HashSet<PathBuf>,
-) -> Result<()>  (line 12)
+) -> Result<()>  (line 9)
 
 rename/core/rename.rs:
   fn apply_rename_with_map(
@@ -257,8 +257,8 @@ rename/core/alias.rs:
   impl Visit<'ast> for AliasUsageVisitor<'_>  { fn visit_path(&mut self, path: &'ast syn::Path) }  (line 180)
 
 rename/core/structured.rs:
-  struct StructuredEditTracker  { files, doc_files, attr_files, use_files }  (line 19)
-  impl StructuredEditTracker  { fn new() -> Self, fn mark_doc_edit(&mut self, file: String), fn mark_attr_edit(&mut self, file: String), fn mark_use_edit(&mut self, file: String), fn mark_generic(&mut self, file: String), fn all_files(&self) -> &HashSet<String>, fn into_set(self) -> HashSet<String>, fn doc_files(&self) -> &HashSet<String>, fn attr_files(&self) -> &HashSet<String>, fn use_files(&self) -> &HashSet<String>, fn summary(&self, config: &StructuredEditConfig) -> String }  (line 26)
+  struct StructuredEditTracker  { files, doc_files, attr_files, use_files }  (line 17)
+  impl StructuredEditTracker  { fn new() -> Self, fn mark_doc_edit(&mut self, file: String), fn mark_attr_edit(&mut self, file: String), fn mark_use_edit(&mut self, file: String), fn mark_generic(&mut self, file: String), fn all_files(&self) -> &HashSet<String>, fn into_set(self) -> HashSet<String>, fn doc_files(&self) -> &HashSet<String>, fn attr_files(&self) -> &HashSet<String>, fn use_files(&self) -> &HashSet<String>, fn summary(&self, config: &StructuredEditOptions) -> String }  (line 23)
 
 rename/core/format.rs:
   fn format_files(paths: &[PathBuf]) -> Result<Vec<String>>  (line 9)
@@ -273,8 +273,8 @@ rename/core/preview.rs:
     edits: &[SymbolEdit],
     renames: &[FileRename],
     structured_tracker: &StructuredEditTracker,
-    config: &StructuredEditConfig,
-) -> Result<()>  (line 11)
+    config: &StructuredEditOptions,
+) -> Result<()>  (line 8)
 
 rename/core/collect/mod.rs:
   fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 20)
@@ -364,26 +364,26 @@ rename/core/paths.rs:
   fn module_child_path(module_path: &str, child: String) -> String  (line 231)
 
 rename/occurrence.rs:
-  struct EnhancedOccurrenceVisitor  { module_path, file, symbol_table, use_map, occurrences, scoped_binder, current_impl, current_struct }  (line 17)
-  struct ImplContext  { type_name }  (line 29)
+  struct EnhancedOccurrenceVisitor  { module_path, file, symbol_table, use_map, occurrences, scoped_binder, current_impl, current_struct }  (line 14)
+  struct ImplContext  { type_name }  (line 25)
   impl EnhancedOccurrenceVisitor<'a>  { fn new(
         module_path: &'a str,
         file: &'a Path,
         symbol_table: &'a SymbolIndex,
         use_map: &'a HashMap<String, String>,
         occurrences: &'a mut Vec<SymbolOccurrence>,
-    ) -> Self, fn add_occurrence(&mut self, id: String, kind: &str, span: Span), fn process_pattern_bindings(&mut self, pat: &Pat), fn infer_expr_type(&self, expr: &Expr) -> Option<String> }  (line 33)
-  impl Visit<'a> for EnhancedOccurrenceVisitor<'a>  { fn visit_item_struct(&mut self, node: &'a syn::ItemStruct), fn visit_item_enum(&mut self, node: &'a syn::ItemEnum), fn visit_item_fn(&mut self, node: &'a syn::ItemFn), fn visit_item_impl(&mut self, node: &'a ItemImpl), fn visit_impl_item_fn(&mut self, node: &'a ImplItemFn), fn visit_local(&mut self, node: &'a Local), fn visit_arm(&mut self, node: &'a Arm), fn visit_expr_for_loop(&mut self, node: &'a ExprForLoop), fn visit_expr_closure(&mut self, node: &'a ExprClosure), fn visit_expr_method_call(&mut self, node: &'a ExprMethodCall), fn visit_path(&mut self, path: &'a syn::Path), fn visit_item_use(&mut self, node: &'a syn::ItemUse), fn visit_item_macro(&mut self, node: &'a ItemMacro) }  (line 140)
-  fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 365)
-  fn resolve_relative_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 379)
-  fn path_to_string(path: &syn::Path) -> String  (line 395)
+    ) -> Self, fn add_occurrence(&mut self, id: String, kind: &str, span: Span), fn process_pattern_bindings(&mut self, pat: &Pat), fn infer_expr_type(&self, expr: &Expr) -> Option<String> }  (line 28)
+  impl Visit<'a> for EnhancedOccurrenceVisitor<'a>  { fn visit_item_struct(&mut self, node: &'a syn::ItemStruct), fn visit_item_enum(&mut self, node: &'a syn::ItemEnum), fn visit_item_fn(&mut self, node: &'a syn::ItemFn), fn visit_item_impl(&mut self, node: &'a ItemImpl), fn visit_impl_item_fn(&mut self, node: &'a ImplItemFn), fn visit_local(&mut self, node: &'a Local), fn visit_arm(&mut self, node: &'a Arm), fn visit_expr_for_loop(&mut self, node: &'a ExprForLoop), fn visit_expr_closure(&mut self, node: &'a ExprClosure), fn visit_expr_method_call(&mut self, node: &'a ExprMethodCall), fn visit_path(&mut self, path: &'a syn::Path), fn visit_item_use(&mut self, node: &'a syn::ItemUse), fn visit_item_macro(&mut self, node: &'a ItemMacro) }  (line 120)
+  fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 282)
+  fn resolve_relative_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 295)
+  fn path_to_string(path: &syn::Path) -> String  (line 310)
   fn path_to_symbol(
     path: &syn::Path,
     module_path: &str,
     use_map: &HashMap<String, String>,
     symbol_table: &SymbolIndex,
-) -> Option<String>  (line 403)
-  impl EnhancedOccurrenceVisitor<'a>  { fn resolve_symbol(&self, symbol: &str) -> Option<String>, fn record_use_tree(&mut self, tree: &syn::UseTree, prefix: &mut Vec<String>) }  (line 425)
+) -> Option<String>  (line 317)
+  impl EnhancedOccurrenceVisitor<'a>  { fn resolve_symbol(&self, symbol: &str) -> Option<String>, fn record_use_tree(&mut self, tree: &syn::UseTree, prefix: &mut Vec<String>) }  (line 333)
 
 rename/pattern.rs:
   struct PatternBindingCollector  { bindings }  (line 7)
