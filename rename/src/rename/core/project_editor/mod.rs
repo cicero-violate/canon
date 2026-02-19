@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -120,24 +120,36 @@ impl ProjectEditor {
     }
 
     pub fn apply(&mut self) -> Result<ChangeReport> {
-        let mut touched_files = Vec::new();
+        let mut touched_files: HashSet<PathBuf> = HashSet::new();
+        let mut rewrites = Vec::new();
+        let mut conflicts = Vec::new();
         let handle_snapshot = self.registry.handles.clone();
         for (file, ops) in &self.changesets {
-            let ast = self
-                .registry
-                .asts
-                .get_mut(file)
-                .with_context(|| format!("missing AST for {}", file.display()))?;
             for queued in ops {
-                apply_node_op(ast, &handle_snapshot, &queued.symbol_id, &queued.op)
-                    .with_context(|| format!("failed to apply {}", queued.symbol_id))?;
+                {
+                    let ast = self
+                        .registry
+                        .asts
+                        .get_mut(file)
+                        .with_context(|| format!("missing AST for {}", file.display()))?;
+                    apply_node_op(ast, &handle_snapshot, &queued.symbol_id, &queued.op)
+                        .with_context(|| format!("failed to apply {}", queued.symbol_id))?;
+                }
+                touched_files.insert(file.clone());
+                let prop = propagate(&queued.op, &queued.symbol_id, &self.registry, &*self.oracle)?;
+                rewrites.extend(prop.rewrites);
+                conflicts.extend(prop.conflicts);
             }
-            touched_files.push(file.clone());
         }
-        let conflicts = self.validate()?;
+
+        let rewrite_touched = apply_rewrites(&mut self.registry, &rewrites)?;
+        touched_files.extend(rewrite_touched);
+
+        let mut validation = self.validate()?;
+        validation.extend(conflicts);
         Ok(ChangeReport {
-            touched_files,
-            conflicts,
+            touched_files: touched_files.into_iter().collect(),
+            conflicts: validation,
         })
     }
 
@@ -191,8 +203,10 @@ impl ProjectEditor {
 }
 
 mod ops;
+mod propagate;
 
 use ops::apply_node_op;
+use propagate::{apply_rewrites, propagate};
 
 struct NodeRegistryBuilder<'a> {
     project_root: &'a Path,

@@ -261,23 +261,23 @@ rustc_integration/transform/normalizer.rs:
   fn parent_key(path: &str) -> Option<String>  (line 158)
 
 rustc_integration/project.rs:
-  struct CargoProject  { root, target_dir, oracle }  (line 15)
-  impl CargoProject  { fn from_entry(entry: &Path) -> io::Result<Self>, fn with_snapshot(mut self, snapshot: GraphSnapshot) -> Self, fn build_dependencies(&self) -> io::Result<()>, fn extern_args(&self, profile: &str) -> io::Result<Vec<String>>, fn metadata(&self) -> io::Result<ProjectMetadata>, fn targets(&self) -> io::Result<Vec<CargoTarget>>, fn workspace_root(&self) -> &Path }  (line 21)
-  fn find_cargo_root(start: &Path) -> io::Result<PathBuf>  (line 161)
-  fn fetch_target_dir(root: &Path) -> io::Result<PathBuf>  (line 175)
-  fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata>  (line 180)
-  enum ArtifactKind  { ProcMacro, Rlib, Rmeta }  (line 199)
-  struct Artifact  { path, kind }  (line 206)
-  fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)>  (line 211)
-  fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf>  (line 227)
-  struct CargoMetadata  { target_directory, workspace_root, packages }  (line 250)
-  struct CargoPackage  { name, version, edition, rust_version, features, targets, manifest_path }  (line 258)
-  struct CargoTarget  { name, kind, src_path }  (line 277)
-  struct ProjectMetadata  { workspace_root, target_directory, packages, edition, rust_version }  (line 288)
-  struct OracleData  { adjacency, macro_generated, crate_by_key, signature_by_key }  (line 302)
-  impl OracleData  { fn from_snapshot(snapshot: GraphSnapshot) -> Self }  (line 309)
-  fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool  (line 354)
-  impl StructuralEditOracle for CargoProject  { fn impact_of(&self, symbol_id: &str) -> Vec<String>, fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool, fn is_macro_generated(&self, symbol_id: &str) -> bool, fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> }  (line 363)
+  struct CargoProject  { root, target_dir, oracle }  (line 12)
+  impl CargoProject  { fn from_entry(entry: &Path) -> io::Result<Self>, fn with_snapshot(mut self, snapshot: GraphSnapshot) -> Self, fn ensure_dependencies_built(&self) -> io::Result<()>, fn extern_args(&self, profile: &str) -> io::Result<Vec<String>>, fn metadata(&self) -> io::Result<ProjectMetadata>, fn targets(&self) -> io::Result<Vec<CargoTarget>>, fn workspace_root(&self) -> &Path }  (line 17)
+  fn find_cargo_root(start: &Path) -> io::Result<PathBuf>  (line 145)
+  fn fetch_target_dir(root: &Path) -> io::Result<PathBuf>  (line 155)
+  fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata>  (line 159)
+  enum ArtifactKind  { ProcMacro, Rlib, Rmeta }  (line 174)
+  struct Artifact  { path, kind }  (line 180)
+  fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)>  (line 184)
+  fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf>  (line 199)
+  struct CargoMetadata  { target_directory, workspace_root, packages }  (line 221)
+  struct CargoPackage  { name, version, edition, rust_version, features, targets, manifest_path }  (line 228)
+  struct CargoTarget  { name, kind, src_path }  (line 246)
+  struct ProjectMetadata  { workspace_root, target_directory, packages, edition, rust_version }  (line 256)
+  struct OracleData  { adjacency, macro_generated, crate_by_key, signature_by_key }  (line 269)
+  impl OracleData  { fn from_snapshot(snapshot: GraphSnapshot) -> Self }  (line 275)
+  fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool  (line 316)
+  impl StructuralEditOracle for CargoProject  { fn impact_of(&self, symbol_id: &str) -> Vec<String>, fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool, fn is_macro_generated(&self, symbol_id: &str) -> bool, fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> }  (line 324)
 
 rustc_integration/linux/mod.rs:
   fn capture_linux_state(facts: &[LinuxFact]) -> GraphSnapshot  (line 9)
@@ -476,12 +476,12 @@ rename/structured/use_tree.rs:
   fn extract_segment_replacement(path: &str, new_path: &str, segment_index: usize) -> String  (line 179)
 
 rename/structured/ast_render.rs:
-  fn render_node(node: T) -> String  (line 4)
+  fn render_node(node: T) -> String  (line 3)
   fn render_file(ast: &syn::File) -> String  (line 12)
-  fn render_function(func: &syn::ItemFn) -> String  (line 16)
-  fn render_impl(item: &syn::ItemImpl) -> String  (line 20)
-  fn render_struct(item: &syn::ItemStruct) -> String  (line 24)
-  fn render_trait(item: &syn::ItemTrait) -> String  (line 28)
+  fn render_fn_item(func: &syn::ItemFn) -> String  (line 15)
+  fn render_impl_item(item: &syn::ItemImpl) -> String  (line 18)
+  fn render_struct(item: &syn::ItemStruct) -> String  (line 21)
+  fn render_trait(item: &syn::ItemTrait) -> String  (line 24)
 
 rename/module_path.rs:
   struct ModulePath  { segments, is_inline }  (line 6)
@@ -631,10 +631,10 @@ rename/core/project_editor/mod.rs:
   struct ProjectEditor  { registry, changesets, oracle }  (line 30)
   struct QueuedOp  { symbol_id, op }  (line 37)
   impl ProjectEditor  { fn load(project: &Path, oracle: Box<dyn StructuralEditOracle>) -> Result<Self>, fn load_with_rustc(project: &Path) -> Result<Self>, fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()>, fn queue_by_id(&mut self, symbol_id: &str, mutation: FieldMutation) -> Result<()>, fn apply(&mut self) -> Result<ChangeReport>, fn validate(&self) -> Result<Vec<EditConflict>>, fn commit(&self) -> Result<Vec<PathBuf>>, fn preview(&self) -> Result<String> }  (line 42)
-  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 197)
-  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 207)
-  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 257)
-  struct ImplContext  { struct_path, trait_path }  (line 352)
+  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 211)
+  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 221)
+  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 271)
+  struct ImplContext  { struct_path, trait_path }  (line 366)
 
 rename/core/project_editor/ops.rs:
   fn apply_node_op(
@@ -732,6 +732,75 @@ rename/core/project_editor/ops.rs:
     items: &'a mut Vec<syn::Item>,
     module_path: &[usize],
 ) -> Option<&'a mut Vec<syn::Item>>  (line 583)
+
+rename/core/project_editor/propagate.rs:
+  struct PropagationResult  { rewrites, conflicts }  (line 22)
+  fn propagate(
+    op: &NodeOp,
+    symbol_id: &str,
+    registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 27)
+  fn propagate_rename(
+    symbol_id: &str,
+    new_name: &str,
+    registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 74)
+  fn propagate_delete(
+    symbol_id: &str,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 116)
+  fn propagate_remove_field(
+    symbol_id: &str,
+    field_name: &str,
+    _registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 142)
+  fn propagate_remove_variant(
+    symbol_id: &str,
+    variant_name: &str,
+    _registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 162)
+  fn propagate_visibility(
+    symbol_id: &str,
+    _new_vis: &syn::Visibility,
+    registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 182)
+  fn propagate_signature(
+    symbol_id: &str,
+    new_sig: &syn::Signature,
+    _registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 209)
+  fn propagate_add_field(
+    symbol_id: &str,
+    field: &syn::Field,
+    _registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 231)
+  fn propagate_add_variant(
+    symbol_id: &str,
+    variant: &syn::Variant,
+    _registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 256)
+  fn occurrence_to_edit(occ: &SymbolOccurrence, new_name: &str) -> SymbolEdit  (line 277)
+  fn build_symbol_index_and_occurrences(
+    registry: &NodeRegistry,
+) -> Result<(SymbolIndex, Vec<SymbolOccurrence>, AliasGraph)>  (line 288)
+  fn build_visibility_map(
+    registry: &NodeRegistry,
+    _alias_graph: &AliasGraph,
+) -> Result<HashMap<String, VisibilityScope>>  (line 332)
+  fn leak_conflicts(analysis: &VisibilityLeakAnalysis) -> Vec<EditConflict>  (line 366)
+  fn find_project_root(registry: &NodeRegistry) -> Result<PathBuf>  (line 377)
+  fn apply_rewrites(
+    registry: &mut NodeRegistry,
+    rewrites: &[SymbolEdit],
+) -> Result<HashSet<PathBuf>>  (line 395)
 
 rename/core/collect/mod.rs:
   fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 21)
@@ -861,40 +930,43 @@ rename/pattern.rs:
   fn path_to_string(path: &syn::Path) -> String  (line 105)
 
 rename/api.rs:
-  struct QueryRequest  { kinds, module_prefix, name_contains }  (line 20)
-  impl Default for QueryRequest  { fn default() -> Self }  (line 32)
-  struct QueryResult  { report, matches }  (line 44)
-  impl QueryRequest  { fn new() -> Self, fn kind(mut self, kind: impl Into<String>) -> Self, fn module_prefix(mut self, prefix: impl Into<String>) -> Self, fn name_contains(mut self, needle: impl Into<String>) -> Self, fn execute(&self, project: &Path) -> Result<QueryResult>, fn matches_symbol(&self, symbol: &SymbolRecord) -> bool }  (line 51)
-  struct MutationRequest  { renames, dry_run, preview_path }  (line 108)
-  struct MutationResult  { renamed, dry_run, preview_path }  (line 122)
-  impl MutationRequest  { fn new() -> Self, fn rename(mut self, id: impl Into<String>, new_name: impl Into<String>) -> Self, fn extend(mut self, entries: I) -> Self, fn dry_run(mut self, dry_run: bool) -> Self, fn preview_path(mut self, path: impl Into<PathBuf>) -> Self, fn execute(self, project: &Path) -> Result<MutationResult> }  (line 128)
-  struct UpsertRequest  { edits, node_ops, format }  (line 182)
-  struct UpsertResult  { touched_files }  (line 196)
-  impl UpsertRequest  { fn new() -> Self, fn edit(mut self, edit: AstEdit) -> Self, fn node_op(mut self, op: NodeOp) -> Self, fn format(mut self, enabled: bool) -> Self, fn execute(self) -> Result<UpsertResult> }  (line 200)
-  fn default_true() -> bool  (line 240)
-  fn execute_query_json(project: &Path, payload: &str) -> Result<String>  (line 245)
-  fn execute_mutation_json(project: &Path, payload: &str) -> Result<String>  (line 252)
-  fn execute_upsert_json(payload: &str) -> Result<String>  (line 259)
+  struct QueryRequest  { kinds, module_prefix, name_contains }  (line 17)
+  impl Default for QueryRequest  { fn default() -> Self }  (line 28)
+  struct QueryResult  { report, matches }  (line 39)
+  impl QueryRequest  { fn new() -> Self, fn kind(mut self, kind: impl Into<String>) -> Self, fn module_prefix(mut self, prefix: impl Into<String>) -> Self, fn name_contains(mut self, needle: impl Into<String>) -> Self, fn execute(&self, project: &Path) -> Result<QueryResult>, fn matches_symbol(&self, symbol: &SymbolRecord) -> bool }  (line 45)
+  struct MutationRequest  { renames, dry_run, preview_path }  (line 96)
+  struct MutationResult  { renamed, dry_run, preview_path }  (line 109)
+  impl MutationRequest  { fn new() -> Self, fn rename(mut self, id: impl Into<String>, new_name: impl Into<String>) -> Self, fn extend(mut self, entries: I) -> Self, fn dry_run(mut self, dry_run: bool) -> Self, fn preview_path(mut self, path: impl Into<PathBuf>) -> Self, fn execute(self, project: &Path) -> Result<MutationResult> }  (line 114)
+  struct UpsertRequest  { edits, node_ops, format }  (line 162)
+  struct UpsertResult  { touched_files }  (line 175)
+  impl UpsertRequest  { fn new() -> Self, fn edit(mut self, edit: AstEdit) -> Self, fn push_node_op(mut self, op: NodeOp) -> Self, fn format(mut self, enabled: bool) -> Self, fn execute(self) -> Result<UpsertResult> }  (line 178)
+  fn default_true() -> bool  (line 213)
+  fn execute_query_json(project: &Path, payload: &str) -> Result<String>  (line 217)
+  fn execute_mutation_json(project: &Path, payload: &str) -> Result<String>  (line 223)
+  fn execute_upsert_json(payload: &str) -> Result<String>  (line 229)
 
 rename/macros.rs:
-  fn extract_macro_rules_identifiers(item_macro: &ItemMacro) -> Vec<(String, Span)>  (line 8)
-  fn extract_identifiers_from_tokens(tokens: &TokenStream, identifiers: &mut Vec<(String, Span)>)  (line 23)
-  fn is_macro_keyword(ident: &str) -> bool  (line 43)
-  fn is_metavariable(ident: &str) -> bool  (line 62)
-  fn extract_derive_identifiers(meta_list: &syn::MetaList) -> Vec<(String, Span)>  (line 67)
-  fn extract_proc_macro_identifiers(meta_list: &syn::MetaList) -> Vec<(String, Span)>  (line 78)
-  struct MacroInvocationAnalyzer  { patterns }  (line 94)
-  struct MacroPattern  { macro_name, predict }  (line 99)
-  impl MacroInvocationAnalyzer  { fn new() -> Self, fn predict_generated_identifiers(
+  fn extract_macro_rules_identifiers(item_macro: &ItemMacro) -> Vec<(String, Span)>  (line 6)
+  fn extract_identifiers_from_tokens(
+    tokens: &TokenStream,
+    identifiers: &mut Vec<(String, Span)>,
+)  (line 15)
+  fn is_macro_keyword(ident: &str) -> bool  (line 35)
+  fn is_metavariable(ident: &str) -> bool  (line 42)
+  fn extract_derive_idents(meta_list: &syn::MetaList) -> Vec<(String, Span)>  (line 46)
+  fn extract_proc_macro_idents(meta_list: &syn::MetaList) -> Vec<(String, Span)>  (line 53)
+  struct MacroInvocationAnalyzer  { patterns }  (line 63)
+  struct MacroPattern  { macro_name, predict }  (line 67)
+  impl MacroInvocationAnalyzer  { fn new() -> Self, fn predict_generated_idents(
         &self,
         macro_name: &str,
         tokens: &TokenStream,
-    ) -> Vec<String> }  (line 105)
-  fn is_unsupported_macro(macro_path: &syn::Path) -> bool  (line 133)
-  struct MacroHandlingReport  { supported_macros, unsupported_macros, extracted_identifiers, flagged_for_review }  (line 156)
-  impl MacroHandlingReport  { fn new() -> Self, fn add_unsupported(&mut self, macro_name: String), fn add_flagged(&mut self, reason: String) }  (line 163)
-  struct MacroIdentifierCollector  { identifiers, report }  (line 183)
-  impl MacroIdentifierCollector  { fn new() -> Self, fn process_macro_rules(&mut self, item_macro: &ItemMacro), fn process_macro_invocation(&mut self, mac: &syn::Macro) }  (line 188)
+    ) -> Vec<String> }  (line 72)
+  fn is_unsupported_macro(macro_path: &syn::Path) -> bool  (line 90)
+  struct MacroHandlingReport  { supported_macros, unsupported_macros, extracted_identifiers, flagged_for_review }  (line 103)
+  impl MacroHandlingReport  { fn new() -> Self, fn add_unsupported(&mut self, macro_name: String), fn add_flagged_reason(&mut self, reason: String) }  (line 109)
+  struct MacroIdentifierCollector  { identifiers, report }  (line 126)
+  impl MacroIdentifierCollector  { fn new() -> Self, fn process_macro_rules_def(&mut self, item_macro: &ItemMacro), fn process_macro_invocation(&mut self, mac: &syn::Macro) }  (line 130)
 
 rename/alias/visibility.rs:
   impl AliasGraph  { fn analyze_visibility_leaks(
@@ -930,18 +1002,18 @@ rename/alias/types.rs:
   struct LeakedSymbol  { symbol_id, original_visibility, leaked_to, leak_chain }  (line 203)
 
 rename/alias/graph.rs:
-  struct AliasGraph  { nodes, local_names, source_imports, glob_imports, edges }  (line 11)
+  struct AliasGraph  { nodes, local_names, source_imports, glob_imports, edges }  (line 9)
   impl AliasGraph  { fn new() -> Self, fn add_use_node(&mut self, node: ImportNode), fn resolve_local(&self, module_path: &str, local_name: &str) -> Option<&str>, fn get_importers(&self, source_path: &str) -> Vec<&ImportNode>, fn get_glob_imports(&self, module_path: &str) -> Vec<&ImportNode>, fn is_visible(
         &self,
         symbol_module: &str,
         from_module: &str,
         visibility: &VisibilityScope,
-    ) -> bool, fn all_nodes(&self) -> Vec<&ImportNode>, fn nodes_in_file(&self, file_path: &str) -> Vec<&ImportNode>, fn add_edge(&mut self, from: String, to: String, kind: EdgeKind), fn build_edges(&mut self), fn resolve_chain(&self, module_path: &str, name: &str) -> ResolutionChain, fn follow_reexport_chain(&self, chain: &mut ResolutionChain, current_path: &str), fn resolve_through_glob(&self, module_path: &str, name: &str) -> Option<String>, fn all_edges(&self) -> &[AliasEdge], fn find_reexport_chains(&self, symbol_id: &str) -> Vec<Vec<ImportNode>>, fn find_reexport_chains_recursive(
+    ) -> bool, fn all_nodes(&self) -> Vec<&ImportNode>, fn nodes_in_file(&self, file_path: &str) -> Vec<&ImportNode>, fn add_edge(&mut self, from: String, to: String, kind: EdgeKind), fn build_edges(&mut self), fn resolve_alias_chain(&self, module_path: &str, name: &str) -> ResolutionChain, fn follow_reexport_chain(&self, chain: &mut ResolutionChain, current_path: &str), fn resolve_through_glob(&self, module_path: &str, name: &str) -> Option<String>, fn all_edges(&self) -> &[AliasEdge], fn find_reexport_chains(&self, symbol_id: &str) -> Vec<Vec<ImportNode>>, fn find_reexport_chains_recursive(
         &self,
         symbol_id: &str,
         current_chains: &mut Vec<Vec<ImportNode>>,
         result: &mut Vec<Vec<ImportNode>>,
-    ) }  (line 31)
+    ) }  (line 24)
 
 rename/alias/helpers.rs:
   fn extract_module_from_path(path: &str) -> String  (line 1)

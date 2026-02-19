@@ -272,7 +272,7 @@ impl SpanRangeKey {
         Self::from_range(&super::span::span_to_range(span))
     }
 }
-fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool> {
+pub(crate) fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool> {
     if edits.is_empty() {
         return Ok(false);
     }
