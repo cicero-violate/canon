@@ -1,49 +1,23 @@
 //! semantic: domain=tooling
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use proc_macro2::Span;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use syn::visit::{self, Visit};
+use syn::visit_mut::VisitMut;
 
 use crate::fs;
 
 use super::alias::VisibilityLeakAnalysis;
-use super::alias::{AliasGraph, UseKind, UseNode, VisibilityScope};
+use super::alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
 use super::occurrence::EnhancedOccurrenceVisitor;
-use super::rewrite::{RewriteBufferSet, TextEdit};
 use super::structured::{
-    rewrite_doc_and_attr_literals, rewrite_use_statements, structured_edit_config,
-    StructuredAttributeResult, StructuredEditConfig,
+    StructuredAttributeResult, StructuredEditConfig, rewrite_doc_and_attr_literals,
+    structured_edit_config,
 };
-
-/// D1: Result of flushing buffers with detailed file information
-///
-/// Provides diagnostics about what was actually written to disk:
-/// - touched_files: List of files that were modified
-/// - total_edits: Total number of text edits applied
-///
-/// Use this to:
-/// - Report what changed in structured editing pipelines
-/// - Verify expected number of modifications
-/// - Debug buffer flush operations
-#[derive(Debug)]
-pub struct FlushResult {
-    pub touched_files: Vec<PathBuf>,
-    pub total_edits: usize,
-}
-
-impl FlushResult {
-    pub fn is_empty(&self) -> bool {
-        self.touched_files.is_empty()
-    }
-
-    pub fn file_count(&self) -> usize {
-        self.touched_files.len()
-    }
-}
 
 /// B2: Structured files tracking for pipeline coordination
 ///
@@ -137,17 +111,17 @@ impl StructuredEditTracker {
 }
 
 #[derive(Serialize)]
-pub struct NamesReport {
+pub struct SymbolIndexReport {
     pub version: i64,
-    pub symbols: Vec<SymbolEntry>,
-    pub occurrences: Vec<OccurrenceEntry>,
+    pub symbols: Vec<SymbolRecord>,
+    pub occurrences: Vec<SymbolOccurrence>,
     pub alias_graph: AliasGraphReport,
     pub visibility_analysis: Option<VisibilityLeakAnalysis>,
 }
 
 #[derive(Serialize)]
 pub struct AliasGraphReport {
-    pub use_nodes: Vec<UseNode>,
+    pub use_nodes: Vec<ImportNode>,
     pub edge_count: usize,
     pub total_imports: usize,
     pub total_reexports: usize,
@@ -155,7 +129,7 @@ pub struct AliasGraphReport {
 }
 
 #[derive(Serialize, Clone)]
-pub struct SymbolEntry {
+pub struct SymbolRecord {
     pub id: String,
     pub kind: String,
     pub name: String,
@@ -172,7 +146,7 @@ pub struct SymbolEntry {
 }
 
 #[derive(Serialize)]
-pub struct OccurrenceEntry {
+pub struct SymbolOccurrence {
     pub id: String,
     pub file: String,
     pub kind: String,
@@ -189,6 +163,29 @@ pub struct SpanRange {
 pub struct LineColumn {
     pub line: i64,
     pub column: i64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct SpanKey {
+    start_line: i64,
+    start_col: i64,
+    end_line: i64,
+    end_col: i64,
+}
+
+impl SpanKey {
+    fn from_range(range: &SpanRange) -> Self {
+        Self {
+            start_line: range.start.line,
+            start_col: range.start.column,
+            end_line: range.end.line,
+            end_col: range.end.column,
+        }
+    }
+
+    fn from_span(span: Span) -> Self {
+        Self::from_range(&span_to_range(span))
+    }
 }
 
 pub fn run_names(args: &[String]) -> Result<()> {
@@ -250,7 +247,7 @@ pub fn run_rename(args: &[String]) -> Result<()> {
     )
 }
 
-pub fn collect_names(project: &Path) -> Result<NamesReport> {
+pub fn collect_names(project: &Path) -> Result<SymbolIndexReport> {
     let files = fs::collect_rs_files(project)?;
     let mut symbols = Vec::new();
     let mut occurrences = Vec::new();
@@ -259,7 +256,7 @@ pub fn collect_names(project: &Path) -> Result<NamesReport> {
     // Global alias graph aggregation
     let mut global_alias_graph = AliasGraph::new();
 
-    let mut symbol_table = SymbolTable::default();
+    let mut symbol_table = SymbolIndex::default();
     for file in &files {
         let module_path = module_path_for_file(project, file);
         let content = std::fs::read_to_string(file)?;
@@ -310,7 +307,7 @@ pub fn collect_names(project: &Path) -> Result<NamesReport> {
     let symbol_visibility: HashMap<String, VisibilityScope> = symbol_table
         .symbols
         .iter()
-        .map(|(id, entry)| {
+        .map(|(id, entry): (&String, &_)| {
             // Extract visibility from attributes or default to public
             // This is simplified - full implementation would parse visibility from AST
             let vis = if entry.kind == "pub use" {
@@ -325,7 +322,7 @@ pub fn collect_names(project: &Path) -> Result<NamesReport> {
     let visibility_analysis = global_alias_graph.analyze_visibility_leaks(&symbol_visibility);
 
     // Create alias graph report
-    let use_nodes: Vec<UseNode> = global_alias_graph
+    let use_nodes: Vec<ImportNode> = global_alias_graph
         .all_nodes()
         .into_iter()
         .cloned()
@@ -349,7 +346,7 @@ pub fn collect_names(project: &Path) -> Result<NamesReport> {
         glob_imports,
     };
 
-    Ok(NamesReport {
+    Ok(SymbolIndexReport {
         version: 1,
         symbols,
         occurrences,
@@ -384,7 +381,7 @@ pub fn apply_rename_with_map(
     }
 
     let files = fs::collect_rs_files(project)?;
-    let mut symbol_table = SymbolTable::default();
+    let mut symbol_table = SymbolIndex::default();
     let mut symbol_set: HashSet<String> = HashSet::new();
     let mut symbols = Vec::new();
 
@@ -395,7 +392,7 @@ pub fn apply_rename_with_map(
     let structured_config = structured_edit_config();
     let structured_mode = structured_config.is_enabled();
     let mut structured_tracker = StructuredEditTracker::new();
-    let mut rewrite_buffers = RewriteBufferSet::new();
+    let mut touched_files: HashSet<PathBuf> = HashSet::new();
 
     // B2: Report active configuration
     if structured_mode {
@@ -437,11 +434,20 @@ pub fn apply_rename_with_map(
 
     let file_renames = plan_file_renames(&symbol_table, &mapping)?;
 
-    let mut all_edits: Vec<Edit> = Vec::new();
+    let alias_edits = collect_and_rename_aliases(project, &symbol_table, &mapping)?;
+    let mut alias_by_file: HashMap<String, Vec<SymbolEdit>> = HashMap::new();
+    for edit in &alias_edits {
+        alias_by_file
+            .entry(edit.file.clone())
+            .or_default()
+            .push(edit.clone());
+    }
+
+    let mut all_edits: Vec<SymbolEdit> = Vec::new();
     for file in &files {
         let module_path = module_path_for_file(project, file);
         let content = std::fs::read_to_string(file)?;
-        let ast = syn::parse_file(&content)
+        let mut ast = syn::parse_file(&content)
             .with_context(|| format!("Failed to parse {}", file.display()))?;
         let use_map = build_use_map(&ast, &module_path);
 
@@ -451,10 +457,9 @@ pub fn apply_rename_with_map(
             structured_attr = rewrite_doc_and_attr_literals(
                 file,
                 &content,
-                &ast,
+                &mut ast,
                 &mapping,
                 &structured_config,
-                &mut rewrite_buffers,
             )?;
             if structured_attr.changed {
                 let file_str = file.to_string_lossy().to_string();
@@ -482,8 +487,8 @@ pub fn apply_rename_with_map(
         for (symbol_id, symbol_entry) in &symbol_table.symbols {
             if symbol_entry.file == file.to_string_lossy().to_string() {
                 // Only add symbols defined in this file
-                if mapping.contains_key(symbol_id) {
-                    occurrences.push(OccurrenceEntry {
+                if mapping.contains_key(symbol_id.as_str()) {
+                    occurrences.push(SymbolOccurrence {
                         id: symbol_id.clone(),
                         file: symbol_entry.file.clone(),
                         kind: format!("{}_definition", symbol_entry.kind),
@@ -502,7 +507,7 @@ pub fn apply_rename_with_map(
                 continue;
             }
             if let Some(new_name) = mapping.get(&occ.id) {
-                edits.push(Edit {
+                edits.push(SymbolEdit {
                     id: occ.id.clone(),
                     file: occ.file.clone(),
                     kind: occ.kind.clone(),
@@ -513,18 +518,53 @@ pub fn apply_rename_with_map(
             }
         }
 
-        if !dry_run && !edits.is_empty() {
-            queue_file_edits(&mut rewrite_buffers, file, &content, &edits)?;
+        let file_key = file.to_string_lossy().to_string();
+        if let Some(alias_edits) = alias_by_file.remove(&file_key) {
+            edits.extend(alias_edits);
         }
+
+        if !dry_run {
+            let mut changed = false;
+            if structured_attr.changed {
+                changed = true;
+            }
+            if apply_symbol_edits_to_ast(&mut ast, &edits)? {
+                changed = true;
+            }
+
+            if changed {
+                let rendered = prettyplease::unparse(&ast);
+                if rendered != content {
+                    std::fs::write(file, rendered)?;
+                    touched_files.insert(file.to_path_buf());
+                }
+            }
+        }
+
         all_edits.extend(edits);
     }
 
-    // Collect alias renames
-    let alias_edits = collect_and_rename_aliases(project, &symbol_table, &mapping)?;
-    if !dry_run && !alias_edits.is_empty() {
-        queue_alias_edits(&mut rewrite_buffers, &alias_edits)?;
+    // Apply alias edits for any files not in the collected source list
+    if !dry_run {
+        for (path_str, edits) in alias_by_file {
+            let path = Path::new(&path_str);
+            let content = std::fs::read_to_string(path)?;
+            let mut ast = syn::parse_file(&content)
+                .with_context(|| format!("Failed to parse {}", path.display()))?;
+            if apply_symbol_edits_to_ast(&mut ast, &edits)? {
+                let rendered = prettyplease::unparse(&ast);
+                if rendered != content {
+                    std::fs::write(path, rendered)?;
+                    touched_files.insert(path.to_path_buf());
+                }
+            }
+            all_edits.extend(edits);
+        }
+    } else {
+        for edits in alias_by_file.values() {
+            all_edits.extend(edits.iter().cloned());
+        }
     }
-    all_edits.extend(alias_edits);
 
     if dry_run {
         let out = out_path.unwrap_or_else(|| Path::new(".semantic-lint/rename_preview.json"));
@@ -537,8 +577,6 @@ pub fn apply_rename_with_map(
         )?;
         return Ok(());
     }
-
-    flush_and_format(&mut rewrite_buffers)?;
 
     for rename in &file_renames {
         if rename.from == rename.to {
@@ -557,16 +595,16 @@ pub fn apply_rename_with_map(
     }
 
     // Update mod declarations after moving files
-    update_mod_declarations(project, &symbol_table, &file_renames)?;
+    update_mod_declarations(project, &symbol_table, &file_renames, &mut touched_files)?;
 
     // B2: Update use statement paths after moving files (track structured use edits)
     update_use_paths(
         project,
         &file_renames,
         &structured_config,
-        &mut rewrite_buffers,
         &global_alias_graph,
         &mut structured_tracker,
+        &mut touched_files,
     )?;
 
     // B2: Report structured edit summary
@@ -574,8 +612,9 @@ pub fn apply_rename_with_map(
         eprintln!("{}", structured_tracker.summary(&structured_config));
     }
 
-    if structured_mode {
-        flush_and_format(&mut rewrite_buffers)?;
+    if !touched_files.is_empty() {
+        let touched: Vec<PathBuf> = touched_files.iter().cloned().collect();
+        let _ = format_files(&touched)?;
     }
 
     let mut edited_files = HashSet::new();
@@ -601,12 +640,12 @@ pub fn apply_rename_with_map(
 }
 
 #[derive(Default)]
-pub struct SymbolTable {
-    pub symbols: HashMap<String, SymbolEntry>,
+pub struct SymbolIndex {
+    pub symbols: HashMap<String, SymbolRecord>,
 }
 
 #[derive(Clone, Serialize)]
-struct Edit {
+struct SymbolEdit {
     id: String,
     file: String,
     kind: String,
@@ -624,16 +663,16 @@ struct FileRename {
     new_module_id: String,
 }
 
-fn update_symbol_snapshot<F>(out: &mut Vec<SymbolEntry>, id: &str, mut update: F)
+fn update_symbol_snapshot<F>(out: &mut Vec<SymbolRecord>, id: &str, mut update: F)
 where
-    F: FnMut(&mut SymbolEntry),
+    F: FnMut(&mut SymbolRecord),
 {
     if let Some(entry) = out.iter_mut().find(|entry| entry.id == id) {
         update(entry);
     }
 }
 
-fn merge_symbol_metadata(target: &mut SymbolEntry, source: &SymbolEntry) {
+fn merge_symbol_metadata(target: &mut SymbolRecord, source: &SymbolRecord) {
     if target.kind != source.kind {
         return;
     }
@@ -657,8 +696,8 @@ fn merge_symbol_metadata(target: &mut SymbolEntry, source: &SymbolEntry) {
 fn add_file_module_symbol(
     module_path: &str,
     file: &Path,
-    symbol_table: &mut SymbolTable,
-    out: &mut Vec<SymbolEntry>,
+    symbol_table: &mut SymbolIndex,
+    out: &mut Vec<SymbolRecord>,
     symbol_set: &mut HashSet<String>,
 ) {
     if module_path == "crate" {
@@ -682,7 +721,7 @@ fn add_file_module_symbol(
         .last()
         .unwrap_or(module_path)
         .to_string();
-    let entry = SymbolEntry {
+    let entry = SymbolRecord {
         id: module_path.to_string(),
         kind: "module".to_string(),
         name,
@@ -711,8 +750,8 @@ fn collect_symbols(
     ast: &syn::File,
     module_path: &str,
     file: &Path,
-    symbol_table: &mut SymbolTable,
-    out: &mut Vec<SymbolEntry>,
+    symbol_table: &mut SymbolIndex,
+    out: &mut Vec<SymbolRecord>,
     symbol_set: &mut HashSet<String>,
 ) -> AliasGraph {
     let mut alias_graph = AliasGraph::default();
@@ -737,7 +776,7 @@ fn collect_symbols(
 struct SymbolCollector<'a> {
     module_path: &'a str,
     file: &'a Path,
-    symbols: Vec<SymbolEntry>,
+    symbols: Vec<SymbolRecord>,
     current_impl: Option<ImplContext>,
     alias_graph: &'a mut AliasGraph,
 }
@@ -769,7 +808,7 @@ impl<'a> SymbolCollector<'a> {
         attrs: Vec<String>,
     ) {
         let file_path = self.file.to_string_lossy().to_string();
-        self.symbols.push(SymbolEntry {
+        self.symbols.push(SymbolRecord {
             id,
             kind: kind.to_string(),
             name: name.to_string(),
@@ -858,7 +897,7 @@ impl<'a> SymbolCollector<'a> {
                     UseKind::Simple
                 };
 
-                let use_node = UseNode {
+                let use_node = ImportNode {
                     id,
                     module_path: self.module_path.to_string(),
                     source_path,
@@ -897,7 +936,7 @@ impl<'a> SymbolCollector<'a> {
                     UseKind::Aliased
                 };
 
-                let use_node = UseNode {
+                let use_node = ImportNode {
                     id,
                     module_path: self.module_path.to_string(),
                     source_path,
@@ -918,7 +957,7 @@ impl<'a> SymbolCollector<'a> {
                     source_path.replace("::", "_")
                 );
 
-                let use_node = UseNode {
+                let use_node = ImportNode {
                     id,
                     module_path: self.module_path.to_string(),
                     source_path,
@@ -952,7 +991,7 @@ impl<'ast> Visit<'ast> for SymbolCollector<'_> {
         let (docs, attrs) = Self::extract_docs_and_attrs(&i.attrs);
         let file_path = self.file.to_string_lossy().to_string();
         let is_inline = i.content.is_some();
-        self.symbols.push(SymbolEntry {
+        self.symbols.push(SymbolRecord {
             id: mod_id,
             kind: "module".to_string(),
             name: i.ident.to_string(),
@@ -1242,24 +1281,24 @@ impl<'ast> Visit<'ast> for SymbolCollector<'_> {
     }
 }
 
-struct OccurrenceVisitor<'a> {
+struct SymbolOccurrenceVisitor<'a> {
     module_path: &'a str,
     file: &'a Path,
-    symbol_table: &'a SymbolTable,
+    symbol_table: &'a SymbolIndex,
     use_map: &'a HashMap<String, String>,
-    occurrences: &'a mut Vec<OccurrenceEntry>,
+    occurrences: &'a mut Vec<SymbolOccurrence>,
     current_impl: Option<ImplContext>,
     current_struct: Option<String>,
-    type_context: TypeContext,
+    type_context: LocalTypeContext,
 }
 
-impl<'a> OccurrenceVisitor<'a> {
+impl<'a> SymbolOccurrenceVisitor<'a> {
     fn new(
         module_path: &'a str,
         file: &'a Path,
-        symbol_table: &'a SymbolTable,
+        symbol_table: &'a SymbolIndex,
         use_map: &'a HashMap<String, String>,
-        occurrences: &'a mut Vec<OccurrenceEntry>,
+        occurrences: &'a mut Vec<SymbolOccurrence>,
     ) -> Self {
         Self {
             module_path,
@@ -1269,12 +1308,12 @@ impl<'a> OccurrenceVisitor<'a> {
             occurrences,
             current_impl: None,
             current_struct: None,
-            type_context: TypeContext::new(symbol_table),
+            type_context: LocalTypeContext::new(symbol_table),
         }
     }
 
     fn add_occurrence(&mut self, id: String, kind: &str, span: Span) {
-        self.occurrences.push(OccurrenceEntry {
+        self.occurrences.push(SymbolOccurrence {
             id,
             file: self.file.to_string_lossy().to_string(),
             kind: kind.to_string(),
@@ -1357,7 +1396,7 @@ impl<'a> OccurrenceVisitor<'a> {
 }
 
 // Helper methods for OccurrenceVisitor (not part of Visit trait)
-impl OccurrenceVisitor<'_> {
+impl SymbolOccurrenceVisitor<'_> {
     fn infer_expr_type_helper(&self, expr: &syn::Expr) -> Option<String> {
         match expr {
             syn::Expr::Path(expr_path) => resolve_path(
@@ -1390,7 +1429,7 @@ impl OccurrenceVisitor<'_> {
     }
 }
 
-impl<'ast> Visit<'ast> for OccurrenceVisitor<'_> {
+impl<'ast> Visit<'ast> for SymbolOccurrenceVisitor<'_> {
     fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
         let id = module_child_path(self.module_path, i.ident.to_string());
         if self.symbol_table.symbols.contains_key(&id) {
@@ -1619,7 +1658,7 @@ fn resolve_path(
     path: &syn::Path,
     module_path: &str,
     use_map: &HashMap<String, String>,
-    table: &SymbolTable,
+    table: &SymbolIndex,
 ) -> Option<String> {
     let segments: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
     if segments.is_empty() {
@@ -1711,8 +1750,8 @@ fn record_use_tree(
     tree: &syn::UseTree,
     prefix: &mut Vec<String>,
     module_path: &str,
-    table: &SymbolTable,
-    occurrences: &mut Vec<OccurrenceEntry>,
+    table: &SymbolIndex,
+    occurrences: &mut Vec<SymbolOccurrence>,
     file: &Path,
 ) {
     match tree {
@@ -1726,7 +1765,7 @@ fn record_use_tree(
             full.push(name.ident.to_string());
             let id = full.join("::");
             if table.symbols.contains_key(&id) {
-                occurrences.push(OccurrenceEntry {
+                occurrences.push(SymbolOccurrence {
                     id,
                     file: file.to_string_lossy().to_string(),
                     kind: "use".to_string(),
@@ -1739,7 +1778,7 @@ fn record_use_tree(
             full.push(rename.ident.to_string());
             let id = full.join("::");
             if table.symbols.contains_key(&id) {
-                occurrences.push(OccurrenceEntry {
+                occurrences.push(SymbolOccurrence {
                     id: id.clone(),
                     file: file.to_string_lossy().to_string(),
                     kind: "use_alias".to_string(),
@@ -1747,7 +1786,7 @@ fn record_use_tree(
                 });
                 // Also track the alias name as a separate occurrence
                 let alias_id = format!("{}@alias:{}", id, rename.rename);
-                occurrences.push(OccurrenceEntry {
+                occurrences.push(SymbolOccurrence {
                     id: alias_id,
                     file: file.to_string_lossy().to_string(),
                     kind: "alias_def".to_string(),
@@ -1796,7 +1835,7 @@ fn resolve_relative_prefix(prefix: &[String], module_path: &str) -> Vec<String> 
 }
 
 fn plan_file_renames(
-    table: &SymbolTable,
+    table: &SymbolIndex,
     mapping: &HashMap<String, String>,
 ) -> Result<Vec<FileRename>> {
     let mut renames = Vec::new();
@@ -2067,12 +2106,12 @@ pub fn span_to_range(span: Span) -> SpanRange {
 /// B2: Write preview with structured edit tracking
 fn write_preview(
     out: &Path,
-    edits: &[Edit],
+    edits: &[SymbolEdit],
     renames: &[FileRename],
     structured_tracker: &StructuredEditTracker,
     config: &StructuredEditConfig,
 ) -> Result<()> {
-    let mut by_file: BTreeMap<String, Vec<&Edit>> = BTreeMap::new();
+    let mut by_file: BTreeMap<String, Vec<&SymbolEdit>> = BTreeMap::new();
     for edit in edits {
         by_file.entry(edit.file.clone()).or_default().push(edit);
     }
@@ -2220,95 +2259,55 @@ fn format_files(paths: &[PathBuf]) -> Result<Vec<String>> {
     Ok(errors)
 }
 
-/// D1: Flush buffers and format only mutated files
-///
-/// Contract:
-/// - Only flushes dirty buffers (files with pending edits)
-/// - Only runs rustfmt on files that were actually written
-/// - Surfaces rustfmt errors with file context
-/// - Reports formatted files and edit counts
-///
-/// # D1: Example
-///
-/// ```no_run
-/// use semantic_lint::rename::rewrite::RewriteBufferSet;
-/// use std::path::Path;
-///
-/// let mut buffers = RewriteBufferSet::new();
-/// let file = Path::new("src/main.rs");
-/// let content = std::fs::read_to_string(file).unwrap();
-///
-/// // Queue some edits
-/// let buffer = buffers.ensure_buffer(file, &content);
-/// buffer.replace(0, 3, "pub").unwrap();
-///
-/// // Flush will only format files that were actually modified
-/// // and report any rustfmt errors with file context
-/// let touched = buffers.flush().unwrap();
-/// println!("Modified {} files", touched.len());
-/// ```
-fn flush_and_format(buffers: &mut RewriteBufferSet) -> Result<()> {
-    let total_edits = buffers.total_edit_count();
-    let touched = buffers.flush()?;
-
-    if !touched.is_empty() {
-        let format_errors = format_files(&touched)?;
-        if !format_errors.is_empty() {
-            eprintln!(
-                "Note: {} file(s) were modified but rustfmt encountered errors",
-                touched.len()
-            );
-        } else {
-            eprintln!(
-                "Formatted {} file(s) ({} edits applied)",
-                touched.len(),
-                total_edits
-            );
-        }
-    }
-
-    Ok(())
-}
-
-fn queue_file_edits(
-    buffers: &mut RewriteBufferSet,
-    file: &Path,
-    content: &str,
-    edits: &[Edit],
-) -> Result<()> {
+fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool> {
     if edits.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
-    let mut text_edits = Vec::new();
+
+    let mut map: HashMap<SpanKey, String> = HashMap::new();
     for edit in edits {
-        let (start, end) = span_to_offsets(content, &edit.start, &edit.end);
-        if start >= end || end > content.len() {
-            continue;
-        }
-        text_edits.push(TextEdit {
-            start,
-            end,
-            text: edit.new_name.clone(),
+        let key = SpanKey::from_range(&SpanRange {
+            start: edit.start.clone(),
+            end: edit.end.clone(),
         });
+        if let Some(existing) = map.get(&key) {
+            if existing != &edit.new_name {
+                bail!(
+                    "Conflicting rename edits for span {:?}: {} vs {}",
+                    key,
+                    existing,
+                    edit.new_name
+                );
+            }
+        } else {
+            map.insert(key, edit.new_name.clone());
+        }
     }
-    buffers.queue_edits(file, content, text_edits)?;
-    Ok(())
+
+    let mut renamer = SpanRenamer {
+        map,
+        changed: false,
+    };
+    renamer.visit_file_mut(ast);
+    Ok(renamer.changed)
 }
 
-fn queue_alias_edits(buffers: &mut RewriteBufferSet, edits: &[Edit]) -> Result<()> {
-    let mut by_file: HashMap<String, Vec<Edit>> = HashMap::new();
-    for edit in edits {
-        by_file
-            .entry(edit.file.clone())
-            .or_default()
-            .push(edit.clone());
+struct SpanRenamer<'a> {
+    map: HashMap<SpanKey, String>,
+    changed: bool,
+}
+
+impl VisitMut for SpanRenamer<'_> {
+    fn visit_ident_mut(&mut self, ident: &mut syn::Ident) {
+        let key = SpanKey::from_span(ident.span());
+        if let Some(new_name) = self.map.get(&key) {
+            if ident.to_string() != *new_name {
+                *ident = syn::Ident::new(new_name, ident.span());
+                self.changed = true;
+            }
+        }
+        syn::visit_mut::visit_ident_mut(self, ident);
     }
-    for (path_str, file_edits) in by_file {
-        let path = Path::new(&path_str);
-        let content = std::fs::read_to_string(path)?;
-        queue_file_edits(buffers, path, &content, &file_edits)?;
-    }
-    Ok(())
 }
 
 fn is_valid_ident(name: &str) -> bool {
@@ -2325,8 +2324,9 @@ fn is_valid_ident(name: &str) -> bool {
 /// Update mod declarations after file renames/moves
 fn update_mod_declarations(
     project: &Path,
-    table: &SymbolTable,
+    table: &SymbolIndex,
     file_renames: &[FileRename],
+    touched_files: &mut HashSet<PathBuf>,
 ) -> Result<()> {
     if file_renames.is_empty() {
         return Ok(());
@@ -2338,7 +2338,7 @@ fn update_mod_declarations(
     }
 
     // Build mapping of affected modules
-    let mut module_changes: HashMap<String, ModuleChange> = HashMap::new();
+    let mut module_changes: HashMap<String, ModuleRenamePlan> = HashMap::new();
     let mut files_to_process: HashSet<PathBuf> = HashSet::new();
     let mut fallback_required = false;
 
@@ -2355,7 +2355,7 @@ fn update_mod_declarations(
         let old_parent = old_parts[..old_parts.len() - 1].join("::");
         let new_parent = new_parts[..new_parts.len() - 1].join("::");
 
-        let change = ModuleChange {
+        let change = ModuleRenamePlan {
             old_name: old_module_name.to_string(),
             new_name: new_module_name.to_string(),
             old_parent: old_parent.clone(),
@@ -2397,13 +2397,14 @@ fn update_mod_declarations(
     for file in &target_files {
         let module_path = module_path_for_file(project, file);
         let content = std::fs::read_to_string(file)?;
-        let ast = syn::parse_file(&content)
+        let mut ast = syn::parse_file(&content)
             .with_context(|| format!("Failed to parse {}", file.display()))?;
 
-        let mut mod_edits = Vec::new();
+        let mut changed = false;
+        let mut remove_indices = Vec::new();
 
         // Find mod declarations that need updating
-        for item in &ast.items {
+        for (index, item) in ast.items.iter_mut().enumerate() {
             if let syn::Item::Mod(item_mod) = item {
                 let mod_name = item_mod.ident.to_string();
                 let child_module_id = module_child_path(&module_path, mod_name.clone());
@@ -2411,35 +2412,38 @@ fn update_mod_declarations(
                 if let Some(change) = module_changes.get(&child_module_id) {
                     if change.old_parent == change.new_parent && change.old_parent == module_path {
                         if change.old_name != change.new_name {
-                            mod_edits.push(ModEdit {
-                                kind: ModEditKind::Rename,
-                                span: span_to_range(item_mod.ident.span()),
-                                old_name: change.old_name.clone(),
-                                new_name: Some(change.new_name.clone()),
-                            });
+                            item_mod.ident =
+                                syn::Ident::new(&change.new_name, item_mod.ident.span());
+                            changed = true;
                         }
                     } else if change.old_parent == module_path {
-                        mod_edits.push(ModEdit {
-                            kind: ModEditKind::Remove,
-                            span: span_to_range(item_mod.ident.span()),
-                            old_name: change.old_name.clone(),
-                            new_name: None,
-                        });
+                        remove_indices.push(index);
                     } else if change.new_parent == module_path {
                         if change.old_name != change.new_name {
-                            mod_edits.push(ModEdit {
-                                kind: ModEditKind::Rename,
-                                span: span_to_range(item_mod.ident.span()),
-                                old_name: change.old_name.clone(),
-                                new_name: Some(change.new_name.clone()),
-                            });
+                            item_mod.ident =
+                                syn::Ident::new(&change.new_name, item_mod.ident.span());
+                            changed = true;
                         }
                     }
                 }
             }
         }
 
+        if !remove_indices.is_empty() {
+            remove_indices.sort();
+            for index in remove_indices.into_iter().rev() {
+                ast.items.remove(index);
+            }
+            changed = true;
+        }
+
         // Check if we need to add new mod declarations
+        let mut insert_index = ast
+            .items
+            .iter()
+            .rposition(|item| matches!(item, syn::Item::Mod(_)))
+            .map(|idx| idx + 1)
+            .unwrap_or(0);
         for change in module_changes.values() {
             if change.new_parent == module_path {
                 let has_declaration = ast.items.iter().any(|item| {
@@ -2451,18 +2455,21 @@ fn update_mod_declarations(
                 });
 
                 if !has_declaration && change.old_parent != module_path {
-                    mod_edits.push(ModEdit {
-                        kind: ModEditKind::Add,
-                        span: stub_range(),
-                        old_name: String::new(),
-                        new_name: Some(change.new_name.clone()),
-                    });
+                    let ident = syn::Ident::new(&change.new_name, proc_macro2::Span::call_site());
+                    let new_mod: syn::ItemMod = syn::parse_quote! { mod #ident; };
+                    ast.items.insert(insert_index, syn::Item::Mod(new_mod));
+                    insert_index += 1;
+                    changed = true;
                 }
             }
         }
 
-        if !mod_edits.is_empty() {
-            apply_mod_edits(&content, file, &mod_edits)?;
+        if changed {
+            let rendered = prettyplease::unparse(&ast);
+            if rendered != content {
+                std::fs::write(file, rendered)?;
+                touched_files.insert(file.to_path_buf());
+            }
         }
     }
 
@@ -2476,7 +2483,7 @@ fn resolve_renamed_path(path: PathBuf, lookup: &HashMap<String, PathBuf>) -> Pat
 
 fn resolve_parent_definition_file(
     project: &Path,
-    table: &SymbolTable,
+    table: &SymbolIndex,
     parent_id: &str,
     rename_lookup: &HashMap<String, PathBuf>,
 ) -> Option<PathBuf> {
@@ -2507,41 +2514,26 @@ fn find_crate_root_file(project: &Path) -> Option<PathBuf> {
 }
 
 #[derive(Debug)]
-struct ModuleChange {
+struct ModuleRenamePlan {
     old_name: String,
     new_name: String,
     old_parent: String,
     new_parent: String,
 }
 
-#[derive(Debug)]
-struct ModEdit {
-    kind: ModEditKind,
-    span: SpanRange,
-    old_name: String,
-    new_name: Option<String>,
-}
-
-#[derive(Debug)]
-enum ModEditKind {
-    Add,
-    Remove,
-    Rename,
-}
-
 /// Basic type inference context for method resolution
-struct TypeContext {
+struct LocalTypeContext {
     // Maps variable names to their types (limited scope)
     local_bindings: HashMap<String, String>,
     // Symbol table reference for looking up methods
-    symbol_table_ref: *const SymbolTable,
+    symbol_table_ref: *const SymbolIndex,
 }
 
-impl TypeContext {
-    fn new(symbol_table: &SymbolTable) -> Self {
+impl LocalTypeContext {
+    fn new(symbol_table: &SymbolIndex) -> Self {
         Self {
             local_bindings: HashMap::new(),
-            symbol_table_ref: symbol_table as *const SymbolTable,
+            symbol_table_ref: symbol_table as *const SymbolIndex,
         }
     }
 
@@ -2583,77 +2575,14 @@ impl TypeContext {
     }
 }
 
-fn apply_mod_edits(content: &str, file: &Path, edits: &[ModEdit]) -> Result<()> {
-    let mut new_content = content.to_string();
-    let lines: Vec<&str> = content.lines().collect();
-
-    for edit in edits {
-        match edit.kind {
-            ModEditKind::Remove => {
-                // Find and remove the mod declaration line
-                let line_idx = (edit.span.start.line - 1) as usize;
-                if line_idx < lines.len() {
-                    let line = lines[line_idx];
-                    if line.trim().starts_with("mod ") && line.contains(&edit.old_name) {
-                        new_content = new_content.replace(line, "");
-                    }
-                }
-            }
-            ModEditKind::Rename => {
-                if let Some(new_name) = &edit.new_name {
-                    let (start, end) = span_to_offsets(content, &edit.span.start, &edit.span.end);
-                    if start < end && end <= new_content.len() {
-                        let current = &new_content[start..end];
-                        if current == edit.old_name {
-                            new_content.replace_range(start..end, new_name);
-                        }
-                    }
-                }
-            }
-            ModEditKind::Add => {
-                if let Some(new_name) = &edit.new_name {
-                    // Add mod declaration at the beginning of the file (after any initial comments/attrs)
-                    let insert_pos = find_mod_insert_position(content);
-                    let declaration = format!("mod {};\n", new_name);
-                    new_content.insert_str(insert_pos, &declaration);
-                }
-            }
-        }
-    }
-
-    if new_content != content {
-        std::fs::write(file, new_content)?;
-    }
-
-    Ok(())
-}
-
-fn find_mod_insert_position(content: &str) -> usize {
-    // Find position after file-level attributes and doc comments
-    let mut pos = 0;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty()
-            || trimmed.starts_with("//!")
-            || trimmed.starts_with("#![")
-            || trimmed.starts_with("//")
-        {
-            pos += line.len() + 1; // +1 for newline
-        } else {
-            break;
-        }
-    }
-    pos
-}
-
 /// B2: Update use statement paths after module moves with structured tracking
 fn update_use_paths(
     project: &Path,
     file_renames: &[FileRename],
     structured_config: &StructuredEditConfig,
-    buffers: &mut RewriteBufferSet,
     alias_graph: &AliasGraph,
     structured_tracker: &mut StructuredEditTracker,
+    touched_files: &mut HashSet<PathBuf>,
 ) -> Result<()> {
     if file_renames.is_empty() {
         return Ok(());
@@ -2666,218 +2595,39 @@ fn update_use_paths(
     }
 
     let files = fs::collect_rs_files(project)?;
-    let structured_uses = structured_config.use_statements_enabled();
     for file in &files {
         let content = std::fs::read_to_string(file)?;
-        let ast = syn::parse_file(&content)
+        let mut ast = syn::parse_file(&content)
             .with_context(|| format!("Failed to parse {}", file.display()))?;
 
-        if structured_uses {
-            // B2: Use structured pass with tracking
-            let file_key = file.to_string_lossy().to_string();
-            let alias_nodes = alias_graph.nodes_in_file(&file_key);
-            if rewrite_use_statements(file, &content, &ast, &path_updates, &alias_nodes, buffers)? {
+        use crate::rename::structured::orchestrator::StructuredPass;
+        use crate::rename::structured::use_tree::UseTreePass;
+
+        let file_key = file.to_string_lossy().to_string();
+        let alias_nodes = alias_graph
+            .nodes_in_file(&file_key)
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let use_config = if structured_config.use_statements_enabled() {
+            structured_config.clone()
+        } else {
+            StructuredEditConfig::new(false, false, true)
+        };
+
+        let mut pass = UseTreePass::new(path_updates.clone(), alias_nodes, use_config);
+
+        if pass.execute(file, &content, &mut ast)? {
+            let rendered = prettyplease::unparse(&ast);
+            if rendered != content {
+                std::fs::write(file, rendered)?;
+                touched_files.insert(file.to_path_buf());
+            }
+            if structured_config.use_statements_enabled() {
                 structured_tracker.mark_use_edit(file_key);
             }
-            continue;
         }
-
-        let mut use_edits = Vec::new();
-
-        // Process all use statements
-        for item in &ast.items {
-            if let syn::Item::Use(use_item) = item {
-                collect_use_path_edits(
-                    &use_item.tree,
-                    use_item.leading_colon.is_some(),
-                    &path_updates,
-                    &mut use_edits,
-                );
-            }
-        }
-
-        if !use_edits.is_empty() {
-            apply_use_path_edits(&content, file, &use_edits)?;
-        }
-    }
-
-    Ok(())
-}
-
-#[derive(Debug)]
-struct UsePathEdit {
-    span: SpanRange,
-    old_path: String,
-    new_path: String,
-}
-
-fn collect_use_path_edits(
-    tree: &syn::UseTree,
-    has_leading_colon: bool,
-    path_updates: &HashMap<String, String>,
-    edits: &mut Vec<UsePathEdit>,
-) {
-    // Build the full path from the use tree
-    let mut current_path = Vec::new();
-    if has_leading_colon {
-        current_path.push("crate".to_string());
-    }
-
-    collect_use_tree_paths(tree, &mut current_path, path_updates, edits);
-}
-
-fn collect_use_tree_paths(
-    tree: &syn::UseTree,
-    current_path: &mut Vec<String>,
-    path_updates: &HashMap<String, String>,
-    edits: &mut Vec<UsePathEdit>,
-) {
-    match tree {
-        syn::UseTree::Path(path) => {
-            let segment = path.ident.to_string();
-            current_path.push(segment.clone());
-
-            // Check if this path prefix needs updating
-            let path_str = current_path.join("::");
-            if let Some(new_path) = find_replacement_path(&path_str, path_updates) {
-                edits.push(UsePathEdit {
-                    span: span_to_range(path.ident.span()),
-                    old_path: segment,
-                    new_path: extract_segment_replacement(
-                        &path_str,
-                        &new_path,
-                        current_path.len() - 1,
-                    ),
-                });
-            }
-
-            collect_use_tree_paths(&path.tree, current_path, path_updates, edits);
-            current_path.pop();
-        }
-        syn::UseTree::Name(name) => {
-            let segment = name.ident.to_string();
-            current_path.push(segment.clone());
-
-            let path_str = current_path.join("::");
-            if let Some(new_path) = find_replacement_path(&path_str, path_updates) {
-                edits.push(UsePathEdit {
-                    span: span_to_range(name.ident.span()),
-                    old_path: segment,
-                    new_path: extract_segment_replacement(
-                        &path_str,
-                        &new_path,
-                        current_path.len() - 1,
-                    ),
-                });
-            }
-
-            current_path.pop();
-        }
-        syn::UseTree::Rename(rename) => {
-            let segment = rename.ident.to_string();
-            current_path.push(segment.clone());
-
-            let path_str = current_path.join("::");
-            if let Some(new_path) = find_replacement_path(&path_str, path_updates) {
-                edits.push(UsePathEdit {
-                    span: span_to_range(rename.ident.span()),
-                    old_path: segment,
-                    new_path: extract_segment_replacement(
-                        &path_str,
-                        &new_path,
-                        current_path.len() - 1,
-                    ),
-                });
-            }
-
-            current_path.pop();
-        }
-        syn::UseTree::Group(group) => {
-            for item in &group.items {
-                collect_use_tree_paths(item, current_path, path_updates, edits);
-            }
-        }
-        syn::UseTree::Glob(_) => {
-            // For glob imports, check if the parent path needs updating
-            let path_str = current_path.join("::");
-            if let Some(_new_path) = find_replacement_path(&path_str, path_updates) {
-                // Need to update the entire glob import path
-                // This is handled by parent path segments
-            }
-        }
-    }
-}
-
-/// Find if any prefix of the path needs to be replaced
-pub(crate) fn find_replacement_path(
-    path: &str,
-    updates: &HashMap<String, String>,
-) -> Option<String> {
-    // Check exact match first
-    if let Some(new_path) = updates.get(path) {
-        return Some(new_path.clone());
-    }
-
-    // Check if any prefix of this path was moved
-    let parts: Vec<&str> = path.split("::").collect();
-    for i in (1..=parts.len()).rev() {
-        let prefix = parts[..i].join("::");
-        if let Some(new_prefix) = updates.get(&prefix) {
-            // Replace the prefix and keep the suffix
-            if i < parts.len() {
-                let suffix = parts[i..].join("::");
-                return Some(format!("{}::{}", new_prefix, suffix));
-            } else {
-                return Some(new_prefix.clone());
-            }
-        }
-    }
-
-    None
-}
-
-/// Extract the segment that should replace the current segment
-pub(crate) fn extract_segment_replacement(
-    old_full_path: &str,
-    new_full_path: &str,
-    segment_index: usize,
-) -> String {
-    let new_parts: Vec<&str> = new_full_path.split("::").collect();
-    if segment_index < new_parts.len() {
-        new_parts[segment_index].to_string()
-    } else {
-        // Fallback: return the last part
-        new_parts.last().unwrap_or(&"").to_string()
-    }
-}
-
-fn apply_use_path_edits(content: &str, file: &Path, edits: &[UsePathEdit]) -> Result<()> {
-    if edits.is_empty() {
-        return Ok(());
-    }
-
-    // Sort edits by position (reverse order to apply from end to start)
-    let mut sorted_edits: Vec<&UsePathEdit> = edits.iter().collect();
-    sorted_edits.sort_by(|a, b| {
-        let a_pos = (a.span.start.line, a.span.start.column);
-        let b_pos = (b.span.start.line, b.span.start.column);
-        b_pos.cmp(&a_pos)
-    });
-
-    let mut new_content = content.to_string();
-
-    for edit in sorted_edits {
-        let (start, end) = span_to_offsets(content, &edit.span.start, &edit.span.end);
-        if start < end && end <= new_content.len() {
-            let current = &new_content[start..end];
-            if current == edit.old_path {
-                new_content.replace_range(start..end, &edit.new_path);
-            }
-        }
-    }
-
-    if new_content != content {
-        std::fs::write(file, new_content)?;
     }
 
     Ok(())
@@ -2886,9 +2636,9 @@ fn apply_use_path_edits(content: &str, file: &Path, edits: &[UsePathEdit]) -> Re
 /// Track and rename use statement aliases
 fn collect_and_rename_aliases(
     project: &Path,
-    symbol_table: &SymbolTable,
+    symbol_table: &SymbolIndex,
     mapping: &HashMap<String, String>,
-) -> Result<Vec<Edit>> {
+) -> Result<Vec<SymbolEdit>> {
     let mut alias_edits = Vec::new();
     let files = fs::collect_rs_files(project)?;
 
@@ -2925,10 +2675,10 @@ fn collect_alias_edits(
     has_leading_colon: bool,
     module_path: &str,
     file: &Path,
-    symbol_table: &SymbolTable,
+    symbol_table: &SymbolIndex,
     mapping: &HashMap<String, String>,
     use_map: &HashMap<String, String>,
-    edits: &mut Vec<Edit>,
+    edits: &mut Vec<SymbolEdit>,
 ) {
     let mut prefix = Vec::new();
     if has_leading_colon {
@@ -2952,10 +2702,10 @@ fn collect_alias_edits_recursive(
     prefix: &mut Vec<String>,
     module_path: &str,
     file: &Path,
-    symbol_table: &SymbolTable,
+    symbol_table: &SymbolIndex,
     mapping: &HashMap<String, String>,
     use_map: &HashMap<String, String>,
-    edits: &mut Vec<Edit>,
+    edits: &mut Vec<SymbolEdit>,
 ) {
     match tree {
         syn::UseTree::Path(path) => {
@@ -2980,7 +2730,7 @@ fn collect_alias_edits_recursive(
             // Check if target symbol is being renamed
             if let Some(new_name) = mapping.get(&target_id) {
                 // Rename the target path (left side of 'as')
-                edits.push(Edit {
+                edits.push(SymbolEdit {
                     id: target_id.clone(),
                     file: file.to_string_lossy().to_string(),
                     kind: "use_alias_target".to_string(),
@@ -2994,7 +2744,7 @@ fn collect_alias_edits_recursive(
             let alias_id = format!("{}@alias:{}", target_id, rename.rename);
             if let Some(new_alias) = mapping.get(&alias_id) {
                 // Rename the alias (right side of 'as')
-                edits.push(Edit {
+                edits.push(SymbolEdit {
                     id: alias_id.clone(),
                     file: file.to_string_lossy().to_string(),
                     kind: "use_alias_name".to_string(),
@@ -3034,7 +2784,7 @@ fn collect_alias_usage_edits(
     new_alias: &str,
     target_id: &str,
     use_map: &HashMap<String, String>,
-    edits: &mut Vec<Edit>,
+    edits: &mut Vec<SymbolEdit>,
 ) {
     // Re-parse file to find alias usages
     if let Ok(content) = std::fs::read_to_string(file) {
@@ -3059,7 +2809,7 @@ struct AliasUsageVisitor<'a> {
     target_id: String,
     file: &'a Path,
     use_map: &'a HashMap<String, String>,
-    edits: &'a mut Vec<Edit>,
+    edits: &'a mut Vec<SymbolEdit>,
 }
 
 impl<'ast> Visit<'ast> for AliasUsageVisitor<'_> {
@@ -3067,7 +2817,7 @@ impl<'ast> Visit<'ast> for AliasUsageVisitor<'_> {
         // Check if first segment matches the alias
         if let Some(first_seg) = path.segments.first() {
             if first_seg.ident.to_string() == self.alias_name {
-                self.edits.push(Edit {
+                self.edits.push(SymbolEdit {
                     id: format!("{}@alias_use", self.target_id),
                     file: self.file.to_string_lossy().to_string(),
                     kind: "alias_usage".to_string(),

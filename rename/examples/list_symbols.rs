@@ -1,10 +1,9 @@
 use rename::collect_names;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let project_path =
-        Path::new("/workspace/ai_sandbox/canon_workspace/canon");
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/canon");
 
     let report = collect_names(project_path)?;
 

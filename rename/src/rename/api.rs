@@ -8,12 +8,12 @@
 //! The goal is to let callers script transformations without touching the lower-level
 //! rename pipeline directly.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use super::core::{apply_rename_with_map, collect_names, NamesReport, SymbolEntry};
-use super::structured::{apply_ast_rewrites, AstEdit};
+use super::core::{SymbolIndexReport, SymbolRecord, apply_rename_with_map, collect_names};
+use super::structured::{AstEdit, apply_ast_rewrites};
 
 /// Serializable request for querying symbol metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -43,9 +43,9 @@ impl Default for QueryRequest {
 #[derive(serde::Serialize)]
 pub struct QueryResult {
     /// Full names report (symbols, occurrences, alias graph, etc.)
-    pub report: NamesReport,
+    pub report: SymbolIndexReport,
     /// Symbols that matched the provided filters.
-    pub matches: Vec<SymbolEntry>,
+    pub matches: Vec<SymbolRecord>,
 }
 
 impl QueryRequest {
@@ -84,7 +84,7 @@ impl QueryRequest {
         Ok(QueryResult { report, matches })
     }
 
-    fn matches_symbol(&self, symbol: &SymbolEntry) -> bool {
+    fn matches_symbol(&self, symbol: &SymbolRecord) -> bool {
         if !self.kinds.is_empty() && !self.kinds.iter().any(|k| k == &symbol.kind) {
             return false;
         }

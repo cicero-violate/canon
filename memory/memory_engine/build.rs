@@ -13,7 +13,10 @@ fn main() {
     let obj_path = out_dir.join("merkle.o");
     let lib_path = out_dir.join("libmerkle.a");
 
-    let status = Command::new("/opt/cuda/bin/nvcc")
+    let cuda_home = env::var("CUDA_HOME").unwrap_or_else(|_| "/opt/cuda".into());
+    let nvcc_path = PathBuf::from(&cuda_home).join("bin/nvcc");
+
+    let status = Command::new(nvcc_path)
         .args(["src/hash/merkle.cu", "-c", "-o"])
         .arg(&obj_path)
         .args([
@@ -21,7 +24,7 @@ fn main() {
             "-fPIC",
             "-std=c++17",
             "-ccbin",
-            "/usr/bin/g++",
+            "/usr/bin/g++-11",
         ])
         .status()
         .expect("failed to execute nvcc");
@@ -44,7 +47,10 @@ fn main() {
     println!("cargo:rustc-link-lib=static=merkle");
 
     // CUDA runtime
-    println!("cargo:rustc-link-search=native=/opt/cuda/lib64");
+    println!(
+        "cargo:rustc-link-search=native={}/lib64",
+        cuda_home
+    );
     println!("cargo:rustc-link-lib=dylib=cudart");
 
     // 🔥 REQUIRED for C++ symbols

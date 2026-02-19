@@ -9,26 +9,25 @@ pub mod macros;
 pub mod module_path;
 pub mod occurrence;
 pub mod pattern;
-pub mod rewrite;
 pub mod scope;
 pub mod structured;
 
 // Re-export main rename functions
 pub use core::{
-    apply_rename, apply_rename_with_map, collect_names, emit_names, run_names, run_rename,
-    FlushResult, LineColumn, NamesReport, OccurrenceEntry, SpanRange, StructuredEditTracker,
-    SymbolEntry,
+    LineColumn, SpanRange, StructuredEditTracker, SymbolIndexReport, SymbolOccurrence,
+    SymbolRecord, apply_rename, apply_rename_with_map, collect_names, emit_names, run_names,
+    run_rename,
 };
 
-pub use alias::{AliasGraph, UseKind, UseNode, VisibilityScope};
+pub use alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
 
 pub use api::{
-    execute_mutation_json, execute_query_json, execute_upsert_json, MutationRequest,
-    MutationResult, QueryRequest, QueryResult, UpsertRequest, UpsertResult,
+    MutationRequest, MutationResult, QueryRequest, QueryResult, UpsertRequest, UpsertResult,
+    execute_mutation_json, execute_query_json, execute_upsert_json,
 };
 
 // C1: Re-export structured pass infrastructure
 pub use structured::{
-    apply_ast_rewrites, ast_render, create_rename_orchestrator, AstEdit, DocAttrPass,
-    PassOrchestrator, StructuredEditConfig, StructuredPass, UseTreePass,
+    AstEdit, DocAttrPass, PassOrchestrator, StructuredEditConfig, StructuredPass, UseTreePass,
+    apply_ast_rewrites, ast_render, create_rename_orchestrator,
 };

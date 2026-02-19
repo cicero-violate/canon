@@ -6,10 +6,10 @@ use syn::visit::{self, Visit};
 use syn::{Arm, Expr, ExprClosure, ExprForLoop, ExprMethodCall, ImplItemFn, ItemImpl, Local, Pat};
 
 use super::attributes::extract_symbols_from_attributes;
-use super::core::{span_to_range, OccurrenceEntry, SymbolTable};
-use super::macros::{extract_macro_rules_identifiers, MacroIdentifierCollector};
-use super::pattern::{extract_type_from_pattern, PatternBindingCollector};
-use super::scope::ScopedBinder;
+use super::core::{SymbolIndex, SymbolOccurrence, span_to_range};
+use super::macros::{MacroIdentifierCollector, extract_macro_rules_identifiers};
+use super::pattern::{PatternBindingCollector, extract_type_from_pattern};
+use super::scope::LexicalBinder;
 use std::collections::HashMap;
 use syn::ItemMacro;
 
@@ -17,10 +17,10 @@ use syn::ItemMacro;
 pub struct EnhancedOccurrenceVisitor<'a> {
     module_path: &'a str,
     file: &'a Path,
-    symbol_table: &'a SymbolTable,
+    symbol_table: &'a SymbolIndex,
     use_map: &'a HashMap<String, String>,
-    occurrences: &'a mut Vec<OccurrenceEntry>,
-    scoped_binder: ScopedBinder,
+    occurrences: &'a mut Vec<SymbolOccurrence>,
+    scoped_binder: LexicalBinder,
     current_impl: Option<ImplContext>,
     current_struct: Option<String>,
 }
@@ -35,9 +35,9 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
     pub fn new(
         module_path: &'a str,
         file: &'a Path,
-        symbol_table: &'a SymbolTable,
+        symbol_table: &'a SymbolIndex,
         use_map: &'a HashMap<String, String>,
-        occurrences: &'a mut Vec<OccurrenceEntry>,
+        occurrences: &'a mut Vec<SymbolOccurrence>,
     ) -> Self {
         Self {
             module_path,
@@ -45,14 +45,14 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
             symbol_table,
             use_map,
             occurrences,
-            scoped_binder: ScopedBinder::new(symbol_table),
+            scoped_binder: LexicalBinder::new(symbol_table),
             current_impl: None,
             current_struct: None,
         }
     }
 
     fn add_occurrence(&mut self, id: String, kind: &str, span: Span) {
-        self.occurrences.push(OccurrenceEntry {
+        self.occurrences.push(SymbolOccurrence {
             id,
             file: self.file.to_string_lossy().to_string(),
             kind: kind.to_string(),
@@ -410,7 +410,7 @@ fn path_to_symbol(
     path: &syn::Path,
     module_path: &str,
     use_map: &HashMap<String, String>,
-    symbol_table: &SymbolTable,
+    symbol_table: &SymbolIndex,
 ) -> Option<String> {
     let path_str = path_to_string(path);
 

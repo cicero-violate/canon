@@ -3,45 +3,70 @@ use std::collections::HashMap;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Target project root (crate to refactor)
-    let project_path =
-        Path::new("/workspace/ai_sandbox/canon_workspace/canon");
+    // Target project root (this crate)
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename");
 
     // IMPORTANT:
     // Always use fully-qualified paths to avoid global identifier corruption.
     // This prevents doc strings, comments, and unrelated modules from breaking.
     let mut map = HashMap::new();
 
+    // Normalize unclear / overloaded names
+
     map.insert(
-        "crate::runtime::value::Value".to_string(),
-        "RuntimeValue".to_string(),
+        "crate::rename::scope::Scope".to_string(),
+        "LexicalScope".to_string(),
     );
 
     map.insert(
-        "crate::runtime::context::ExecutionContext".to_string(),
-        "RuntimeContext".to_string(),
+        "crate::rename::scope::ScopedBinder".to_string(),
+        "LexicalBinder".to_string(),
     );
 
     map.insert(
-        "crate::ir::delta::Delta".to_string(),
-        "IrDelta".to_string(),
+        "crate::rename::core::SymbolTable".to_string(),
+        "SymbolIndex".to_string(),
     );
 
     map.insert(
-        "crate::ir::proofs::Proof".to_string(),
-        "IrProof".to_string(),
+        "crate::rename::core::OccurrenceEntry".to_string(),
+        "SymbolOccurrence".to_string(),
     );
 
     map.insert(
-        "crate::ir::timeline::Plan".to_string(),
-        "ExecutionPlan".to_string(),
+        "crate::rename::core::OccurrenceVisitor".to_string(),
+        "SymbolOccurrenceVisitor".to_string(),
     );
 
-    // false  -> do not include tests
-    // None   -> no file filter
+    map.insert(
+        "crate::rename::core::TypeContext".to_string(),
+        "LocalTypeContext".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::ModuleChange".to_string(),
+        "ModuleRenamePlan".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::ModEdit".to_string(),
+        "ModuleDeclarationEdit".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::ModEditKind".to_string(),
+        "ModuleDeclarationEditKind".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::FlushResult".to_string(),
+        "RewriteSummary".to_string(),
+    );
+
+    // dry_run = false
+    // out_path = None
     apply_rename_with_map(project_path, &map, false, None)?;
 
     println!("Scoped renames applied successfully.");
     Ok(())
 }
-

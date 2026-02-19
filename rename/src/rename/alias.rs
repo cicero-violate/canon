@@ -8,7 +8,7 @@ use syn::Visibility;
 
 /// Represents a use statement with full context
 #[derive(Debug, Clone, Serialize)]
-pub struct UseNode {
+pub struct ImportNode {
     /// Unique identifier for this use statement
     pub id: String,
 
@@ -179,7 +179,7 @@ pub enum StepKind {
 #[derive(Debug, Default)]
 pub struct AliasGraph {
     /// All use nodes indexed by ID
-    nodes: HashMap<String, UseNode>,
+    nodes: HashMap<String, ImportNode>,
 
     /// Map from local name to use node ID (for resolution)
     /// Key: (module_path, local_name) -> use_node_id
@@ -203,7 +203,7 @@ impl AliasGraph {
     }
 
     /// Add a use node to the graph
-    pub fn add_use_node(&mut self, node: UseNode) {
+    pub fn add_use_node(&mut self, node: ImportNode) {
         let id = node.id.clone();
         let module_path = node.module_path.clone();
         let local_name = node.local_name.clone();
@@ -239,7 +239,7 @@ impl AliasGraph {
     }
 
     /// Get all use nodes that import from a given source path
-    pub fn get_importers(&self, source_path: &str) -> Vec<&UseNode> {
+    pub fn get_importers(&self, source_path: &str) -> Vec<&ImportNode> {
         self.source_imports
             .get(source_path)
             .map(|ids| ids.iter().filter_map(|id| self.nodes.get(id)).collect())
@@ -247,7 +247,7 @@ impl AliasGraph {
     }
 
     /// Get all glob imports in a module
-    pub fn get_glob_imports(&self, module_path: &str) -> Vec<&UseNode> {
+    pub fn get_glob_imports(&self, module_path: &str) -> Vec<&ImportNode> {
         self.glob_imports
             .get(module_path)
             .map(|globs| {
@@ -290,12 +290,12 @@ impl AliasGraph {
     }
 
     /// Get all use nodes
-    pub fn all_nodes(&self) -> Vec<&UseNode> {
+    pub fn all_nodes(&self) -> Vec<&ImportNode> {
         self.nodes.values().collect()
     }
 
     /// Get all use nodes that originate from a specific file path
-    pub fn nodes_in_file(&self, file_path: &str) -> Vec<&UseNode> {
+    pub fn nodes_in_file(&self, file_path: &str) -> Vec<&ImportNode> {
         self.nodes
             .values()
             .filter(|node| node.file == file_path)
@@ -448,7 +448,7 @@ impl AliasGraph {
     }
 
     /// Find all re-export chains for a symbol
-    pub fn find_reexport_chains(&self, symbol_id: &str) -> Vec<Vec<UseNode>> {
+    pub fn find_reexport_chains(&self, symbol_id: &str) -> Vec<Vec<ImportNode>> {
         let mut chains = Vec::new();
         let mut current_chains = vec![vec![]];
 
@@ -460,11 +460,11 @@ impl AliasGraph {
     fn find_reexport_chains_recursive(
         &self,
         symbol_id: &str,
-        current_chains: &mut Vec<Vec<UseNode>>,
-        result: &mut Vec<Vec<UseNode>>,
+        current_chains: &mut Vec<Vec<ImportNode>>,
+        result: &mut Vec<Vec<ImportNode>>,
     ) {
         let importers = self.get_importers(symbol_id);
-        let reexports: Vec<UseNode> = importers
+        let reexports: Vec<ImportNode> = importers
             .into_iter()
             .cloned()
             .filter(|node| matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased))

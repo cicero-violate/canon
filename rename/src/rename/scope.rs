@@ -1,19 +1,18 @@
 //! Scoped binder for tracking variable types through nested scopes
-//! Replaces the ad-hoc TypeContext with a proper scope hierarchy
-
-use super::core::SymbolTable;
+/// Replaces the ad-hoc LocalTypeContext with a proper scope hierarchy
+use super::core::SymbolIndex;
 use std::collections::HashMap;
 
 /// A scope in the binding hierarchy
 #[derive(Debug, Clone)]
-pub struct Scope {
+pub struct LexicalScope {
     /// Bindings local to this scope (variable name -> type)
     bindings: HashMap<String, String>,
     /// Parent scope index (None for root scope)
     parent: Option<usize>,
 }
 
-impl Scope {
+impl LexicalScope {
     fn new(parent: Option<usize>) -> Self {
         Self {
             bindings: HashMap::new(),
@@ -24,29 +23,29 @@ impl Scope {
 
 /// Scoped binder that tracks variable types through nested scopes
 /// Supports pattern destructuring, closure captures, and method return types
-pub struct ScopedBinder {
+pub struct LexicalBinder {
     /// Stack of scopes
-    scopes: Vec<Scope>,
+    scopes: Vec<LexicalScope>,
     /// Current active scope index
     current_scope: usize,
     /// Symbol table reference for method lookups
-    symbol_table_ref: *const SymbolTable,
+    symbol_table_ref: *const SymbolIndex,
 }
 
-impl ScopedBinder {
-    pub fn new(symbol_table: &SymbolTable) -> Self {
-        let root = Scope::new(None);
+impl LexicalBinder {
+    pub fn new(symbol_table: &SymbolIndex) -> Self {
+        let root = LexicalScope::new(None);
         Self {
             scopes: vec![root],
             current_scope: 0,
-            symbol_table_ref: symbol_table as *const SymbolTable,
+            symbol_table_ref: symbol_table as *const SymbolIndex,
         }
     }
 
     /// Enter a new scope (for blocks, functions, closures)
     pub fn push_scope(&mut self) {
         let parent = self.current_scope;
-        let scope = Scope::new(Some(parent));
+        let scope = LexicalScope::new(Some(parent));
         self.scopes.push(scope);
         self.current_scope = self.scopes.len() - 1;
     }
