@@ -5,6 +5,12 @@ use crate::agent::refactor::RefactorProposal;
 use crate::agent::runner::{RunnerConfig, run_agent};
 use crate::agent::ws_server;
 use crate::agent::{RewardLedger, run_meta_tick, run_pipeline};
+use crate::agent::observe::{observe_ir, observation_to_payload};
+use crate::gpu::fusion::analyze_fusion_candidates;
+use crate::gpu::codegen::generate_shader;
+use crate::gpu::dispatch::GpuExecutor;
+use crate::runtime::bytecode::FunctionBytecode;
+use crate::runtime::system_interpreter::SystemInterpreter;
 use crate::cli::Command;
 use crate::decision::auto_dsl::auto_accept_dsl_proposal;
 use crate::diagnose::trace_root_causes;
@@ -154,8 +160,19 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             );
         }
 
-        Command::ObserveEvents { .. } => {
-            return Err("ObserveEvents not yet reconnected after refactor.".into());
+        Command::ObserveEvents { ir, output } => {
+            let ir_doc = load_ir(&ir)?;
+            let obs = observe_ir(&ir_doc);
+            let payload = observation_to_payload(&obs);
+            let json = serde_json::to_string_pretty(&payload)?;
+            fs::write(&output, &json)?;
+            println!(
+                "Observation written to `{}` ({} modules, {} functions, {} call edges).",
+                output.display(),
+                obs.totals.modules,
+                obs.totals.functions,
+                obs.totals.call_edges,
+            );
         }
 
         Command::ExecuteTick { ir, tick, parallel } => {
@@ -381,6 +398,60 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
                     if s.policy_updated { "Y" } else { "-" },
                 );
             }
+        }
+
+        Command::GpuAnalyze { ir, execute } => {
+            let ir_doc = load_ir(&ir)?;
+            let candidates = analyze_fusion_candidates(&ir_doc);
+            if candidates.is_empty() {
+                println!("No GPU fusion candidates found.");
+            } else {
+                println!("{} fusion candidate(s):", candidates.len());
+                for c in &candidates {
+                    println!(
+                        "  {} → {}  (fn: {} → {})",
+                        c.producer_gpu, c.consumer_gpu,
+                        c.producer_function, c.consumer_function,
+                    );
+                }
+                if execute {
+                    let first = &candidates[0];
+                    let gpu_fn = ir_doc
+                        .gpu_functions
+                        .iter()
+                        .find(|g| g.id == first.producer_gpu)
+                        .ok_or("producer gpu function not found")?;
+                    let canon_fn = ir_doc
+                        .functions
+                        .iter()
+                        .find(|f| f.id == gpu_fn.function)
+                        .ok_or("backing function not found")?;
+                    let bytecode = FunctionBytecode::from_function(canon_fn)?;
+                    let program = generate_shader(gpu_fn, &bytecode)
+                        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+                    println!("Shader generated ({} lanes). Attempting GPU execution...", program.lanes);
+                    let executor = GpuExecutor::new().await?;
+                    let inputs = vec![0f32; gpu_fn.inputs.iter().map(|p| p.lanes as usize).sum()];
+                    let mut outputs = vec![0f32; gpu_fn.outputs.iter().map(|p| p.lanes as usize).sum()];
+                    executor.execute(&program, &inputs, &mut outputs).await?;
+                    println!("GPU execution OK. Output[0] = {:?}", outputs.first());
+                }
+            }
+        }
+
+        Command::ExecuteGraph { ir, graph_id, checkpoint } => {
+            let ir_doc = load_ir(&ir)?;
+            let engine = MemoryEngine::new(MemoryEngineConfig {
+                tlog_path: checkpoint.with_extension("tlog"),
+            })?;
+            let interp = SystemInterpreter::new(&ir_doc, &engine);
+            let result = interp.execute_graph(&graph_id, Default::default())?;
+            println!(
+                "ExecuteGraph OK — graph={} nodes_executed={} deltas_emitted={}",
+                graph_id,
+                result.node_results.len(),
+                result.emitted_deltas.len(),
+            );
         }
 
         Command::BootstrapGraph {

@@ -53,8 +53,7 @@ pub enum Command {
         out_dir: PathBuf,
     },
     ObserveEvents {
-        execution: PathBuf,
-        proof: String,
+        ir: PathBuf,
         output: PathBuf,
     },
     ExecuteTick {
@@ -177,6 +176,29 @@ pub enum Command {
         /// IR path — used to pick the first module as proposal target.
         #[arg(long)]
         ir: PathBuf,
+    },
+
+    /// Analyze GPU kernel fusion candidates in an IR.
+    GpuAnalyze {
+        /// Path to IR JSON or .bin checkpoint.
+        #[arg(long)]
+        ir: PathBuf,
+        /// Attempt live GPU execution of the first candidate (requires wgpu adapter).
+        #[arg(long)]
+        execute: bool,
+    },
+
+    /// Execute a system graph by ID using a MemoryEngine checkpoint.
+    ExecuteGraph {
+        /// Path to IR JSON or .bin checkpoint.
+        #[arg(long)]
+        ir: PathBuf,
+        /// System graph ID to execute.
+        #[arg(long = "graph-id")]
+        graph_id: String,
+        /// Path to MemoryEngine .bin checkpoint for the engine context.
+        #[arg(long)]
+        checkpoint: PathBuf,
     },
 }
 
