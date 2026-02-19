@@ -1,5 +1,5 @@
 commands.rs:
-  fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>>  (line 27)
+  fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>>  (line 33)
 
 storage/types.rs:
   struct FileHashRecord  { path, hash }  (line 5)
@@ -214,8 +214,8 @@ dot_import.rs:
 
 cli.rs:
   struct Cli  { command }  (line 6)
-  enum Command  { Schema, Validate, Ingest, Lint, Diagnose, RenderFn, DiffIr, Materialize, ObserveEvents, ExecuteTick, ExportDot, VerifyDot, SubmitDsl, RunPipeline, MetaTick, ShowLedger, ShowGraph, RunAgent, BootstrapGraph }  (line 12)
-  enum LayoutStrategyArg  { Original, SingleFile, PerType }  (line 184)
+  enum Command  { Schema, Validate, Ingest, Lint, Diagnose, RenderFn, DiffIr, Materialize, ObserveEvents, ExecuteTick, ExportDot, VerifyDot, SubmitDsl, RunPipeline, MetaTick, ShowLedger, ShowGraph, RunAgent, BootstrapGraph, GpuAnalyze, ExecuteGraph }  (line 12)
+  enum LayoutStrategyArg  { Original, SingleFile, PerType }  (line 206)
 
 runtime/parallel.rs:
   struct ParallelJob  { function, inputs }  (line 16)
