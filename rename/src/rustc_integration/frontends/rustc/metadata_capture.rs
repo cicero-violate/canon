@@ -1,8 +1,6 @@
 #![cfg(feature = "rustc_frontend")]
-
 //! Attribute, visibility, and generics metadata helpers.
-
-use super::context::FrontendMetadata;
+use super::frontend_context::FrontendMetadata;
 use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use crate::state::builder::NodePayload;
 use blake3::hash;
@@ -11,7 +9,6 @@ use rustc_middle::ty::{GenericParamDefKind, TyCtxt};
 use rustc_span::{symbol::sym, FileName, SourceFile};
 use serde::Serialize;
 use std::path::Path;
-
 /// Enriches a node payload with common compiler metadata.
 pub(super) fn apply_common_metadata<'tcx>(
     mut payload: NodePayload,
@@ -20,7 +17,10 @@ pub(super) fn apply_common_metadata<'tcx>(
     frontend: &FrontendMetadata,
 ) -> NodePayload {
     let crate_name = tcx.crate_name(def_id.krate).to_string();
-    let def_path = normalize_symbol_id_with_crate(&tcx.def_path_str(def_id), Some(&crate_name));
+    let def_path = normalize_symbol_id_with_crate(
+        &tcx.def_path_str(def_id),
+        Some(&crate_name),
+    );
     let name = tcx
         .opt_item_name(def_id)
         .map(|sym| sym.to_string())
@@ -36,12 +36,12 @@ pub(super) fn apply_common_metadata<'tcx>(
     let lo = source_map.lookup_char_pos(span.lo());
     let hi = source_map.lookup_char_pos(span.hi());
     let absolute_path = resolve_absolute_path(&filename);
-    let relative_path = resolve_relative_path(&absolute_path, frontend.workspace_root.as_deref());
+    let relative_path = resolve_relative_path(
+        &absolute_path,
+        frontend.workspace_root.as_deref(),
+    );
     let file_stats = source_file_stats(&lo.file);
-    let snippet = source_map
-        .span_to_snippet(span)
-        .unwrap_or_else(|_| String::new());
-
+    let snippet = source_map.span_to_snippet(span).unwrap_or_else(|_| String::new());
     payload = payload
         .with_metadata("def_path", def_path.clone())
         .with_metadata("def_path_hash", format!("{def_path_hash:?}"))
@@ -50,17 +50,11 @@ pub(super) fn apply_common_metadata<'tcx>(
         .with_metadata("module", module.clone())
         .with_metadata(
             "module_id",
-            if module.is_empty() {
-                "mod:root".into()
-            } else {
-                format!("mod:{module}")
-            },
+            if module.is_empty() { "mod:root".into() } else { format!("mod:{module}") },
         );
-
     if let Some(relative) = relative_path {
         payload = payload.with_metadata("source_file_relative", relative);
     }
-
     payload = payload
         .with_metadata("crate", format!("crate:{}", tcx.crate_name(def_id.krate)))
         .with_metadata("node_kind", classify_node_kind(def_kind))
@@ -76,7 +70,6 @@ pub(super) fn apply_common_metadata<'tcx>(
         .with_metadata("visibility", format!("{:?}", tcx.visibility(def_id)))
         .with_metadata("crate_type", frontend.crate_type.clone())
         .with_metadata("target_triple", frontend.target_triple.clone());
-
     if let Some(ident_span) = tcx.def_ident_span(def_id) {
         let ident_lo = source_map.lookup_char_pos(ident_span.lo());
         let ident_hi = source_map.lookup_char_pos(ident_span.hi());
@@ -86,24 +79,24 @@ pub(super) fn apply_common_metadata<'tcx>(
             .with_metadata("ident_end_line", ident_hi.line.to_string())
             .with_metadata("ident_end_column", ident_hi.col.0.to_string());
     }
-
     if let Some(hash) = file_stats.hash {
         payload = payload.with_metadata("source_file_hash", hash);
     }
-
     if let Some(parent_id) = parent {
         payload = payload.with_metadata("parent", format!("{parent_id:?}"));
-        payload = payload.with_metadata("parent_kind", classify_node_kind(tcx.def_kind(parent_id)));
-        payload = payload.with_metadata(
-            "parent_def_path_hash",
-            format!("{:?}", tcx.def_path_hash(parent_id)),
-        );
-        payload = payload.with_metadata(
-            "container_kind",
-            classify_node_kind(tcx.def_kind(parent_id)),
-        );
+        payload = payload
+            .with_metadata("parent_kind", classify_node_kind(tcx.def_kind(parent_id)));
+        payload = payload
+            .with_metadata(
+                "parent_def_path_hash",
+                format!("{:?}", tcx.def_path_hash(parent_id)),
+            );
+        payload = payload
+            .with_metadata(
+                "container_kind",
+                classify_node_kind(tcx.def_kind(parent_id)),
+            );
     }
-
     payload = payload.with_metadata("crate_edition", frontend.edition.clone());
     if let Some(target_name) = &frontend.target_name {
         payload = payload.with_metadata("crate_target_name", target_name.clone());
@@ -130,7 +123,6 @@ pub(super) fn apply_common_metadata<'tcx>(
             payload = payload.with_metadata("crate_cfg", json);
         }
     }
-
     if let Some(attr_data) = capture_attributes(tcx, def_id) {
         payload = payload.with_metadata("attributes", attr_data.raw);
         payload = apply_attribute_flags(payload, attr_data.flags);
@@ -140,7 +132,6 @@ pub(super) fn apply_common_metadata<'tcx>(
     }
     payload
 }
-
 fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData> {
     let local = def_id.as_local()?;
     let hir_id = tcx.local_def_id_to_hir_id(local);
@@ -148,14 +139,12 @@ fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData> {
     if attrs.is_empty() {
         return None;
     }
-
     #[derive(Serialize)]
     struct AttributeCapture {
         path: Vec<String>,
         doc: Option<String>,
         args: Option<String>,
     }
-
     let mut flags = AttributeFlags::default();
     let mut doc_lines = Vec::new();
     let captures: Vec<AttributeCapture> = attrs
@@ -172,20 +161,14 @@ fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData> {
             }
         })
         .collect();
-
     if !doc_lines.is_empty() {
         flags.doc = Some(doc_lines.join("\n"));
     }
-
-    serde_json::to_string(&captures)
-        .ok()
-        .map(|raw| AttributeData { raw, flags })
+    serde_json::to_string(&captures).ok().map(|raw| AttributeData { raw, flags })
 }
-
 fn attribute_path(attr: &HirAttribute) -> Vec<String> {
     attr.path().into_iter().map(|sym| sym.to_string()).collect()
 }
-
 fn attribute_args(attr: &HirAttribute) -> Option<String> {
     if let Some(items) = attr.meta_item_list() {
         let rendered: Vec<String> = items
@@ -198,10 +181,8 @@ fn attribute_args(attr: &HirAttribute) -> Option<String> {
     }
     attr.value_str().map(|value| value.to_string())
 }
-
 fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
     let generics = tcx.generics_of(def_id);
-
     let params: Vec<GenericParamCapture> = generics
         .own_params
         .iter()
@@ -212,13 +193,10 @@ fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
             has_default: param_has_default(&param.kind),
         })
         .collect();
-
     let predicates = serialize_predicates(tcx, def_id).unwrap_or_default();
-
     if params.is_empty() && predicates.is_empty() && generics.parent.is_none() {
         return None;
     }
-
     let capture = GenericsCapture {
         params,
         parent: generics.parent.map(|parent| tcx.def_path_str(parent)),
@@ -226,22 +204,15 @@ fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
     };
     serde_json::to_string(&capture).ok()
 }
-
 fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>> {
     let predicates = tcx.predicates_of(def_id).instantiate_identity(tcx);
     if predicates.predicates.is_empty() {
         return None;
     }
-
     Some(
-        predicates
-            .predicates
-            .iter()
-            .map(|predicate| format!("{predicate:?}"))
-            .collect(),
+        predicates.predicates.iter().map(|predicate| format!("{predicate:?}")).collect(),
     )
 }
-
 fn format_param_kind(kind: &GenericParamDefKind) -> String {
     match kind {
         GenericParamDefKind::Lifetime => "lifetime".into(),
@@ -249,7 +220,6 @@ fn format_param_kind(kind: &GenericParamDefKind) -> String {
         GenericParamDefKind::Const { .. } => "const".into(),
     }
 }
-
 fn param_has_default(kind: &GenericParamDefKind) -> bool {
     match kind {
         GenericParamDefKind::Lifetime => false,
@@ -257,14 +227,12 @@ fn param_has_default(kind: &GenericParamDefKind) -> bool {
         GenericParamDefKind::Const { has_default, .. } => *has_default,
     }
 }
-
 #[derive(Serialize)]
 struct GenericsCapture {
     params: Vec<GenericParamCapture>,
     parent: Option<String>,
     predicates: Vec<String>,
 }
-
 #[derive(Serialize)]
 struct GenericParamCapture {
     index: u32,
@@ -272,12 +240,10 @@ struct GenericParamCapture {
     kind: String,
     has_default: bool,
 }
-
 struct AttributeData {
     raw: String,
     flags: AttributeFlags,
 }
-
 #[derive(Default)]
 struct AttributeFlags {
     inline: Option<bool>,
@@ -291,7 +257,6 @@ struct AttributeFlags {
     derives: Vec<String>,
     doc: Option<String>,
 }
-
 impl AttributeFlags {
     fn apply(&mut self, attr: &HirAttribute) {
         if attr.has_name(sym::inline) {
@@ -345,8 +310,10 @@ impl AttributeFlags {
         }
     }
 }
-
-fn apply_attribute_flags(mut payload: NodePayload, flags: AttributeFlags) -> NodePayload {
+fn apply_attribute_flags(
+    mut payload: NodePayload,
+    flags: AttributeFlags,
+) -> NodePayload {
     if let Some(inline) = flags.inline {
         payload = payload.with_metadata("inline", inline.to_string());
     }
@@ -383,13 +350,11 @@ fn apply_attribute_flags(mut payload: NodePayload, flags: AttributeFlags) -> Nod
     }
     payload
 }
-
 struct FileStats {
     hash: Option<String>,
     line_count: usize,
     byte_len: usize,
 }
-
 fn source_file_stats(file: &SourceFile) -> FileStats {
     let hash_value = if let Some(src) = &file.src {
         let digest = hash(src.as_bytes());
@@ -409,7 +374,6 @@ fn source_file_stats(file: &SourceFile) -> FileStats {
         byte_len,
     }
 }
-
 fn resolve_absolute_path(filename: &FileName) -> String {
     if let Some(path) = filename.clone().into_local_path() {
         path.display().to_string()
@@ -417,16 +381,12 @@ fn resolve_absolute_path(filename: &FileName) -> String {
         filename.prefer_local_unconditionally().to_string()
     }
 }
-
 fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String> {
     let root = workspace_root?;
     let abs = Path::new(path);
     let root_path = Path::new(root);
-    abs.strip_prefix(root_path)
-        .ok()
-        .map(|p| p.to_string_lossy().to_string())
+    abs.strip_prefix(root_path).ok().map(|p| p.to_string_lossy().to_string())
 }
-
 fn classify_node_kind(def_kind: DefKind) -> String {
     let kind = match def_kind {
         DefKind::Mod => "module",
@@ -446,24 +406,19 @@ fn classify_node_kind(def_kind: DefKind) -> String {
     };
     kind.into()
 }
-
 fn module_path(def_path: &str) -> String {
     def_path.rsplitn(2, "::").nth(1).unwrap_or("").to_string()
 }
-
 fn format_display(module: &str, name: &str) -> String {
-    if module.is_empty() {
-        name.to_string()
-    } else {
-        format!("{module}::{name}")
-    }
+    if module.is_empty() { name.to_string() } else { format!("{module}::{name}") }
 }
-
 fn classify_symbol_kind(def_kind: DefKind) -> String {
     let kind = match def_kind {
         DefKind::Mod => "module",
         DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait => "type",
-        DefKind::Fn | DefKind::AssocFn | DefKind::AssocConst | DefKind::Variant => "value",
+        DefKind::Fn | DefKind::AssocFn | DefKind::AssocConst | DefKind::Variant => {
+            "value"
+        }
         DefKind::Const | DefKind::Static { .. } | DefKind::AnonConst => "value",
         DefKind::TyAlias => "type",
         _ => "value",

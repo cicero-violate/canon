@@ -1,5 +1,4 @@
 #![cfg(feature = "rustc_frontend")]
-
 /// Frontend metadata propagated to captured nodes.
 #[derive(Clone)]
 pub(super) struct FrontendMetadata {

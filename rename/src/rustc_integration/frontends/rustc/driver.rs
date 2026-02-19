@@ -238,7 +238,7 @@ fn build_snapshot_from_tcx<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata)
     let mut builder = KernelGraphBuilder::new();
     let mut cache: HashMap<DefId, NodeId> = HashMap::new();
 
-    crate_meta::capture_crate_metadata(&mut builder, tcx, metadata);
+    crate_metadata_capture::capture_crate_metadata(&mut builder, tcx, metadata);
 
     let crate_items = tcx.hir_crate_items(());
     for local_def_id in crate_items.definitions() {

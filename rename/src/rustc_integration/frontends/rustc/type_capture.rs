@@ -1,15 +1,13 @@
 #![cfg(feature = "rustc_frontend")]
-
-use super::context::FrontendMetadata;
-use super::items::capture_adt;
-use super::traits::capture_trait;
+use super::frontend_context::FrontendMetadata;
+use super::item_capture::capture_adt;
+use super::trait_capture::capture_trait;
 use crate::state::builder::KernelGraphBuilder;
 use crate::state::ids::NodeId;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_middle::ty::{self, TyCtxt, TyKind};
 use std::collections::{HashMap, HashSet};
-
 pub(super) fn capture_function_types<'tcx>(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
@@ -19,11 +17,9 @@ pub(super) fn capture_function_types<'tcx>(
 ) {
     let body = tcx.optimized_mir(local_def);
     let mut seen: HashSet<DefId> = HashSet::new();
-
     for local_decl in &body.local_decls {
         collect_type_dependencies(tcx, local_decl.ty, &mut seen);
     }
-
     let def_id = local_def.to_def_id();
     if matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) {
         let sig = tcx.fn_sig(def_id).skip_binder();
@@ -32,7 +28,6 @@ pub(super) fn capture_function_types<'tcx>(
         }
         collect_type_dependencies(tcx, sig.output().skip_binder(), &mut seen);
     }
-
     for ty_def in seen {
         match tcx.def_kind(ty_def) {
             DefKind::Struct | DefKind::Enum | DefKind::Union => {
@@ -45,40 +40,35 @@ pub(super) fn capture_function_types<'tcx>(
         }
     }
 }
-
 fn collect_type_dependencies<'tcx>(
     tcx: TyCtxt<'tcx>,
     ty: ty::Ty<'tcx>,
     seen: &mut HashSet<DefId>,
 ) {
     use std::cell::RefCell;
-
     thread_local! {
-        static VISITED_TYS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
+        static VISITED_TYS : RefCell < HashSet < usize >> = RefCell::new(HashSet::new());
     }
-
     let ty_ptr = &ty as *const _ as usize;
-    let already_seen = VISITED_TYS.with(|v| {
-        let mut v = v.borrow_mut();
-        if v.contains(&ty_ptr) {
-            true
-        } else {
-            v.insert(ty_ptr);
-            false
-        }
-    });
-
+    let already_seen = VISITED_TYS
+        .with(|v| {
+            let mut v = v.borrow_mut();
+            if v.contains(&ty_ptr) {
+                true
+            } else {
+                v.insert(ty_ptr);
+                false
+            }
+        });
     if already_seen {
         return;
     }
-
     match ty.kind() {
         TyKind::Adt(adt_def, _) => {
             seen.insert(adt_def.did());
         }
         TyKind::Dynamic(bounds, _) => {
             use rustc_middle::ty::ExistentialPredicate;
-
             for pred in bounds.iter() {
                 if let ExistentialPredicate::Trait(trait_ref) = pred.skip_binder() {
                     seen.insert(trait_ref.def_id);

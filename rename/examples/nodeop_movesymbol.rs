@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("dry-run: skipping commit()");
     } else {
         let written = editor.commit()?;
-        println!("written: {:?}");
+        println!("written: {:?}", written);
     }
 
     Ok(())
