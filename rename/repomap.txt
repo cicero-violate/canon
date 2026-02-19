@@ -1,13 +1,345 @@
+rustc_integration/frontends/rustc/context.rs:
+  struct FrontendMetadata  { edition, rust_version, crate_type, target_triple, target_name, workspace_root, package_name, package_version, package_features, cfg_flags }  (line 5)
+
+rustc_integration/frontends/rustc/types.rs:
+  fn capture_function_types(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    local_def: LocalDefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+)  (line 13)
+  fn collect_type_dependencies(
+    tcx: TyCtxt<'tcx>,
+    ty: ty::Ty<'tcx>,
+    seen: &mut HashSet<DefId>,
+)  (line 49)
+
+rustc_integration/frontends/rustc/hir_bodies.rs:
+  fn encode_hir_body_json(
+    tcx: TyCtxt<'tcx>,
+    def_id: LocalDefId,
+) -> Option<String>  (line 10)
+
+rustc_integration/frontends/rustc/mod.rs:
+  enum RustcFrontendError  { Unavailable, Io, Sysroot, MissingSnapshot }  (line 29)
+  impl std::fmt::Display for RustcFrontendError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 43)
+  impl std::error::Error for RustcFrontendError  (line 57)
+  impl From<std::io::Error> for RustcFrontendError  { fn from(err: std::io::Error) -> Self }  (line 60)
+
+rustc_integration/frontends/rustc/collector.rs:
+  struct RustcFrontend  { edition, crate_type, rust_version, target_name, workspace_root, package_name, package_version, package_features, cfg_flags }  (line 27)
+  impl Default for RustcFrontend  { fn default() -> Self }  (line 39)
+  impl RustcFrontend  { fn new() -> Self, fn with_crate_type(mut self, crate_type: impl Into<String>) -> Self, fn with_edition(mut self, edition: impl Into<String>) -> Self, fn with_rust_version(mut self, rust_version: impl Into<String>) -> Self, fn with_target_name(mut self, target_name: impl Into<String>) -> Self, fn with_workspace_root(mut self, root: impl Into<PathBuf>) -> Self, fn with_package_info(
+        mut self,
+        name: impl Into<String>,
+        version: impl Into<String>,
+    ) -> Self, fn with_package_features(mut self, features: I) -> Self, fn with_cfg_flags(mut self, cfgs: I) -> Self, fn capture_snapshot(
+        &self,
+        entry: P,
+        extra_args: &[String],
+        env_vars: &[(String, String)],
+    ) -> Result<GraphSnapshot, RustcFrontendError> }  (line 55)
+  struct SnapshotCallbacks  { snapshot, metadata }  (line 194)
+  impl SnapshotCallbacks  { fn new(metadata: FrontendMetadata) -> Self, fn into_snapshot(self) -> Option<GraphSnapshot> }  (line 199)
+  impl Callbacks for SnapshotCallbacks  { fn after_analysis(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation }  (line 212)
+  fn parse_cfg_flags(extra_args: &[String]) -> Vec<String>  (line 219)
+  fn build_snapshot_from_tcx(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> GraphSnapshot  (line 237)
+  fn is_supported_def(kind: DefKind) -> bool  (line 289)
+  fn resolve_sysroot() -> Result<PathBuf, std::io::Error>  (line 293)
+
+rustc_integration/frontends/rustc/items.rs:
+  fn capture_adt(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+) -> NodeId  (line 13)
+  fn capture_type_alias(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+) -> NodeId  (line 58)
+  fn capture_const_static(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+) -> NodeId  (line 91)
+  fn serialize_struct_fields(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String>  (line 124)
+  fn serialize_enum_variants(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String>  (line 157)
+  fn classify_adt_kind(adt_def: ty::AdtDef<'_>) -> String  (line 204)
+
+rustc_integration/frontends/rustc/traits.rs:
+  fn capture_trait(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+) -> NodeId  (line 14)
+  fn capture_impl(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+    of_trait_hint: bool,
+) -> NodeId  (line 52)
+  fn serialize_associated_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 108)
+  fn serialize_impl_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 136)
+
+rustc_integration/frontends/rustc/nodes.rs:
+  fn ensure_node(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+) -> NodeId  (line 15)
+  fn serialize_locals(tcx: TyCtxt<'tcx>, local_def: LocalDefId) -> Option<String>  (line 84)
+  fn serialize_fn_signature(tcx: TyCtxt<'tcx>, def_id: DefId) -> Option<String>  (line 112)
+
+rustc_integration/frontends/rustc/mir.rs:
+  fn capture_function(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    local_def: LocalDefId,
+    function_node: NodeId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+)  (line 17)
+  fn collect_calls(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    body: &mir::Body<'tcx>,
+    caller_node: NodeId,
+    local_def: LocalDefId,
+    cache: &mut HashMap<DefId, NodeId>,
+    metadata: &FrontendMetadata,
+)  (line 97)
+  fn call_span(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span  (line 138)
+  fn serialize_statements(bb_data: &mir::BasicBlockData<'tcx>) -> Option<String>  (line 143)
+  fn serialize_cfg_graph(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 163)
+  fn serialize_dfg(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 228)
+  fn serialize_mir_dump(body: &mir::Body<'tcx>) -> Option<String>  (line 260)
+  fn compute_metrics(
+    tcx: TyCtxt<'tcx>,
+    local_def: LocalDefId,
+    body: &mir::Body<'tcx>,
+) -> Option<String>  (line 264)
+  fn compute_effects(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 316)
+
+rustc_integration/frontends/rustc/metadata.rs:
+  fn apply_common_metadata(
+    mut payload: NodePayload,
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    frontend: &FrontendMetadata,
+) -> NodePayload  (line 16)
+  fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 144)
+  fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 185)
+  fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 189)
+  fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 202)
+  fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 230)
+  fn format_param_kind(kind: &GenericParamDefKind) -> String  (line 245)
+  fn param_has_default(kind: &GenericParamDefKind) -> bool  (line 253)
+  struct GenericsCapture  { params, parent, predicates }  (line 262)
+  struct GenericParamCapture  { index, name, kind, has_default }  (line 269)
+  struct AttributeData  { raw, flags }  (line 276)
+  struct AttributeFlags  { inline, inline_hint, test, bench, no_mangle, doc_hidden, thread_local, reprs, derives, doc }  (line 282)
+  impl AttributeFlags  { fn apply(&mut self, attr: &HirAttribute) }  (line 295)
+  fn apply_attribute_flags(mut payload: NodePayload, flags: AttributeFlags) -> NodePayload  (line 349)
+  struct FileStats  { hash, line_count, byte_len }  (line 387)
+  fn source_file_stats(file: &SourceFile) -> FileStats  (line 393)
+  fn resolve_absolute_path(filename: &FileName) -> String  (line 413)
+  fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 421)
+  fn classify_node_kind(def_kind: DefKind) -> String  (line 430)
+  fn module_path(def_path: &str) -> String  (line 450)
+  fn format_display(module: &str, name: &str) -> String  (line 454)
+  fn classify_symbol_kind(def_kind: DefKind) -> String  (line 462)
+
+rustc_integration/frontends/rustc/crate_meta.rs:
+  fn capture_crate_metadata(
+    builder: &mut KernelGraphBuilder,
+    tcx: TyCtxt<'tcx>,
+    metadata: &FrontendMetadata,
+)  (line 12)
+  fn serialize_dependencies(tcx: TyCtxt<'_>) -> String  (line 58)
+
+rustc_integration/frontends/rustc/stub.rs:
+  struct RustcFrontend  (line 6)
+  impl RustcFrontend  { fn new() -> Self, fn with_crate_type(self, _crate_type: impl Into<String>) -> Self, fn with_edition(self, _edition: impl Into<String>) -> Self, fn with_rust_version(self, _rust_version: impl Into<String>) -> Self, fn with_target_name(self, _target_name: impl Into<String>) -> Self, fn with_workspace_root(self, _root: impl Into<std::path::PathBuf>) -> Self, fn with_package_info(self, _name: impl Into<String>, _version: impl Into<String>) -> Self, fn with_package_features(self, _features: I) -> Self, fn with_cfg_flags(self, _flags: I) -> Self, fn capture_snapshot(
+        &self,
+        _entry: P,
+        _args: &[String],
+        _env_vars: &[(String, String)],
+    ) -> Result<GraphSnapshot, RustcFrontendError> }  (line 8)
+
+rustc_integration/kernel_root.rs:
+  fn kernel_root(project_root: &PathBuf) -> PathBuf  (line 7)
+  fn get_project_root() -> PathBuf  (line 14)
+
+rustc_integration/mod.rs:
+  trait FrontendExtractor  (line 29)
+  struct ExtractionResult  { crate_name, items, errors, warnings, stats, graph }  (line 47)
+  impl ExtractionResult  { fn empty(crate_name: impl Into<String>) -> Self }  (line 62)
+  struct ExtractionStats  { functions_captured, types_captured, traits_captured, impls_captured, modules_captured, total_items, duration_ms }  (line 78)
+  enum CapturedItem  { Function, Struct, Enum, Trait, Impl, Module, TypeAlias, Const, Static }  (line 97)
+  struct FunctionCapture  { name, path, signature, metadata }  (line 120)
+  struct StructCapture  { name, path, fields, metadata }  (line 133)
+  struct EnumCapture  { name, path, variants, metadata }  (line 146)
+  struct TraitCapture  { name, path, methods, supertraits, metadata }  (line 159)
+  struct ImplCapture  { name, path, target, trait_ref, metadata }  (line 174)
+  struct ModuleCapture  { name, path, children, metadata }  (line 189)
+  struct TypeAliasCapture  { name, path, aliased_type, metadata }  (line 202)
+  struct ConstCapture  { name, path, value_repr, metadata }  (line 215)
+  struct StaticCapture  { name, path, value_repr, mutable, metadata }  (line 228)
+  struct ExtractionError  { code, message, location }  (line 244)
+  impl ExtractionError  { fn new(code: impl Into<String>, message: impl Into<String>) -> Self }  (line 253)
+  struct SourceLocation  { file, line, column }  (line 267)
+
+rustc_integration/multi_capture.rs:
+  struct CaptureArtifacts  { snapshot, workspace, graph_deltas }  (line 12)
+  enum CaptureError  { Generic, Io, Frontend }  (line 20)
+  impl std::fmt::Display for CaptureError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 29)
+  impl std::error::Error for CaptureError  (line 39)
+  impl From<std::io::Error> for CaptureError  { fn from(err: std::io::Error) -> Self }  (line 41)
+  impl From<RustcFrontendError> for CaptureError  { fn from(err: RustcFrontendError) -> Self }  (line 47)
+  fn capture_project(
+    frontend: &RustcFrontend,
+    project: &CargoProject,
+    extra_args: &[String],
+) -> Result<CaptureArtifacts, CaptureError>  (line 54)
+  fn find_out_dir(project: &CargoProject) -> Option<std::path::PathBuf>  (line 166)
+
+rustc_integration/capture/validation.rs:
+  fn validate(result: &ExtractionResult) -> bool  (line 6)
+
+rustc_integration/capture/coordinator.rs:
+  struct CaptureCoordinator  { dedup, session }  (line 11)
+  impl CaptureCoordinator  { fn new() -> Self, fn capture_workspace(
+        &mut self,
+        workspace_root: &Path,
+        frontend: &mut F,
+    ) -> Result<Vec<ExtractionResult>, Box<dyn Error>>, fn discover_crates(&self, workspace_root: &Path) -> Result<Vec<PathBuf>, std::io::Error> }  (line 16)
+
+rustc_integration/capture/dedup.rs:
+  struct Deduplicator  (line 7)
+  impl Deduplicator  { fn new() -> Self, fn deduplicate(&mut self, mut result: ExtractionResult) -> ExtractionResult }  (line 9)
+  fn collapse_duplicates(items: Vec<CapturedItem>) -> Vec<CapturedItem>  (line 22)
+
+rustc_integration/capture/session.rs:
+  struct CaptureSession  { runs, crates }  (line 7)
+  impl CaptureSession  { fn record(&mut self, result: &ExtractionResult) }  (line 14)
+
+rustc_integration/transform/resolver.rs:
+  struct Resolver  (line 5)
+  impl Resolver  { fn new() -> Self, fn resolve(&mut self) }  (line 7)
+
+rustc_integration/transform/linker.rs:
+  struct Linker  (line 5)
+  impl Linker  { fn new() -> Self, fn link(&mut self) }  (line 7)
+
+rustc_integration/transform/normalizer.rs:
+  struct GraphNormalizer  (line 14)
+  impl GraphNormalizer  { fn new() -> Self, fn normalize(&mut self, items: &[CapturedItem]) -> GraphSnapshot, fn emit_deltas(&self, item: &CapturedItem) -> Vec<GraphDelta> }  (line 16)
+  fn make_node_record(
+    path: &str,
+    label: &str,
+    kind: &str,
+    metadata: std::collections::HashMap<String, String>,
+    signature: Option<String>,
+) -> NodeRecord  (line 134)
+  fn parent_key(path: &str) -> Option<String>  (line 158)
+
+rustc_integration/project.rs:
+  struct CargoProject  { root, target_dir, oracle }  (line 15)
+  impl CargoProject  { fn from_entry(entry: &Path) -> io::Result<Self>, fn with_snapshot(mut self, snapshot: GraphSnapshot) -> Self, fn build_dependencies(&self) -> io::Result<()>, fn extern_args(&self, profile: &str) -> io::Result<Vec<String>>, fn metadata(&self) -> io::Result<ProjectMetadata>, fn targets(&self) -> io::Result<Vec<CargoTarget>>, fn workspace_root(&self) -> &Path }  (line 21)
+  fn find_cargo_root(start: &Path) -> io::Result<PathBuf>  (line 161)
+  fn fetch_target_dir(root: &Path) -> io::Result<PathBuf>  (line 175)
+  fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata>  (line 180)
+  enum ArtifactKind  { ProcMacro, Rlib, Rmeta }  (line 199)
+  struct Artifact  { path, kind }  (line 206)
+  fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)>  (line 211)
+  fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf>  (line 227)
+  struct CargoMetadata  { target_directory, workspace_root, packages }  (line 250)
+  struct CargoPackage  { name, version, edition, rust_version, features, targets, manifest_path }  (line 258)
+  struct CargoTarget  { name, kind, src_path }  (line 277)
+  struct ProjectMetadata  { workspace_root, target_directory, packages, edition, rust_version }  (line 288)
+  struct OracleData  { adjacency, macro_generated, crate_by_key, signature_by_key }  (line 302)
+  impl OracleData  { fn from_snapshot(snapshot: GraphSnapshot) -> Self }  (line 309)
+  fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool  (line 354)
+  impl StructuralEditOracle for CargoProject  { fn impact_of(&self, symbol_id: &str) -> Vec<String>, fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool, fn is_macro_generated(&self, symbol_id: &str) -> bool, fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> }  (line 363)
+
+rustc_integration/linux/mod.rs:
+  fn capture_linux_state(facts: &[LinuxFact]) -> GraphSnapshot  (line 9)
+  fn fact_to_node(fact: &LinuxFact) -> (String, String, BTreeMap<String, String>)  (line 24)
+
+state/ids.rs:
+  struct NodeId  (line 5)
+  impl NodeId  { fn from_bytes(bytes: [u8; 16]) -> Self, fn from_key(key: &str) -> Self }  (line 7)
+  struct EdgeId  (line 24)
+  impl EdgeId  { fn from_components(from: &NodeId, to: &NodeId, kind: &str) -> Self }  (line 26)
+
+state/capability/shell.rs:
+  enum LinuxFact  { Exists, File, Dir, ProcessRunning, BinaryInstalled }  (line 4)
+  fn probe_fact(fact: &LinuxFact) -> bool  (line 12)
+  fn binary_on_path(name: &str) -> bool  (line 25)
+  fn exists_executable(path: &Path) -> bool  (line 39)
+
+state/workspace.rs:
+  struct GraphWorkspace  { hash }  (line 2)
+  impl GraphWorkspace  { fn hash(&self) -> u64 }  (line 6)
+  struct WorkspaceBuilder  { hash }  (line 13)
+  impl WorkspaceBuilder  { fn new(hash: u64) -> Self, fn finalize(self) -> GraphWorkspace }  (line 17)
+
+state/node.rs:
+  struct NodeHandle  { file, item_index, nested_path, kind }  (line 6)
+  enum NodeKind  { Fn, Struct, Enum, Trait, Impl, ImplFn, Use, Mod, Type, Const }  (line 19)
+  struct NodeRegistry  { handles, asts }  (line 34)
+  impl NodeRegistry  { fn new() -> Self, fn insert_handle(&mut self, symbol_id: impl Into<String>, handle: NodeHandle), fn insert_ast(&mut self, file: impl Into<PathBuf>, ast: syn::File) }  (line 41)
+
+state/graph.rs:
+  enum EdgeKind  { Contains, Call, ControlFlow, Reference }  (line 8)
+  impl EdgeKind  { fn as_str(&self) -> &'static str }  (line 15)
+  struct NodeRecord  { id, key, label, metadata }  (line 27)
+  struct EdgeRecord  { id, from, to, kind, metadata }  (line 35)
+  enum GraphDelta  { AddNode, AddEdge }  (line 44)
+  enum GraphDeltaError  { NodeExists, EdgeExists, NodeMissing }  (line 50)
+  impl std::fmt::Display for GraphDeltaError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 56)
+  impl std::error::Error for GraphDeltaError  (line 66)
+  struct GraphSnapshot  { nodes, edges, hash }  (line 69)
+  impl GraphSnapshot  { fn new(nodes: Vec<NodeRecord>, edges: Vec<EdgeRecord>) -> Self, fn nodes(&self) -> &[NodeRecord], fn edges(&self) -> &[EdgeRecord], fn hash(&self) -> u64 }  (line 75)
+  struct GraphMaterializer  { nodes, edges }  (line 102)
+  impl GraphMaterializer  { fn new() -> Self, fn apply(&mut self, delta: GraphDelta) -> Result<(), GraphDeltaError>, fn snapshot(&self) -> GraphSnapshot }  (line 107)
+
+state/builder.rs:
+  struct NodePayload  { key, label, metadata }  (line 8)
+  impl NodePayload  { fn new(key: impl Into<String>, label: impl Into<String>) -> Self, fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self }  (line 14)
+  struct EdgePayload  { from, to, kind, metadata }  (line 30)
+  impl EdgePayload  { fn new(from: NodeId, to: NodeId, kind: EdgeKind) -> Self, fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self }  (line 37)
+  struct KernelGraphBuilder  { materializer }  (line 54)
+  impl KernelGraphBuilder  { fn new() -> Self, fn add_node(&mut self, payload: NodePayload) -> Result<NodeId, GraphDeltaError>, fn add_edge(&mut self, payload: EdgePayload) -> Result<EdgeId, GraphDeltaError>, fn merge_node_metadata(
+        &mut self,
+        node_id: NodeId,
+        updates: I,
+    ) -> Result<(), GraphDeltaError>, fn snapshot(&self) -> super::graph::GraphSnapshot, fn finalize(&self) -> super::graph::GraphSnapshot }  (line 58)
+
 fs.rs:
   struct DiscoveredFiles  { rust_files, auxiliary_files }  (line 9)
   struct AuxiliaryFile  { path, kind }  (line 15)
   enum AuxiliaryKind  { CargoToml, BuildScript }  (line 21)
   fn collect_rs_files(root: &Path) -> Result<Vec<PathBuf>>  (line 27)
   fn discover_all_files(root: &Path) -> Result<DiscoveredFiles>  (line 33)
-  fn discover_include_targets(files: &[PathBuf]) -> Result<Vec<PathBuf>>  (line 99)
-  struct IncludeVisitor  { base_path, targets }  (line 123)
-  impl Visit<'ast> for IncludeVisitor<'_>  { fn visit_macro(&mut self, mac: &'ast syn::Macro), fn visit_expr_macro(&mut self, expr: &'ast syn::ExprMacro) }  (line 128)
-  fn is_ignored_dir(path: &Path) -> bool  (line 154)
+  fn discover_include_targets(files: &[PathBuf]) -> Result<Vec<PathBuf>>  (line 90)
+  struct IncludeVisitor  { base_path, targets }  (line 114)
+  impl Visit<'ast> for IncludeVisitor<'_>  { fn visit_macro(&mut self, mac: &'ast syn::Macro), fn visit_expr_macro(&mut self, expr: &'ast syn::ExprMacro) }  (line 119)
+  fn is_ignored_dir(path: &Path) -> bool  (line 145)
 
 rename/scope.rs:
   struct ScopeFrame  { bindings, parent }  (line 7)
@@ -56,6 +388,16 @@ rename/structured/doc_attr.rs:
   fn replace_identifier(text: &str, old: &str, new_name: &str) -> Option<String>  (line 162)
   fn is_boundary(text: &str, start: usize, end: usize) -> bool  (line 186)
   fn contains(outer: &SpanRange, inner: &SpanRange) -> bool  (line 196)
+
+rename/structured/ops.rs:
+  enum NodeOp  { ReplaceNode, InsertBefore, InsertAfter, DeleteNode, MutateField, ReorderItems }  (line 7)
+  enum FieldMutation  { RenameIdent, ChangeVisibility, AddAttribute, RemoveAttribute, ReplaceSignature, AddStructField, RemoveStructField, AddVariant, RemoveVariant }  (line 18)
+  fn node_handle(
+    file: impl Into<PathBuf>,
+    item_index: usize,
+    nested_path: Vec<usize>,
+    kind: NodeKind,
+) -> NodeHandle  (line 31)
 
 rename/structured/orchestrator.rs:
   trait StructuredPass  { fn is_enabled(&self) -> bool }  (line 9)
@@ -132,10 +474,11 @@ rename/structured/use_tree.rs:
 
 rename/structured/ast_render.rs:
   fn render_node(node: T) -> String  (line 4)
-  fn render_function(func: &syn::ItemFn) -> String  (line 12)
-  fn render_impl(item: &syn::ItemImpl) -> String  (line 16)
-  fn render_struct(item: &syn::ItemStruct) -> String  (line 20)
-  fn render_trait(item: &syn::ItemTrait) -> String  (line 24)
+  fn render_file(ast: &syn::File) -> String  (line 12)
+  fn render_function(func: &syn::ItemFn) -> String  (line 16)
+  fn render_impl(item: &syn::ItemImpl) -> String  (line 20)
+  fn render_struct(item: &syn::ItemStruct) -> String  (line 24)
+  fn render_trait(item: &syn::ItemTrait) -> String  (line 28)
 
 rename/module_path.rs:
   struct ModulePath  { segments, is_inline }  (line 8)
@@ -180,19 +523,19 @@ rename/core/rename.rs:
     mapping: &HashMap<String, String>,
     dry_run: bool,
     out_path: Option<&Path>,
-) -> Result<()>  (line 25)
-  struct SpanKey  { start_line, start_col, end_line, end_col }  (line 301)
-  impl SpanKey  { fn from_range(range: &SpanRange) -> Self, fn from_span(span: Span) -> Self }  (line 308)
-  fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool>  (line 323)
-  struct SpanRenamer  { map, changed }  (line 356)
-  impl VisitMut for SpanRenamer  { fn visit_ident_mut(&mut self, ident: &mut syn::Ident) }  (line 361)
-  fn is_valid_ident(name: &str) -> bool  (line 374)
+) -> Result<()>  (line 22)
+  struct SpanRangeKey  { start_line, start_col, end_line, end_col }  (line 256)
+  impl SpanRangeKey  { fn from_range(range: &SpanRange) -> Self, fn from_span(span: Span) -> Self }  (line 262)
+  fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool>  (line 275)
+  struct SpanRangeRenamer  { map, changed }  (line 305)
+  impl VisitMut for SpanRangeRenamer  { fn visit_ident_mut(&mut self, ident: &mut syn::Ident) }  (line 309)
+  fn is_valid_ident(name: &str) -> bool  (line 321)
   fn apply_rename(
     project: &Path,
     map_path: &Path,
     dry_run: bool,
     out_path: Option<&Path>,
-) -> Result<()>  (line 385)
+) -> Result<()>  (line 331)
 
 rename/core/types.rs:
   struct SymbolIndexReport  { version, symbols, occurrences, alias_graph, visibility_analysis }  (line 7)
@@ -276,19 +619,113 @@ rename/core/preview.rs:
     config: &StructuredEditOptions,
 ) -> Result<()>  (line 8)
 
+rename/core/project_editor/mod.rs:
+  struct EditConflict  { symbol_id, reason }  (line 19)
+  struct ChangeReport  { touched_files, conflicts }  (line 25)
+  struct ProjectEditor  { registry, changesets, oracle }  (line 30)
+  struct QueuedOp  { symbol_id, op }  (line 37)
+  impl ProjectEditor  { fn load(project: &Path, oracle: Box<dyn StructuralEditOracle>) -> Result<Self>, fn load_with_rustc(project: &Path) -> Result<Self>, fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()>, fn queue_by_id(&mut self, symbol_id: &str, mutation: FieldMutation) -> Result<()>, fn apply(&mut self) -> Result<ChangeReport>, fn validate(&self) -> Result<Vec<EditConflict>>, fn commit(&self) -> Result<Vec<PathBuf>>, fn preview(&self) -> Result<String> }  (line 42)
+  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 181)
+  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 191)
+  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 241)
+  struct ImplContext  { struct_path, trait_path }  (line 332)
+
+rename/core/project_editor/ops.rs:
+  fn apply_node_op(
+    ast: &mut syn::File,
+    handles: &HashMap<String, NodeHandle>,
+    symbol_id: &str,
+    op: &NodeOp,
+) -> Result<()>  (line 9)
+  fn apply_field_mutation(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    symbol_id: &str,
+    mutation: &FieldMutation,
+) -> Result<()>  (line 33)
+  fn rename_ident(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_name: &str) -> bool  (line 106)
+  fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<()>  (line 139)
+  fn insert_node(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    new_node: syn::Item,
+    before: bool,
+) -> Result<()>  (line 151)
+  fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<()>  (line 171)
+  fn reorder_items(
+    ast: &mut syn::File,
+    handles: &HashMap<String, NodeHandle>,
+    new_order: &[String],
+) -> Result<()>  (line 182)
+  fn change_visibility(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    symbol_id: &str,
+    new_vis: &syn::Visibility,
+) -> bool  (line 214)
+  fn add_attribute(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    symbol_id: &str,
+    attr: syn::Attribute,
+) -> bool  (line 265)
+  fn remove_attribute(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    symbol_id: &str,
+    name: &str,
+) -> bool  (line 291)
+  fn replace_signature(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    symbol_id: &str,
+    sig: syn::Signature,
+) -> bool  (line 356)
+  fn add_struct_field(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    _symbol_id: &str,
+    field: syn::Field,
+) -> bool  (line 379)
+  fn remove_struct_field(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    _symbol_id: &str,
+    name: &str,
+) -> bool  (line 403)
+  fn add_variant(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    _symbol_id: &str,
+    variant: syn::Variant,
+) -> bool  (line 431)
+  fn remove_variant(
+    ast: &mut syn::File,
+    handle: &NodeHandle,
+    _symbol_id: &str,
+    name: &str,
+) -> bool  (line 446)
+  enum TargetItemMut  { Top, ImplFn }  (line 467)
+  fn resolve_target_mut(
+    ast: &'a mut syn::File,
+    handle: &NodeHandle,
+    symbol_id: &str,
+) -> Option<TargetItemMut<'a>>  (line 472)
+  fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> bool  (line 499)
+
 rename/core/collect/mod.rs:
-  fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 20)
-  fn emit_names(project: &Path, out: &Path) -> Result<()>  (line 128)
-  fn update_symbol_snapshot(out: &mut Vec<SymbolRecord>, id: &str, mut update: F)  (line 137)
-  fn merge_symbol_metadata(target: &mut SymbolRecord, source: &SymbolRecord)  (line 146)
+  fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 21)
+  fn emit_names(project: &Path, out: &Path) -> Result<()>  (line 129)
+  fn update_symbol_snapshot(out: &mut Vec<SymbolRecord>, id: &str, mut update: F)  (line 138)
+  fn merge_symbol_metadata(target: &mut SymbolRecord, source: &SymbolRecord)  (line 147)
   fn add_file_module_symbol(
     module_path: &str,
     file: &Path,
     symbol_table: &mut SymbolIndex,
     out: &mut Vec<SymbolRecord>,
     symbol_set: &mut HashSet<String>,
-)  (line 167)
-  fn stub_range() -> SpanRange  (line 213)
+)  (line 168)
+  fn stub_range() -> SpanRange  (line 216)
   fn collect_symbols(
     ast: &syn::File,
     module_path: &str,
@@ -296,11 +733,11 @@ rename/core/collect/mod.rs:
     symbol_table: &mut SymbolIndex,
     out: &mut Vec<SymbolRecord>,
     symbol_set: &mut HashSet<String>,
-) -> AliasGraph  (line 220)
+) -> AliasGraph  (line 223)
 
 rename/core/collect/collector.rs:
-  struct SymbolCollector  { module_path, file, symbols, current_impl, alias_graph }  (line 12)
-  struct ImplContext  { struct_path, trait_path }  (line 21)
+  struct SymbolCollector  { module_path, file, symbols, current_impl, alias_graph }  (line 13)
+  struct ImplContext  { struct_path, trait_path }  (line 22)
   impl SymbolCollector<'a>  { fn new(
         module_path: &'a str,
         file: &'a Path,
@@ -326,8 +763,13 @@ rename/core/collect/collector.rs:
         docs: &[String],
         attrs: &[String],
         visibility: VisibilityScope,
-    ) }  (line 26)
-  impl Visit<'ast> for SymbolCollector<'_>  { fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_static(&mut self, i: &'ast syn::ItemStatic), fn visit_item_macro(&mut self, i: &'ast syn::ItemMacro), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 231)
+    ) }  (line 27)
+  impl Visit<'ast> for SymbolCollector<'_>  { fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_static(&mut self, i: &'ast syn::ItemStatic), fn visit_item_macro(&mut self, i: &'ast syn::ItemMacro), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 233)
+
+rename/core/symbol_id.rs:
+  fn normalize_symbol_id(raw: &str) -> String  (line 1)
+  fn normalize_symbol_id_with_crate(raw: &str, crate_name: Option<&str>) -> String  (line 5)
+  fn strip_hash_suffix(segment: &str) -> &str  (line 50)
 
 rename/core/use_map.rs:
   fn build_use_map(ast: &syn::File, module_path: &str) -> HashMap<String, String>  (line 2)
@@ -362,6 +804,11 @@ rename/core/paths.rs:
 ) -> Result<Option<String>>  (line 132)
   fn module_path_for_file(project: &Path, file: &Path) -> String  (line 203)
   fn module_child_path(module_path: &str, child: String) -> String  (line 231)
+
+rename/core/oracle.rs:
+  trait StructuralEditOracle  (line 4)
+  struct NullOracle  (line 13)
+  impl StructuralEditOracle for NullOracle  { fn impact_of(&self, _symbol_id: &str) -> Vec<String>, fn satisfies_bounds(&self, _id: &str, _new_sig: &Signature) -> bool, fn is_macro_generated(&self, _symbol_id: &str) -> bool, fn cross_crate_users(&self, _symbol_id: &str) -> Vec<String> }  (line 15)
 
 rename/occurrence.rs:
   struct EnhancedOccurrenceVisitor  { module_path, file, symbol_table, use_map, occurrences, scoped_binder, current_impl, current_struct }  (line 14)
@@ -401,13 +848,13 @@ rename/api.rs:
   struct MutationRequest  { renames, dry_run, preview_path }  (line 108)
   struct MutationResult  { renamed, dry_run, preview_path }  (line 122)
   impl MutationRequest  { fn new() -> Self, fn rename(mut self, id: impl Into<String>, new_name: impl Into<String>) -> Self, fn extend(mut self, entries: I) -> Self, fn dry_run(mut self, dry_run: bool) -> Self, fn preview_path(mut self, path: impl Into<PathBuf>) -> Self, fn execute(self, project: &Path) -> Result<MutationResult> }  (line 128)
-  struct UpsertRequest  { edits, format }  (line 182)
-  struct UpsertResult  { touched_files }  (line 193)
-  impl UpsertRequest  { fn new() -> Self, fn edit(mut self, edit: AstEdit) -> Self, fn format(mut self, enabled: bool) -> Self, fn execute(self) -> Result<UpsertResult> }  (line 197)
-  fn default_true() -> bool  (line 227)
-  fn execute_query_json(project: &Path, payload: &str) -> Result<String>  (line 232)
-  fn execute_mutation_json(project: &Path, payload: &str) -> Result<String>  (line 239)
-  fn execute_upsert_json(payload: &str) -> Result<String>  (line 246)
+  struct UpsertRequest  { edits, node_ops, format }  (line 182)
+  struct UpsertResult  { touched_files }  (line 196)
+  impl UpsertRequest  { fn new() -> Self, fn edit(mut self, edit: AstEdit) -> Self, fn node_op(mut self, op: NodeOp) -> Self, fn format(mut self, enabled: bool) -> Self, fn execute(self) -> Result<UpsertResult> }  (line 200)
+  fn default_true() -> bool  (line 240)
+  fn execute_query_json(project: &Path, payload: &str) -> Result<String>  (line 245)
+  fn execute_mutation_json(project: &Path, payload: &str) -> Result<String>  (line 252)
+  fn execute_upsert_json(payload: &str) -> Result<String>  (line 259)
 
 rename/macros.rs:
   fn extract_macro_rules_identifiers(item_macro: &ItemMacro) -> Vec<(String, Span)>  (line 8)

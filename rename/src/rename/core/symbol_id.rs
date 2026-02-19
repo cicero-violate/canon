@@ -7,13 +7,24 @@ pub fn normalize_symbol_id_with_crate(raw: &str, crate_name: Option<&str>) -> St
     if trimmed.is_empty() {
         return String::new();
     }
+    let mut s = if let Some(start) = trimmed.find(" ~ ") {
+        let tail = &trimmed[start + 3..];
+        tail.trim_end_matches(')').to_string()
+    } else {
+        trimmed.to_string()
+    };
     if trimmed == "crate" {
         return "crate".to_string();
     }
 
-    let mut s = trimmed.trim_start_matches("::").to_string();
+    s = s.trim_start_matches("::").to_string();
     if s.starts_with("self::") {
         s = format!("crate::{}", &s["self::".len()..]);
+    }
+    if s.starts_with("lib::") {
+        s = format!("crate::{}", &s["lib::".len()..]);
+    } else if s.starts_with("main::") {
+        s = format!("crate::{}", &s["main::".len()..]);
     }
 
     let parts: Vec<&str> = s.split("::").collect();

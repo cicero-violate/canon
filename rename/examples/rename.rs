@@ -1,3 +1,8 @@
+#![cfg_attr(feature = "rustc_frontend", feature(rustc_private))]
+
+#[cfg(feature = "rustc_frontend")]
+extern crate rustc_driver;
+
 use rename::apply_rename_with_map;
 use std::collections::HashMap;
 use std::path::Path;
@@ -61,6 +66,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     map.insert(
         "crate::rename::core::rename::SpanRenamer".to_string(),
         "SpanRangeRenamer".to_string(),
+    );
+
+    map.insert(
+        "crate::rustc_integration::frontends::rustc::types::capture_types_from_function"
+            .to_string(),
+        "capture_function_types".to_string(),
+    );
+
+    map.insert(
+        "crate::rustc_integration::frontends::rustc::types::collect_types_from_ty".to_string(),
+        "collect_type_dependencies".to_string(),
+    );
+
+    map.insert(
+        "crate::rustc_integration::frontends::rustc::hir_bodies::serialize_hir_body".to_string(),
+        "encode_hir_body_json".to_string(),
+    );
+
+    map.insert(
+        "crate::rustc_integration::frontends::rustc::collector::extract_cfg_flags".to_string(),
+        "parse_cfg_flags".to_string(),
+    );
+
+    map.insert(
+        "crate::rustc_integration::frontends::rustc::collector::determine_sysroot".to_string(),
+        "resolve_sysroot".to_string(),
     );
 
     // dry_run = true

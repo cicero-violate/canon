@@ -1,19 +1,21 @@
 //! Cargo project helper utilities (extern discovery, build metadata).
 
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::rename::core::StructuralEditOracle;
+use crate::rename::core::{StructuralEditOracle, normalize_symbol_id};
+use crate::state::graph::GraphSnapshot;
 
 /// Handle discovery of Cargo metadata and extern artifacts for a project.
 #[derive(Debug, Clone)]
 pub struct CargoProject {
     root: PathBuf,
     target_dir: PathBuf,
+    oracle: Option<OracleData>,
 }
 
 impl CargoProject {
@@ -30,7 +32,17 @@ impl CargoProject {
         let root = find_cargo_root(&current)?;
         let target_dir = fetch_target_dir(&root).unwrap_or_else(|_| root.join("target"));
 
-        Ok(Self { root, target_dir })
+        Ok(Self {
+            root,
+            target_dir,
+            oracle: None,
+        })
+    }
+
+    /// Attach a graph snapshot to enable oracle queries.
+    pub fn with_snapshot(mut self, snapshot: GraphSnapshot) -> Self {
+        self.oracle = Some(OracleData::from_snapshot(snapshot));
+        self
     }
 
     /// Ensures dependencies are built (debug profile).
@@ -89,7 +101,19 @@ impl CargoProject {
 
     /// Returns parsed `cargo metadata` information for the project.
     pub fn metadata(&self) -> io::Result<ProjectMetadata> {
-        let meta = load_cargo_metadata(&self.root)?;
+        let mut meta = load_cargo_metadata(&self.root)?;
+        let root_manifest = self.root.join("Cargo.toml");
+        let root_manifest = root_manifest.canonicalize().unwrap_or(root_manifest);
+        if let Some(index) = meta
+            .packages
+            .iter()
+            .position(|pkg| pkg.manifest_path.canonicalize().unwrap_or_else(|_| pkg.manifest_path.clone()) == root_manifest)
+        {
+            if index != 0 {
+                let pkg = meta.packages.remove(index);
+                meta.packages.insert(0, pkg);
+            }
+        }
         let CargoMetadata {
             target_directory,
             workspace_root,
@@ -203,14 +227,20 @@ fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)> {
 fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf> {
     artifacts
         .iter()
-        .max_by(|a, b| match (a.kind, b.kind) {
-            (ArtifactKind::ProcMacro, ArtifactKind::ProcMacro) => std::cmp::Ordering::Equal,
-            (ArtifactKind::ProcMacro, _) => std::cmp::Ordering::Greater,
-            (_, ArtifactKind::ProcMacro) => std::cmp::Ordering::Less,
-            (ArtifactKind::Rlib, ArtifactKind::Rlib) => std::cmp::Ordering::Equal,
-            (ArtifactKind::Rlib, ArtifactKind::Rmeta) => std::cmp::Ordering::Greater,
-            (ArtifactKind::Rmeta, ArtifactKind::Rlib) => std::cmp::Ordering::Less,
-            (ArtifactKind::Rmeta, ArtifactKind::Rmeta) => std::cmp::Ordering::Equal,
+        .max_by_key(|artifact| {
+            let rank = match artifact.kind {
+                ArtifactKind::ProcMacro => 2,
+                ArtifactKind::Rlib => 1,
+                ArtifactKind::Rmeta => 0,
+            };
+            let meta = std::fs::metadata(&artifact.path).ok();
+            let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+            let mtime = meta
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            (rank, size, mtime)
         })
         .map(|artifact| artifact.path.clone())
 }
@@ -238,6 +268,8 @@ pub struct CargoPackage {
     pub features: HashMap<String, Vec<String>>,
     /// Targets built by the package.
     pub targets: Vec<CargoTarget>,
+    /// Manifest path reported by cargo metadata.
+    pub manifest_path: PathBuf,
 }
 
 /// Cargo target metadata.
@@ -266,20 +298,117 @@ pub struct ProjectMetadata {
     pub rust_version: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct OracleData {
+    adjacency: HashMap<String, Vec<String>>,
+    macro_generated: HashSet<String>,
+    crate_by_key: HashMap<String, String>,
+    signature_by_key: HashMap<String, String>,
+}
+
+impl OracleData {
+    fn from_snapshot(snapshot: GraphSnapshot) -> Self {
+        let mut id_to_key = HashMap::new();
+        let mut macro_generated = HashSet::new();
+        let mut crate_by_key = HashMap::new();
+        let mut signature_by_key = HashMap::new();
+
+        for node in snapshot.nodes() {
+            let key = node.key.to_string();
+            id_to_key.insert(node.id, key.clone());
+            if is_macro_generated(&node.metadata) {
+                macro_generated.insert(key.clone());
+            }
+            if let Some(crate_name) = node
+                .metadata
+                .get("crate")
+                .or_else(|| node.metadata.get("crate_name"))
+                .or_else(|| node.metadata.get("package"))
+            {
+                crate_by_key.insert(key.clone(), crate_name.clone());
+            }
+            if let Some(signature) = node.metadata.get("signature") {
+                signature_by_key.insert(key.clone(), signature.clone());
+            }
+        }
+
+        let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
+        for edge in snapshot.edges() {
+            let from = id_to_key.get(&edge.from).cloned();
+            let to = id_to_key.get(&edge.to).cloned();
+            if let (Some(from), Some(to)) = (from, to) {
+                adjacency.entry(from.clone()).or_default().push(to.clone());
+                adjacency.entry(to).or_default().push(from);
+            }
+        }
+
+        Self {
+            adjacency,
+            macro_generated,
+            crate_by_key,
+            signature_by_key,
+        }
+    }
+}
+
+fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool {
+    let value = metadata
+        .get("macro_generated")
+        .or_else(|| metadata.get("generated_by_macro"))
+        .or_else(|| metadata.get("macro"))
+        .or_else(|| metadata.get("is_macro"));
+    matches!(value.map(|v| v.as_str()), Some("true") | Some("1") | Some("yes"))
+}
+
 impl StructuralEditOracle for CargoProject {
-    fn impact_of(&self, _symbol_id: &str) -> Vec<String> {
+    fn impact_of(&self, symbol_id: &str) -> Vec<String> {
+        let symbol_id = normalize_symbol_id(symbol_id);
+        if let Some(oracle) = &self.oracle {
+            if let Some(edges) = oracle.adjacency.get(&symbol_id) {
+                return edges.clone();
+            }
+        }
         Vec::new()
     }
 
-    fn satisfies_bounds(&self, _id: &str, _new_sig: &syn::Signature) -> bool {
+    fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool {
+        let id = normalize_symbol_id(id);
+        if let Some(oracle) = &self.oracle {
+            if let Some(sig) = oracle.signature_by_key.get(&id) {
+                let new_sig = quote::quote!(#new_sig).to_string();
+                return sig == &new_sig;
+            }
+        }
         true
     }
 
-    fn is_macro_generated(&self, _symbol_id: &str) -> bool {
+    fn is_macro_generated(&self, symbol_id: &str) -> bool {
+        let symbol_id = normalize_symbol_id(symbol_id);
+        if let Some(oracle) = &self.oracle {
+            return oracle.macro_generated.contains(&symbol_id);
+        }
         false
     }
 
-    fn cross_crate_users(&self, _symbol_id: &str) -> Vec<String> {
-        Vec::new()
+    fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> {
+        let symbol_id = normalize_symbol_id(symbol_id);
+        let Some(oracle) = &self.oracle else { return Vec::new() };
+        let Some(symbol_crate) = oracle.crate_by_key.get(&symbol_id) else {
+            return Vec::new();
+        };
+        oracle
+            .adjacency
+            .get(&symbol_id)
+            .into_iter()
+            .flatten()
+            .filter_map(|neighbor| {
+                let other_crate = oracle.crate_by_key.get(neighbor)?;
+                if other_crate != symbol_crate {
+                    Some(neighbor.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }

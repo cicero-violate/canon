@@ -60,7 +60,7 @@ pub(super) fn ensure_node<'tcx>(
             }
         }
 
-        if let Some(hir_body) = hir_bodies::serialize_hir_body(tcx, local_def) {
+        if let Some(hir_body) = hir_bodies::encode_hir_body_json(tcx, local_def) {
             payload = payload.with_metadata("hir_body", hir_body);
         }
         payload = payload.with_metadata("crate_edition", metadata.edition.clone());

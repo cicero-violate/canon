@@ -35,27 +35,18 @@ pub fn discover_all_files(root: &Path) -> Result<DiscoveredFiles> {
     let mut auxiliary_files = Vec::new();
     let root = root.to_path_buf();
 
-    eprintln!("DEBUG: discover_all_files called with root: {:?}", root);
-
     let walker = WalkDir::new(&root).into_iter();
     for entry_result in walker {
-        eprintln!("DEBUG: Entry result: {:?}", entry_result);
         let entry = match entry_result {
             Ok(e) => e,
             Err(_) => continue,
         };
         {
             let should_filter = entry.path() != root && is_ignored_dir(entry.path());
-            eprintln!(
-                "DEBUG: Path: {:?}, should_filter: {}",
-                entry.path(),
-                should_filter
-            );
             if should_filter {
                 continue;
             }
         }
-        eprintln!("DEBUG: Checking entry: {:?}", entry.path());
         let path = entry.path();
 
         // Collect Rust source files

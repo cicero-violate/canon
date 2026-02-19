@@ -1,3 +1,8 @@
+#![cfg_attr(feature = "rustc_frontend", feature(rustc_private))]
+
+#[cfg(feature = "rustc_frontend")]
+extern crate rustc_driver;
+
 use rename::collect_names;
 use std::fs;
 use std::path::Path;

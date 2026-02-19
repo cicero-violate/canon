@@ -6,9 +6,14 @@ use syn::visit::Visit;
 
 use crate::fs;
 use crate::rename::core::oracle::StructuralEditOracle;
+use crate::rustc_integration::frontends::rustc::RustcFrontend;
+use crate::rustc_integration::multi_capture::capture_project;
+use crate::rustc_integration::project::CargoProject;
 use crate::rename::core::symbol_id::normalize_symbol_id;
-use crate::rename::structured::{NodeOp, node_handle};
-use crate::state::{NodeRegistry, NodeKind};
+use crate::rename::structured::{FieldMutation, NodeOp, node_handle};
+use crate::rename::core::paths::{module_child_path, module_path_for_file};
+use crate::rename::core::use_map::{path_to_string, type_path_string};
+use crate::state::{NodeKind, NodeRegistry};
 
 #[derive(Debug, Clone)]
 pub struct EditConflict {
@@ -19,12 +24,19 @@ pub struct EditConflict {
 #[derive(Debug, Clone)]
 pub struct ChangeReport {
     pub touched_files: Vec<PathBuf>,
+    pub conflicts: Vec<EditConflict>,
 }
 
 pub struct ProjectEditor {
     pub registry: NodeRegistry,
-    pub changesets: HashMap<PathBuf, Vec<NodeOp>>,
+    pub changesets: HashMap<PathBuf, Vec<QueuedOp>>,
     pub oracle: Box<dyn StructuralEditOracle>,
+}
+
+#[derive(Clone)]
+pub struct QueuedOp {
+    pub symbol_id: String,
+    pub op: NodeOp,
 }
 
 impl ProjectEditor {
@@ -36,7 +48,7 @@ impl ProjectEditor {
             let content = std::fs::read_to_string(&file)?;
             let ast = syn::parse_file(&content)
                 .with_context(|| format!("Failed to parse {}", file.display()))?;
-            let mut builder = NodeRegistryBuilder::new(&file, &mut registry);
+            let mut builder = NodeRegistryBuilder::new(project, &file, &mut registry);
             builder.visit_file(&ast);
             registry.insert_ast(file, ast);
         }
@@ -46,6 +58,16 @@ impl ProjectEditor {
             changesets: HashMap::new(),
             oracle,
         })
+    }
+
+    pub fn load_with_rustc(project: &Path) -> Result<Self> {
+        let cargo = CargoProject::from_entry(project)?;
+        let frontend = RustcFrontend::new();
+        let artifacts = capture_project(&frontend, &cargo, &[]).with_context(|| {
+            format!("rustc capture failed for {}", project.display())
+        })?;
+        let oracle = Box::new(cargo.with_snapshot(artifacts.snapshot));
+        Self::load(project, oracle)
     }
 
     pub fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()> {
@@ -75,13 +97,48 @@ impl ProjectEditor {
             NodeOp::ReorderItems { file, .. } => file.clone(),
         };
 
-        self.changesets.entry(file).or_default().push(op);
+        self.changesets
+            .entry(file)
+            .or_default()
+            .push(QueuedOp {
+                symbol_id: norm,
+                op,
+            });
         Ok(())
     }
 
+    pub fn queue_by_id(&mut self, symbol_id: &str, mutation: FieldMutation) -> Result<()> {
+        let norm = normalize_symbol_id(symbol_id);
+        let handle = self
+            .registry
+            .handles
+            .get(&norm)
+            .cloned()
+            .with_context(|| format!("no handle found for {symbol_id}"))?;
+        let op = NodeOp::MutateField { handle, mutation };
+        self.queue(&norm, op)
+    }
+
     pub fn apply(&mut self) -> Result<ChangeReport> {
-        let touched_files = self.changesets.keys().cloned().collect::<Vec<_>>();
-        Ok(ChangeReport { touched_files })
+        let mut touched_files = Vec::new();
+        let handle_snapshot = self.registry.handles.clone();
+        for (file, ops) in &self.changesets {
+            let ast = self
+                .registry
+                .asts
+                .get_mut(file)
+                .with_context(|| format!("missing AST for {}", file.display()))?;
+            for queued in ops {
+                apply_node_op(ast, &handle_snapshot, &queued.symbol_id, &queued.op)
+                    .with_context(|| format!("failed to apply {}", queued.symbol_id))?;
+            }
+            touched_files.push(file.clone());
+        }
+        let conflicts = self.validate()?;
+        Ok(ChangeReport {
+            touched_files,
+            conflicts,
+        })
     }
 
     pub fn validate(&self) -> Result<Vec<EditConflict>> {
@@ -98,7 +155,18 @@ impl ProjectEditor {
     }
 
     pub fn commit(&self) -> Result<Vec<PathBuf>> {
-        Ok(self.changesets.keys().cloned().collect())
+        let mut written = Vec::new();
+        for file in self.changesets.keys() {
+            let ast = self
+                .registry
+                .asts
+                .get(file)
+                .with_context(|| format!("missing AST for {}", file.display()))?;
+            let rendered = crate::rename::structured::render_file(ast);
+            std::fs::write(file, rendered)?;
+            written.push(file.clone());
+        }
+        Ok(written)
     }
 
     pub fn preview(&self) -> Result<String> {
@@ -106,24 +174,39 @@ impl ProjectEditor {
     }
 }
 
+mod ops;
+
+use ops::apply_node_op;
+
 struct NodeRegistryBuilder<'a> {
+    project_root: &'a Path,
     file: &'a Path,
     registry: &'a mut NodeRegistry,
+    module_path: String,
     item_index: usize,
     parent_path: Vec<usize>,
+    current_impl: Option<ImplContext>,
 }
 
 impl<'a> NodeRegistryBuilder<'a> {
-    fn new(file: &'a Path, registry: &'a mut NodeRegistry) -> Self {
+    fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self {
         Self {
+            project_root,
             file,
             registry,
+            module_path: module_path_for_file(project_root, file),
             item_index: 0,
             parent_path: Vec::new(),
+            current_impl: None,
         }
     }
 
     fn register(&mut self, ident: &syn::Ident, kind: NodeKind) {
+        let id = module_child_path(&self.module_path, ident.to_string());
+        self.register_with_id(id, kind);
+    }
+
+    fn register_with_id(&mut self, id: String, kind: NodeKind) {
         let handle = node_handle(
             self.file,
             self.item_index,
@@ -131,13 +214,19 @@ impl<'a> NodeRegistryBuilder<'a> {
             kind,
         );
         self.registry
-            .insert_handle(normalize_symbol_id(&format!("crate::{}", ident)), handle);
+            .insert_handle(normalize_symbol_id(&id), handle);
     }
 
     fn register_use_tree(&mut self, tree: &syn::UseTree) {
         match tree {
-            syn::UseTree::Name(name) => self.register(&name.ident, NodeKind::Use),
-            syn::UseTree::Rename(rename) => self.register(&rename.rename, NodeKind::Use),
+            syn::UseTree::Name(name) => {
+                let id = format!("{}::use::{}", self.module_path, name.ident);
+                self.register_with_id(id, NodeKind::Use);
+            }
+            syn::UseTree::Rename(rename) => {
+                let id = format!("{}::use::{}", self.module_path, rename.rename);
+                self.register_with_id(id, NodeKind::Use);
+            }
             syn::UseTree::Path(path) => self.register_use_tree(&path.tree),
             syn::UseTree::Group(group) => {
                 for item in &group.items {
@@ -151,6 +240,7 @@ impl<'a> NodeRegistryBuilder<'a> {
 
 impl<'ast> syn::visit::Visit<'ast> for NodeRegistryBuilder<'_> {
     fn visit_file(&mut self, i: &'ast syn::File) {
+        self.module_path = module_path_for_file(self.project_root, self.file);
         for (idx, item) in i.items.iter().enumerate() {
             self.item_index = idx;
             self.visit_item(item);
@@ -189,7 +279,14 @@ impl<'ast> syn::visit::Visit<'ast> for NodeRegistryBuilder<'_> {
 
     fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
         self.register(&i.ident, NodeKind::Mod);
-        syn::visit::visit_item_mod(self, i);
+        if let Some((_brace, items)) = &i.content {
+            let prev = self.module_path.clone();
+            self.module_path = module_child_path(&prev, i.ident.to_string());
+            for item in items {
+                self.visit_item(item);
+            }
+            self.module_path = prev;
+        }
     }
 
     fn visit_item_use(&mut self, i: &'ast syn::ItemUse) {
@@ -199,13 +296,40 @@ impl<'ast> syn::visit::Visit<'ast> for NodeRegistryBuilder<'_> {
 
     fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl) {
         let impl_index = self.item_index;
+        let prev_impl = self.current_impl.clone();
+        let struct_path = type_path_string(&i.self_ty, &self.module_path);
+        let trait_path = i
+            .trait_
+            .as_ref()
+            .map(|(_, path, _)| path_to_string(path, &self.module_path));
+        self.current_impl = Some(ImplContext {
+            struct_path,
+            trait_path,
+        });
         self.parent_path.push(impl_index);
         syn::visit::visit_item_impl(self, i);
         self.parent_path.pop();
+        self.current_impl = prev_impl;
     }
 
     fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) {
-        self.register(&i.sig.ident, NodeKind::ImplFn);
+        if let Some(ctx) = &self.current_impl {
+            let name = i.sig.ident.to_string();
+            let id = if let Some(trait_path) = &ctx.trait_path {
+                format!("{} as {}::{}", ctx.struct_path, trait_path, name)
+            } else {
+                format!("{}::{}", ctx.struct_path, name)
+            };
+            self.register_with_id(id, NodeKind::ImplFn);
+        } else {
+            self.register(&i.sig.ident, NodeKind::ImplFn);
+        }
         syn::visit::visit_impl_item_fn(self, i);
     }
+}
+
+#[derive(Clone)]
+struct ImplContext {
+    struct_path: String,
+    trait_path: Option<String>,
 }

@@ -10,7 +10,7 @@ use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_middle::ty::{self, TyCtxt, TyKind};
 use std::collections::{HashMap, HashSet};
 
-pub(super) fn capture_types_from_function<'tcx>(
+pub(super) fn capture_function_types<'tcx>(
     builder: &mut KernelGraphBuilder,
     tcx: TyCtxt<'tcx>,
     local_def: LocalDefId,
@@ -21,16 +21,16 @@ pub(super) fn capture_types_from_function<'tcx>(
     let mut seen: HashSet<DefId> = HashSet::new();
 
     for local_decl in &body.local_decls {
-        collect_types_from_ty(tcx, local_decl.ty, &mut seen);
+        collect_type_dependencies(tcx, local_decl.ty, &mut seen);
     }
 
     let def_id = local_def.to_def_id();
     if matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) {
         let sig = tcx.fn_sig(def_id).skip_binder();
         for input in sig.inputs().skip_binder() {
-            collect_types_from_ty(tcx, *input, &mut seen);
+            collect_type_dependencies(tcx, *input, &mut seen);
         }
-        collect_types_from_ty(tcx, sig.output().skip_binder(), &mut seen);
+        collect_type_dependencies(tcx, sig.output().skip_binder(), &mut seen);
     }
 
     for ty_def in seen {
@@ -46,7 +46,11 @@ pub(super) fn capture_types_from_function<'tcx>(
     }
 }
 
-fn collect_types_from_ty<'tcx>(tcx: TyCtxt<'tcx>, ty: ty::Ty<'tcx>, seen: &mut HashSet<DefId>) {
+fn collect_type_dependencies<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    ty: ty::Ty<'tcx>,
+    seen: &mut HashSet<DefId>,
+) {
     use std::cell::RefCell;
 
     thread_local! {
@@ -84,28 +88,28 @@ fn collect_types_from_ty<'tcx>(tcx: TyCtxt<'tcx>, ty: ty::Ty<'tcx>, seen: &mut H
         TyKind::FnDef(_, substs) => {
             for arg in substs.iter() {
                 if let Some(t) = arg.as_type() {
-                    collect_types_from_ty(tcx, t, seen);
+                    collect_type_dependencies(tcx, t, seen);
                 }
             }
         }
         TyKind::FnPtr(sig, _) => {
             for input in sig.inputs().iter() {
-                collect_types_from_ty(tcx, *input.skip_binder(), seen);
+                collect_type_dependencies(tcx, *input.skip_binder(), seen);
             }
-            collect_types_from_ty(tcx, sig.output().skip_binder(), seen);
+            collect_type_dependencies(tcx, sig.output().skip_binder(), seen);
         }
         TyKind::Alias(_, alias_ty) => {
-            collect_types_from_ty(tcx, alias_ty.to_ty(tcx), seen);
+            collect_type_dependencies(tcx, alias_ty.to_ty(tcx), seen);
         }
         TyKind::Ref(_, inner, _) | TyKind::Slice(inner) => {
-            collect_types_from_ty(tcx, *inner, seen);
+            collect_type_dependencies(tcx, *inner, seen);
         }
         TyKind::Array(inner, _) => {
-            collect_types_from_ty(tcx, *inner, seen);
+            collect_type_dependencies(tcx, *inner, seen);
         }
         TyKind::Tuple(list) => {
             for t in list.iter() {
-                collect_types_from_ty(tcx, t, seen);
+                collect_type_dependencies(tcx, t, seen);
             }
         }
         _ => {}

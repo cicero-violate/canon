@@ -20,7 +20,7 @@ use super::crate_meta;
 use super::items::{capture_adt, capture_const_static, capture_type_alias};
 use super::mir::capture_function;
 use super::traits::{capture_impl, capture_trait};
-use super::types::capture_types_from_function;
+use super::types::capture_function_types;
 
 /// Real rustc frontend that runs `rustc_driver` to capture MIR call graphs.
 #[derive(Debug, Clone)]
@@ -136,7 +136,7 @@ impl RustcFrontend {
         if let Some(name) = entry.file_stem().and_then(|s| s.to_str()) {
             args.push(format!("--crate-name={}", name.replace('-', "_")));
         }
-        let sysroot = determine_sysroot().map_err(RustcFrontendError::Sysroot)?;
+        let sysroot = resolve_sysroot().map_err(RustcFrontendError::Sysroot)?;
         args.push("--sysroot".into());
         args.push(sysroot.to_string_lossy().into());
         args.extend(extra_args.iter().cloned());
@@ -156,7 +156,7 @@ impl RustcFrontend {
             package_features: self.package_features.clone(),
             cfg_flags: {
                 let mut cfgs = self.cfg_flags.clone();
-                cfgs.extend(extract_cfg_flags(extra_args));
+                cfgs.extend(parse_cfg_flags(extra_args));
                 cfgs.sort();
                 cfgs.dedup();
                 cfgs
@@ -165,13 +165,17 @@ impl RustcFrontend {
         let mut callbacks = SnapshotCallbacks::new(metadata);
 
         for (key, value) in env_vars {
-            std::env::set_var(key, value);
+            unsafe {
+                std::env::set_var(key, value);
+            }
         }
 
         let exit_code = catch_with_exit_code(|| run_compiler(&args, &mut callbacks));
 
         for (key, _) in env_vars {
-            std::env::remove_var(key);
+            unsafe {
+                std::env::remove_var(key);
+            }
         }
 
         if exit_code != 0 {
@@ -212,7 +216,7 @@ impl Callbacks for SnapshotCallbacks {
     }
 }
 
-fn extract_cfg_flags(extra_args: &[String]) -> Vec<String> {
+fn parse_cfg_flags(extra_args: &[String]) -> Vec<String> {
     let mut cfgs = Vec::new();
     let mut iter = extra_args.iter().peekable();
     while let Some(arg) = iter.next() {
@@ -276,7 +280,7 @@ fn build_snapshot_from_tcx<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata)
             &mut cache,
             metadata,
         );
-        capture_types_from_function(&mut builder, tcx, local_def, &mut cache, metadata);
+        capture_function_types(&mut builder, tcx, local_def, &mut cache, metadata);
     }
 
     builder.finalize()
@@ -286,7 +290,7 @@ fn is_supported_def(kind: DefKind) -> bool {
     matches!(kind, DefKind::Fn | DefKind::AssocFn)
 }
 
-fn determine_sysroot() -> Result<PathBuf, std::io::Error> {
+fn resolve_sysroot() -> Result<PathBuf, std::io::Error> {
     if let Ok(sysroot) = std::env::var("SYSROOT") {
         return Ok(PathBuf::from(sysroot));
     }

@@ -22,7 +22,7 @@ pub use cli::{run_names, run_rename};
 pub use collect::{collect_names, emit_names};
 pub use rename::{apply_rename, apply_rename_with_map};
 pub use project_editor::{ChangeReport, EditConflict, ProjectEditor};
-pub use oracle::StructuralEditOracle;
+pub use oracle::{NullOracle, StructuralEditOracle};
 pub use span::span_to_range;
 pub use structured::StructuredEditTracker;
 pub use symbol_id::normalize_symbol_id;
