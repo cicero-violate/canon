@@ -13,46 +13,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let renames = [
         (
-            "crate::rustc_integration::project::CargoProject::build_dependencies",
-            "ensure_dependencies_built",
+            "crate::rustc_integration::frontends::rustc::metadata_capture::serialize_generics",
+            "serialize_generic_params",
         ),
         (
-            "crate::rename::api::UpsertRequest::node_op",
-            "push_node_op",
+            "crate::rustc_integration::frontends::rustc::metadata_capture::serialize_predicates",
+            "serialize_where_predicates",
         ),
         (
-            "crate::rename::macros::extract_derive_identifiers",
-            "extract_derive_idents",
+            "crate::rustc_integration::frontends::rustc::metadata_capture::format_param_kind",
+            "format_generic_param_kind",
         ),
         (
-            "crate::rename::macros::extract_proc_macro_identifiers",
-            "extract_proc_macro_idents",
+            "crate::rustc_integration::frontends::rustc::metadata_capture::param_has_default",
+            "generic_param_has_default",
         ),
         (
-            "crate::rename::macros::MacroInvocationAnalyzer::predict_generated_identifiers",
-            "predict_generated_idents",
+            "crate::rustc_integration::frontends::rustc::metadata_capture::source_file_stats",
+            "compute_source_file_stats",
         ),
         (
-            "crate::rename::macros::MacroHandlingReport::add_flagged",
-            "add_flagged_reason",
+            "crate::rustc_integration::frontends::rustc::crate_metadata::serialize_dependencies",
+            "serialize_crate_dependencies",
         ),
         (
-            "crate::rename::macros::MacroIdentifierCollector::process_macro_rules",
-            "process_macro_rules_def",
+            "crate::rustc_integration::frontends::rustc::mir_capture::serialize_statements",
+            "serialize_statement_kinds",
         ),
         (
-            "crate::rename::alias::graph::AliasGraph::resolve_chain",
-            "resolve_alias_chain",
+            "crate::rustc_integration::frontends::rustc::mir_capture::serialize_mir_dump",
+            "serialize_mir_body",
         ),
         (
-            "crate::rename::structured::ast_render::render_function",
-            "render_fn_item",
+            "crate::rustc_integration::frontends::rustc::mir_capture::call_span",
+            "callsite_span",
         ),
         (
-            "crate::rename::structured::ast_render::render_impl",
-            "render_impl_item",
+            "crate::rustc_integration::frontends::rustc::item_capture::serialize_struct_fields",
+            "serialize_struct_field_list",
         ),
     ];
+
 
     for (symbol_id, new_name) in renames {
         editor.queue_by_id(symbol_id, FieldMutation::RenameIdent(new_name.to_string()))?;

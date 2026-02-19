@@ -18,8 +18,8 @@ rustc_integration/frontends/rustc/frontend_driver.rs:
         _compiler: &Compiler,
         tcx: TyCtxt<'tcx>,
     ) -> Compilation }  (line 186)
-  fn parse_cfg_flags(extra_args: &[String]) -> Vec<String>  (line 196)
-  fn build_snapshot_from_tcx(
+  fn parse_cfg_args(extra_args: &[String]) -> Vec<String>  (line 196)
+  fn build_snapshot(
     tcx: TyCtxt<'tcx>,
     metadata: &FrontendMetadata,
 ) -> GraphSnapshot  (line 213)
@@ -56,7 +56,7 @@ rustc_integration/frontends/rustc/item_capture.rs:
     tcx: TyCtxt<'tcx>,
     adt_def: ty::AdtDef<'tcx>,
 ) -> Option<String>  (line 130)
-  fn classify_adt_kind(adt_def: ty::AdtDef<'_>) -> String  (line 174)
+  fn adt_kind_label(adt_def: ty::AdtDef<'_>) -> String  (line 174)
 
 rustc_integration/frontends/rustc/node_builder.rs:
   fn ensure_node(
@@ -95,18 +95,21 @@ rustc_integration/frontends/rustc/mir_capture.rs:
 )  (line 84)
   fn call_span(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span  (line 123)
   fn serialize_statements(bb_data: &mir::BasicBlockData<'tcx>) -> Option<String>  (line 126)
-  fn serialize_cfg_graph(
+  fn serialize_control_flow_graph(
     tcx: TyCtxt<'tcx>,
     body: &mir::Body<'tcx>,
 ) -> Option<String>  (line 143)
-  fn serialize_dfg(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 209)
-  fn serialize_mir_dump(body: &mir::Body<'tcx>) -> Option<String>  (line 240)
-  fn compute_metrics(
+  fn serialize_dataflow_graph(
+    _tcx: TyCtxt<'tcx>,
+    body: &mir::Body<'tcx>,
+) -> Option<String>  (line 209)
+  fn serialize_mir_dump(body: &mir::Body<'tcx>) -> Option<String>  (line 243)
+  fn compute_mir_metrics(
     tcx: TyCtxt<'tcx>,
     local_def: LocalDefId,
     body: &mir::Body<'tcx>,
-) -> Option<String>  (line 243)
-  fn compute_effects(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 293)
+) -> Option<String>  (line 246)
+  fn compute_effects(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 296)
 
 rustc_integration/frontends/rustc/mod.rs:
   enum RustcFrontendError  { Unavailable, Io, Sysroot, MissingSnapshot }  (line 26)
@@ -165,30 +168,30 @@ rustc_integration/frontends/rustc/metadata_capture.rs:
     def_id: DefId,
     frontend: &FrontendMetadata,
 ) -> NodePayload  (line 13)
-  fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 135)
-  fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 169)
-  fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 172)
-  fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 184)
-  fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 207)
-  fn format_param_kind(kind: &GenericParamDefKind) -> String  (line 216)
-  fn param_has_default(kind: &GenericParamDefKind) -> bool  (line 223)
-  struct GenericsCapture  { params, parent, predicates }  (line 231)
-  struct GenericParamCapture  { index, name, kind, has_default }  (line 237)
-  struct AttributeData  { raw, flags }  (line 243)
-  struct AttributeFlags  { inline, inline_hint, test, bench, no_mangle, doc_hidden, thread_local, reprs, derives, doc }  (line 248)
-  impl AttributeFlags  { fn apply(&mut self, attr: &HirAttribute) }  (line 260)
+  fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 132)
+  fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 166)
+  fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 169)
+  fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 181)
+  fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 204)
+  fn format_param_kind(kind: &GenericParamDefKind) -> String  (line 213)
+  fn param_has_default(kind: &GenericParamDefKind) -> bool  (line 220)
+  struct GenericsCapture  { params, parent, predicates }  (line 228)
+  struct GenericParamCapture  { index, name, kind, has_default }  (line 234)
+  struct AttributeData  { raw, flags }  (line 240)
+  struct AttributeFlags  { inline, inline_hint, test, bench, no_mangle, doc_hidden, thread_local, reprs, derives, doc }  (line 245)
+  impl AttributeFlags  { fn apply(&mut self, attr: &HirAttribute) }  (line 257)
   fn apply_attribute_flags(
     mut payload: NodePayload,
     flags: AttributeFlags,
-) -> NodePayload  (line 313)
-  struct FileStats  { hash, line_count, byte_len }  (line 353)
-  fn source_file_stats(file: &SourceFile) -> FileStats  (line 358)
-  fn resolve_absolute_path(filename: &FileName) -> String  (line 377)
-  fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 384)
-  fn classify_node_kind(def_kind: DefKind) -> String  (line 390)
-  fn module_path(def_path: &str) -> String  (line 409)
-  fn format_display(module: &str, name: &str) -> String  (line 412)
-  fn classify_symbol_kind(def_kind: DefKind) -> String  (line 415)
+) -> NodePayload  (line 310)
+  struct FileStats  { hash, line_count, byte_len }  (line 350)
+  fn source_file_stats(file: &SourceFile) -> FileStats  (line 355)
+  fn resolve_absolute_path(filename: &FileName) -> String  (line 374)
+  fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 381)
+  fn node_kind_label(def_kind: DefKind) -> String  (line 387)
+  fn module_path_from_def(def_path: &str) -> String  (line 406)
+  fn format_symbol_display(module: &str, name: &str) -> String  (line 409)
+  fn symbol_kind_label(def_kind: DefKind) -> String  (line 412)
 
 rustc_integration/frontends/rustc/stub.rs:
   struct RustcFrontend  (line 6)
@@ -653,17 +656,17 @@ rename/core/project_editor/mod.rs:
   fn run_use_path_rewrite(
     registry: &mut NodeRegistry,
     changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
-) -> Result<HashSet<PathBuf>>  (line 295)
+) -> Result<HashSet<PathBuf>>  (line 296)
   fn collect_use_path_updates(
     changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
-) -> HashMap<String, String>  (line 315)
-  fn replace_last_segment(path: &str, new_name: &str) -> Option<String>  (line 338)
-  fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<SymbolIndex>  (line 347)
-  fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>>  (line 368)
-  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 392)
-  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 402)
-  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 452)
-  struct ImplContext  { struct_path, trait_path }  (line 547)
+) -> HashMap<String, String>  (line 316)
+  fn replace_last_segment(path: &str, new_name: &str) -> Option<String>  (line 339)
+  fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<SymbolIndex>  (line 348)
+  fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>>  (line 369)
+  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 393)
+  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 403)
+  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 453)
+  struct ImplContext  { struct_path, trait_path }  (line 548)
 
 rename/core/project_editor/ops.rs:
   fn apply_node_op(

@@ -26,12 +26,12 @@ pub(super) fn capture_adt<'tcx>(
     let mut payload = NodePayload::new(&node_key, def_path.clone())
         .with_metadata("type", "adt")
         .with_metadata("adt_kind", format!("{:?}", adt_def.adt_kind()))
-        .with_metadata("type_kind", classify_adt_kind(adt_def))
+        .with_metadata("type_kind", adt_kind_label(adt_def))
         .with_metadata("is_struct", adt_def.is_struct().to_string())
         .with_metadata("is_enum", adt_def.is_enum().to_string())
         .with_metadata("is_union", adt_def.is_union().to_string())
         .with_metadata("repr", format!("{:?}", adt_def.repr()));
-    if let Some(fields) = serialize_struct_fields(tcx, adt_def) {
+    if let Some(fields) = serialize_struct_field_list(tcx, adt_def) {
         payload = payload.with_metadata("type_fields", fields);
     }
     if let Some(v) = serialize_enum_variants(tcx, adt_def) {
@@ -99,7 +99,7 @@ pub(super) fn capture_const_static<'tcx>(
     cache.insert(def_id, node_id);
     node_id
 }
-fn serialize_struct_fields<'tcx>(
+fn serialize_struct_field_list<'tcx>(
     tcx: TyCtxt<'tcx>,
     adt_def: ty::AdtDef<'tcx>,
 ) -> Option<String> {
@@ -171,7 +171,7 @@ fn serialize_enum_variants<'tcx>(
         .collect();
     serde_json::to_string(&variants).ok()
 }
-fn classify_adt_kind(adt_def: ty::AdtDef<'_>) -> String {
+fn adt_kind_label(adt_def: ty::AdtDef<'_>) -> String {
     if adt_def.is_enum() {
         "enum".into()
     } else if adt_def.is_struct() {

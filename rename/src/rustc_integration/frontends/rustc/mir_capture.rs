@@ -37,7 +37,7 @@ pub(super) fn capture_function<'tcx>(
             .with_metadata("index", bb_idx.index().to_string())
             .with_metadata("statement_count", statement_count.to_string())
             .with_metadata("terminator", format!("{:?}", bb_data.terminator().kind));
-        if let Some(statements_json) = serialize_statements(bb_data) {
+        if let Some(statements_json) = serialize_statement_kinds(bb_data) {
             payload = payload.with_metadata("statements", statements_json);
         }
         let bb_node = builder.add_node(payload).expect("bb node allocation");
@@ -60,19 +60,19 @@ pub(super) fn capture_function<'tcx>(
         }
     }
     collect_calls(builder, tcx, &body, function_node, local_def, cache, metadata);
-    if let Some(cfg_json) = serialize_cfg_graph(tcx, &body) {
+    if let Some(cfg_json) = serialize_control_flow_graph(tcx, &body) {
         let _ = builder
             .merge_node_metadata(function_node, [("cfg".to_string(), cfg_json)]);
     }
-    if let Some(dfg_json) = serialize_dfg(tcx, &body) {
+    if let Some(dfg_json) = serialize_dataflow_graph(tcx, &body) {
         let _ = builder
             .merge_node_metadata(function_node, [("dfg".to_string(), dfg_json)]);
     }
-    if let Some(mir_dump) = serialize_mir_dump(&body) {
+    if let Some(mir_dump) = serialize_mir_body(&body) {
         let _ = builder
             .merge_node_metadata(function_node, [("mir".to_string(), mir_dump)]);
     }
-    if let Some(metrics_json) = compute_metrics(tcx, local_def, &body) {
+    if let Some(metrics_json) = compute_mir_metrics(tcx, local_def, &body) {
         let _ = builder
             .merge_node_metadata(function_node, [("metrics".to_string(), metrics_json)]);
     }
@@ -95,7 +95,7 @@ fn collect_calls<'tcx>(
         let terminator = bb.terminator();
         if let TerminatorKind::Call { func, target, .. } = &terminator.kind {
             let func_ty = func.ty(&body.local_decls, tcx);
-            let span = call_span(tcx, terminator.source_info.span, local_def);
+            let span = callsite_span(tcx, terminator.source_info.span, local_def);
             if let ty::FnDef(callee_def, _) = *func_ty.kind() {
                 let callee_node = ensure_node(builder, tcx, callee_def, cache, metadata);
                 let loc = source_map.lookup_char_pos(span.lo());
@@ -120,10 +120,12 @@ fn collect_calls<'tcx>(
         }
     }
 }
-fn call_span<'tcx>(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span {
+fn callsite_span<'tcx>(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span {
     span.with_hi(span.hi()).with_lo(span.lo())
 }
-fn serialize_statements<'tcx>(bb_data: &mir::BasicBlockData<'tcx>) -> Option<String> {
+fn serialize_statement_kinds<'tcx>(
+    bb_data: &mir::BasicBlockData<'tcx>,
+) -> Option<String> {
     #[derive(serde::Serialize)]
     struct StatementMetadata {
         index: usize,
@@ -140,7 +142,7 @@ fn serialize_statements<'tcx>(bb_data: &mir::BasicBlockData<'tcx>) -> Option<Str
         .collect();
     serde_json::to_string(&statements).ok()
 }
-fn serialize_cfg_graph<'tcx>(
+fn serialize_control_flow_graph<'tcx>(
     tcx: TyCtxt<'tcx>,
     body: &mir::Body<'tcx>,
 ) -> Option<String> {
@@ -206,7 +208,10 @@ fn serialize_cfg_graph<'tcx>(
         )
         .ok()
 }
-fn serialize_dfg<'tcx>(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String> {
+fn serialize_dataflow_graph<'tcx>(
+    _tcx: TyCtxt<'tcx>,
+    body: &mir::Body<'tcx>,
+) -> Option<String> {
     #[derive(Serialize)]
     struct LocalCapture {
         local: String,
@@ -237,10 +242,10 @@ fn serialize_dfg<'tcx>(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<Str
         )
         .ok()
 }
-fn serialize_mir_dump<'tcx>(body: &mir::Body<'tcx>) -> Option<String> {
+fn serialize_mir_body<'tcx>(body: &mir::Body<'tcx>) -> Option<String> {
     Some(format!("{body:?}"))
 }
-fn compute_metrics<'tcx>(
+fn compute_mir_metrics<'tcx>(
     tcx: TyCtxt<'tcx>,
     local_def: LocalDefId,
     body: &mir::Body<'tcx>,

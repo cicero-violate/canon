@@ -146,6 +146,11 @@ impl ProjectEditor {
         let handle_snapshot = self.registry.handles.clone();
         for (file, ops) in &self.changesets {
             for queued in ops {
+                let prop = propagate(&queued.op, &queued.symbol_id, &self.registry, &*self.oracle)?;
+                rewrites.extend(prop.rewrites);
+                conflicts.extend(prop.conflicts);
+                file_renames.extend(prop.file_renames);
+
                 let changed = {
                     let ast = self
                         .registry
@@ -158,10 +163,6 @@ impl ProjectEditor {
                 if changed {
                     touched_files.insert(file.clone());
                 }
-                let prop = propagate(&queued.op, &queued.symbol_id, &self.registry, &*self.oracle)?;
-                rewrites.extend(prop.rewrites);
-                conflicts.extend(prop.conflicts);
-                file_renames.extend(prop.file_renames);
             }
         }
 

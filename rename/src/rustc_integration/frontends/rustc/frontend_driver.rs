@@ -140,7 +140,7 @@ impl RustcFrontend {
             package_features: self.package_features.clone(),
             cfg_flags: {
                 let mut cfgs = self.cfg_flags.clone();
-                cfgs.extend(parse_cfg_flags(extra_args));
+                cfgs.extend(parse_cfg_args(extra_args));
                 cfgs.sort();
                 cfgs.dedup();
                 cfgs
@@ -189,11 +189,11 @@ impl Callbacks for SnapshotCallbacks {
         _compiler: &Compiler,
         tcx: TyCtxt<'tcx>,
     ) -> Compilation {
-        self.snapshot = Some(build_snapshot_from_tcx(tcx, &self.metadata));
+        self.snapshot = Some(build_snapshot(tcx, &self.metadata));
         Compilation::Stop
     }
 }
-fn parse_cfg_flags(extra_args: &[String]) -> Vec<String> {
+fn parse_cfg_args(extra_args: &[String]) -> Vec<String> {
     let mut cfgs = Vec::new();
     let mut iter = extra_args.iter().peekable();
     while let Some(arg) = iter.next() {
@@ -210,7 +210,7 @@ fn parse_cfg_flags(extra_args: &[String]) -> Vec<String> {
     }
     cfgs
 }
-fn build_snapshot_from_tcx<'tcx>(
+fn build_snapshot<'tcx>(
     tcx: TyCtxt<'tcx>,
     metadata: &FrontendMetadata,
 ) -> GraphSnapshot {

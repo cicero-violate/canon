@@ -13,7 +13,7 @@ pub(super) fn capture_crate_metadata<'tcx>(
 ) {
     let crate_name = tcx.crate_name(LOCAL_CRATE).to_string();
     let crate_hash = tcx.crate_hash(LOCAL_CRATE);
-    let dependencies = serialize_dependencies(tcx);
+    let dependencies = serialize_crate_dependencies(tcx);
     let mut payload = NodePayload::new(
             format!("crate::{crate_name}"),
             crate_name.clone(),
@@ -49,7 +49,7 @@ pub(super) fn capture_crate_metadata<'tcx>(
     }
     let _ = builder.add_node(payload);
 }
-fn serialize_dependencies(tcx: TyCtxt<'_>) -> String {
+fn serialize_crate_dependencies(tcx: TyCtxt<'_>) -> String {
     #[derive(Serialize)]
     struct DependencyCapture {
         name: String,

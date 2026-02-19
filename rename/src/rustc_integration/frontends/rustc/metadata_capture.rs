@@ -26,7 +26,7 @@ pub(super) fn apply_common_metadata<'tcx>(
         .map(|sym| sym.to_string())
         .or_else(|| Some(def_path.split("::").last()?.to_string()))
         .unwrap_or_else(|| format!("{def_id:?}"));
-    let module = module_path(&def_path);
+    let module = module_path_from_def(&def_path);
     let parent = tcx.opt_parent(def_id);
     let def_kind = tcx.def_kind(def_id);
     let def_path_hash = tcx.def_path_hash(def_id);
@@ -40,13 +40,13 @@ pub(super) fn apply_common_metadata<'tcx>(
         &absolute_path,
         frontend.workspace_root.as_deref(),
     );
-    let file_stats = source_file_stats(&lo.file);
+    let file_stats = compute_source_file_stats(&lo.file);
     let snippet = source_map.span_to_snippet(span).unwrap_or_else(|_| String::new());
     payload = payload
         .with_metadata("def_path", def_path.clone())
         .with_metadata("def_path_hash", format!("{def_path_hash:?}"))
         .with_metadata("name", name.clone())
-        .with_metadata("display", format_display(&module, &name))
+        .with_metadata("display", format_symbol_display(&module, &name))
         .with_metadata("module", module.clone())
         .with_metadata(
             "module_id",
@@ -57,8 +57,8 @@ pub(super) fn apply_common_metadata<'tcx>(
     }
     payload = payload
         .with_metadata("crate", format!("crate:{}", tcx.crate_name(def_id.krate)))
-        .with_metadata("node_kind", classify_node_kind(def_kind))
-        .with_metadata("symbol_kind", classify_symbol_kind(def_kind))
+        .with_metadata("node_kind", node_kind_label(def_kind))
+        .with_metadata("symbol_kind", symbol_kind_label(def_kind))
         .with_metadata("source_file", absolute_path.clone())
         .with_metadata("line", lo.line.to_string())
         .with_metadata("column", lo.col.0.to_string())
@@ -85,17 +85,14 @@ pub(super) fn apply_common_metadata<'tcx>(
     if let Some(parent_id) = parent {
         payload = payload.with_metadata("parent", format!("{parent_id:?}"));
         payload = payload
-            .with_metadata("parent_kind", classify_node_kind(tcx.def_kind(parent_id)));
+            .with_metadata("parent_kind", node_kind_label(tcx.def_kind(parent_id)));
         payload = payload
             .with_metadata(
                 "parent_def_path_hash",
                 format!("{:?}", tcx.def_path_hash(parent_id)),
             );
         payload = payload
-            .with_metadata(
-                "container_kind",
-                classify_node_kind(tcx.def_kind(parent_id)),
-            );
+            .with_metadata("container_kind", node_kind_label(tcx.def_kind(parent_id)));
     }
     payload = payload.with_metadata("crate_edition", frontend.edition.clone());
     if let Some(target_name) = &frontend.target_name {
@@ -127,7 +124,7 @@ pub(super) fn apply_common_metadata<'tcx>(
         payload = payload.with_metadata("attributes", attr_data.raw);
         payload = apply_attribute_flags(payload, attr_data.flags);
     }
-    if let Some(generics_json) = serialize_generics(tcx, def_id) {
+    if let Some(generics_json) = serialize_generic_params(tcx, def_id) {
         payload = payload.with_metadata("generics", generics_json);
     }
     payload
@@ -181,7 +178,7 @@ fn attribute_args(attr: &HirAttribute) -> Option<String> {
     }
     attr.value_str().map(|value| value.to_string())
 }
-fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
+fn serialize_generic_params(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
     let generics = tcx.generics_of(def_id);
     let params: Vec<GenericParamCapture> = generics
         .own_params
@@ -189,11 +186,11 @@ fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
         .map(|param| GenericParamCapture {
             index: param.index,
             name: param.name.to_string(),
-            kind: format_param_kind(&param.kind),
-            has_default: param_has_default(&param.kind),
+            kind: format_generic_param_kind(&param.kind),
+            has_default: generic_param_has_default(&param.kind),
         })
         .collect();
-    let predicates = serialize_predicates(tcx, def_id).unwrap_or_default();
+    let predicates = serialize_where_predicates(tcx, def_id).unwrap_or_default();
     if params.is_empty() && predicates.is_empty() && generics.parent.is_none() {
         return None;
     }
@@ -204,7 +201,7 @@ fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
     };
     serde_json::to_string(&capture).ok()
 }
-fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>> {
+fn serialize_where_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>> {
     let predicates = tcx.predicates_of(def_id).instantiate_identity(tcx);
     if predicates.predicates.is_empty() {
         return None;
@@ -213,14 +210,14 @@ fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>> {
         predicates.predicates.iter().map(|predicate| format!("{predicate:?}")).collect(),
     )
 }
-fn format_param_kind(kind: &GenericParamDefKind) -> String {
+fn format_generic_param_kind(kind: &GenericParamDefKind) -> String {
     match kind {
         GenericParamDefKind::Lifetime => "lifetime".into(),
         GenericParamDefKind::Type { .. } => "type".into(),
         GenericParamDefKind::Const { .. } => "const".into(),
     }
 }
-fn param_has_default(kind: &GenericParamDefKind) -> bool {
+fn generic_param_has_default(kind: &GenericParamDefKind) -> bool {
     match kind {
         GenericParamDefKind::Lifetime => false,
         GenericParamDefKind::Type { has_default, .. } => *has_default,
@@ -355,7 +352,7 @@ struct FileStats {
     line_count: usize,
     byte_len: usize,
 }
-fn source_file_stats(file: &SourceFile) -> FileStats {
+fn compute_source_file_stats(file: &SourceFile) -> FileStats {
     let hash_value = if let Some(src) = &file.src {
         let digest = hash(src.as_bytes());
         Some(format!("blake3:{}", digest.to_hex()))
@@ -387,7 +384,7 @@ fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<Str
     let root_path = Path::new(root);
     abs.strip_prefix(root_path).ok().map(|p| p.to_string_lossy().to_string())
 }
-fn classify_node_kind(def_kind: DefKind) -> String {
+fn node_kind_label(def_kind: DefKind) -> String {
     let kind = match def_kind {
         DefKind::Mod => "module",
         DefKind::Struct => "struct",
@@ -406,13 +403,13 @@ fn classify_node_kind(def_kind: DefKind) -> String {
     };
     kind.into()
 }
-fn module_path(def_path: &str) -> String {
+fn module_path_from_def(def_path: &str) -> String {
     def_path.rsplitn(2, "::").nth(1).unwrap_or("").to_string()
 }
-fn format_display(module: &str, name: &str) -> String {
+fn format_symbol_display(module: &str, name: &str) -> String {
     if module.is_empty() { name.to_string() } else { format!("{module}::{name}") }
 }
-fn classify_symbol_kind(def_kind: DefKind) -> String {
+fn symbol_kind_label(def_kind: DefKind) -> String {
     let kind = match def_kind {
         DefKind::Mod => "module",
         DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait => "type",
