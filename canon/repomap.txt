@@ -9,57 +9,87 @@ storage/manifest.rs:
   impl ManifestEntry  { fn new(id: String, slot: u64) -> Self }  (line 12)
   struct ArtifactManifest  { modules, structs, enums, traits, impls, functions, module_edges, call_edges, ticks, tick_graphs, system_graphs, loop_policies, tick_epochs, policies, plans, executions, admissions, applied_deltas, gpu_functions, proposals, judgments, judgment_predicates, delta_defs, proofs, learnings, errors, dependencies, file_hashes, rewards, goal_mutations }  (line 20)
   impl ArtifactManifest  { fn from_ir(ir: &CanonicalIr) -> Self }  (line 53)
-  fn assign_slots(ids: I) -> Vec<ManifestEntry>  (line 109)
+  fn assign_slots(ids: I) -> Vec<ManifestEntry>  (line 107)
 
 storage/reader.rs:
-  struct MemoryIrReader  { state, layout }  (line 24)
+  struct MemoryIrReader  { state, layout }  (line 27)
   impl MemoryIrReader<'a>  { fn new(state: &'a MerkleState) -> Self, fn read_ir(&self) -> Result<CanonicalIr, MemoryIrReadError>, fn from_checkpoint(path: P) -> Result<CanonicalIr, MemoryIrReadError>, fn read_collection(
         &self,
         segment: ArtifactSegment,
-        ids: &[String],
-    ) -> Result<Vec<T>, MemoryIrReadError>, fn read_entry(
+        entries: &[ManifestEntry],
+    ) -> Result<Vec<T>, MemoryIrReadError>, fn read_singleton(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
+    ) -> Result<T, MemoryIrReadError>, fn read_entry_in_slot(
+        &self,
+        segment: ArtifactSegment,
+        artifact_id: &str,
+        slot: u64,
     ) -> Result<T, MemoryIrReadError>, fn read_bytes(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
-    ) -> Result<Vec<u8>, MemoryIrReadError> }  (line 29)
-  enum MemoryIrReadError  { Layout, Decode, Io, Corrupt }  (line 207)
+        slot: u64,
+    ) -> Result<Vec<u8>, MemoryIrReadError> }  (line 32)
+  enum MemoryIrReadError  { Layout, Decode, Io, Corrupt }  (line 224)
 
 storage/layout.rs:
-  enum ArtifactSegment  { Meta, VersionContract, Project, Module, Struct, Enum, Trait, ImplBlock, Function, ModuleEdge, CallEdge, Tick, TickGraph, SystemGraph, LoopPolicy, TickEpoch, Policy, Plan, Execution, Admission, AppliedDelta, GpuFunction, Proposal, Judgment, JudgmentPredicate, DeltaDef, Proof, Learning, ErrorArtifact, Dependency, FileHash, Reward, WorldModel, GoalMutation }  (line 14)
-  impl ArtifactSegment  { fn ordinal(self) -> u64, fn base_page(self) -> u64 }  (line 51)
-  struct MemoryArtifactLayout  (line 98)
-  impl MemoryArtifactLayout  { fn new() -> Self, fn page_for_slot(
+  enum ArtifactSegment  { Meta, VersionContract, Project, Module, Struct, Enum, Trait, ImplBlock, Function, ModuleEdge, CallEdge, Tick, TickGraph, SystemGraph, LoopPolicy, TickEpoch, Policy, Plan, Execution, Admission, AppliedDelta, GpuFunction, Proposal, Judgment, JudgmentPredicate, DeltaDef, Proof, Learning, ErrorArtifact, Dependency, FileHash, Reward, WorldModel, GoalMutation }  (line 21)
+  impl ArtifactSegment  { fn ordinal(self) -> u64, fn base_page(self) -> u64 }  (line 58)
+  struct MemoryArtifactLayout  (line 105)
+  impl MemoryArtifactLayout  { fn new() -> Self, fn page_for(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
         slot: u64,
         chunk_index: u64,
-    ) -> Result<PageAddress, LayoutError> }  (line 100)
-  struct PageAddress  { page_id, slot }  (line 134)
-  enum LayoutError  { ChunkOverflow, SlotOverflow }  (line 140)
+    ) -> Result<PageAddress, LayoutError> }  (line 107)
+  struct PageAddress  { page_id, slot }  (line 141)
+  enum LayoutError  { ChunkOverflow, SlotOverflow }  (line 147)
 
 storage/builder.rs:
-  struct MemoryIrBuilder  { engine, layout, judgment_counter }  (line 25)
-  impl MemoryIrBuilder<'engine>  { fn new(engine: &'engine MemoryEngine) -> Self, fn persist_ir(&self, ir: &CanonicalIr) -> Result<(), MemoryIrBuilderError>, fn persist_module(&self, module: &Module) -> Result<(), MemoryIrBuilderError>, fn persist_struct(&self, structure: &Struct) -> Result<(), MemoryIrBuilderError>, fn persist_enum(&self, enum_node: &EnumNode) -> Result<(), MemoryIrBuilderError>, fn persist_trait(&self, tr: &Trait) -> Result<(), MemoryIrBuilderError>, fn persist_impl(&self, block: &ImplBlock) -> Result<(), MemoryIrBuilderError>, fn persist_function(&self, function: &Function) -> Result<(), MemoryIrBuilderError>, fn persist_module_edge(&self, edge: &ModuleEdge) -> Result<(), MemoryIrBuilderError>, fn persist_call_edge(&self, edge: &CallEdge) -> Result<(), MemoryIrBuilderError>, fn persist_tick_graph(
+  struct MemoryIrBuilder  { engine, layout, judgment_counter }  (line 29)
+  impl MemoryIrBuilder<'engine>  { fn new(engine: &'engine MemoryEngine) -> Self, fn persist_ir(&self, ir: &CanonicalIr) -> Result<(), MemoryIrBuilderError>, fn persist_module(&self, module: &Module, slot: u64) -> Result<(), MemoryIrBuilderError>, fn persist_struct(
+        &self,
+        structure: &Struct,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_enum(
+        &self,
+        enum_node: &EnumNode,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_trait(&self, tr: &Trait, slot: u64) -> Result<(), MemoryIrBuilderError>, fn persist_impl(&self, block: &ImplBlock, slot: u64) -> Result<(), MemoryIrBuilderError>, fn persist_function(
+        &self,
+        function: &Function,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_module_edge(
+        &self,
+        edge: &ModuleEdge,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_call_edge(
+        &self,
+        edge: &CallEdge,
+        slot: u64,
+    ) -> Result<(), MemoryIrBuilderError>, fn persist_tick_graph(
         &self,
         tick_id: &str,
+        slot: u64,
         graph: &TickGraph,
     ) -> Result<(), MemoryIrBuilderError>, fn persist_system_graph(
         &self,
         system_id: &str,
+        slot: u64,
         graph: &SystemGraph,
     ) -> Result<(), MemoryIrBuilderError>, fn persist_reward(
         &self,
         key: &str,
+        slot: u64,
         value: &T,
     ) -> Result<(), MemoryIrBuilderError>, fn persist_segment(
         &self,
         segment: ArtifactSegment,
         artifact_id: &str,
+        slot: u64,
         value: &T,
     ) -> Result<(), MemoryIrBuilderError>, fn encode(&self, value: &T) -> Result<Vec<u8>, MemoryIrBuilderError>, fn commit_deltas(
         &self,
@@ -71,8 +101,18 @@ storage/builder.rs:
         segment: ArtifactSegment,
         artifact_id: &str,
         hashes: &[EngineHash],
-    ) -> JudgmentProof }  (line 31)
-  enum MemoryIrBuilderError  { Serialize, Layout, Delta, Memory, Admission }  (line 311)
+    ) -> JudgmentProof }  (line 35)
+  enum MemoryIrBuilderError  { Serialize, Layout, MissingSlot, Delta, Memory, Admission }  (line 401)
+  struct ManifestSlotLookup  { slots }  (line 423)
+  impl ManifestSlotLookup  { fn new(manifest: &ArtifactManifest) -> Self, fn index_segment(
+        slots: &mut HashMap<ArtifactSegment, HashMap<String, u64>>,
+        segment: ArtifactSegment,
+        entries: &[ManifestEntry],
+    ), fn slot_or_err(
+        &self,
+        segment: ArtifactSegment,
+        artifact_id: &str,
+    ) -> Result<u64, MemoryIrBuilderError> }  (line 427)
 
 main.rs:
   fn main()  (line 33)
@@ -878,9 +918,9 @@ materialize/file_tree.rs:
 ingest/fs_walk.rs:
   struct DiscoveredFile  { absolute, relative }  (line 8)
   fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, IngestError>  (line 16)
-  fn is_ignored(path: &Path) -> bool  (line 79)
-  fn strip_prefix_components(path: &Path, root: &Path) -> Option<PathBuf>  (line 92)
-  fn map_walkdir_error(err: walkdir::Error) -> IngestError  (line 97)
+  fn is_ignored(path: &Path) -> bool  (line 61)
+  fn resolve_src_root(root: &Path) -> Result<PathBuf, IngestError>  (line 74)
+  fn map_walkdir_error(err: walkdir::Error) -> IngestError  (line 95)
 
 ingest/builder/types/ports.rs:
   fn convert_fields(fields: &syn::Fields) -> (StructKind, Vec<Field>)  (line 6)

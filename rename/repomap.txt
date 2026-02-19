@@ -48,7 +48,7 @@ rustc_integration/frontends/rustc/item_capture.rs:
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
 ) -> NodeId  (line 75)
-  fn serialize_struct_fields(
+  fn serialize_struct_field_list(
     tcx: TyCtxt<'tcx>,
     adt_def: ty::AdtDef<'tcx>,
 ) -> Option<String>  (line 102)
@@ -93,23 +93,25 @@ rustc_integration/frontends/rustc/mir_capture.rs:
     cache: &mut HashMap<DefId, NodeId>,
     metadata: &FrontendMetadata,
 )  (line 84)
-  fn call_span(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span  (line 123)
-  fn serialize_statements(bb_data: &mir::BasicBlockData<'tcx>) -> Option<String>  (line 126)
+  fn callsite_span(_tcx: TyCtxt<'tcx>, span: Span, _local_def: LocalDefId) -> Span  (line 123)
+  fn serialize_statement_kinds(
+    bb_data: &mir::BasicBlockData<'tcx>,
+) -> Option<String>  (line 126)
   fn serialize_control_flow_graph(
     tcx: TyCtxt<'tcx>,
     body: &mir::Body<'tcx>,
-) -> Option<String>  (line 143)
+) -> Option<String>  (line 145)
   fn serialize_dataflow_graph(
     _tcx: TyCtxt<'tcx>,
     body: &mir::Body<'tcx>,
-) -> Option<String>  (line 209)
-  fn serialize_mir_dump(body: &mir::Body<'tcx>) -> Option<String>  (line 243)
+) -> Option<String>  (line 211)
+  fn serialize_mir_body(body: &mir::Body<'tcx>) -> Option<String>  (line 245)
   fn compute_mir_metrics(
     tcx: TyCtxt<'tcx>,
     local_def: LocalDefId,
     body: &mir::Body<'tcx>,
-) -> Option<String>  (line 246)
-  fn compute_effects(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 296)
+) -> Option<String>  (line 248)
+  fn compute_effects(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String>  (line 298)
 
 rustc_integration/frontends/rustc/mod.rs:
   enum RustcFrontendError  { Unavailable, Io, Sysroot, MissingSnapshot }  (line 26)
@@ -126,7 +128,7 @@ rustc_integration/frontends/rustc/crate_metadata.rs:
     tcx: TyCtxt<'tcx>,
     metadata: &FrontendMetadata,
 )  (line 9)
-  fn serialize_dependencies(tcx: TyCtxt<'_>) -> String  (line 52)
+  fn serialize_crate_dependencies(tcx: TyCtxt<'_>) -> String  (line 52)
 
 rustc_integration/frontends/rustc/trait_capture.rs:
   fn capture_trait(
@@ -171,10 +173,10 @@ rustc_integration/frontends/rustc/metadata_capture.rs:
   fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData>  (line 132)
   fn attribute_path(attr: &HirAttribute) -> Vec<String>  (line 166)
   fn attribute_args(attr: &HirAttribute) -> Option<String>  (line 169)
-  fn serialize_generics(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 181)
-  fn serialize_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 204)
-  fn format_param_kind(kind: &GenericParamDefKind) -> String  (line 213)
-  fn param_has_default(kind: &GenericParamDefKind) -> bool  (line 220)
+  fn serialize_generic_params(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String>  (line 181)
+  fn serialize_where_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>>  (line 204)
+  fn format_generic_param_kind(kind: &GenericParamDefKind) -> String  (line 213)
+  fn generic_param_has_default(kind: &GenericParamDefKind) -> bool  (line 220)
   struct GenericsCapture  { params, parent, predicates }  (line 228)
   struct GenericParamCapture  { index, name, kind, has_default }  (line 234)
   struct AttributeData  { raw, flags }  (line 240)
@@ -185,7 +187,7 @@ rustc_integration/frontends/rustc/metadata_capture.rs:
     flags: AttributeFlags,
 ) -> NodePayload  (line 310)
   struct FileStats  { hash, line_count, byte_len }  (line 350)
-  fn source_file_stats(file: &SourceFile) -> FileStats  (line 355)
+  fn compute_source_file_stats(file: &SourceFile) -> FileStats  (line 355)
   fn resolve_absolute_path(filename: &FileName) -> String  (line 374)
   fn resolve_relative_path(path: &str, workspace_root: Option<&str>) -> Option<String>  (line 381)
   fn node_kind_label(def_kind: DefKind) -> String  (line 387)

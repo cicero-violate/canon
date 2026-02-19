@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use super::ids::{EdgeId, NodeId};
+use graph_gpu::csr::{CsrGraph, EdgeKind as GpuEdgeKind, InputEdge};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EdgeKind {
@@ -95,6 +96,31 @@ impl GraphSnapshot {
 
     pub fn hash(&self) -> u64 {
         self.hash
+    }
+
+    /// Convert this snapshot into a zero-copy CSR graph for GPU traversal.
+    pub fn to_csr(&self) -> CsrGraph {
+        let node_ids: Vec<u64> = self.nodes
+            .iter()
+            .map(|n| n.id.low_u64_le())
+            .collect();
+
+        let edges: Vec<InputEdge> = self.edges
+            .iter()
+            .filter_map(|e| {
+                let from = e.from.low_u64_le();
+                let to   = e.to.low_u64_le();
+                let kind = match e.kind {
+                    EdgeKind::Contains    => GpuEdgeKind::Contains,
+                    EdgeKind::Call        => GpuEdgeKind::Call,
+                    EdgeKind::ControlFlow => GpuEdgeKind::ControlFlow,
+                    EdgeKind::Reference   => GpuEdgeKind::Reference,
+                };
+                Some(InputEdge { from, to, kind })
+            })
+            .collect();
+
+        CsrGraph::build(&node_ids, &edges)
     }
 }
 

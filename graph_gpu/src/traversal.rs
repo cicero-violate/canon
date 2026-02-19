@@ -1,7 +1,9 @@
 //! Graph traversal — BFS with GPU acceleration when available,
 //! CPU fallback otherwise. Same API either way.
 use crate::csr::{CsrGraph, EdgeKind};
-use crate::unified::{cuda_available, device_sync, UnifiedVec};
+use crate::unified::{cuda_available, device_sync};
+#[cfg(feature = "cuda")]
+use crate::unified::UnifiedVec;
 
 /// Result of a BFS traversal.
 pub struct BfsResult {
@@ -27,11 +29,11 @@ impl BfsResult {
 /// BFS from `source` (internal index), optionally filtering by edge kind.
 /// Uses GPU kernel when CUDA is available, CPU otherwise.
 pub fn bfs(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> BfsResult {
+    #[cfg(feature = "cuda")]
     if cuda_available() {
-        bfs_gpu(graph, source, edge_filter)
-    } else {
-        bfs_cpu(graph, source, edge_filter)
+        return bfs_gpu(graph, source, edge_filter);
     }
+    bfs_cpu(graph, source, edge_filter)
 }
 
 /// CPU BFS — standard queue-based.
@@ -63,6 +65,7 @@ fn bfs_cpu(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> BfsR
 
 /// GPU BFS — frontier-based level-synchronous parallel BFS.
 /// Uses unified memory so no transfers needed.
+#[cfg(feature = "cuda")]
 fn bfs_gpu(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> BfsResult {
     let n = graph.n_nodes;
 
@@ -124,6 +127,7 @@ fn bfs_gpu(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> BfsR
     }
 }
 
+#[cfg(feature = "cuda")]
 extern "C" {
     fn launch_bfs_kernel(
         row_offsets:   *const u32,

@@ -18,6 +18,10 @@ impl NodeId {
         bytes[8..].copy_from_slice(&hash.to_be_bytes());
         Self(bytes)
     }
+
+    pub fn low_u64_le(&self) -> u64 {
+        u64::from_le_bytes(self.0[..8].try_into().unwrap())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

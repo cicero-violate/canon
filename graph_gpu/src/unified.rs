@@ -1,9 +1,15 @@
 //! Unified (zero-copy) memory allocator.
 //! Wraps cudaMallocManaged so CSR arrays are accessible from both
 //! CPU and GPU without any explicit transfers.
+//! Falls back to heap allocation when CUDA is unavailable or the
+//! cuda feature is not enabled.
+
+#[cfg(feature = "cuda")]
 use core::ffi::c_void;
+#[cfg(feature = "cuda")]
 use std::ptr::null_mut;
 
+#[cfg(feature = "cuda")]
 extern "C" {
     fn cudaMallocManaged(ptr: *mut *mut c_void, size: usize, flags: u32) -> i32;
     fn cudaFree(ptr: *mut c_void) -> i32;
@@ -11,15 +17,22 @@ extern "C" {
     fn cudaDeviceSynchronize() -> i32;
 }
 
-/// Is a CUDA device available?
+/// Is a CUDA device present and usable?
 pub fn cuda_available() -> bool {
-    unsafe {
-        let mut count = 0i32;
-        cudaGetDeviceCount(&mut count as *mut i32) == 0 && count > 0
+    #[cfg(feature = "cuda")]
+    {
+        unsafe {
+            let mut count = 0i32;
+            cudaGetDeviceCount(&mut count as *mut i32) == 0 && count > 0
+        }
     }
+    #[cfg(not(feature = "cuda"))]
+    false
 }
 
+/// Synchronize the CUDA device (no-op without cuda feature).
 pub fn device_sync() {
+    #[cfg(feature = "cuda")]
     unsafe { cudaDeviceSynchronize(); }
 }
 
@@ -38,15 +51,14 @@ unsafe impl<T: Sync> Sync for UnifiedVec<T> {}
 impl<T: Copy + Default> UnifiedVec<T> {
     pub fn with_capacity(cap: usize) -> Self {
         let byte_size = cap * std::mem::size_of::<T>();
-        if cuda_available() && byte_size > 0 {
+        #[cfg(feature = "cuda")]
+        if byte_size > 0 && cuda_available() {
             unsafe {
                 let mut raw: *mut c_void = null_mut();
-                // cudaMemAttachGlobal = 1
                 if cudaMallocManaged(&mut raw as *mut *mut c_void, byte_size, 1) == 0
                     && !raw.is_null()
                 {
                     let ptr = raw as *mut T;
-                    // Zero-initialise
                     std::ptr::write_bytes(ptr, 0, cap);
                     return Self { ptr, len: 0, cap, on_gpu: true };
                 }
@@ -79,7 +91,7 @@ impl<T: Copy + Default> UnifiedVec<T> {
     pub fn is_empty(&self) -> bool { self.len == 0 }
     pub fn on_gpu(&self) -> bool { self.on_gpu }
 
-    /// Fill entire capacity with a value (useful for visited arrays).
+    /// Fill entire capacity with a value (useful for visited/dist arrays).
     pub fn fill(&mut self, val: T) {
         unsafe {
             for i in 0..self.cap {
@@ -94,6 +106,7 @@ impl<T> Drop for UnifiedVec<T> {
     fn drop(&mut self) {
         if self.ptr.is_null() { return; }
         if self.on_gpu {
+            #[cfg(feature = "cuda")]
             unsafe { cudaFree(self.ptr as *mut c_void); }
         } else {
             unsafe {

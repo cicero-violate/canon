@@ -26,11 +26,11 @@ page/traits.rs:
   trait DeltaAppliable  (line 17)
 
 memory_engine.rs:
-  struct MemoryEngineConfig  { tlog_path }  (line 42)
-  enum MemoryEngineError  { TlogOpen, GraphLogOpen, GraphLogIo, Admission, Commit, DeltaNotFound }  (line 51)
-  enum AdmissionError  { InvalidJudgmentProof, StaleEpoch, AlreadyAdmitted }  (line 72)
-  enum CommitError  { TlogWrite }  (line 84)
-  struct MemoryEngine  { wal, epoch, admitted, deltas, state }  (line 92)
+  struct MemoryEngineConfig  { tlog_path }  (line 43)
+  enum MemoryEngineError  { TlogOpen, GraphLogOpen, GraphLogIo, Admission, Commit, DeltaNotFound, StateMismatch }  (line 52)
+  enum AdmissionError  { InvalidJudgmentProof, StaleEpoch, AlreadyAdmitted }  (line 76)
+  enum CommitError  { TlogWrite }  (line 88)
+  struct MemoryEngine  { wal, epoch, admitted, deltas, state }  (line 96)
   impl MemoryEngine  { fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError>, fn checkpoint(&self, path: P) -> std::io::Result<()>, fn current_root_hash(&self) -> Hash, fn compact(&self) -> std::io::Result<()>, fn admit_execution(
         &self,
         judgment_proof: &JudgmentProof,
@@ -43,7 +43,7 @@ memory_engine.rs:
         admission: &AdmissionProof,
         commit: &CommitProof,
         outcome: &OutcomeProof,
-    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError>, fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError>, fn verify_judgment_proof(&self, proof: &JudgmentProof) -> bool, fn hash_delta(delta: &Delta) -> Hash }  (line 100)
+    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError>, fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError>, fn verify_judgment_proof(&self, proof: &JudgmentProof) -> bool, fn transition_judgment(&self, previous_state: Hash, delta_hash: Hash) -> JudgmentProof, fn hash_delta(delta: &Delta) -> Hash }  (line 104)
   impl Engine for MemoryEngine  { fn admit_execution(
         &self,
         judgment_proof: &JudgmentProof,
@@ -60,7 +60,11 @@ memory_engine.rs:
         admission: &AdmissionProof,
         commit: &CommitProof,
         outcome: &OutcomeProof,
-    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), Self::Error>, fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> }  (line 394)
+    ) -> Hash, fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), Self::Error>, fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> }  (line 411)
+  impl MemoryTransition for MemoryEngine  { fn genesis(&self) -> Hash, fn step(&self, state: Hash, delta: Delta) -> Result<(Hash, CommitProof), MemoryEngineError> }  (line 467)
+
+transition.rs:
+  trait MemoryTransition  (line 13)
 
 graph_log.rs:
   struct GraphDelta  { payload }  (line 5)
@@ -80,23 +84,35 @@ canonical_state.rs:
 hash/mod.rs:
   trait HashBackend  (line 3)
 
+hash/cpu.rs:
+  fn rotr(x: u32, n: u32) -> u32  (line 20)
+  fn sha256_block(block: &[u8; BLOCK_SIZE], state: &mut [u32; 8])  (line 24)
+  fn state_to_bytes(state: [u32; 8]) -> Hash  (line 85)
+  fn sha256_internal(left: &Hash, right: &Hash) -> Hash  (line 97)
+  fn sha256_page(page: &[u8]) -> Hash  (line 117)
+  fn rebuild_merkle_tree(nodes: &mut [Hash], tree_size: u64, pages_ptr: *const u8)  (line 144)
+
 hash/gpu.rs:
-  struct GpuBackend  { _ctx }  (line 6)
-  struct CudaContext  { stream }  (line 10)
-  impl Send for CudaContext  (line 17)
-  impl Sync for CudaContext  (line 18)
-  impl CudaContext  { fn new() -> Self }  (line 20)
-  impl Drop for CudaContext  { fn drop(&mut self) }  (line 34)
-  impl GpuBackend  { fn allocate_tree_bytes(bytes: usize) -> *mut u8, fn free_tree(ptr: *mut u8) }  (line 42)
-  impl HashBackend for GpuBackend  { fn rebuild_merkle_tree(&self, nodes: &mut [Hash], tree_size: u64, pages_ptr: *const u8) }  (line 75)
-  fn create_gpu_backend() -> Box<dyn HashBackend>  (line 87)
+  struct CudaContext  { stream }  (line 14)
+  impl Send for CudaContext  (line 19)
+  impl Sync for CudaContext  (line 21)
+  impl CudaContext  { fn new() -> Self }  (line 24)
+  impl Drop for CudaContext  { fn drop(&mut self) }  (line 40)
+  struct GpuBackend  { _ctx, cuda }  (line 52)
+  impl GpuBackend  { fn allocate_tree_bytes(bytes: usize) -> *mut u8, fn heap_allocate(bytes: usize) -> *mut u8, fn free_tree(ptr: *mut u8) }  (line 58)
+  impl HashBackend for GpuBackend  { fn rebuild_merkle_tree(&self, nodes: &mut [Hash], tree_size: u64, pages_ptr: *const u8) }  (line 95)
+  fn create_gpu_backend() -> Box<dyn HashBackend>  (line 115)
+  fn detect_cuda() -> bool  (line 147)
+  fn gpu_available() -> bool  (line 160)
+  fn gpu_available() -> bool  (line 172)
+  fn debug_cuda(message: &str)  (line 177)
 
 page_store.rs:
-  struct PageStore  { ptr, capacity }  (line 11)
-  impl Send for PageStore  (line 18)
-  impl Sync for PageStore  (line 19)
-  impl PageStore  { fn in_memory() -> Self, fn write_page(&mut self, page_id: u64, data: &[u8]), fn read_page(&self, page_id: u64) -> &[u8], fn flush(&mut self) -> std::io::Result<()>, fn as_device_ptr(&self) -> *const u8, fn capacity_bytes(&self) -> usize, fn grow(&mut self, required: usize) }  (line 21)
-  impl Drop for PageStore  { fn drop(&mut self) }  (line 102)
+  struct PageStore  { ptr, capacity }  (line 13)
+  impl Send for PageStore  (line 20)
+  impl Sync for PageStore  (line 21)
+  impl PageStore  { fn in_memory() -> Self, fn write_page(&mut self, page_id: u64, data: &[u8]), fn read_page(&self, page_id: u64) -> &[u8], fn flush(&mut self) -> std::io::Result<()>, fn as_device_ptr(&self) -> *const u8, fn capacity_bytes(&self) -> usize, fn grow(&mut self, required: usize) }  (line 23)
+  impl Drop for PageStore  { fn drop(&mut self) }  (line 106)
 
 engine.rs:
   trait Engine  (line 13)
