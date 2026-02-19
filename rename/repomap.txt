@@ -393,14 +393,14 @@ rename/structured/doc_attr.rs:
   fn contains(outer: &SpanRange, inner: &SpanRange) -> bool  (line 196)
 
 rename/structured/ops.rs:
-  enum NodeOp  { ReplaceNode, InsertBefore, InsertAfter, DeleteNode, MutateField, ReorderItems }  (line 7)
-  enum FieldMutation  { RenameIdent, ChangeVisibility, AddAttribute, RemoveAttribute, ReplaceSignature, AddStructField, RemoveStructField, AddVariant, RemoveVariant }  (line 18)
+  enum NodeOp  { ReplaceNode, InsertBefore, InsertAfter, DeleteNode, MutateField, ReorderItems, MoveSymbol }  (line 7)
+  enum FieldMutation  { RenameIdent, ChangeVisibility, AddAttribute, RemoveAttribute, ReplaceSignature, AddStructField, RemoveStructField, AddVariant, RemoveVariant }  (line 23)
   fn node_handle(
     file: impl Into<PathBuf>,
     item_index: usize,
     nested_path: Vec<usize>,
     kind: NodeKind,
-) -> NodeHandle  (line 31)
+) -> NodeHandle  (line 36)
 
 rename/structured/orchestrator.rs:
   trait StructuredPass  { fn is_enabled(&self) -> bool }  (line 8)
@@ -626,15 +626,26 @@ rename/core/preview.rs:
 ) -> Result<()>  (line 8)
 
 rename/core/project_editor/mod.rs:
-  struct EditConflict  { symbol_id, reason }  (line 19)
-  struct ChangeReport  { touched_files, conflicts }  (line 25)
-  struct ProjectEditor  { registry, changesets, oracle }  (line 30)
-  struct QueuedOp  { symbol_id, op }  (line 37)
-  impl ProjectEditor  { fn load(project: &Path, oracle: Box<dyn StructuralEditOracle>) -> Result<Self>, fn load_with_rustc(project: &Path) -> Result<Self>, fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()>, fn queue_by_id(&mut self, symbol_id: &str, mutation: FieldMutation) -> Result<()>, fn apply(&mut self) -> Result<ChangeReport>, fn validate(&self) -> Result<Vec<EditConflict>>, fn commit(&self) -> Result<Vec<PathBuf>>, fn preview(&self) -> Result<String> }  (line 42)
-  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 211)
-  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 221)
-  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 271)
-  struct ImplContext  { struct_path, trait_path }  (line 366)
+  struct EditConflict  { symbol_id, reason }  (line 25)
+  struct ChangeReport  { touched_files, conflicts, file_moves }  (line 31)
+  struct ProjectEditor  { registry, changesets, oracle, original_sources, pending_file_moves, pending_file_renames, last_touched_files }  (line 37)
+  struct QueuedOp  { symbol_id, op }  (line 48)
+  impl ProjectEditor  { fn load(project: &Path, oracle: Box<dyn StructuralEditOracle>) -> Result<Self>, fn load_with_rustc(project: &Path) -> Result<Self>, fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()>, fn queue_by_id(&mut self, symbol_id: &str, mutation: FieldMutation) -> Result<()>, fn apply(&mut self) -> Result<ChangeReport>, fn validate(&self) -> Result<Vec<EditConflict>>, fn commit(&self) -> Result<Vec<PathBuf>>, fn preview(&self) -> Result<String> }  (line 53)
+  fn run_use_path_rewrite(
+    registry: &mut NodeRegistry,
+    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
+) -> Result<HashSet<PathBuf>>  (line 295)
+  fn collect_use_path_updates(
+    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
+) -> HashMap<String, String>  (line 315)
+  fn replace_last_segment(path: &str, new_name: &str) -> Option<String>  (line 351)
+  fn parent_module_path(path: &str) -> Option<String>  (line 360)
+  fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<SymbolIndex>  (line 369)
+  fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>>  (line 390)
+  struct NodeRegistryBuilder  { project_root, file, registry, module_path, item_index, parent_path, current_impl }  (line 414)
+  impl NodeRegistryBuilder<'a>  { fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self, fn register(&mut self, ident: &syn::Ident, kind: NodeKind), fn register_with_id(&mut self, id: String, kind: NodeKind), fn register_use_tree(&mut self, tree: &syn::UseTree) }  (line 424)
+  impl syn::visit::Visit<'ast> for NodeRegistryBuilder<'_>  { fn visit_file(&mut self, i: &'ast syn::File), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 474)
+  struct ImplContext  { struct_path, trait_path }  (line 569)
 
 rename/core/project_editor/ops.rs:
   fn apply_node_op(
@@ -642,165 +653,172 @@ rename/core/project_editor/ops.rs:
     handles: &HashMap<String, NodeHandle>,
     symbol_id: &str,
     op: &NodeOp,
-) -> Result<()>  (line 9)
+) -> Result<bool>  (line 9)
   fn apply_field_mutation(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     mutation: &FieldMutation,
-) -> Result<()>  (line 33)
-  fn rename_ident(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_name: &str) -> bool  (line 106)
-  fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<()>  (line 123)
+) -> Result<bool>  (line 34)
+  fn rename_ident(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_name: &str) -> bool  (line 107)
+  fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<bool>  (line 124)
   fn insert_node(
     ast: &mut syn::File,
     handle: &NodeHandle,
     new_node: syn::Item,
     before: bool,
-) -> Result<()>  (line 135)
-  fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<()>  (line 155)
+) -> Result<bool>  (line 136)
+  fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<bool>  (line 156)
   fn reorder_items(
     ast: &mut syn::File,
     handles: &HashMap<String, NodeHandle>,
     new_order: &[String],
-) -> Result<()>  (line 166)
+) -> Result<bool>  (line 167)
   fn change_visibility(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     new_vis: &syn::Visibility,
-) -> bool  (line 216)
+) -> bool  (line 217)
   fn add_attribute(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     attr: syn::Attribute,
-) -> bool  (line 267)
+) -> bool  (line 268)
   fn remove_attribute(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     name: &str,
-) -> bool  (line 293)
+) -> bool  (line 294)
   fn replace_signature(
     ast: &mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
     sig: syn::Signature,
-) -> bool  (line 358)
+) -> bool  (line 359)
   fn add_struct_field(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     field: syn::Field,
-) -> bool  (line 381)
+) -> bool  (line 382)
   fn remove_struct_field(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     name: &str,
-) -> bool  (line 405)
+) -> bool  (line 406)
   fn add_variant(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     variant: syn::Variant,
-) -> bool  (line 433)
+) -> bool  (line 434)
   fn remove_variant(
     ast: &mut syn::File,
     handle: &NodeHandle,
     _symbol_id: &str,
     name: &str,
-) -> bool  (line 448)
-  enum TargetItemMut  { Top, ImplFn }  (line 469)
+) -> bool  (line 449)
+  enum TargetItemMut  { Top, ImplFn }  (line 470)
   fn resolve_target_mut(
     ast: &'a mut syn::File,
     handle: &NodeHandle,
     symbol_id: &str,
-) -> Option<TargetItemMut<'a>>  (line 474)
-  fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> bool  (line 501)
-  fn split_impl_path(handle: &NodeHandle) -> Option<(&[usize], usize)>  (line 550)
+) -> Option<TargetItemMut<'a>>  (line 475)
+  fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> bool  (line 502)
+  fn split_impl_path(handle: &NodeHandle) -> Option<(&[usize], usize)>  (line 551)
   fn get_item_mut(
     items: &'a mut Vec<syn::Item>,
     module_path: &[usize],
     item_index: usize,
-) -> Option<&'a mut syn::Item>  (line 559)
+) -> Option<&'a mut syn::Item>  (line 560)
   fn resolve_items_container_mut(
     ast: &'a mut syn::File,
     module_path: &[usize],
-) -> Option<&'a mut Vec<syn::Item>>  (line 576)
+) -> Option<&'a mut Vec<syn::Item>>  (line 577)
   fn resolve_items_container_from(
     items: &'a mut Vec<syn::Item>,
     module_path: &[usize],
-) -> Option<&'a mut Vec<syn::Item>>  (line 583)
+) -> Option<&'a mut Vec<syn::Item>>  (line 584)
 
 rename/core/project_editor/propagate.rs:
-  struct PropagationResult  { rewrites, conflicts }  (line 22)
+  struct PropagationResult  { rewrites, conflicts, file_renames }  (line 23)
   fn propagate(
     op: &NodeOp,
     symbol_id: &str,
     registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 27)
+) -> Result<PropagationResult>  (line 29)
   fn propagate_rename(
     symbol_id: &str,
     new_name: &str,
     registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 74)
+) -> Result<PropagationResult>  (line 83)
   fn propagate_delete(
     symbol_id: &str,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 116)
+) -> Result<PropagationResult>  (line 129)
+  fn propagate_move(
+    symbol_id: &str,
+    new_module_path: &str,
+    new_crate: Option<&str>,
+    registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult>  (line 156)
   fn propagate_remove_field(
     symbol_id: &str,
     field_name: &str,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 142)
+) -> Result<PropagationResult>  (line 222)
   fn propagate_remove_variant(
     symbol_id: &str,
     variant_name: &str,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 162)
+) -> Result<PropagationResult>  (line 243)
   fn propagate_visibility(
     symbol_id: &str,
     _new_vis: &syn::Visibility,
     registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 182)
+) -> Result<PropagationResult>  (line 264)
   fn propagate_signature(
     symbol_id: &str,
     new_sig: &syn::Signature,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 209)
+) -> Result<PropagationResult>  (line 292)
   fn propagate_add_field(
     symbol_id: &str,
     field: &syn::Field,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 231)
+) -> Result<PropagationResult>  (line 315)
   fn propagate_add_variant(
     symbol_id: &str,
     variant: &syn::Variant,
     _registry: &NodeRegistry,
     oracle: &dyn StructuralEditOracle,
-) -> Result<PropagationResult>  (line 256)
-  fn occurrence_to_edit(occ: &SymbolOccurrence, new_name: &str) -> SymbolEdit  (line 277)
+) -> Result<PropagationResult>  (line 341)
+  fn occurrence_to_edit(occ: &SymbolOccurrence, new_name: &str) -> SymbolEdit  (line 363)
   fn build_symbol_index_and_occurrences(
     registry: &NodeRegistry,
-) -> Result<(SymbolIndex, Vec<SymbolOccurrence>, AliasGraph)>  (line 288)
+) -> Result<(SymbolIndex, Vec<SymbolOccurrence>, AliasGraph)>  (line 374)
   fn build_visibility_map(
     registry: &NodeRegistry,
     _alias_graph: &AliasGraph,
-) -> Result<HashMap<String, VisibilityScope>>  (line 332)
-  fn leak_conflicts(analysis: &VisibilityLeakAnalysis) -> Vec<EditConflict>  (line 366)
-  fn find_project_root(registry: &NodeRegistry) -> Result<PathBuf>  (line 377)
+) -> Result<HashMap<String, VisibilityScope>>  (line 418)
+  fn leak_conflicts(analysis: &VisibilityLeakAnalysis) -> Vec<EditConflict>  (line 452)
+  fn find_project_root(registry: &NodeRegistry) -> Result<PathBuf>  (line 463)
   fn apply_rewrites(
     registry: &mut NodeRegistry,
     rewrites: &[SymbolEdit],
-) -> Result<HashSet<PathBuf>>  (line 395)
+) -> Result<HashSet<PathBuf>>  (line 481)
 
 rename/core/collect/mod.rs:
   fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 21)
