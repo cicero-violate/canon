@@ -17,7 +17,9 @@ use crate::diagnose::trace_root_causes;
 use crate::diff::diff_ir;
 use crate::dot_export::{self, verify_dot};
 use crate::ingest::{self, IngestOptions};
-use crate::io_utils::{load_ir, load_ir_or_semantic, load_layout, resolve_layout};
+use crate::io_utils::{
+    load_ir_from_file, load_ir_or_semantic_graph, load_layout, resolve_layout,
+};
 use crate::layout::LayoutGraph;
 use crate::materialize::render_fn::render_impl_function;
 use crate::materialize::{materialize, write_file_tree};
@@ -35,18 +37,18 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             println!("{}", generate_schema(pretty) ?);
         }
         Command::Validate { path } => {
-            let ir = load_ir(&path)?;
+            let ir = load_ir_from_file(&path)?;
             validate_ir(&ir)?;
             enforce_version_gate(&ir)?;
             println!("Validation passed: `{}`.", path.display());
         }
         Command::Lint { ir } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             validate_ir(&ir_doc)?;
             println!("Lint passed.");
         }
         Command::Diagnose { ir } => {
-            let ir_doc = load_ir_or_semantic(&ir)?;
+            let ir_doc = load_ir_or_semantic_graph(&ir)?;
             match validate_ir(&ir_doc) {
                 Ok(()) => {
                     println!("No violations. IR is structurally sound.");
@@ -81,7 +83,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             }
         }
         Command::RenderFn { ir, fn_id } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let function = ir_doc
                 .functions
                 .iter()
@@ -90,12 +92,12 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             println!("{}", render_impl_function(function));
         }
         Command::DiffIr { before, after } => {
-            let a = load_ir(&before)?;
-            let b = load_ir(&after)?;
+            let a = load_ir_from_file(&before)?;
+            let b = load_ir_from_file(&after)?;
             println!("{}", diff_ir(& a, & b));
         }
         Command::Materialize { ir, layout, out_dir } => {
-            let ir_doc = load_ir_or_semantic(&ir)?;
+            let ir_doc = load_ir_or_semantic_graph(&ir)?;
             validate_ir(&ir_doc)?;
             enforce_version_gate(&ir_doc)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
@@ -144,7 +146,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             );
         }
         Command::ObserveEvents { ir, output } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let obs = analyze_ir(&ir_doc);
             let payload = ir_observation_to_json(&obs);
             let json = serde_json::to_string_pretty(&payload)?;
@@ -156,7 +158,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             );
         }
         Command::ExecuteTick { ir, tick, parallel } => {
-            let mut ir_doc = load_ir(&ir)?;
+            let mut ir_doc = load_ir_from_file(&ir)?;
             validate_ir(&ir_doc)?;
             let mut exec = TickExecutor::new(&mut ir_doc);
             let mode = if parallel {
@@ -168,20 +170,20 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             println!("Tick emitted {} deltas.", result.emitted_deltas.len());
         }
         Command::ExportDot { ir, layout, output } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
             let dot = dot_export::export_dot(&ir_doc, &layout_doc);
             fs::write(output, dot)?;
         }
         Command::VerifyDot { ir, layout, original } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let layout_doc = load_layout(resolve_layout(layout, &ir))?;
             let dot = fs::read_to_string(original)?;
             verify_dot(&ir_doc, &layout_doc, &dot)?;
             println!("DOT verified.");
         }
         Command::SubmitDsl { dsl, ir, layout, output_ir, materialize_dir } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let layout_doc = if let Some(layout_path) = layout {
                 load_layout(layout_path)?
             } else {
@@ -202,7 +204,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             );
         }
         Command::RunPipeline { ir, layout, outputs, proposal, output_ir } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let layout_path = resolve_layout(layout, &ir);
             let layout_doc = load_layout(layout_path)?;
             let stage_outputs: Vec<AgentCallOutput> = serde_json::from_slice(
@@ -227,7 +229,9 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
         }
         Command::MetaTick { graph, ledger, output_graph } => {
             let cap_graph = load_capability_graph(&graph)?;
-            let ledger_doc: NodeRewardLedger = serde_json::from_slice(&fs::read(&ledger)?)?;
+            let ledger_doc: NodeRewardLedger = serde_json::from_slice(
+                &fs::read(&ledger)?,
+            )?;
             match evolve_capability_graph(&cap_graph, &ledger_doc) {
                 Ok(result) => {
                     println!("Meta-tick OK");
@@ -253,7 +257,9 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             }
         }
         Command::ShowLedger { ledger } => {
-            let ledger_doc: NodeRewardLedger = serde_json::from_slice(&fs::read(&ledger)?)?;
+            let ledger_doc: NodeRewardLedger = serde_json::from_slice(
+                &fs::read(&ledger)?,
+            )?;
             let ranked = ledger_doc.ranked_nodes();
             if ranked.is_empty() {
                 println!("Ledger is empty — no pipeline runs recorded.");
@@ -308,7 +314,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             meta_tick_interval,
             policy_update_interval,
         } => {
-            let mut ir_doc = load_ir_or_semantic(&ir)?;
+            let mut ir_doc = load_ir_or_semantic_graph(&ir)?;
             let layout_path = resolve_layout(layout, &ir);
             let mut layout_doc = load_layout(layout_path)?;
             let mut cap_graph = load_capability_graph(&graph)?;
@@ -345,7 +351,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             }
         }
         Command::GpuAnalyze { ir, execute } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let candidates = analyze_fusion_candidates(&ir_doc);
             if candidates.is_empty() {
                 println!("No GPU fusion candidates found.");
@@ -389,7 +395,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             }
         }
         Command::ExecuteGraph { ir, graph_id, checkpoint } => {
-            let ir_doc = load_ir(&ir)?;
+            let ir_doc = load_ir_from_file(&ir)?;
             let engine = MemoryEngine::new(MemoryEngineConfig {
                 tlog_path: checkpoint.with_extension("tlog"),
             })?;
@@ -401,7 +407,7 @@ pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Err
             );
         }
         Command::BootstrapGraph { graph_out, proposal_out, ir } => {
-            let ir_doc = load_ir_or_semantic(&ir)?;
+            let ir_doc = load_ir_or_semantic_graph(&ir)?;
             let target_id = ir_doc
                 .modules
                 .first()

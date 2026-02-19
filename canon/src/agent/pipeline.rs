@@ -14,7 +14,8 @@
 use serde_json::Value;
 use crate::{
     evolution::{
-        DEFAULT_TOPOLOGY_THETA, EvolutionError, apply_deltas, enforce_lyapunov_bound,
+        DEFAULT_TOPOLOGY_THETA, EvolutionError, apply_admitted_deltas,
+        enforce_lyapunov_bound,
     },
     ir::CanonicalIr, layout::LayoutGraph,
 };
@@ -134,11 +135,11 @@ pub fn run_refactor_pipeline(
         .clone()
         .or_else(|| {
             prover_out
-        .payload
-        .get("proof_id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-    })
+                .payload
+                .get("proof_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
         .ok_or(RefactorError::MissingProof)?;
     proposal.proof_id = Some(proof_id);
     let judge_out = require_stage(stage_outputs, 3, RefactorStage::Judge)?;
@@ -165,7 +166,7 @@ pub fn run_refactor_pipeline(
         .ok_or(RefactorError::MissingAdmission)?
         .to_string();
     let proof_ids: Vec<String> = ir.proofs.iter().map(|p| p.id.clone()).collect();
-    let candidate = apply_deltas(ir, &[admission_id.clone()])
+    let candidate = apply_admitted_deltas(ir, &[admission_id.clone()])
         .map_err(RefactorError::Evolution)?;
     enforce_lyapunov_bound(ir, &candidate, &proof_ids, DEFAULT_TOPOLOGY_THETA)
         .map_err(RefactorError::TopologyDrift)?;

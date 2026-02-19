@@ -48,78 +48,78 @@ pub struct ArtifactManifest {
 impl ArtifactManifest {
     pub fn from_ir(ir: &CanonicalIr) -> Self {
         Self {
-            modules: assign_manifest_slots(ir.modules.iter().map(|m| m.id.clone())),
-            structs: assign_manifest_slots(ir.structs.iter().map(|s| s.id.clone())),
-            enums: assign_manifest_slots(ir.enums.iter().map(|e| e.id.clone())),
-            traits: assign_manifest_slots(ir.traits.iter().map(|t| t.id.clone())),
-            impls: assign_manifest_slots(ir.impls.iter().map(|i| i.id.clone())),
-            functions: assign_manifest_slots(ir.functions.iter().map(|f| f.id.clone())),
-            module_edges: assign_manifest_slots(
+            modules: build_manifest_entries(ir.modules.iter().map(|m| m.id.clone())),
+            structs: build_manifest_entries(ir.structs.iter().map(|s| s.id.clone())),
+            enums: build_manifest_entries(ir.enums.iter().map(|e| e.id.clone())),
+            traits: build_manifest_entries(ir.traits.iter().map(|t| t.id.clone())),
+            impls: build_manifest_entries(ir.impls.iter().map(|i| i.id.clone())),
+            functions: build_manifest_entries(ir.functions.iter().map(|f| f.id.clone())),
+            module_edges: build_manifest_entries(
                 ir
                     .module_edges
                     .iter()
                     .map(|edge| format!("edge.module.{}->{}", edge.source, edge.target)),
             ),
-            call_edges: assign_manifest_slots(
+            call_edges: build_manifest_entries(
                 ir
                     .call_edges
                     .iter()
                     .map(|edge| format!("edge.call.{}->{}", edge.caller, edge.callee)),
             ),
-            ticks: assign_manifest_slots(ir.ticks.iter().map(|t| t.id.clone())),
-            tick_graphs: assign_manifest_slots(
+            ticks: build_manifest_entries(ir.ticks.iter().map(|t| t.id.clone())),
+            tick_graphs: build_manifest_entries(
                 ir.tick_graphs.iter().map(|g| g.id.clone()),
             ),
-            system_graphs: assign_manifest_slots(
+            system_graphs: build_manifest_entries(
                 ir.system_graphs.iter().map(|g| g.id.clone()),
             ),
-            loop_policies: assign_manifest_slots(
+            loop_policies: build_manifest_entries(
                 ir.loop_policies.iter().map(|p| p.id.clone()),
             ),
-            tick_epochs: assign_manifest_slots(
+            tick_epochs: build_manifest_entries(
                 ir.tick_epochs.iter().map(|e| e.id.clone()),
             ),
-            policies: assign_manifest_slots(
+            policies: build_manifest_entries(
                 ir.policy_parameters.iter().map(|p| p.id.clone()),
             ),
-            plans: assign_manifest_slots(ir.plans.iter().map(|p| p.id.clone())),
-            executions: assign_manifest_slots(
+            plans: build_manifest_entries(ir.plans.iter().map(|p| p.id.clone())),
+            executions: build_manifest_entries(
                 ir.executions.iter().map(|e| e.id.clone()),
             ),
-            admissions: assign_manifest_slots(
+            admissions: build_manifest_entries(
                 ir.admissions.iter().map(|a| a.id.clone()),
             ),
-            applied_deltas: assign_manifest_slots(
+            applied_deltas: build_manifest_entries(
                 ir.applied_deltas.iter().map(|d| d.id.clone()),
             ),
-            gpu_functions: assign_manifest_slots(
+            gpu_functions: build_manifest_entries(
                 ir.gpu_functions.iter().map(|g| g.id.clone()),
             ),
-            proposals: assign_manifest_slots(ir.proposals.iter().map(|p| p.id.clone())),
-            judgments: assign_manifest_slots(ir.judgments.iter().map(|j| j.id.clone())),
-            judgment_predicates: assign_manifest_slots(
+            proposals: build_manifest_entries(ir.proposals.iter().map(|p| p.id.clone())),
+            judgments: build_manifest_entries(ir.judgments.iter().map(|j| j.id.clone())),
+            judgment_predicates: build_manifest_entries(
                 ir.judgment_predicates.iter().map(|p| p.id.clone()),
             ),
-            delta_defs: assign_manifest_slots(ir.deltas.iter().map(|d| d.id.clone())),
-            proofs: assign_manifest_slots(ir.proofs.iter().map(|p| p.id.clone())),
-            learnings: assign_manifest_slots(ir.learning.iter().map(|l| l.id.clone())),
-            errors: assign_manifest_slots(ir.errors.iter().map(|e| e.id.clone())),
-            dependencies: assign_manifest_slots(
+            delta_defs: build_manifest_entries(ir.deltas.iter().map(|d| d.id.clone())),
+            proofs: build_manifest_entries(ir.proofs.iter().map(|p| p.id.clone())),
+            learnings: build_manifest_entries(ir.learning.iter().map(|l| l.id.clone())),
+            errors: build_manifest_entries(ir.errors.iter().map(|e| e.id.clone())),
+            dependencies: build_manifest_entries(
                 ir.dependencies.iter().map(|d| format!("dependency::{}", d.name)),
             ),
-            file_hashes: assign_manifest_slots(
+            file_hashes: build_manifest_entries(
                 ir.file_hashes.keys().cloned().map(|path| format!("filehash::{path}")),
             ),
-            rewards: assign_manifest_slots(
+            rewards: build_manifest_entries(
                 ir.reward_deltas.iter().map(|r| r.id.clone()),
             ),
-            goal_mutations: assign_manifest_slots(
+            goal_mutations: build_manifest_entries(
                 ir.goal_mutations.iter().map(|g| g.id.clone()),
             ),
         }
     }
 }
-fn assign_manifest_slots<I>(ids: I) -> Vec<ManifestEntry>
+fn build_manifest_entries<I>(ids: I) -> Vec<ManifestEntry>
 where
     I: IntoIterator<Item = String>,
 {

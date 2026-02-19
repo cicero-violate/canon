@@ -1,5 +1,5 @@
 commands.rs:
-  fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>>  (line 32)
+  fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>>  (line 34)
 
 storage/types.rs:
   struct FileHashRecord  { path, hash }  (line 5)
@@ -9,7 +9,7 @@ storage/manifest.rs:
   impl ManifestEntry  { fn new(id: String, slot: u64) -> Self }  (line 9)
   struct ArtifactManifest  { modules, structs, enums, traits, impls, functions, module_edges, call_edges, ticks, tick_graphs, system_graphs, loop_policies, tick_epochs, policies, plans, executions, admissions, applied_deltas, gpu_functions, proposals, judgments, judgment_predicates, delta_defs, proofs, learnings, errors, dependencies, file_hashes, rewards, goal_mutations }  (line 16)
   impl ArtifactManifest  { fn from_ir(ir: &CanonicalIr) -> Self }  (line 48)
-  fn assign_manifest_slots(ids: I) -> Vec<ManifestEntry>  (line 122)
+  fn build_manifest_entries(ids: I) -> Vec<ManifestEntry>  (line 122)
 
 storage/reader.rs:
   struct MemoryIrReader  { state, layout }  (line 24)
@@ -244,14 +244,14 @@ runtime/parallel.rs:
 ) -> Result<Vec<ParallelJobResult>, ExecutorError>  (line 62)
 
 runtime/reward.rs:
-  fn compute_reward(_ir: &CanonicalIr, record: &ExecutionRecord) -> f64  (line 6)
+  fn compute_execution_reward(_ir: &CanonicalIr, record: &ExecutionRecord) -> f64  (line 5)
   fn compute_pipeline_reward(
     before: &CanonicalIr,
     after: &CanonicalIr,
     entropy_before: f64,
     entropy_after: f64,
-) -> f64  (line 34)
-  fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64  (line 59)
+) -> f64  (line 31)
+  fn compute_reward_from_deltas(emitted: &[DeltaValue]) -> f64  (line 49)
 
 runtime/context.rs:
   struct ExecutionContext  { state, emitted_deltas, call_stack, max_call_depth, binding_counter }  (line 15)
@@ -654,11 +654,11 @@ semantic_builder.rs:
   impl SemanticIrBuilder  { fn new(name: &str) -> Self, fn build(&self, semantic: SemanticGraph) -> CanonicalIr }  (line 12)
 
 evolution/mod.rs:
-  fn apply_deltas(
+  fn apply_admitted_deltas(
     ir: &CanonicalIr,
     admission_ids: &[AdmissionId],
 ) -> Result<CanonicalIr, EvolutionError>  (line 22)
-  fn enforce_delta_application(delta: &Delta) -> Result<(), EvolutionError>  (line 109)
+  fn assert_delta_is_applicable(delta: &Delta) -> Result<(), EvolutionError>  (line 109)
   enum EvolutionError  { UnknownAdmission, UnknownJudgment, UnknownDelta, JudgmentNotAccepted, MissingContext, UnknownStruct, UnknownField, UnknownModule, UnknownImpl, UnknownTrait, UnknownTraitFunction, UnknownExecution, UnknownFunction, UnknownEnum, DuplicateArtifact, PayloadHash, Kernel, VerificationFailed, TopologyDrift }  (line 118)
 
 evolution/goal_mutation.rs:
@@ -1197,14 +1197,16 @@ ingest/parser.rs:
 
 io_utils.rs:
   fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 8)
-  fn load_ir(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 26)
-  fn load_ir_or_semantic(
+  fn load_ir_from_file(
     path: &Path,
-) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 32)
-  fn load_layout(path: PathBuf) -> Result<LayoutGraph, Box<dyn std::error::Error>>  (line 37)
-  fn resolve_layout(arg: Option<PathBuf>, ir: &Path) -> PathBuf  (line 41)
-  fn default_layout_path_for(ir_path: &Path) -> PathBuf  (line 44)
-  fn default_graph_path_for(ir_path: &Path) -> PathBuf  (line 55)
+) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 26)
+  fn load_ir_or_semantic_graph(
+    path: &Path,
+) -> Result<CanonicalIr, Box<dyn std::error::Error>>  (line 34)
+  fn load_layout(path: PathBuf) -> Result<LayoutGraph, Box<dyn std::error::Error>>  (line 39)
+  fn resolve_layout(arg: Option<PathBuf>, ir: &Path) -> PathBuf  (line 43)
+  fn default_layout_path_for(ir_path: &Path) -> PathBuf  (line 46)
+  fn default_graph_path_for(ir_path: &Path) -> PathBuf  (line 57)
 
 ir/reward.rs:
   struct RewardRecord  { id, tick, execution, reward, delta }  (line 10)
@@ -1495,25 +1497,25 @@ decision/auto_dsl.rs:
 ) -> Result<ProposalAcceptance, AutoAcceptDslError>  (line 23)
 
 decision/accept/mod.rs:
-  struct ProposalAcceptanceInput  { proposal_id, proof_id, predicate_id, judgment_id, admission_id, tick_id, rationale }  (line 28)
-  struct ProposalAcceptance  { ir, layout, delta_ids, judgment_id, admission_id }  (line 39)
-  enum AcceptProposalError  { UnknownProposal, InvalidProposalStatus, IncompleteProposal, UnknownProof, UnknownPredicate, UnknownTick, DuplicateJudgment, DuplicateAdmission, DuplicateDelta, NoDeltas, UnknownModule, UnknownTrait, EmptyApi, ArtifactExists, Resolution, Evolution, Word, Proof }  (line 48)
+  struct ProposalAcceptanceInput  { proposal_id, proof_id, predicate_id, judgment_id, admission_id, tick_id, rationale }  (line 24)
+  struct ProposalAcceptance  { ir, layout, delta_ids, judgment_id, admission_id }  (line 34)
+  enum AcceptProposalError  { UnknownProposal, InvalidProposalStatus, IncompleteProposal, UnknownProof, UnknownPredicate, UnknownTick, DuplicateJudgment, DuplicateAdmission, DuplicateDelta, NoDeltas, UnknownModule, UnknownTrait, EmptyApi, ArtifactExists, Resolution, Evolution, Word, Proof }  (line 42)
   fn accept_proposal(
     ir: &CanonicalIr,
     layout: &LayoutGraph,
     input: ProposalAcceptanceInput,
-) -> Result<ProposalAcceptance, AcceptProposalError>  (line 90)
-  fn sync_layout_modules(layout: &mut LayoutGraph, ir: &CanonicalIr)  (line 156)
-  fn apply_layout_deltas(layout: &mut LayoutGraph, ir: &CanonicalIr, deltas: &[Delta])  (line 174)
-  fn ensure_layout_module(layout: &mut LayoutGraph, module_id: &str, module_name: &Word)  (line 228)
+) -> Result<ProposalAcceptance, AcceptProposalError>  (line 80)
+  fn sync_layout_modules(layout: &mut LayoutGraph, ir: &CanonicalIr)  (line 148)
+  fn apply_layout_deltas(layout: &mut LayoutGraph, ir: &CanonicalIr, deltas: &[Delta])  (line 166)
+  fn ensure_layout_module(layout: &mut LayoutGraph, module_id: &str, module_name: &Word)  (line 214)
   fn ensure_assignment(
     layout: &mut LayoutGraph,
     module_id: &str,
     node: LayoutNode,
     ir: &CanonicalIr,
-)  (line 244)
-  fn default_file_id(module_id: &str) -> String  (line 278)
-  fn slugify(value: &str) -> String  (line 282)
+)  (line 230)
+  fn default_file_id(module_id: &str) -> String  (line 263)
+  fn slugify(value: &str) -> String  (line 266)
 
 decision/accept/proposal_checks.rs:
   fn enforce_proposal_ready(proposal: &Proposal) -> Result<(), AcceptProposalError>  (line 10)
@@ -1659,33 +1661,33 @@ agent/dispatcher.rs:
     ) -> Result<(), AgentCallError> }  (line 21)
 
 agent/pipeline.rs:
-  enum RefactorStage  { Observe, Reason, Prove, Judge, Mutate, Complete }  (line 27)
-  impl std::fmt::Display for RefactorStage  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 35)
-  enum RefactorError  { MissingPayloadField, MissingProof, Rejected, TopologyDrift, Evolution, MissingAdmission, StageSkipped }  (line 49)
-  impl std::fmt::Display for RefactorError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 66)
-  impl std::error::Error for RefactorError  (line 89)
-  struct RefactorResult  { ir, layout, proposal, admission_id, reward }  (line 92)
+  enum RefactorStage  { Observe, Reason, Prove, Judge, Mutate, Complete }  (line 28)
+  impl std::fmt::Display for RefactorStage  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 36)
+  enum RefactorError  { MissingPayloadField, MissingProof, Rejected, TopologyDrift, Evolution, MissingAdmission, StageSkipped }  (line 50)
+  impl std::fmt::Display for RefactorError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 67)
+  impl std::error::Error for RefactorError  (line 90)
+  struct RefactorResult  { ir, layout, proposal, admission_id, reward }  (line 93)
   fn run_refactor_pipeline(
     ir: &CanonicalIr,
     layout: &LayoutGraph,
     mut proposal: RefactorProposal,
     stage_outputs: &[AgentCallOutput],
-) -> Result<RefactorResult, RefactorError>  (line 116)
+) -> Result<RefactorResult, RefactorError>  (line 117)
   fn record_refactor_reward(
     ledger: &mut NodeRewardLedger,
     node_id: &str,
     result: Result<&RefactorResult, &RefactorError>,
-) -> f64  (line 184)
+) -> f64  (line 185)
   fn require_stage(
     outputs: &[AgentCallOutput],
     idx: usize,
     stage: RefactorStage,
-) -> Result<&AgentCallOutput, RefactorError>  (line 215)
+) -> Result<&AgentCallOutput, RefactorError>  (line 216)
   fn extract_str_field(
     payload: &'a Value,
     field: &str,
     stage: RefactorStage,
-) -> Result<String, RefactorError>  (line 226)
+) -> Result<String, RefactorError>  (line 227)
 
 agent/runner.rs:
   struct RunnerConfig  { max_ticks, meta_tick_interval, policy_update_interval, ledger_alpha, base_trust_threshold, graph_out, ledger_out, ir_out }  (line 31)
@@ -1912,11 +1914,23 @@ validate/check_execution.rs:
   fn check_reward_collapse(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 268)
 
 validate/check_deltas.rs:
-  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 6)
-  fn check_deltas(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 13)
-  fn check_struct_history(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 154)
-  fn check_admissions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 171)
-  fn check_applied_records(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 218)
+  fn check_deltas_top(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    violations: &mut Vec<Violation>,
+)  (line 5)
+  fn check_deltas(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 15)
+  fn check_struct_history(
+    ir: &CanonicalIr,
+    idx: &Indexes,
+    violations: &mut Vec<Violation>,
+)  (line 188)
+  fn check_admissions(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 211)
+  fn check_applied_records(
+    ir: &CanonicalIr,
+    idx: &Indexes,
+    violations: &mut Vec<Violation>,
+)  (line 269)
 
 validate/check_proposals.rs:
   fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 8)
@@ -1926,7 +1940,7 @@ validate/check_proposals.rs:
   fn check_goal_mutations(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 180)
 
 validate/mod.rs:
-  fn validate_ir(ir: &CanonicalIr) -> Result<(), ValidationErrors>  (line 16)
+  fn validate_ir(ir: &CanonicalIr) -> Result<(), ValidationErrors>  (line 13)
 
 validate/check_artifacts/type_defs.rs:
   fn check_structs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 7)
@@ -1938,7 +1952,11 @@ validate/check_artifacts/module.rs:
   fn check_module_edges(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 12)
 
 validate/check_artifacts/mod.rs:
-  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 11)
+  fn check_artifacts(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    violations: &mut Vec<Violation>,
+)  (line 9)
 
 validate/check_artifacts/ast.rs:
   fn check_ast_node_kinds(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 44)
@@ -1971,20 +1989,28 @@ validate/error.rs:
   impl std::error::Error for ValidationErrors  (line 531)
 
 validate/check_graphs.rs:
-  fn check(ir: &'a CanonicalIr, idx: &Indexes<'a>, violations: &mut Vec<Violation>)  (line 9)
+  fn check_graphs(
+    ir: &'a CanonicalIr,
+    idx: &Indexes<'a>,
+    violations: &mut Vec<Violation>,
+)  (line 8)
   fn check_module_graph(
     ir: &'a CanonicalIr,
     idx: &Indexes<'a>,
     violations: &mut Vec<Violation>,
-) -> HashMap<&'a str, Vec<&'a str>>  (line 16)
+) -> HashMap<&'a str, Vec<&'a str>>  (line 18)
   fn check_call_graph(
     ir: &'a CanonicalIr,
     idx: &Indexes<'a>,
     module_adj: &HashMap<&'a str, Vec<&'a str>>,
     violations: &mut Vec<Violation>,
-)  (line 80)
-  fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 152)
-  fn check_loop_policies(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 210)
+)  (line 85)
+  fn check_tick_graphs(ir: &CanonicalIr, idx: &Indexes, violations: &mut Vec<Violation>)  (line 170)
+  fn check_loop_policies(
+    ir: &CanonicalIr,
+    idx: &Indexes,
+    violations: &mut Vec<Violation>,
+)  (line 240)
 
 validate/rules.rs:
   enum CanonRule  { ExplicitArtifacts, ModuleDag, ModuleSelfImport, ImplBinding, ExecutionOnlyInImpl, FunctionContracts, EffectsAreDeltas, DeltaProofs, DeltaAppendOnly, CallGraphPublicApis, CallGraphRespectsDag, CallGraphAcyclic, TickGraphAcyclic, TickGraphEdgesDeclared, LoopContinuationJudgment, GpuLawfulMath, ProposalDeclarative, JudgmentDecisions, LearningDeclarations, TraitVerbs, TickRoot, ProjectEnvelope, ExternalDependencies, DeltaPipeline, ProofScope, VersionEvolution, TickEpochs, PlanArtifacts, ExecutionBoundary, AdmissionBridge, FunctionAst, RewardMonotonicity, RewardCollapseDetected, GoalMutationRequiresJudgment, GoalMutationInvariantMissing }  (line 2)
@@ -2013,7 +2039,7 @@ validate/check_project.rs:
   fn check(ir: &CanonicalIr, violations: &mut Vec<Violation>)  (line 6)
 
 observe.rs:
-  fn execution_events_to_deltas(
+  fn wrap_execution_events_as_deltas(
     execution: &ExecutionRecord,
     proof_id: &str,
 ) -> Vec<Delta>  (line 4)

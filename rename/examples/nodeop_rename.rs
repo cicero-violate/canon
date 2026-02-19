@@ -13,120 +13,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let renames = [
         (
-            "crate::agent::observe::observe_ir",
-            "analyze_ir",
+            "crate::storage::manifest::assign_manifest_slots",
+            "build_manifest_entries",
         ),
         (
-            "crate::agent::observe::observation_to_payload",
-            "ir_observation_to_json",
+            "crate::io_utils::load_ir",
+            "load_ir_from_file",
         ),
         (
-            "crate::agent::observe::IrObservation",
-            "IrAnalysisReport",
+            "crate::io_utils::load_ir_or_semantic",
+            "load_ir_or_semantic_graph",
         ),
         (
-            "crate::agent::pipeline::run_pipeline",
-            "run_refactor_pipeline",
+            "crate::evolution::apply_deltas",
+            "apply_admitted_deltas",
         ),
         (
-            "crate::agent::pipeline::record_pipeline_outcome",
-            "record_refactor_reward",
+            "crate::evolution::enforce_delta_application",
+            "assert_delta_is_applicable",
         ),
         (
-            "crate::agent::pipeline::PipelineResult",
-            "RefactorResult",
+            "crate::runtime::reward::compute_reward",
+            "compute_execution_reward",
         ),
         (
-            "crate::agent::pipeline::PipelineError",
-            "RefactorError",
+            "crate::validate::check_artifacts::check",
+            "check_artifacts",
         ),
         (
-            "crate::agent::meta::run_meta_tick",
-            "evolve_capability_graph",
+            "crate::validate::check_graphs::check",
+            "check_graphs",
         ),
         (
-            "crate::agent::meta::MetaTickResult",
-            "GraphEvolutionResult",
+            "crate::validate::check_deltas::check",
+            "check_deltas_top",
         ),
         (
-            "crate::agent::meta::MetaTickError",
-            "GraphEvolutionError",
-        ),
-        (
-            "crate::agent::runner::persist_ir",
-            "write_ir_to_disk",
-        ),
-        (
-            "crate::agent::runner::persist_ledger",
-            "write_ledger_to_disk",
-        ),
-        (
-            "crate::storage::builder::MemoryIrBuilder::persist_segment",
-            "write_artifact_page",
-        ),
-        (
-            "crate::storage::builder::MemoryIrBuilder::synthetic_judgment",
-            "build_builder_judgment_proof",
-        ),
-        (
-            "crate::storage::builder::MemoryIrBuilder::commit_deltas",
-            "admit_and_commit_pages",
-        ),
-        (
-            "crate::storage::reader::MemoryIrReader::from_checkpoint",
-            "read_ir_from_checkpoint",
-        ),
-        (
-            "crate::io_utils::load_ir_any",
-            "load_ir_from_path",
-        ),
-        (
-            "crate::storage::builder::ManifestSlotLookup::slot_or_err",
-            "require_slot",
-        ),
-        (
-            "crate::storage::manifest::assign_slots",
-            "assign_manifest_slots",
-        ),
-        (
-            "crate::agent::slice::build_ir_slice",
-            "slice_ir_fields",
-        ),
-        (
-            "crate::observe::execution_events_to_observe_deltas",
-            "execution_events_to_deltas",
-        ),
-        (
-            "crate::evolution::lyapunov::check_topology_drift",
-            "enforce_lyapunov_bound",
-        ),
-        (
-            "crate::agent::bootstrap::bootstrap_proposal",
-            "seed_refactor_proposal",
-        ),
-        (
-            "crate::agent::bootstrap::bootstrap_graph",
-            "seed_capability_graph",
-        ),
-        (
-            "crate::decision::auto_dsl::auto_accept_dsl_proposal",
-            "apply_dsl_proposal",
-        ),
-        (
-            "crate::agent::reward::NodeOutcome",
-            "PipelineNodeOutcome",
-        ),
-        (
-            "crate::agent::reward::RewardLedger",
-            "NodeRewardLedger",
-        ),
-        (
-            "crate::agent::dispatcher::AgentCallDispatcher",
-            "CapabilityNodeDispatcher",
-        ),
-        (
-            "crate::agent::dispatcher::AgentCallDispatcher::dispatch_order",
-            "topological_call_order",
+            "crate::observe::execution_events_to_deltas",
+            "wrap_execution_events_as_deltas",
         ),
     ];
 

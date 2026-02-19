@@ -23,13 +23,15 @@ fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Err
     let base_name = name.split('.').next().unwrap_or("canon");
     Ok(SemanticIrBuilder::new(base_name).build(semantic))
 }
-pub fn load_ir(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
+pub fn load_ir_from_file(
+    path: &Path,
+) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
     load_ir_from_path(path)
 }
 /// Load either a full `CanonicalIr` or a `SemanticGraph` produced by
 /// `canon ingest`. When a semantic graph is detected it is promoted to
 /// a `CanonicalIr` via `SemanticIrBuilder`.
-pub fn load_ir_or_semantic(
+pub fn load_ir_or_semantic_graph(
     path: &Path,
 ) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
     load_ir_from_path(path)

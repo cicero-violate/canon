@@ -31,7 +31,7 @@ pub use decision::{
 pub use decision::{AutoAcceptDotError, auto_accept_dot_proposal};
 pub use decision::{AutoAcceptFnAstError, auto_accept_fn_ast};
 pub use dot_export::verify_dot;
-pub use evolution::{EvolutionError, apply_deltas};
+pub use evolution::{EvolutionError, apply_admitted_deltas};
 pub use gpu::{
     codegen::{GpuProgram, flatten_ports, generate_shader},
     dispatch::{GpuExecutor, GpuExecutorError},
@@ -46,7 +46,7 @@ pub use materialize::{
     FileEntry, FileTree, MaterializeResult, materialize, render_impl_function,
     write_file_tree,
 };
-pub use observe::execution_events_to_deltas;
+pub use observe::wrap_execution_events_as_deltas;
 pub use patch_protocol::{
     ApprovedPatchRegistry, PatchApplier, PatchDecision, PatchError, PatchGate,
     PatchMetadata, PatchProposal, PatchQueue, VerifiedPatch,

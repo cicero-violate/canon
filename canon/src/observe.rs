@@ -1,7 +1,7 @@
 use crate::ir::{
     Delta, DeltaKind, DeltaPayload, ExecutionEvent, ExecutionRecord, PipelineStage,
 };
-pub fn execution_events_to_deltas(
+pub fn wrap_execution_events_as_deltas(
     execution: &ExecutionRecord,
     proof_id: &str,
 ) -> Vec<Delta> {

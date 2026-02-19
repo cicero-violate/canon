@@ -19,7 +19,7 @@ pub use lyapunov::{
     DEFAULT_TOPOLOGY_THETA, LyapunovError, TopologyFingerprint, enforce_lyapunov_bound,
 };
 use structural::apply_structural_delta;
-pub fn apply_deltas(
+pub fn apply_admitted_deltas(
     ir: &CanonicalIr,
     admission_ids: &[AdmissionId],
 ) -> Result<CanonicalIr, EvolutionError> {
@@ -67,7 +67,7 @@ pub fn apply_deltas(
             let delta = deltas
                 .get(delta_id.as_str())
                 .ok_or_else(|| EvolutionError::UnknownDelta(delta_id.clone()))?;
-            enforce_delta_application(delta)?;
+            assert_delta_is_applicable(delta)?;
             if delta.kind == DeltaKind::Structure {
                 let proof_ids: Vec<String> = ir
                     .proofs
@@ -106,7 +106,7 @@ pub fn apply_deltas(
         }
     }
 }
-fn enforce_delta_application(delta: &Delta) -> Result<(), EvolutionError> {
+fn assert_delta_is_applicable(delta: &Delta) -> Result<(), EvolutionError> {
     if matches!(delta.payload, Some(DeltaPayload::AddFunction { .. }))
         && delta.related_function.is_none()
     {
