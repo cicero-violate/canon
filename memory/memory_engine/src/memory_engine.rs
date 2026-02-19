@@ -21,10 +21,10 @@ use crate::{
     canonical_state::MerkleState,
     delta::Delta,
     epoch::EpochCell,
-    graph_log::{GraphDelta, GraphSnapshot},
+    graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
     persistence::mmap_log::MmapLog,
     persistence::root_header::RootHeader,
-    primitives::{DeltaID, Hash, PageID},
+    primitives::Hash,
     proofs::{AdmissionProof, CommitProof, JudgmentProof, OutcomeProof},
 };
 
@@ -99,6 +99,7 @@ pub struct MemoryEngine {
     pub(crate) admitted: RwLock<HashSet<Hash>>,
     pub(crate) deltas: RwLock<HashMap<Hash, Delta>>,
     pub(crate) state: Arc<RwLock<MerkleState>>,
+    pub(crate) graph_log: Arc<Mutex<GraphDeltaLog>>,
 }
 
 impl MemoryEngine {
@@ -106,6 +107,15 @@ impl MemoryEngine {
         let wal = Arc::new(Mutex::new(
             MmapLog::open(&config.tlog_path, 64 * 1024 * 1024)
                 .map_err(MemoryEngineError::TlogOpen)?,
+        ));
+
+        // Graph delta log lives alongside the tlog: <tlog_path>.graph.log
+        let graph_log_path = config.tlog_path.with_extension("graph.log");
+        let graph_log = Arc::new(Mutex::new(
+            GraphDeltaLog::open(&graph_log_path)
+                .map_err(|e| MemoryEngineError::GraphLogOpen(
+                    std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+                ))?,
         ));
 
         let backend = create_gpu_backend();
@@ -155,6 +165,7 @@ impl MemoryEngine {
             admitted: RwLock::new(HashSet::new()),
             deltas: RwLock::new(HashMap::new()),
             state,
+            graph_log,
         })
     }
 
@@ -324,53 +335,41 @@ impl MemoryEngine {
     }
 
     // ===============================
+    // ===============================
     // Graph Log
     // ===============================
 
     pub fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError> {
-        const GRAPH_BASE: u64 = 1 << 48;
+        self.graph_log
+            .lock()
+            .append(&delta)
+            .map_err(|e| MemoryEngineError::GraphLogIo(
+                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+            ))
+    }
 
-        let page_id = GRAPH_BASE + self.epoch.increment().0 as u64;
+    /// Replay graph state up to delta index `limit` (exclusive).
+    pub fn graph_snapshot_at(&self, limit: u64) -> Result<GraphSnapshot, MemoryEngineError> {
+        let path = self.graph_log.lock().path().to_path_buf();
+        GraphDeltaLog::replay_up_to(path, limit)
+            .map_err(|e| MemoryEngineError::GraphLogIo(
+                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+            ))
+    }
 
-        let mask = vec![true; delta.payload.len()];
-
-        let d = Delta::new_dense(
-            DeltaID(page_id),
-            PageID(page_id),
-            crate::epoch::Epoch(0),
-            delta.payload,
-            mask,
-            crate::delta::Source("graph.partition".into()),
-        )
-        .map_err(|_| MemoryEngineError::DeltaNotFound)?;
-
-        {
-            let mut state = self.state.write();
-            state
-                .apply_delta(&d)
-                .map_err(|_| MemoryEngineError::DeltaNotFound)?;
-        }
-
-        Ok(())
+    /// Total number of graph deltas persisted so far.
+    pub fn graph_delta_count(&self) -> u64 {
+        self.graph_log.lock().entry_count()
     }
 
     pub fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError> {
-        const GRAPH_BASE: u64 = 1 << 48;
-
-        let state = self.state.read();
-        let mut snapshot = GraphSnapshot::default();
-
-        for page_id in GRAPH_BASE..state.max_leaves {
-            let page = state.read_page(page_id);
-            if page.iter().any(|b| *b != 0) {
-                snapshot.payload.extend_from_slice(page);
-            }
-        }
-
-        Ok(snapshot)
+        let path = self.graph_log.lock().path().to_path_buf();
+        GraphDeltaLog::replay_all(path)
+            .map_err(|e| MemoryEngineError::GraphLogIo(
+                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+            ))
     }
 
-    // ===============================
     // Internal
     // ===============================
 
