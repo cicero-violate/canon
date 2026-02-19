@@ -1,15 +1,12 @@
 //! Cargo project helper utilities (extern discovery, build metadata).
-
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
 use crate::rename::core::{StructuralEditOracle, normalize_symbol_id};
 use crate::state::graph::GraphSnapshot;
-
 /// Handle discovery of Cargo metadata and extern artifacts for a project.
 #[derive(Debug, Clone)]
 pub struct CargoProject {
@@ -17,7 +14,6 @@ pub struct CargoProject {
     target_dir: PathBuf,
     oracle: Option<OracleData>,
 }
-
 impl CargoProject {
     /// Attempts to load a Cargo project by walking up from the entry file.
     pub fn from_entry(entry: &Path) -> io::Result<Self> {
@@ -25,28 +21,27 @@ impl CargoProject {
         if current.is_file() {
             current = current
                 .parent()
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "entry has no parent"))?
+                .ok_or_else(|| io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "entry has no parent",
+                ))?
                 .to_path_buf();
         }
-
         let root = find_cargo_root(&current)?;
         let target_dir = fetch_target_dir(&root).unwrap_or_else(|_| root.join("target"));
-
         Ok(Self {
             root,
             target_dir,
             oracle: None,
         })
     }
-
     /// Attach a graph snapshot to enable oracle queries.
     pub fn with_snapshot(mut self, snapshot: GraphSnapshot) -> Self {
         self.oracle = Some(OracleData::from_snapshot(snapshot));
         self
     }
-
     /// Ensures dependencies are built (debug profile).
-    pub fn build_dependencies(&self) -> io::Result<()> {
+    pub fn ensure_dependencies_built(&self) -> io::Result<()> {
         let status = Command::new("cargo")
             .arg("build")
             .current_dir(&self.root)
@@ -54,23 +49,22 @@ impl CargoProject {
         if status.success() {
             Ok(())
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                "cargo build failed inside project",
-            ))
+            Err(
+                io::Error::new(io::ErrorKind::Other, "cargo build failed inside project"),
+            )
         }
     }
-
     /// Collects `--extern` and `-L dependency=` flags for the requested profile.
     pub fn extern_args(&self, profile: &str) -> io::Result<Vec<String>> {
         let deps_dir = self.target_dir.join(profile).join("deps");
         if !deps_dir.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("deps dir missing: {}", deps_dir.display()),
-            ));
+            return Err(
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("deps dir missing: {}", deps_dir.display()),
+                ),
+            );
         }
-
         let mut by_crate: HashMap<String, Vec<Artifact>> = HashMap::new();
         for entry in fs::read_dir(&deps_dir)? {
             let entry = entry?;
@@ -84,7 +78,6 @@ impl CargoProject {
                 }
             }
         }
-
         let mut args = Vec::new();
         for (crate_name, artifacts) in by_crate {
             if let Some(best) = select_best_artifact(&artifacts) {
@@ -92,13 +85,10 @@ impl CargoProject {
                 args.push(format!("{}={}", crate_name, best.display()));
             }
         }
-
         args.push("-L".to_string());
         args.push(format!("dependency={}", deps_dir.display()));
-
         Ok(args)
     }
-
     /// Returns parsed `cargo metadata` information for the project.
     pub fn metadata(&self) -> io::Result<ProjectMetadata> {
         let mut meta = load_cargo_metadata(&self.root)?;
@@ -107,18 +97,19 @@ impl CargoProject {
         if let Some(index) = meta
             .packages
             .iter()
-            .position(|pkg| pkg.manifest_path.canonicalize().unwrap_or_else(|_| pkg.manifest_path.clone()) == root_manifest)
+            .position(|pkg| {
+                pkg
+                    .manifest_path
+                    .canonicalize()
+                    .unwrap_or_else(|_| pkg.manifest_path.clone()) == root_manifest
+            })
         {
             if index != 0 {
                 let pkg = meta.packages.remove(index);
                 meta.packages.insert(0, pkg);
             }
         }
-        let CargoMetadata {
-            target_directory,
-            workspace_root,
-            packages,
-        } = meta;
+        let CargoMetadata { target_directory, workspace_root, packages } = meta;
         let (edition, rust_version) = packages
             .get(0)
             .map(|pkg| (Some(pkg.edition.clone()), pkg.rust_version.clone()))
@@ -131,19 +122,14 @@ impl CargoProject {
             rust_version,
         })
     }
-
     /// Returns all cargo targets for the primary package.
     pub fn targets(&self) -> io::Result<Vec<CargoTarget>> {
         let meta = self.metadata()?;
         if let Some(pkg) = meta.packages.first() {
-            // Filter out example targets that might come from dependencies
             let targets: Vec<CargoTarget> = pkg
                 .targets
                 .iter()
-                .filter(|t| {
-                    // Only include lib and bin targets, skip examples
-                    t.kind.iter().any(|k| k == "lib" || k == "bin")
-                })
+                .filter(|t| { t.kind.iter().any(|k| k == "lib" || k == "bin") })
                 .cloned()
                 .collect();
             Ok(targets)
@@ -151,13 +137,11 @@ impl CargoProject {
             Ok(Vec::new())
         }
     }
-
     /// Returns the workspace root directory.
     pub fn workspace_root(&self) -> &Path {
         &self.root
     }
 }
-
 fn find_cargo_root(start: &Path) -> io::Result<PathBuf> {
     let mut current = Some(start.to_path_buf());
     while let Some(dir) = current {
@@ -166,17 +150,12 @@ fn find_cargo_root(start: &Path) -> io::Result<PathBuf> {
         }
         current = dir.parent().map(|p| p.to_path_buf());
     }
-    Err(io::Error::new(
-        io::ErrorKind::NotFound,
-        "Cargo.toml not found in parent chain",
-    ))
+    Err(io::Error::new(io::ErrorKind::NotFound, "Cargo.toml not found in parent chain"))
 }
-
 fn fetch_target_dir(root: &Path) -> io::Result<PathBuf> {
     let meta = load_cargo_metadata(root)?;
     Ok(meta.target_directory.clone())
 }
-
 fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata> {
     let output = Command::new("cargo")
         .arg("metadata")
@@ -185,29 +164,23 @@ fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata> {
         .current_dir(root)
         .output()?;
     if !output.status.success() {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "cargo metadata failed",
-        ));
+        return Err(io::Error::new(io::ErrorKind::Other, "cargo metadata failed"));
     }
     let meta: CargoMetadata = serde_json::from_slice(&output.stdout)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     Ok(meta)
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ArtifactKind {
     ProcMacro,
     Rlib,
     Rmeta,
 }
-
 #[derive(Debug, Clone)]
 struct Artifact {
     path: PathBuf,
     kind: ArtifactKind,
 }
-
 fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)> {
     if !file_name.starts_with("lib") {
         return None;
@@ -223,7 +196,6 @@ fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)> {
     };
     Some((crate_name, kind))
 }
-
 fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf> {
     artifacts
         .iter()
@@ -244,7 +216,6 @@ fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf> {
         })
         .map(|artifact| artifact.path.clone())
 }
-
 /// Raw Cargo metadata payload.
 #[derive(Debug, Deserialize)]
 struct CargoMetadata {
@@ -252,7 +223,6 @@ struct CargoMetadata {
     workspace_root: PathBuf,
     packages: Vec<CargoPackage>,
 }
-
 /// Cargo package metadata.
 #[derive(Debug, Clone, Deserialize)]
 pub struct CargoPackage {
@@ -271,7 +241,6 @@ pub struct CargoPackage {
     /// Manifest path reported by cargo metadata.
     pub manifest_path: PathBuf,
 }
-
 /// Cargo target metadata.
 #[derive(Debug, Clone, Deserialize)]
 pub struct CargoTarget {
@@ -282,7 +251,6 @@ pub struct CargoTarget {
     /// Source path for the target root.
     pub src_path: PathBuf,
 }
-
 /// Simplified project metadata derived from `cargo metadata`.
 #[derive(Debug, Clone)]
 pub struct ProjectMetadata {
@@ -297,7 +265,6 @@ pub struct ProjectMetadata {
     /// Rust toolchain requirement for the primary package (if any).
     pub rust_version: Option<String>,
 }
-
 #[derive(Debug, Clone)]
 struct OracleData {
     adjacency: HashMap<String, Vec<String>>,
@@ -305,14 +272,12 @@ struct OracleData {
     crate_by_key: HashMap<String, String>,
     signature_by_key: HashMap<String, String>,
 }
-
 impl OracleData {
     fn from_snapshot(snapshot: GraphSnapshot) -> Self {
         let mut id_to_key = HashMap::new();
         let mut macro_generated = HashSet::new();
         let mut crate_by_key = HashMap::new();
         let mut signature_by_key = HashMap::new();
-
         for node in snapshot.nodes() {
             let key = node.key.to_string();
             id_to_key.insert(node.id, key.clone());
@@ -331,7 +296,6 @@ impl OracleData {
                 signature_by_key.insert(key.clone(), signature.clone());
             }
         }
-
         let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
         for edge in snapshot.edges() {
             let from = id_to_key.get(&edge.from).cloned();
@@ -341,7 +305,6 @@ impl OracleData {
                 adjacency.entry(to).or_default().push(from);
             }
         }
-
         Self {
             adjacency,
             macro_generated,
@@ -350,16 +313,14 @@ impl OracleData {
         }
     }
 }
-
 fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool {
     let value = metadata
         .get("macro_generated")
         .or_else(|| metadata.get("generated_by_macro"))
         .or_else(|| metadata.get("macro"))
         .or_else(|| metadata.get("is_macro"));
-    matches!(value.map(|v| v.as_str()), Some("true") | Some("1") | Some("yes"))
+    matches!(value.map(| v | v.as_str()), Some("true") | Some("1") | Some("yes"))
 }
-
 impl StructuralEditOracle for CargoProject {
     fn impact_of(&self, symbol_id: &str) -> Vec<String> {
         let symbol_id = normalize_symbol_id(symbol_id);
@@ -370,18 +331,16 @@ impl StructuralEditOracle for CargoProject {
         }
         Vec::new()
     }
-
     fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool {
         let id = normalize_symbol_id(id);
         if let Some(oracle) = &self.oracle {
             if let Some(sig) = oracle.signature_by_key.get(&id) {
-                let new_sig = quote::quote!(#new_sig).to_string();
+                let new_sig = quote::quote!(# new_sig).to_string();
                 return sig == &new_sig;
             }
         }
         true
     }
-
     fn is_macro_generated(&self, symbol_id: &str) -> bool {
         let symbol_id = normalize_symbol_id(symbol_id);
         if let Some(oracle) = &self.oracle {
@@ -389,7 +348,6 @@ impl StructuralEditOracle for CargoProject {
         }
         false
     }
-
     fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> {
         let symbol_id = normalize_symbol_id(symbol_id);
         let Some(oracle) = &self.oracle else { return Vec::new() };
@@ -403,11 +361,7 @@ impl StructuralEditOracle for CargoProject {
             .flatten()
             .filter_map(|neighbor| {
                 let other_crate = oracle.crate_by_key.get(neighbor)?;
-                if other_crate != symbol_crate {
-                    Some(neighbor.clone())
-                } else {
-                    None
-                }
+                if other_crate != symbol_crate { Some(neighbor.clone()) } else { None }
             })
             .collect()
     }

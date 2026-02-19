@@ -7,14 +7,11 @@
 //!
 //! The goal is to let callers script transformations without touching the lower-level
 //! rename pipeline directly.
-
 use anyhow::{Result, bail};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-
 use super::core::{SymbolIndexReport, SymbolRecord, apply_rename_with_map, collect_names};
 use super::structured::{AstEdit, NodeOp, apply_ast_rewrites};
-
 /// Serializable request for querying symbol metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryRequest {
@@ -28,7 +25,6 @@ pub struct QueryRequest {
     #[serde(default)]
     pub name_contains: Option<String>,
 }
-
 impl Default for QueryRequest {
     fn default() -> Self {
         Self {
@@ -38,7 +34,6 @@ impl Default for QueryRequest {
         }
     }
 }
-
 /// Result of executing a `QueryRequest`.
 #[derive(serde::Serialize)]
 pub struct QueryResult {
@@ -47,31 +42,26 @@ pub struct QueryResult {
     /// Symbols that matched the provided filters.
     pub matches: Vec<SymbolRecord>,
 }
-
 impl QueryRequest {
     /// Build a new query with no filters (matches everything).
     pub fn new() -> Self {
         Self::default()
     }
-
     /// Restrict the query to a single symbol `kind` (e.g. "function", "struct").
     pub fn kind(mut self, kind: impl Into<String>) -> Self {
         self.kinds.push(kind.into());
         self
     }
-
     /// Require that matched symbols live under a module prefix (e.g. `crate::rename`).
     pub fn module_prefix(mut self, prefix: impl Into<String>) -> Self {
         self.module_prefix = Some(prefix.into());
         self
     }
-
     /// Require that symbol names contain a substring (case-insensitive).
     pub fn name_contains(mut self, needle: impl Into<String>) -> Self {
         self.name_contains = Some(needle.into());
         self
     }
-
     /// Execute the query against a project root.
     pub fn execute(&self, project: &Path) -> Result<QueryResult> {
         let report = collect_names(project)?;
@@ -83,7 +73,6 @@ impl QueryRequest {
             .collect();
         Ok(QueryResult { report, matches })
     }
-
     fn matches_symbol(&self, symbol: &SymbolRecord) -> bool {
         if !self.kinds.is_empty() && !self.kinds.iter().any(|k| k == &symbol.kind) {
             return false;
@@ -102,7 +91,6 @@ impl QueryRequest {
         true
     }
 }
-
 /// Serializable request describing a rename mutation.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct MutationRequest {
@@ -116,7 +104,6 @@ pub struct MutationRequest {
     #[serde(default)]
     pub preview_path: Option<PathBuf>,
 }
-
 /// Serializable response describing mutation outcome.
 #[derive(serde::Serialize)]
 pub struct MutationResult {
@@ -124,19 +111,16 @@ pub struct MutationResult {
     pub dry_run: bool,
     pub preview_path: Option<PathBuf>,
 }
-
 impl MutationRequest {
     /// Create an empty mutation.
     pub fn new() -> Self {
         Self::default()
     }
-
     /// Append a rename mapping (symbol id -> new name).
     pub fn rename(mut self, id: impl Into<String>, new_name: impl Into<String>) -> Self {
         self.renames.insert(id.into(), new_name.into());
         self
     }
-
     /// Extend the rename mapping with an iterator of pairs.
     pub fn extend<I, K, V>(mut self, entries: I) -> Self
     where
@@ -149,19 +133,16 @@ impl MutationRequest {
         }
         self
     }
-
     /// Enable or disable dry-run mode (defaults to `false`).
     pub fn dry_run(mut self, dry_run: bool) -> Self {
         self.dry_run = dry_run;
         self
     }
-
     /// Write rename previews to a custom path (only used when `dry_run` is true).
     pub fn preview_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.preview_path = Some(path.into());
         self
     }
-
     /// Execute the mutation against a project root.
     pub fn execute(self, project: &Path) -> Result<MutationResult> {
         if self.renames.is_empty() {
@@ -176,7 +157,6 @@ impl MutationRequest {
         })
     }
 }
-
 /// Serializable upsert request (AST edits).
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct UpsertRequest {
@@ -190,37 +170,31 @@ pub struct UpsertRequest {
     #[serde(default = "default_true")]
     pub format: bool,
 }
-
 /// Serializable result describing applied edits.
 #[derive(serde::Serialize)]
 pub struct UpsertResult {
     pub touched_files: Vec<PathBuf>,
 }
-
 impl UpsertRequest {
     /// Create an empty upsert request.
     pub fn new() -> Self {
         Self::default()
     }
-
     /// Queue an AST edit generated via `AstEdit::insert`/`replace`.
     pub fn edit(mut self, edit: AstEdit) -> Self {
         self.edits.push(edit);
         self
     }
-
     /// Queue a structural node operation.
-    pub fn node_op(mut self, op: NodeOp) -> Self {
+    pub fn push_node_op(mut self, op: NodeOp) -> Self {
         self.node_ops.push(op);
         self
     }
-
     /// Configure whether `rustfmt` should run on touched files (default: true).
     pub fn format(mut self, enabled: bool) -> Self {
         self.format = enabled;
         self
     }
-
     /// Execute the queued edits.
     pub fn execute(self) -> Result<UpsertResult> {
         if self.edits.is_empty() && self.node_ops.is_empty() {
@@ -236,63 +210,52 @@ impl UpsertRequest {
         })
     }
 }
-
 fn default_true() -> bool {
     true
 }
-
 /// Convenience helper: execute a serialized query request and return JSON.
 pub fn execute_query_json(project: &Path, payload: &str) -> Result<String> {
     let request: QueryRequest = serde_json::from_str(payload)?;
     let response = request.execute(project)?;
     Ok(serde_json::to_string_pretty(&response)?)
 }
-
 /// Convenience helper: execute a mutation described via JSON.
 pub fn execute_mutation_json(project: &Path, payload: &str) -> Result<String> {
     let request: MutationRequest = serde_json::from_str(payload)?;
     let response = request.execute(project)?;
     Ok(serde_json::to_string_pretty(&response)?)
 }
-
 /// Convenience helper: execute an upsert request encoded as JSON.
 pub fn execute_upsert_json(payload: &str) -> Result<String> {
     let request: UpsertRequest = serde_json::from_str(payload)?;
     let response = request.execute()?;
     Ok(serde_json::to_string_pretty(&response)?)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
     use tempfile::tempdir;
-
     #[test]
     fn defaults_are_sensible() {
         let query = QueryRequest::default();
         assert!(query.kinds.is_empty());
         assert!(query.module_prefix.is_none());
         assert!(query.name_contains.is_none());
-
         let mutation = MutationRequest::default();
         assert!(mutation.renames.is_empty());
-        assert!(!mutation.dry_run);
+        assert!(! mutation.dry_run);
         assert!(mutation.preview_path.is_none());
-
         let upsert = UpsertRequest::default();
         assert!(upsert.edits.is_empty());
         assert!(upsert.format);
     }
-
     #[test]
     fn upsert_json_executes() {
         use syn::parse_quote;
-
         let dir = tempdir().unwrap();
         let file = dir.path().join("demo.rs");
         fs::write(&file, "fn existing() {}\n").unwrap();
-
         let helper: syn::ItemFn = parse_quote! {
             fn added() {}
         };
@@ -304,14 +267,10 @@ mod tests {
         let payload = serde_json::to_string(&request).unwrap();
         let response_raw = execute_upsert_json(&payload).unwrap();
         let response: serde_json::Value = serde_json::from_str(&response_raw).unwrap();
-        assert_eq!(
-            response["touched_files"].as_array().map(|a| a.len()),
-            Some(1)
-        );
+        assert_eq!(response["touched_files"].as_array().map(| a | a.len()), Some(1));
         let contents = fs::read_to_string(&file).unwrap();
         assert!(contents.contains("added"));
     }
-
     #[test]
     fn query_request_serializes() {
         let request = QueryRequest::new()
