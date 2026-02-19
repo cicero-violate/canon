@@ -38,6 +38,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "UsePathRewritePass".to_string(),
     );
 
+    map.insert(
+        "crate::rename::structured::StructuredPass".to_string(),
+        "StructuredRewritePass".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::StructuredEditTracker".to_string(),
+        "StructuredRewriteTracker".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::SymbolEdit".to_string(),
+        "SymbolRewriteEdit".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::rename::SpanKey".to_string(),
+        "SpanRangeKey".to_string(),
+    );
+
+    map.insert(
+        "crate::rename::core::rename::SpanRenamer".to_string(),
+        "SpanRangeRenamer".to_string(),
+    );
+
+    // dry_run = true
+    // out_path = None
+    apply_rename_with_map(project_path, &map, true, None)?;
+
     // dry_run = false
     // out_path = None
     apply_rename_with_map(project_path, &map, false, None)?;
