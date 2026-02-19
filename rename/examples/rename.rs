@@ -1,46 +1,47 @@
-use rename::rename::core::apply_rename_with_map;
+use rename::apply_rename_with_map;
 use std::collections::HashMap;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let project_root =
+    // Target project root (crate to refactor)
+    let project_path =
         Path::new("/workspace/ai_sandbox/canon_workspace/canon");
 
+    // IMPORTANT:
+    // Always use fully-qualified paths to avoid global identifier corruption.
+    // This prevents doc strings, comments, and unrelated modules from breaking.
     let mut map = HashMap::new();
 
-    // Fully-qualified canonical paths
     map.insert(
-        "crate::test_project_dir::out::src::Core".to_string(),
-        "core".to_string(),
-    );
-    map.insert(
-        "crate::test_project_dir::out::src::Delta".to_string(),
-        "delta".to_string(),
-    );
-    map.insert(
-        "crate::test_project_dir::out::src::Lint".to_string(),
-        "lint".to_string(),
-    );
-    map.insert(
-        "crate::test_project_dir::out::src::Parse".to_string(),
-        "parse".to_string(),
-    );
-    map.insert(
-        "crate::test_project_dir::out::src::Report".to_string(),
-        "report".to_string(),
-    );
-    map.insert(
-        "crate::test_project_dir::out::src::Test".to_string(),
-        "test".to_string(),
+        "crate::runtime::value::Value".to_string(),
+        "RuntimeValue".to_string(),
     );
 
-    apply_rename_with_map(
-        project_root,
-        &map,
-        false,
-        None,
-    )?;
+    map.insert(
+        "crate::runtime::context::ExecutionContext".to_string(),
+        "RuntimeContext".to_string(),
+    );
 
-    println!("Renamed target modules.");
+    map.insert(
+        "crate::ir::delta::Delta".to_string(),
+        "IrDelta".to_string(),
+    );
+
+    map.insert(
+        "crate::ir::proofs::Proof".to_string(),
+        "IrProof".to_string(),
+    );
+
+    map.insert(
+        "crate::ir::timeline::Plan".to_string(),
+        "ExecutionPlan".to_string(),
+    );
+
+    // false  -> do not include tests
+    // None   -> no file filter
+    apply_rename_with_map(project_path, &map, false, None)?;
+
+    println!("Scoped renames applied successfully.");
     Ok(())
 }
+

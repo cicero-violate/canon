@@ -57,6 +57,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
+use quote::ToTokens;
 
 use super::alias::{UseKind, UseNode, VisibilityScope};
 use super::core::{find_replacement_path, span_to_offsets, span_to_range, SpanRange};
@@ -1141,8 +1142,9 @@ impl<'a> AttributeRewriteVisitor<'a> {
         }
         if let Some(updated) = rewrite_literal(&original, &self.replacements) {
             if updated != original {
-                let new_literal = syn::LitStr::new(&updated, Span::call_site());
-                let replacement_text = new_literal.token().to_string();
+                // Preserve original literal span to avoid corrupting outer attribute/doc structure
+                let new_literal = syn::LitStr::new(&updated, lit.span());
+                let replacement_text = new_literal.to_token_stream().to_string();
                 let span = span_to_range(lit.span());
                 let (start, end) = span_to_offsets(self.content, &span.start, &span.end);
                 if let Err(err) = self.buffers.queue_edits(
