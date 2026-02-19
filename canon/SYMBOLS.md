@@ -379,7 +379,7 @@
 | "use"          | crate::agent::pipeline::Value                                          | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
 | "use"          | crate::agent::pipeline::DEFAULT_TOPOLOGY_THETA                         | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
 | "use"          | crate::agent::pipeline::EvolutionError                                 | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
-| "use"          | crate::agent::pipeline::apply_deltas                                   | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
+| "use"          | crate::agent::pipeline::apply_admitted_deltas                          | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
 | "use"          | crate::agent::pipeline::enforce_lyapunov_bound                         | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
 | "use"          | crate::agent::pipeline::CanonicalIr                                    | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
 | "use"          | crate::agent::pipeline::LayoutGraph                                    | /workspace/ai_sandbox/canon_workspace/canon/src/agent/pipeline.rs                     |
@@ -668,8 +668,8 @@
 | "use"          | crate::commands::self                                                  | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
 | "use"          | crate::commands::verify_dot                                            | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
 | "use"          | crate::commands::IngestOptions                                         | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
-| "use"          | crate::commands::load_ir                                               | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
-| "use"          | crate::commands::load_ir_or_semantic                                   | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
+| "use"          | crate::commands::load_ir_from_file                                     | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
+| "use"          | crate::commands::load_ir_or_semantic_graph                             | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
 | "use"          | crate::commands::load_layout                                           | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
 | "use"          | crate::commands::resolve_layout                                        | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
 | "use"          | crate::commands::LayoutGraph                                           | /workspace/ai_sandbox/canon_workspace/canon/src/commands.rs                           |
@@ -728,7 +728,7 @@
 | "use"          | crate::decision::accept::HashSet                                       | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
 | "use"          | crate::decision::accept::Error                                         | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
 | "use"          | crate::decision::accept::EvolutionError                                | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
-| "use"          | crate::decision::accept::apply_deltas                                  | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
+| "use"          | crate::decision::accept::apply_admitted_deltas                         | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
 | "use"          | crate::decision::accept::ProposalResolutionError                       | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
 | "use"          | crate::decision::accept::resolve_proposal_nodes                        | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
 | "use"          | crate::decision::accept::CanonicalIr                                   | /workspace/ai_sandbox/canon_workspace/canon/src/decision/accept/mod.rs                |
@@ -1175,8 +1175,8 @@
 | "use"          | crate::evolution::TopologyFingerprint                                  | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
 | "use"          | crate::evolution::enforce_lyapunov_bound                               | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
 | "use"          | crate::evolution::apply_structural_delta                               | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
-| "function"     | crate::evolution::apply_deltas                                         | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
-| "function"     | crate::evolution::enforce_delta_application                            | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
+| "function"     | crate::evolution::apply_admitted_deltas                                | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
+| "function"     | crate::evolution::assert_delta_is_applicable                           | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
 | "enum"         | crate::evolution::EvolutionError                                       | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
 | "variant"      | crate::evolution::UnknownAdmission                                     | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
 | "variant"      | crate::evolution::UnknownJudgment                                      | /workspace/ai_sandbox/canon_workspace/canon/src/evolution/mod.rs                      |
@@ -1653,8 +1653,8 @@
 | "use"          | crate::io_utils::SemanticIrBuilder                                     | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
 | "use"          | crate::io_utils::MemoryIrReader                                        | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
 | "function"     | crate::io_utils::load_ir_from_path                                     | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
-| "function"     | crate::io_utils::load_ir                                               | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
-| "function"     | crate::io_utils::load_ir_or_semantic                                   | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
+| "function"     | crate::io_utils::load_ir_from_file                                     | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
+| "function"     | crate::io_utils::load_ir_or_semantic_graph                             | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
 | "function"     | crate::io_utils::load_layout                                           | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
 | "function"     | crate::io_utils::resolve_layout                                        | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
 | "function"     | crate::io_utils::default_layout_path_for                               | /workspace/ai_sandbox/canon_workspace/canon/src/io_utils.rs                           |
@@ -2725,7 +2725,7 @@
 | "use"          | crate::auto_accept_fn_ast                                              | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::verify_dot                                                      | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::EvolutionError                                                  | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
-| "use"          | crate::apply_deltas                                                    | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
+| "use"          | crate::apply_admitted_deltas                                           | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::GpuProgram                                                      | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::flatten_ports                                                   | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::generate_shader                                                 | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
@@ -2749,7 +2749,7 @@
 | "use"          | crate::materialize                                                     | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::render_impl_function                                            | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::write_file_tree                                                 | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
-| "use"          | crate::execution_events_to_deltas                                      | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
+| "use"          | crate::wrap_execution_events_as_deltas                                 | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::ApprovedPatchRegistry                                           | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::PatchApplier                                                    | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
 | "use"          | crate::PatchDecision                                                   | /workspace/ai_sandbox/canon_workspace/canon/src/lib.rs                                |
@@ -3031,7 +3031,7 @@
 | "use"          | crate::observe::ExecutionEvent                                         | /workspace/ai_sandbox/canon_workspace/canon/src/observe.rs                            |
 | "use"          | crate::observe::ExecutionRecord                                        | /workspace/ai_sandbox/canon_workspace/canon/src/observe.rs                            |
 | "use"          | crate::observe::PipelineStage                                          | /workspace/ai_sandbox/canon_workspace/canon/src/observe.rs                            |
-| "function"     | crate::observe::execution_events_to_deltas                             | /workspace/ai_sandbox/canon_workspace/canon/src/observe.rs                            |
+| "function"     | crate::observe::wrap_execution_events_as_deltas                        | /workspace/ai_sandbox/canon_workspace/canon/src/observe.rs                            |
 | "function"     | crate::observe::describe_event                                         | /workspace/ai_sandbox/canon_workspace/canon/src/observe.rs                            |
 | "use"          | crate::patch_protocol::Hasher                                          | /workspace/ai_sandbox/canon_workspace/canon/src/patch_protocol.rs                     |
 | "use"          | crate::patch_protocol::Deserialize                                     | /workspace/ai_sandbox/canon_workspace/canon/src/patch_protocol.rs                     |
@@ -3475,7 +3475,7 @@
 | "variant"      | crate::runtime::policy_updater::InvalidLearningRate                    | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/policy_updater.rs             |
 | "use"          | crate::runtime::reward::CanonicalIr                                    | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/reward.rs                     |
 | "use"          | crate::runtime::reward::ExecutionRecord                                | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/reward.rs                     |
-| "function"     | crate::runtime::reward::compute_reward                                 | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/reward.rs                     |
+| "function"     | crate::runtime::reward::compute_execution_reward                       | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/reward.rs                     |
 | "const"        | crate::runtime::reward::W_CAPS                                         | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/reward.rs                     |
 | "const"        | crate::runtime::reward::W_DELTA                                        | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/reward.rs                     |
 | "const"        | crate::runtime::reward::DELTA_THRESHOLD                                | /workspace/ai_sandbox/canon_workspace/canon/src/runtime/reward.rs                     |
@@ -4030,7 +4030,7 @@
 | "field"        | crate::storage::manifest::rewards                                      | /workspace/ai_sandbox/canon_workspace/canon/src/storage/manifest.rs                   |
 | "field"        | crate::storage::manifest::goal_mutations                               | /workspace/ai_sandbox/canon_workspace/canon/src/storage/manifest.rs                   |
 | "method"       | crate::storage::manifest::from_ir                                      | /workspace/ai_sandbox/canon_workspace/canon/src/storage/manifest.rs                   |
-| "function"     | crate::storage::manifest::assign_manifest_slots                        | /workspace/ai_sandbox/canon_workspace/canon/src/storage/manifest.rs                   |
+| "function"     | crate::storage::manifest::build_manifest_entries                       | /workspace/ai_sandbox/canon_workspace/canon/src/storage/manifest.rs                   |
 | "module"       | crate::storage::reader                                                 | /workspace/ai_sandbox/canon_workspace/canon/src/storage/mod.rs                        |
 | "module"       | crate::storage::types                                                  | /workspace/ai_sandbox/canon_workspace/canon/src/storage/mod.rs                        |
 | "use"          | crate::storage::reader::HashMap                                        | /workspace/ai_sandbox/canon_workspace/canon/src/storage/reader.rs                     |
@@ -4145,7 +4145,7 @@
 | "use"          | crate::validate::check_artifacts::Violation                            | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/mod.rs       |
 | "use"          | crate::validate::check_artifacts::Indexes                              | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/mod.rs       |
 | "use"          | crate::validate::check_artifacts::CanonicalIr                          | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/mod.rs       |
-| "function"     | crate::validate::check_artifacts::check                                | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/mod.rs       |
+| "function"     | crate::validate::check_artifacts                                       | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/mod.rs       |
 | "use"          | crate::validate::check_artifacts::module::Violation                    | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/module.rs    |
 | "use"          | crate::validate::check_artifacts::module::ViolationDetail              | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/module.rs    |
 | "use"          | crate::validate::check_artifacts::module::Indexes                      | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_artifacts/module.rs    |
@@ -4172,7 +4172,7 @@
 | "use"          | crate::validate::check_deltas::pipeline_stage_allows                   | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
 | "use"          | crate::validate::check_deltas::proof_scope_allows                      | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
 | "use"          | crate::validate::check_deltas::CanonRule                               | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
-| "function"     | crate::validate::check_deltas::check                                   | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
+| "function"     | crate::validate::check_deltas::check_deltas_top                        | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
 | "function"     | crate::validate::check_deltas                                          | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
 | "function"     | crate::validate::check_deltas::check_struct_history                    | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
 | "function"     | crate::validate::check_deltas::check_admissions                        | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_deltas.rs              |
@@ -4201,7 +4201,7 @@
 | "use"          | crate::validate::check_graphs::DiGraphMap                              | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
 | "use"          | crate::validate::check_graphs::HashMap                                 | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
 | "use"          | crate::validate::check_graphs::HashSet                                 | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
-| "function"     | crate::validate::check_graphs::check                                   | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
+| "function"     | crate::validate::check_graphs                                          | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
 | "function"     | crate::validate::check_graphs::check_module_graph                      | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
 | "function"     | crate::validate::check_graphs::check_call_graph                        | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
 | "function"     | crate::validate::check_graphs::check_tick_graphs                       | /workspace/ai_sandbox/canon_workspace/canon/src/validate/check_graphs.rs              |
