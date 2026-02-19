@@ -9,6 +9,10 @@ pub fn render_node<T: ToTokens>(node: T) -> String {
     }
 }
 
+pub fn render_file(ast: &syn::File) -> String {
+    prettyplease::unparse(ast)
+}
+
 pub fn render_function(func: &syn::ItemFn) -> String {
     render_node(func)
 }

@@ -5,6 +5,7 @@ use syn::visit::{self, Visit};
 use crate::rename::alias::{ImportNode, UseKind, VisibilityScope};
 
 use super::super::paths::module_child_path;
+use super::super::symbol_id::normalize_symbol_id;
 use super::super::span::span_to_range;
 use super::super::types::SymbolRecord;
 use super::super::use_map::{path_to_string, type_path_string};
@@ -51,6 +52,7 @@ impl<'a> SymbolCollector<'a> {
         docs: Vec<String>,
         attrs: Vec<String>,
     ) {
+        let id = normalize_symbol_id(&id);
         let file_path = self.file.to_string_lossy().to_string();
         self.symbols.push(SymbolRecord {
             id,

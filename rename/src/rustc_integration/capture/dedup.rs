@@ -1,6 +1,6 @@
 //! Deduplication utilities that collapse duplicate captured items.
 
-use crate::integration::{CapturedItem, ExtractionResult};
+use crate::rustc_integration::{CapturedItem, ExtractionResult};
 
 /// Collapses duplicate captured items before normalization.
 #[derive(Debug, Default)]

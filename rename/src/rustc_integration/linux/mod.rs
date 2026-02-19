@@ -1,6 +1,6 @@
 //! Linux state capture that records facts into the state graph.
 
-use crate::capability::shell::{probe_fact, LinuxFact};
+use crate::state::capability::shell::{probe_fact, LinuxFact};
 use crate::state::builder::{KernelGraphBuilder, NodePayload};
 use crate::state::graph::GraphSnapshot;
 use std::collections::BTreeMap;

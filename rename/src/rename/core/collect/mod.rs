@@ -8,6 +8,7 @@ use crate::rename::alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
 use crate::rename::occurrence::EnhancedOccurrenceVisitor;
 
 use super::paths::module_path_for_file;
+use super::symbol_id::normalize_symbol_id;
 use super::types::{
     AliasGraphReport, LineColumn, SpanRange, SymbolIndex, SymbolIndexReport, SymbolRecord,
 };
@@ -28,7 +29,7 @@ pub fn collect_names(project: &Path) -> Result<SymbolIndexReport> {
 
     let mut symbol_table = SymbolIndex::default();
     for file in &files {
-        let module_path = module_path_for_file(project, file);
+        let module_path = normalize_symbol_id(&module_path_for_file(project, file));
         let content = std::fs::read_to_string(file)?;
         let ast = syn::parse_file(&content)
             .with_context(|| format!("Failed to parse {}", file.display()))?;
@@ -58,7 +59,7 @@ pub fn collect_names(project: &Path) -> Result<SymbolIndexReport> {
     global_alias_graph.build_edges();
 
     for file in &files {
-        let module_path = module_path_for_file(project, file);
+        let module_path = normalize_symbol_id(&module_path_for_file(project, file));
         let content = std::fs::read_to_string(file)?;
         let ast = syn::parse_file(&content)
             .with_context(|| format!("Failed to parse {}", file.display()))?;
@@ -171,6 +172,8 @@ pub(crate) fn add_file_module_symbol(
     out: &mut Vec<SymbolRecord>,
     symbol_set: &mut HashSet<String>,
 ) {
+    let module_id = normalize_symbol_id(module_path);
+    let module_path = module_id.as_str();
     if module_path == "crate" {
         return;
     }
@@ -225,6 +228,8 @@ pub(crate) fn collect_symbols(
     out: &mut Vec<SymbolRecord>,
     symbol_set: &mut HashSet<String>,
 ) -> AliasGraph {
+    let module_id = normalize_symbol_id(module_path);
+    let module_path = module_id.as_str();
     let mut alias_graph = AliasGraph::default();
     let mut collector = SymbolCollector::new(module_path, file, &mut alias_graph);
     collector.visit_file(ast);

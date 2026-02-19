@@ -1,0 +1,38 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NodeId([u8; 16]);
+
+impl NodeId {
+    pub fn from_bytes(bytes: [u8; 16]) -> Self {
+        Self(bytes)
+    }
+
+    pub fn from_key(key: &str) -> Self {
+        let mut hasher = DefaultHasher::new();
+        key.hash(&mut hasher);
+        let hash = hasher.finish();
+        let mut bytes = [0u8; 16];
+        bytes[..8].copy_from_slice(&hash.to_le_bytes());
+        bytes[8..].copy_from_slice(&hash.to_be_bytes());
+        Self(bytes)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EdgeId([u8; 16]);
+
+impl EdgeId {
+    pub fn from_components(from: &NodeId, to: &NodeId, kind: &str) -> Self {
+        let mut hasher = DefaultHasher::new();
+        from.hash(&mut hasher);
+        to.hash(&mut hasher);
+        kind.hash(&mut hasher);
+        let hash = hasher.finish();
+        let mut bytes = [0u8; 16];
+        bytes[..8].copy_from_slice(&hash.to_le_bytes());
+        bytes[8..].copy_from_slice(&hash.to_be_bytes());
+        Self(bytes)
+    }
+}

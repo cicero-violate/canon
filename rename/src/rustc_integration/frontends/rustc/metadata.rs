@@ -3,6 +3,7 @@
 //! Attribute, visibility, and generics metadata helpers.
 
 use super::context::FrontendMetadata;
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use crate::state::builder::NodePayload;
 use blake3::hash;
 use rustc_hir::{def::DefKind, def_id::DefId, Attribute as HirAttribute};
@@ -18,7 +19,8 @@ pub(super) fn apply_common_metadata<'tcx>(
     def_id: DefId,
     frontend: &FrontendMetadata,
 ) -> NodePayload {
-    let def_path = tcx.def_path_str(def_id);
+    let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&tcx.def_path_str(def_id), Some(&crate_name));
     let name = tcx
         .opt_item_name(def_id)
         .map(|sym| sym.to_string())

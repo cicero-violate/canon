@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use super::core::{SymbolIndexReport, SymbolRecord, apply_rename_with_map, collect_names};
-use super::structured::{AstEdit, apply_ast_rewrites};
+use super::structured::{AstEdit, NodeOp, apply_ast_rewrites};
 
 /// Serializable request for querying symbol metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -178,11 +178,14 @@ impl MutationRequest {
 }
 
 /// Serializable upsert request (AST edits).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct UpsertRequest {
     /// Concrete AST edits to apply.
     #[serde(default)]
     pub edits: Vec<AstEdit>,
+    /// Node operations for structural edits.
+    #[serde(skip, default)]
+    pub node_ops: Vec<NodeOp>,
     /// Whether to run rustfmt on touched files.
     #[serde(default = "default_true")]
     pub format: bool,
@@ -206,6 +209,12 @@ impl UpsertRequest {
         self
     }
 
+    /// Queue a structural node operation.
+    pub fn node_op(mut self, op: NodeOp) -> Self {
+        self.node_ops.push(op);
+        self
+    }
+
     /// Configure whether `rustfmt` should run on touched files (default: true).
     pub fn format(mut self, enabled: bool) -> Self {
         self.format = enabled;
@@ -214,10 +223,14 @@ impl UpsertRequest {
 
     /// Execute the queued edits.
     pub fn execute(self) -> Result<UpsertResult> {
-        if self.edits.is_empty() {
+        if self.edits.is_empty() && self.node_ops.is_empty() {
             bail!("no edits were queued for upsert");
         }
-        let touched = apply_ast_rewrites(&self.edits, self.format)?;
+        let touched = if self.edits.is_empty() {
+            Vec::new()
+        } else {
+            apply_ast_rewrites(&self.edits, self.format)?
+        };
         Ok(UpsertResult {
             touched_files: touched,
         })

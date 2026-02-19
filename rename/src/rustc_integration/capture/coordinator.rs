@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use super::dedup::Deduplicator;
 use super::session::CaptureSession;
-use crate::integration::{ExtractionResult, FrontendExtractor};
+use crate::rustc_integration::{ExtractionResult, FrontendExtractor};
 
 /// High level orchestrator that walks a workspace and runs a frontend for each crate.
 pub struct CaptureCoordinator {

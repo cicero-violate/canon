@@ -7,6 +7,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::rename::core::StructuralEditOracle;
+
 /// Handle discovery of Cargo metadata and extern artifacts for a project.
 #[derive(Debug, Clone)]
 pub struct CargoProject {
@@ -262,4 +264,22 @@ pub struct ProjectMetadata {
     pub edition: Option<String>,
     /// Rust toolchain requirement for the primary package (if any).
     pub rust_version: Option<String>,
+}
+
+impl StructuralEditOracle for CargoProject {
+    fn impact_of(&self, _symbol_id: &str) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn satisfies_bounds(&self, _id: &str, _new_sig: &syn::Signature) -> bool {
+        true
+    }
+
+    fn is_macro_generated(&self, _symbol_id: &str) -> bool {
+        false
+    }
+
+    fn cross_crate_users(&self, _symbol_id: &str) -> Vec<String> {
+        Vec::new()
+    }
 }

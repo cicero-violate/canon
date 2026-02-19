@@ -2,12 +2,11 @@
 
 use std::sync::Arc;
 
-use crate::integration::frontends::rustc::{RustcFrontend, RustcFrontendError};
-use crate::integration::project::CargoProject;
+use crate::rustc_integration::frontends::rustc::{RustcFrontend, RustcFrontendError};
+use crate::rustc_integration::project::CargoProject;
 use crate::state::graph::{GraphDelta, GraphDeltaError, GraphMaterializer, GraphSnapshot};
 use crate::state::ids::{EdgeId, NodeId};
-use crate::workspace::{GraphWorkspace, WorkspaceBuilder};
-use thiserror::Error;
+use crate::state::workspace::{GraphWorkspace, WorkspaceBuilder};
 
 /// Captured artifacts from a workspace build (snapshot + workspace overlay).
 pub struct CaptureArtifacts {
@@ -17,17 +16,38 @@ pub struct CaptureArtifacts {
 }
 
 /// Errors that may arise when merging multiple targets into a single snapshot.
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum CaptureError {
     /// Generic orchestration failure.
-    #[error("capture error: {0}")]
     Generic(String),
     /// I/O error while talking to cargo/metadata.
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
+    Io(std::io::Error),
     /// Rustc frontend failure.
-    #[error(transparent)]
-    Frontend(#[from] RustcFrontendError),
+    Frontend(RustcFrontendError),
+}
+
+impl std::fmt::Display for CaptureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CaptureError::Generic(msg) => write!(f, "capture error: {msg}"),
+            CaptureError::Io(err) => write!(f, "{err}"),
+            CaptureError::Frontend(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for CaptureError {}
+
+impl From<std::io::Error> for CaptureError {
+    fn from(err: std::io::Error) -> Self {
+        CaptureError::Io(err)
+    }
+}
+
+impl From<RustcFrontendError> for CaptureError {
+    fn from(err: RustcFrontendError) -> Self {
+        CaptureError::Frontend(err)
+    }
 }
 
 /// Capture all targets (lib + bins) of a cargo project and merge into one snapshot.
@@ -110,7 +130,7 @@ pub fn capture_project(
                 Err(GraphDeltaError::NodeExists(existing)) => {
                     id_map.insert(node.id, existing);
                 }
-                Err(e) => return Err(CaptureError::Generic(format!("merge node failed: {e}"))),
+                Err(e) => return Err(CaptureError::Generic(format!("merge node failed: {e:?}"))),
             };
         }
 
@@ -129,7 +149,7 @@ pub fn capture_project(
             match materializer.apply(GraphDelta::AddEdge(cloned.clone())) {
                 Ok(_) => graph_deltas.push(GraphDelta::AddEdge(cloned)),
                 Err(GraphDeltaError::EdgeExists(_)) => {}
-                Err(e) => return Err(CaptureError::Generic(format!("merge edge failed: {e}"))),
+                Err(e) => return Err(CaptureError::Generic(format!("merge edge failed: {e:?}"))),
             }
         }
     }

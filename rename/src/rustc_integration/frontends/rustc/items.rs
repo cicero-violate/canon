@@ -2,6 +2,7 @@
 
 use super::context::FrontendMetadata;
 use super::metadata;
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use crate::state::builder::{KernelGraphBuilder, NodePayload};
 use crate::state::ids::NodeId;
 use rustc_hir::def_id::DefId;
@@ -21,8 +22,10 @@ pub(super) fn capture_adt<'tcx>(
     }
 
     let adt_def = tcx.adt_def(def_id);
-    let def_path = tcx.def_path_str(def_id);
+    let raw_def_path = tcx.def_path_str(def_id);
     let node_key = format!("{def_id:?}");
+    let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
 
     let mut payload = NodePayload::new(&node_key, def_path.clone())
         .with_metadata("type", "adt")
@@ -63,8 +66,10 @@ pub(super) fn capture_type_alias<'tcx>(
         return id;
     }
 
-    let def_path = tcx.def_path_str(def_id);
+    let raw_def_path = tcx.def_path_str(def_id);
     let node_key = format!("{def_id:?}");
+    let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let aliased_ty = tcx.type_of(def_id).instantiate_identity();
 
     let mut payload = NodePayload::new(&node_key, def_path.clone())
@@ -94,8 +99,10 @@ pub(super) fn capture_const_static<'tcx>(
         return id;
     }
 
-    let def_path = tcx.def_path_str(def_id);
+    let raw_def_path = tcx.def_path_str(def_id);
     let node_key = format!("{def_id:?}");
+    let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let const_ty = tcx.type_of(def_id).instantiate_identity();
 
     let mut payload = NodePayload::new(&node_key, def_path.clone())

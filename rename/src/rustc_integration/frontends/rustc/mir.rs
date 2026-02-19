@@ -2,6 +2,7 @@
 
 use super::context::FrontendMetadata;
 use super::nodes::ensure_node;
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use crate::state::builder::{EdgePayload, KernelGraphBuilder};
 use crate::state::graph::EdgeKind;
 use crate::state::ids::NodeId;
@@ -23,7 +24,11 @@ pub(super) fn capture_function<'tcx>(
 ) {
     let body = tcx.optimized_mir(local_def);
     let mut bb_nodes: HashMap<BasicBlock, NodeId> = HashMap::new();
-    let function_name = tcx.def_path_str(local_def.to_def_id());
+    let crate_name = tcx.crate_name(local_def.to_def_id().krate).to_string();
+    let function_name = normalize_symbol_id_with_crate(
+        &tcx.def_path_str(local_def.to_def_id()),
+        Some(&crate_name),
+    );
     let function_key = format!("{:?}", local_def.to_def_id());
 
     for (bb_idx, bb_data) in body.basic_blocks.iter_enumerated() {
@@ -328,7 +333,10 @@ fn compute_effects<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<St
             TerminatorKind::Call { func, .. } => {
                 has_side_effects = true;
                 if let ty::FnDef(def_id, _) = *func.ty(&body.local_decls, tcx).kind() {
-                    let path = tcx.def_path_str(def_id);
+                    let path = normalize_symbol_id_with_crate(
+                        &tcx.def_path_str(def_id),
+                        Some(&tcx.crate_name(def_id.krate).to_string()),
+                    );
                     if path.contains("::io::") {
                         performs_io = true;
                     }

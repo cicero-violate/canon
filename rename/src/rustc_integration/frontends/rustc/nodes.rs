@@ -3,6 +3,7 @@
 use super::context::FrontendMetadata;
 use super::hir_bodies;
 use super::metadata;
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use crate::state::builder::{KernelGraphBuilder, NodePayload};
 use crate::state::ids::NodeId;
 use rustc_hir::def::DefKind;
@@ -22,9 +23,10 @@ pub(super) fn ensure_node<'tcx>(
         return *id;
     }
 
-    let def_path = tcx.def_path_str(def_id);
+    let raw_def_path = tcx.def_path_str(def_id);
     let node_key = format!("{def_id:?}");
     let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let def_kind = format!("{:?}", tcx.def_kind(def_id));
     let span = tcx.def_span(def_id);
     let source_map = tcx.sess.source_map();

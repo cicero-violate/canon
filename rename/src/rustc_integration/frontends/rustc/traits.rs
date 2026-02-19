@@ -2,6 +2,7 @@
 
 use super::context::FrontendMetadata;
 use super::metadata;
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use crate::state::builder::{KernelGraphBuilder, NodePayload};
 use crate::state::ids::NodeId;
 use rustc_hir::def::DefKind;
@@ -22,7 +23,9 @@ pub(super) fn capture_trait<'tcx>(
     }
 
     let trait_def = tcx.trait_def(def_id);
-    let def_path = tcx.def_path_str(def_id);
+    let raw_def_path = tcx.def_path_str(def_id);
+    let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let node_key = format!("{def_id:?}");
 
     let mut payload = NodePayload::new(&node_key, def_path.clone())
@@ -58,7 +61,9 @@ pub(super) fn capture_impl<'tcx>(
         return id;
     }
 
-    let def_path = tcx.def_path_str(def_id);
+    let raw_def_path = tcx.def_path_str(def_id);
+    let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let node_key = format!("{def_id:?}");
 
     let def_kind = tcx.def_kind(def_id);
@@ -113,7 +118,10 @@ fn serialize_associated_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> 
         .in_definition_order()
         .map(|item| AssocItemCapture {
             name: item.ident(tcx).to_string(),
-            def_path: tcx.def_path_str(item.def_id),
+            def_path: normalize_symbol_id_with_crate(
+                &tcx.def_path_str(item.def_id),
+                Some(&tcx.crate_name(item.def_id.krate).to_string()),
+            ),
             kind: format!("{:?}", item.kind),
         })
         .collect();
@@ -139,7 +147,10 @@ fn serialize_impl_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
     let captures: Vec<ImplItemCapture> = item_ids
         .iter()
         .map(|item_def| ImplItemCapture {
-            def_path: tcx.def_path_str(*item_def),
+            def_path: normalize_symbol_id_with_crate(
+                &tcx.def_path_str(*item_def),
+                Some(&tcx.crate_name(item_def.krate).to_string()),
+            ),
         })
         .collect();
 

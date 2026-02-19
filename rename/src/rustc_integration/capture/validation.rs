@@ -1,6 +1,6 @@
 //! Validation helpers that ensure captured metadata satisfies invariants.
 
-use crate::integration::ExtractionResult;
+use crate::rustc_integration::ExtractionResult;
 
 /// Performs light validation to ensure the extraction result looks sane.
 pub fn validate(result: &ExtractionResult) -> bool {

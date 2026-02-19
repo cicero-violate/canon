@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use crate::integration::CapturedItem;
+use crate::rustc_integration::CapturedItem;
 use crate::state::graph::{
     EdgeKind, EdgeRecord, GraphDelta, GraphDeltaError, GraphMaterializer, GraphSnapshot, NodeRecord,
 };
@@ -38,7 +38,7 @@ impl GraphNormalizer {
                     if matches!(err, GraphDeltaError::NodeExists(_)) {
                         // continue
                     } else {
-                        log::warn!("graph delta error: {err}");
+                        eprintln!("graph delta error: {err:?}");
                     }
                 }
             }
