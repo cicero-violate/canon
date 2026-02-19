@@ -1,12 +1,12 @@
 [build]
 rustc-wrapper = "./lints/lint_rustc_gate"
 # rustflags = ["-A", "warnings"]
-incremental = false
+# incremental = false
 
-[profile.dev]
-incremental = false
+# [profile.dev]
+# incremental = false
 
-[profile.release]
-incremental = false
+# [profile.release]
+# incremental = false
 
 
