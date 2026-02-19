@@ -11,7 +11,7 @@ pub(super) fn apply_node_op(
     handles: &HashMap<String, NodeHandle>,
     symbol_id: &str,
     op: &NodeOp,
-) -> Result<()> {
+) -> Result<bool> {
     match op {
         NodeOp::ReplaceNode { handle, new_node } => {
             replace_node(ast, handle, new_node.clone())
@@ -27,6 +27,7 @@ pub(super) fn apply_node_op(
         NodeOp::MutateField { handle, mutation } => {
             apply_field_mutation(ast, handle, symbol_id, mutation)
         }
+        NodeOp::MoveSymbol { .. } => Ok(false),
     }
 }
 
@@ -35,67 +36,67 @@ fn apply_field_mutation(
     handle: &NodeHandle,
     symbol_id: &str,
     mutation: &FieldMutation,
-) -> Result<()> {
+) -> Result<bool> {
     match mutation {
         FieldMutation::RenameIdent(new_name) => {
             if rename_ident(ast, handle, symbol_id, new_name) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("rename failed for {}", symbol_id);
             }
         }
         FieldMutation::ChangeVisibility(new_vis) => {
             if change_visibility(ast, handle, symbol_id, new_vis) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("visibility change failed for {}", symbol_id);
             }
         }
         FieldMutation::AddAttribute(attr) => {
             if add_attribute(ast, handle, symbol_id, attr.clone()) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("add attribute failed for {}", symbol_id);
             }
         }
         FieldMutation::RemoveAttribute(name) => {
             if remove_attribute(ast, handle, symbol_id, name) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("remove attribute failed for {}", symbol_id);
             }
         }
         FieldMutation::ReplaceSignature(sig) => {
             if replace_signature(ast, handle, symbol_id, sig.clone()) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("replace signature failed for {}", symbol_id);
             }
         }
         FieldMutation::AddStructField(field) => {
             if add_struct_field(ast, handle, symbol_id, field.clone()) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("add struct field failed for {}", symbol_id);
             }
         }
         FieldMutation::RemoveStructField(name) => {
             if remove_struct_field(ast, handle, symbol_id, name) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("remove struct field failed for {}", symbol_id);
             }
         }
         FieldMutation::AddVariant(variant) => {
             if add_variant(ast, handle, symbol_id, variant.clone()) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("add variant failed for {}", symbol_id);
             }
         }
         FieldMutation::RemoveVariant(name) => {
             if remove_variant(ast, handle, symbol_id, name) {
-                Ok(())
+                Ok(true)
             } else {
                 anyhow::bail!("remove variant failed for {}", symbol_id);
             }
@@ -120,7 +121,7 @@ fn rename_ident(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_n
     }
 }
 
-fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<()> {
+fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<bool> {
     if !handle.nested_path.is_empty() {
         anyhow::bail!("replace node not supported for nested items");
     }
@@ -129,7 +130,7 @@ fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -
         .get_mut(handle.item_index)
         .ok_or_else(|| anyhow::anyhow!("item index out of bounds"))?;
     *item = new_node;
-    Ok(())
+    Ok(true)
 }
 
 fn insert_node(
@@ -137,7 +138,7 @@ fn insert_node(
     handle: &NodeHandle,
     new_node: syn::Item,
     before: bool,
-) -> Result<()> {
+) -> Result<bool> {
     if !handle.nested_path.is_empty() {
         anyhow::bail!("insert node not supported for nested items");
     }
@@ -149,10 +150,10 @@ fn insert_node(
         anyhow::bail!("insert index out of bounds");
     }
     ast.items.insert(idx, new_node);
-    Ok(())
+    Ok(true)
 }
 
-fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<()> {
+fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<bool> {
     if !handle.nested_path.is_empty() {
         anyhow::bail!("delete node not supported for nested items");
     }
@@ -160,14 +161,14 @@ fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<()> {
         anyhow::bail!("delete index out of bounds");
     }
     ast.items.remove(handle.item_index);
-    Ok(())
+    Ok(true)
 }
 
 fn reorder_items(
     ast: &mut syn::File,
     handles: &HashMap<String, NodeHandle>,
     new_order: &[String],
-) -> Result<()> {
+) -> Result<bool> {
     let mut container_path: Option<Vec<usize>> = None;
     for symbol_id in new_order {
         let handle = handles
@@ -210,7 +211,7 @@ fn reorder_items(
     }
 
     *items = reordered;
-    Ok(())
+    Ok(true)
 }
 
 fn change_visibility(

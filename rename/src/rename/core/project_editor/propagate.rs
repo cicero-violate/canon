@@ -8,13 +8,14 @@ use crate::rename::alias::{AliasGraph, VisibilityScope};
 use crate::rename::core::collect::{add_file_module_symbol, collect_symbols};
 use crate::rename::core::rename::apply_symbol_edits_to_ast;
 use crate::rename::core::symbol_id::normalize_symbol_id;
-use crate::rename::core::types::{SymbolEdit, SymbolIndex, SymbolOccurrence};
+use crate::rename::core::types::{FileRename, SymbolEdit, SymbolIndex, SymbolOccurrence};
 use crate::rename::core::use_map::build_use_map;
 use crate::rename::core::paths::module_path_for_file;
 use crate::rename::occurrence::EnhancedOccurrenceVisitor;
 use crate::rename::structured::{FieldMutation, NodeOp};
 use crate::rename::alias::VisibilityLeakAnalysis;
 use crate::rename::core::oracle::StructuralEditOracle;
+use crate::rename::module_path::{ModuleMovePlan, ModulePath};
 use crate::state::NodeRegistry;
 
 use super::EditConflict;
@@ -22,6 +23,7 @@ use super::EditConflict;
 pub struct PropagationResult {
     pub rewrites: Vec<SymbolEdit>,
     pub conflicts: Vec<EditConflict>,
+    pub file_renames: Vec<crate::rename::core::types::FileRename>,
 }
 
 pub fn propagate(
@@ -57,16 +59,23 @@ pub fn propagate(
                 PropagationResult {
                     rewrites: Vec::new(),
                     conflicts: Vec::new(),
+                    file_renames: Vec::new(),
                 },
             ),
         },
         NodeOp::DeleteNode { .. } => propagate_delete(symbol_id, oracle),
         NodeOp::ReplaceNode { .. } => propagate_delete(symbol_id, oracle),
+        NodeOp::MoveSymbol {
+            new_module_path,
+            new_crate,
+            ..
+        } => propagate_move(symbol_id, new_module_path, new_crate.as_deref(), registry, oracle),
         NodeOp::InsertBefore { .. }
         | NodeOp::InsertAfter { .. }
         | NodeOp::ReorderItems { .. } => Ok(PropagationResult {
             rewrites: Vec::new(),
             conflicts: Vec::new(),
+            file_renames: Vec::new(),
         }),
     }
 }
@@ -110,7 +119,11 @@ fn propagate_rename(
         })
         .collect();
 
-    Ok(PropagationResult { rewrites, conflicts })
+    Ok(PropagationResult {
+        rewrites,
+        conflicts,
+        file_renames: Vec::new(),
+    })
 }
 
 fn propagate_delete(
@@ -136,6 +149,73 @@ fn propagate_delete(
     Ok(PropagationResult {
         rewrites: Vec::new(),
         conflicts,
+        file_renames: Vec::new(),
+    })
+}
+
+fn propagate_move(
+    symbol_id: &str,
+    new_module_path: &str,
+    new_crate: Option<&str>,
+    registry: &NodeRegistry,
+    oracle: &dyn StructuralEditOracle,
+) -> Result<PropagationResult> {
+    let norm_id = normalize_symbol_id(symbol_id);
+    let mut conflicts = Vec::new();
+    let mut file_renames = Vec::new();
+
+    if let Some(new_crate) = new_crate {
+        conflicts.push(EditConflict {
+            symbol_id: norm_id.clone(),
+            reason: format!("cross-crate move requires Cargo.toml update ({new_crate})"),
+        });
+        for id in oracle.impact_of(&norm_id) {
+            conflicts.push(EditConflict {
+                symbol_id: normalize_symbol_id(&id),
+                reason: "cross-crate move requires manual update".to_string(),
+            });
+        }
+        for id in oracle.cross_crate_users(&norm_id) {
+            conflicts.push(EditConflict {
+                symbol_id: normalize_symbol_id(&id),
+                reason: "cross-crate move requires manual update".to_string(),
+            });
+        }
+    } else {
+        for id in oracle.cross_crate_users(&norm_id) {
+            conflicts.push(EditConflict {
+                symbol_id: normalize_symbol_id(&id),
+                reason: "move affects external user".to_string(),
+            });
+        }
+    }
+
+    let Some(handle) = registry.handles.get(&norm_id) else {
+        return Ok(PropagationResult {
+            rewrites: Vec::new(),
+            conflicts,
+            file_renames,
+        });
+    };
+
+    let project_root = find_project_root(registry)?;
+    let old_module_path = normalize_symbol_id(&module_path_for_file(&project_root, &handle.file));
+    let from_path = ModulePath::from_string(&old_module_path);
+    let to_path = ModulePath::from_string(new_module_path);
+    let plan = ModuleMovePlan::new(from_path.clone(), to_path.clone(), handle.file.clone(), &project_root)?;
+
+    file_renames.push(FileRename {
+        from: handle.file.to_string_lossy().to_string(),
+        to: plan.to_file.to_string_lossy().to_string(),
+        is_directory_move: plan.create_directory,
+        old_module_id: from_path.to_string(),
+        new_module_id: to_path.to_string(),
+    });
+
+    Ok(PropagationResult {
+        rewrites: Vec::new(),
+        conflicts,
+        file_renames,
     })
 }
 
@@ -156,6 +236,7 @@ fn propagate_remove_field(
     Ok(PropagationResult {
         rewrites: Vec::new(),
         conflicts,
+        file_renames: Vec::new(),
     })
 }
 
@@ -176,6 +257,7 @@ fn propagate_remove_variant(
     Ok(PropagationResult {
         rewrites: Vec::new(),
         conflicts,
+        file_renames: Vec::new(),
     })
 }
 
@@ -203,6 +285,7 @@ fn propagate_visibility(
     Ok(PropagationResult {
         rewrites: Vec::new(),
         conflicts,
+        file_renames: Vec::new(),
     })
 }
 
@@ -225,6 +308,7 @@ fn propagate_signature(
     Ok(PropagationResult {
         rewrites: Vec::new(),
         conflicts,
+        file_renames: Vec::new(),
     })
 }
 
@@ -250,6 +334,7 @@ fn propagate_add_field(
     Ok(PropagationResult {
         rewrites: Vec::new(),
         conflicts,
+        file_renames: Vec::new(),
     })
 }
 
@@ -271,6 +356,7 @@ fn propagate_add_variant(
     Ok(PropagationResult {
         rewrites: Vec::new(),
         conflicts,
+        file_renames: Vec::new(),
     })
 }
 

@@ -6,14 +6,20 @@ use syn::visit::Visit;
 
 use crate::fs;
 use crate::rename::core::oracle::StructuralEditOracle;
+use crate::rename::core::collect::{add_file_module_symbol, collect_symbols};
+use crate::rename::core::mod_decls::update_mod_declarations;
 use crate::rustc_integration::frontends::rustc::RustcFrontend;
 use crate::rustc_integration::multi_capture::capture_project;
 use crate::rustc_integration::project::CargoProject;
 use crate::rename::core::symbol_id::normalize_symbol_id;
 use crate::rename::structured::{FieldMutation, NodeOp, node_handle};
 use crate::rename::core::paths::{module_child_path, module_path_for_file};
+use crate::rename::structured::use_tree::UsePathRewritePass;
+use crate::rename::structured::{StructuredEditOptions, StructuredPass};
 use crate::rename::core::use_map::{path_to_string, type_path_string};
+use crate::rename::core::types::SymbolIndex;
 use crate::state::{NodeKind, NodeRegistry};
+use crate::rename::core::types::FileRename;
 
 #[derive(Debug, Clone)]
 pub struct EditConflict {
@@ -25,12 +31,17 @@ pub struct EditConflict {
 pub struct ChangeReport {
     pub touched_files: Vec<PathBuf>,
     pub conflicts: Vec<EditConflict>,
+    pub file_moves: Vec<(PathBuf, PathBuf)>,
 }
 
 pub struct ProjectEditor {
     pub registry: NodeRegistry,
     pub changesets: HashMap<PathBuf, Vec<QueuedOp>>,
     pub oracle: Box<dyn StructuralEditOracle>,
+    pub original_sources: HashMap<PathBuf, String>,
+    pending_file_moves: Vec<(PathBuf, PathBuf)>,
+    pending_file_renames: Vec<FileRename>,
+    last_touched_files: HashSet<PathBuf>,
 }
 
 #[derive(Clone)]
@@ -43,6 +54,7 @@ impl ProjectEditor {
     pub fn load(project: &Path, oracle: Box<dyn StructuralEditOracle>) -> Result<Self> {
         let files = fs::collect_rs_files(project)?;
         let mut registry = NodeRegistry::new();
+        let mut original_sources = HashMap::new();
 
         for file in files {
             let content = std::fs::read_to_string(&file)?;
@@ -50,13 +62,18 @@ impl ProjectEditor {
                 .with_context(|| format!("Failed to parse {}", file.display()))?;
             let mut builder = NodeRegistryBuilder::new(project, &file, &mut registry);
             builder.visit_file(&ast);
-            registry.insert_ast(file, ast);
+            registry.insert_ast(file.clone(), ast);
+            original_sources.insert(file, content);
         }
 
         Ok(Self {
             registry,
             changesets: HashMap::new(),
             oracle,
+            original_sources,
+            pending_file_moves: Vec::new(),
+            pending_file_renames: Vec::new(),
+            last_touched_files: HashSet::new(),
         })
     }
 
@@ -77,7 +94,8 @@ impl ProjectEditor {
             | NodeOp::InsertBefore { handle, .. }
             | NodeOp::InsertAfter { handle, .. }
             | NodeOp::DeleteNode { handle }
-            | NodeOp::MutateField { handle, .. } => Some(handle),
+            | NodeOp::MutateField { handle, .. }
+            | NodeOp::MoveSymbol { handle, .. } => Some(handle),
             NodeOp::ReorderItems { .. } => None,
         };
 
@@ -95,6 +113,7 @@ impl ProjectEditor {
             | NodeOp::DeleteNode { handle }
             | NodeOp::MutateField { handle, .. } => handle.file.clone(),
             NodeOp::ReorderItems { file, .. } => file.clone(),
+            NodeOp::MoveSymbol { handle, .. } => handle.file.clone(),
         };
 
         self.changesets
@@ -123,33 +142,46 @@ impl ProjectEditor {
         let mut touched_files: HashSet<PathBuf> = HashSet::new();
         let mut rewrites = Vec::new();
         let mut conflicts = Vec::new();
+        let mut file_renames = Vec::new();
         let handle_snapshot = self.registry.handles.clone();
         for (file, ops) in &self.changesets {
             for queued in ops {
-                {
+                let changed = {
                     let ast = self
                         .registry
                         .asts
                         .get_mut(file)
                         .with_context(|| format!("missing AST for {}", file.display()))?;
                     apply_node_op(ast, &handle_snapshot, &queued.symbol_id, &queued.op)
-                        .with_context(|| format!("failed to apply {}", queued.symbol_id))?;
+                        .with_context(|| format!("failed to apply {}", queued.symbol_id))?
+                };
+                if changed {
+                    touched_files.insert(file.clone());
                 }
-                touched_files.insert(file.clone());
                 let prop = propagate(&queued.op, &queued.symbol_id, &self.registry, &*self.oracle)?;
                 rewrites.extend(prop.rewrites);
                 conflicts.extend(prop.conflicts);
+                file_renames.extend(prop.file_renames);
             }
         }
 
         let rewrite_touched = apply_rewrites(&mut self.registry, &rewrites)?;
         touched_files.extend(rewrite_touched);
+        let use_path_touched = run_use_path_rewrite(&mut self.registry, &self.changesets)?;
+        touched_files.extend(use_path_touched);
 
         let mut validation = self.validate()?;
         validation.extend(conflicts);
+        self.pending_file_moves = file_renames
+            .iter()
+            .map(|r| (PathBuf::from(&r.from), PathBuf::from(&r.to)))
+            .collect();
+        self.pending_file_renames = file_renames.clone();
+        self.last_touched_files = touched_files.clone();
         Ok(ChangeReport {
             touched_files: touched_files.into_iter().collect(),
             conflicts: validation,
+            file_moves: self.pending_file_moves.clone(),
         })
     }
 
@@ -184,23 +216,194 @@ impl ProjectEditor {
 
     pub fn commit(&self) -> Result<Vec<PathBuf>> {
         let mut written = Vec::new();
-        for file in self.changesets.keys() {
+        let targets: Vec<PathBuf> = if self.last_touched_files.is_empty() {
+            self.changesets.keys().cloned().collect()
+        } else {
+            self.last_touched_files.iter().cloned().collect()
+        };
+        for file in targets {
             let ast = self
                 .registry
                 .asts
-                .get(file)
+                .get(&file)
                 .with_context(|| format!("missing AST for {}", file.display()))?;
             let rendered = crate::rename::structured::render_file(ast);
-            std::fs::write(file, rendered)?;
+            std::fs::write(&file, rendered)?;
             written.push(file.clone());
+        }
+        for (from, to) in &self.pending_file_moves {
+            if let Some(parent) = to.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::rename(from, to)?;
+            written.push(to.clone());
+        }
+        if !self.pending_file_renames.is_empty() {
+            if let Some(project_root) = find_project_root(&self.registry)? {
+                let symbol_table = build_symbol_index(&project_root, &self.registry)?;
+                let mut touched = HashSet::new();
+                update_mod_declarations(
+                    &project_root,
+                    &symbol_table,
+                    &self.pending_file_renames,
+                    &mut touched,
+                )?;
+                written.extend(touched.into_iter());
+            }
         }
         Ok(written)
     }
 
     pub fn preview(&self) -> Result<String> {
-        Ok(format!("{} files touched", self.changesets.len()))
+        let mut output = String::new();
+        let targets: Vec<PathBuf> = if self.last_touched_files.is_empty() {
+            self.changesets.keys().cloned().collect()
+        } else {
+            self.last_touched_files.iter().cloned().collect()
+        };
+        for file in targets
+            .into_iter()
+            .filter(|p| self.original_sources.contains_key(p))
+        {
+            let original = &self.original_sources[&file];
+            let ast = self
+                .registry
+                .asts
+                .get(&file)
+                .with_context(|| format!("missing AST for {}", file.display()))?;
+            let rendered = crate::rename::structured::render_file(ast);
+            if original != &rendered {
+                let diff = similar::TextDiff::from_lines(original, &rendered)
+                    .unified_diff()
+                    .header(
+                        &format!("{} (original)", file.display()),
+                        &format!("{} (updated)", file.display()),
+                    )
+                    .to_string();
+                output.push_str(&diff);
+                output.push('\n');
+            }
+        }
+        if output.is_empty() {
+            Ok(format!("{} files touched", self.changesets.len()))
+        } else {
+            Ok(output)
+        }
     }
 }
+
+fn run_use_path_rewrite(
+    registry: &mut NodeRegistry,
+    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
+) -> Result<HashSet<PathBuf>> {
+    let updates = collect_use_path_updates(changesets);
+    if updates.is_empty() {
+        return Ok(HashSet::new());
+    }
+
+    let mut touched = HashSet::new();
+    let config = StructuredEditOptions::new(false, false, true);
+    for (file, ast) in registry.asts.iter_mut() {
+        let mut pass = UsePathRewritePass::new(updates.clone(), Vec::new(), config.clone());
+        if pass.execute(file, "", ast)? {
+            touched.insert(file.clone());
+        }
+    }
+    Ok(touched)
+}
+
+fn collect_use_path_updates(
+    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
+) -> HashMap<String, String> {
+    let mut updates = HashMap::new();
+    for ops in changesets.values() {
+        for queued in ops {
+            match &queued.op {
+                NodeOp::MutateField {
+                    mutation: FieldMutation::RenameIdent(new_name),
+                    ..
+                } => {
+                    let old_id = normalize_symbol_id(&queued.symbol_id);
+                    if let Some(new_id) = replace_last_segment(&old_id, new_name) {
+                        updates.insert(old_id, new_id);
+                    }
+                }
+                NodeOp::MoveSymbol {
+                    new_module_path,
+                    ..
+                } => {
+                    let old_id = normalize_symbol_id(&queued.symbol_id);
+                    let name = old_id.rsplit("::").next().unwrap_or(&old_id);
+                    let new_module = normalize_symbol_id(new_module_path);
+                    let new_id = format!("{new_module}::{name}");
+                    updates.insert(old_id.clone(), new_id);
+                    if let Some(old_module) = parent_module_path(&old_id) {
+                        updates.insert(old_module, new_module);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    updates
+}
+
+fn replace_last_segment(path: &str, new_name: &str) -> Option<String> {
+    let mut parts: Vec<&str> = path.split("::").collect();
+    if parts.is_empty() {
+        return None;
+    }
+    *parts.last_mut().unwrap() = new_name;
+    Some(parts.join("::"))
+}
+
+fn parent_module_path(path: &str) -> Option<String> {
+    let mut parts: Vec<&str> = path.split("::").collect();
+    if parts.len() <= 1 {
+        return None;
+    }
+    parts.pop();
+    Some(parts.join("::"))
+}
+
+fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<SymbolIndex> {
+    let mut symbol_table = SymbolIndex::default();
+    let mut symbols = Vec::new();
+    let mut symbol_set = HashSet::new();
+
+    for (file, ast) in &registry.asts {
+        let module_path = normalize_symbol_id(&module_path_for_file(project_root, file));
+        add_file_module_symbol(&module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
+        let _ = collect_symbols(
+            ast,
+            &module_path,
+            file,
+            &mut symbol_table,
+            &mut symbols,
+            &mut symbol_set,
+        );
+    }
+
+    Ok(symbol_table)
+}
+
+fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
+    let file = match registry.asts.keys().next() {
+        Some(f) => f,
+        None => return Ok(None),
+    };
+    let mut current = file.parent().unwrap_or_else(|| Path::new("/")).to_path_buf();
+    loop {
+        if current.join("Cargo.toml").exists() {
+            return Ok(Some(current));
+        }
+        if !current.pop() {
+            break;
+        }
+    }
+    Ok(None)
+}
+
 
 mod ops;
 mod propagate;
