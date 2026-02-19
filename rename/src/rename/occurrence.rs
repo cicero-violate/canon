@@ -28,7 +28,6 @@ pub struct EnhancedOccurrenceVisitor<'a> {
 #[derive(Clone)]
 struct ImplContext {
     type_name: String,
-    trait_name: Option<String>,
 }
 
 impl<'a> EnhancedOccurrenceVisitor<'a> {
@@ -200,14 +199,9 @@ impl<'a> Visit<'a> for EnhancedOccurrenceVisitor<'a> {
             .or_else(|| Some(path_to_string(&type_path.path))),
             _ => None,
         };
-        let trait_name = node.trait_.as_ref().and_then(|(_, path, _)| {
-            path_to_symbol(path, self.module_path, self.use_map, self.symbol_table)
-                .or_else(|| Some(path_to_string(path)))
-        });
         if let Some(type_name) = type_name {
             self.current_impl = Some(ImplContext {
                 type_name,
-                trait_name,
             });
         } else {
             self.current_impl = None;

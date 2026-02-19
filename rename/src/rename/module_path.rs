@@ -251,7 +251,7 @@ pub fn inline_to_file_plan(
 
     let to_path = from_path.clone();
 
-    let mut plan = ModuleMovePlan {
+    let plan = ModuleMovePlan {
         from_path,
         to_path,
         from_file: parent_file.to_path_buf(),
@@ -272,7 +272,7 @@ pub fn file_to_inline_plan(
     let from_path = ModulePath::from_string(&compute_module_path(project_root, file_path)?);
     let to_path = from_path.clone();
 
-    let mut plan = ModuleMovePlan {
+    let plan = ModuleMovePlan {
         from_path,
         to_path,
         from_file: file_path.to_path_buf(),

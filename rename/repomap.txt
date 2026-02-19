@@ -1,0 +1,482 @@
+fs.rs:
+  struct DiscoveredFiles  { rust_files, auxiliary_files }  (line 9)
+  struct AuxiliaryFile  { path, kind }  (line 15)
+  enum AuxiliaryKind  { CargoToml, BuildScript }  (line 21)
+  fn collect_rs_files(root: &Path) -> Result<Vec<PathBuf>>  (line 27)
+  fn discover_all_files(root: &Path) -> Result<DiscoveredFiles>  (line 33)
+  fn discover_include_targets(files: &[PathBuf]) -> Result<Vec<PathBuf>>  (line 99)
+  struct IncludeVisitor  { base_path, targets }  (line 123)
+  impl Visit<'ast> for IncludeVisitor<'_>  { fn visit_macro(&mut self, mac: &'ast syn::Macro), fn visit_expr_macro(&mut self, expr: &'ast syn::ExprMacro) }  (line 128)
+  fn is_ignored_dir(path: &Path) -> bool  (line 154)
+
+rename/scope.rs:
+  struct LexicalScope  { bindings, parent }  (line 8)
+  impl LexicalScope  { fn new(parent: Option<usize>) -> Self }  (line 15)
+  struct LexicalBinder  { scopes, current_scope, symbol_table_ref }  (line 26)
+  impl LexicalBinder  { fn new(symbol_table: &SymbolIndex) -> Self, fn push_scope(&mut self), fn pop_scope(&mut self), fn bind(&mut self, name: String, type_path: String), fn resolve(&self, name: &str) -> Option<&String>, fn resolve_method(&self, receiver_type: &str, method_name: &str) -> Option<String>, fn get_method_return_type(&self, receiver_type: &str, method_name: &str) -> Option<String> }  (line 35)
+
+rename/attributes.rs:
+  fn extract_symbols_from_attributes(attrs: &[Attribute]) -> Vec<(String, Span)>  (line 8)
+  fn extract_identifiers_from_token_string(
+    tokens: &str,
+    symbols: &mut Vec<(String, Span)>,
+    span: Span,
+)  (line 63)
+  fn is_valid_ident_char(s: &str) -> bool  (line 78)
+  fn extract_doc_references(doc_text: &str, symbols: &mut Vec<(String, Span)>, span: Span)  (line 94)
+  fn extract_bracket_references(doc_text: &str, symbols: &mut Vec<(String, Span)>, span: Span)  (line 123)
+  fn is_likely_symbol_ref(s: &str) -> bool  (line 145)
+
+rename/structured/doc_attr.rs:
+  struct StructuredAttributeResult  { literal_spans, changed }  (line 11)
+  impl StructuredAttributeResult  { fn new() -> Self, fn should_skip(&self, span: &SpanRange) -> bool }  (line 16)
+  struct DocAttrPass  { mapping, config }  (line 29)
+  impl DocAttrPass  { fn new(mapping: HashMap<String, String>, config: StructuredEditConfig) -> Self }  (line 34)
+  impl StructuredPass for DocAttrPass  { fn name(&self) -> &'static str, fn execute(
+        &mut self,
+        file: &Path,
+        content: &str,
+        ast: &mut syn::File,
+    ) -> Result<bool>, fn is_enabled(&self) -> bool }  (line 40)
+  fn rewrite_doc_and_attr_literals(
+    _file: &Path,
+    _content: &str,
+    ast: &mut syn::File,
+    mapping: &HashMap<String, String>,
+    config: &StructuredEditConfig,
+) -> Result<StructuredAttributeResult>  (line 66)
+  struct AttributeRewriteVisitor  { replacements, rewrite_docs, rewrite_attrs, result }  (line 78)
+  impl AttributeRewriteVisitor  { fn new(
+        mapping: &HashMap<String, String>,
+        config: &StructuredEditConfig,
+    ) -> Self, fn finish(self) -> StructuredAttributeResult, fn process_attribute(&mut self, attr: &mut syn::Attribute) }  (line 85)
+  impl VisitMut for AttributeRewriteVisitor  { fn visit_attribute_mut(&mut self, attr: &mut syn::Attribute) }  (line 130)
+  fn build_replacements(mapping: &HashMap<String, String>) -> Vec<(String, String)>  (line 136)
+  fn rewrite_literal(value: &str, replacements: &[(String, String)]) -> Option<String>  (line 148)
+  fn replace_identifier(text: &str, old: &str, new_name: &str) -> Option<String>  (line 162)
+  fn is_boundary(text: &str, start: usize, end: usize) -> bool  (line 186)
+  fn contains(outer: &SpanRange, inner: &SpanRange) -> bool  (line 196)
+
+rename/structured/orchestrator.rs:
+  trait StructuredPass  { fn is_enabled(&self) -> bool }  (line 9)
+  struct PassOrchestrator  { passes }  (line 22)
+  impl PassOrchestrator  { fn new() -> Self, fn add_pass(&mut self, pass: Box<dyn StructuredPass>), fn run_passes(
+        &mut self,
+        file: &Path,
+        content: &str,
+        ast: &mut syn::File,
+    ) -> Result<Vec<&'static str>>, fn enabled_count(&self) -> usize }  (line 26)
+  impl Default for PassOrchestrator  { fn default() -> Self }  (line 58)
+  fn create_rename_orchestrator(
+    mapping: &HashMap<String, String>,
+    path_updates: &HashMap<String, String>,
+    alias_nodes: Vec<ImportNode>,
+    config: StructuredEditConfig,
+) -> PassOrchestrator  (line 64)
+
+rename/structured/config.rs:
+  struct StructuredEditConfig  { doc_literals, attr_literals, use_statements }  (line 2)
+  impl StructuredEditConfig  { fn new(doc_literals: bool, attr_literals: bool, use_statements: bool) -> Self, fn disabled() -> Self, fn all_enabled() -> Self, fn is_enabled(&self) -> bool, fn doc_literals_enabled(&self) -> bool, fn attr_literals_enabled(&self) -> bool, fn doc_or_attr_enabled(&self) -> bool, fn use_statements_enabled(&self) -> bool, fn summary(&self) -> String }  (line 8)
+  fn structured_edits_enabled() -> bool  (line 64)
+  fn structured_edit_config() -> StructuredEditConfig  (line 68)
+  fn env_flag(key: &str, default: bool) -> bool  (line 85)
+
+rename/structured/edits.rs:
+  struct AstEdit  { file, start, end, replacement }  (line 11)
+  impl AstEdit  { fn replace(
+        file: impl Into<PathBuf>,
+        start: usize,
+        end: usize,
+        node: &T,
+    ) -> Self, fn insert(file: impl Into<PathBuf>, offset: usize, node: &T) -> Self }  (line 18)
+  fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf>>  (line 43)
+  fn insert_items_at_offset(
+    ast: &mut syn::File,
+    content: &str,
+    offset: usize,
+    mut items: Vec<syn::Item>,
+) -> Result<bool>  (line 104)
+  fn replace_items_in_range(
+    ast: &mut syn::File,
+    content: &str,
+    start: usize,
+    end: usize,
+    items: Vec<syn::Item>,
+) -> Result<bool>  (line 121)
+  fn find_insert_index(ast: &syn::File, content: &str, offset: usize) -> usize  (line 155)
+  fn span_to_line_column(point: proc_macro2::LineColumn) -> LineColumn  (line 170)
+
+rename/structured/use_tree.rs:
+  struct UseTreePass  { path_updates, _alias_nodes, config }  (line 11)
+  impl UseTreePass  { fn new(
+        path_updates: HashMap<String, String>,
+        alias_nodes: Vec<ImportNode>,
+        config: StructuredEditConfig,
+    ) -> Self }  (line 17)
+  impl StructuredPass for UseTreePass  { fn name(&self) -> &'static str, fn execute(
+        &mut self,
+        _file: &Path,
+        _content: &str,
+        ast: &mut syn::File,
+    ) -> Result<bool>, fn is_enabled(&self) -> bool }  (line 31)
+  struct UseAstRewriter  { updates, changed }  (line 69)
+  impl VisitMut for UseAstRewriter<'a>  { fn visit_item_use_mut(&mut self, node: &mut syn::ItemUse) }  (line 74)
+  fn rewrite_use_tree_mut(
+    tree: &mut syn::UseTree,
+    updates: &HashMap<String, String>,
+    changed: &mut bool,
+    current_path: &mut Vec<String>,
+)  (line 85)
+  fn find_replacement_path(path: &str, updates: &HashMap<String, String>) -> Option<String>  (line 159)
+  fn extract_segment_replacement(path: &str, new_path: &str, segment_index: usize) -> String  (line 179)
+
+rename/structured/ast_render.rs:
+  fn render_node(node: T) -> String  (line 4)
+  fn render_function(func: &syn::ItemFn) -> String  (line 12)
+  fn render_impl(item: &syn::ItemImpl) -> String  (line 16)
+  fn render_struct(item: &syn::ItemStruct) -> String  (line 20)
+  fn render_trait(item: &syn::ItemTrait) -> String  (line 24)
+
+rename/module_path.rs:
+  struct ModulePath  { segments, is_inline }  (line 8)
+  impl ModulePath  { fn new(segments: Vec<String>) -> Self, fn from_string(path: &str) -> Self, fn to_string(&self) -> String, fn parent(&self) -> Option<ModulePath>, fn last_segment(&self) -> Option<&str> }  (line 15)
+  enum ModuleLayout  { Inline, File, DirectoryModRs, DirectoryNamed }  (line 48)
+  impl ModuleLayout  { fn file_path(&self) -> Option<&Path>, fn is_directory(&self) -> bool }  (line 59)
+  fn compute_module_path(project_root: &Path, file_path: &Path) -> Result<String>  (line 80)
+  fn determine_module_layout(file_path: &Path) -> ModuleLayout  (line 130)
+  struct ModuleMovePlan  { from_path, to_path, from_file, to_file, create_directory, layout_change }  (line 153)
+  enum LayoutChange  { InlineToFile, FileToInline, DirectoryLayoutChange }  (line 169)
+  impl ModuleMovePlan  { fn new(
+        from_path: ModulePath,
+        to_path: ModulePath,
+        from_file: PathBuf,
+        project_root: &Path,
+    ) -> Result<Self> }  (line 181)
+  fn compute_new_file_path(module_path: &ModulePath, project_root: &Path) -> Result<PathBuf>  (line 209)
+  fn inline_to_file_plan(
+    module_name: &str,
+    parent_file: &Path,
+    project_root: &Path,
+) -> Result<ModuleMovePlan>  (line 238)
+  fn file_to_inline_plan(
+    file_path: &Path,
+    target_parent_file: &Path,
+    project_root: &Path,
+) -> Result<ModuleMovePlan>  (line 267)
+
+rename/core/use_paths.rs:
+  fn update_use_paths(
+    project: &std::path::Path,
+    file_renames: &[super::types::FileRename],
+    structured_config: &StructuredEditConfig,
+    alias_graph: &AliasGraph,
+    structured_tracker: &mut StructuredEditTracker,
+    touched_files: &mut HashSet<PathBuf>,
+) -> Result<()>  (line 12)
+
+rename/core/rename.rs:
+  fn apply_rename_with_map(
+    project: &Path,
+    mapping: &HashMap<String, String>,
+    dry_run: bool,
+    out_path: Option<&Path>,
+) -> Result<()>  (line 25)
+  struct SpanKey  { start_line, start_col, end_line, end_col }  (line 301)
+  impl SpanKey  { fn from_range(range: &SpanRange) -> Self, fn from_span(span: Span) -> Self }  (line 308)
+  fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool>  (line 323)
+  struct SpanRenamer  { map, changed }  (line 356)
+  impl VisitMut for SpanRenamer  { fn visit_ident_mut(&mut self, ident: &mut syn::Ident) }  (line 361)
+  fn is_valid_ident(name: &str) -> bool  (line 374)
+  fn apply_rename(
+    project: &Path,
+    map_path: &Path,
+    dry_run: bool,
+    out_path: Option<&Path>,
+) -> Result<()>  (line 385)
+
+rename/core/types.rs:
+  struct SymbolIndexReport  { version, symbols, occurrences, alias_graph, visibility_analysis }  (line 7)
+  struct AliasGraphReport  { use_nodes, edge_count, total_imports, total_reexports, glob_imports }  (line 16)
+  struct SymbolRecord  { id, kind, name, module, file, declaration_file, definition_file, span, alias, doc_comments, attributes }  (line 25)
+  struct SymbolOccurrence  { id, file, kind, span }  (line 42)
+  struct SpanRange  { start, end }  (line 50)
+  struct LineColumn  { line, column }  (line 56)
+  struct SymbolIndex  { symbols }  (line 62)
+  struct SymbolEdit  { id, file, kind, start, end, new_name }  (line 67)
+  struct FileRename  { from, to, is_directory_move, old_module_id, new_module_id }  (line 77)
+
+rename/core/mod_decls.rs:
+  fn update_mod_declarations(
+    project: &Path,
+    table: &SymbolIndex,
+    file_renames: &[FileRename],
+    touched_files: &mut HashSet<PathBuf>,
+) -> Result<()>  (line 11)
+  fn resolve_renamed_path(path: PathBuf, lookup: &HashMap<String, PathBuf>) -> PathBuf  (line 165)
+  fn resolve_parent_definition_file(
+    project: &Path,
+    table: &SymbolIndex,
+    parent_id: &str,
+    rename_lookup: &HashMap<String, PathBuf>,
+) -> Option<PathBuf>  (line 170)
+  fn find_crate_root_file(project: &Path) -> Option<PathBuf>  (line 190)
+  struct ModuleRenamePlan  { old_name, new_name, old_parent, new_parent }  (line 203)
+
+rename/core/alias.rs:
+  fn collect_and_rename_aliases(
+    project: &Path,
+    symbol_table: &SymbolIndex,
+    mapping: &HashMap<String, String>,
+) -> Result<Vec<SymbolEdit>>  (line 14)
+  fn collect_alias_edits(
+    tree: &syn::UseTree,
+    has_leading_colon: bool,
+    module_path: &str,
+    file: &Path,
+    symbol_table: &SymbolIndex,
+    mapping: &HashMap<String, String>,
+    edits: &mut Vec<SymbolEdit>,
+)  (line 47)
+  fn collect_alias_edits_recursive(
+    tree: &syn::UseTree,
+    prefix: &mut Vec<String>,
+    module_path: &str,
+    file: &Path,
+    symbol_table: &SymbolIndex,
+    mapping: &HashMap<String, String>,
+    edits: &mut Vec<SymbolEdit>,
+)  (line 72)
+  fn collect_alias_usage_edits(
+    file: &Path,
+    alias_name: &str,
+    new_alias: &str,
+    target_id: &str,
+    edits: &mut Vec<SymbolEdit>,
+)  (line 150)
+  struct AliasUsageVisitor  { alias_name, new_alias, target_id, file, edits }  (line 172)
+  impl Visit<'ast> for AliasUsageVisitor<'_>  { fn visit_path(&mut self, path: &'ast syn::Path) }  (line 180)
+
+rename/core/structured.rs:
+  struct StructuredEditTracker  { files, doc_files, attr_files, use_files }  (line 19)
+  impl StructuredEditTracker  { fn new() -> Self, fn mark_doc_edit(&mut self, file: String), fn mark_attr_edit(&mut self, file: String), fn mark_use_edit(&mut self, file: String), fn mark_generic(&mut self, file: String), fn all_files(&self) -> &HashSet<String>, fn into_set(self) -> HashSet<String>, fn doc_files(&self) -> &HashSet<String>, fn attr_files(&self) -> &HashSet<String>, fn use_files(&self) -> &HashSet<String>, fn summary(&self, config: &StructuredEditConfig) -> String }  (line 26)
+
+rename/core/format.rs:
+  fn format_files(paths: &[PathBuf]) -> Result<Vec<String>>  (line 9)
+
+rename/core/cli.rs:
+  fn run_names(args: &[String]) -> Result<()>  (line 7)
+  fn run_rename(args: &[String]) -> Result<()>  (line 29)
+
+rename/core/preview.rs:
+  fn write_preview(
+    out: &Path,
+    edits: &[SymbolEdit],
+    renames: &[FileRename],
+    structured_tracker: &StructuredEditTracker,
+    config: &StructuredEditConfig,
+) -> Result<()>  (line 11)
+
+rename/core/collect/mod.rs:
+  fn collect_names(project: &Path) -> Result<SymbolIndexReport>  (line 20)
+  fn emit_names(project: &Path, out: &Path) -> Result<()>  (line 128)
+  fn update_symbol_snapshot(out: &mut Vec<SymbolRecord>, id: &str, mut update: F)  (line 137)
+  fn merge_symbol_metadata(target: &mut SymbolRecord, source: &SymbolRecord)  (line 146)
+  fn add_file_module_symbol(
+    module_path: &str,
+    file: &Path,
+    symbol_table: &mut SymbolIndex,
+    out: &mut Vec<SymbolRecord>,
+    symbol_set: &mut HashSet<String>,
+)  (line 167)
+  fn stub_range() -> SpanRange  (line 213)
+  fn collect_symbols(
+    ast: &syn::File,
+    module_path: &str,
+    file: &Path,
+    symbol_table: &mut SymbolIndex,
+    out: &mut Vec<SymbolRecord>,
+    symbol_set: &mut HashSet<String>,
+) -> AliasGraph  (line 220)
+
+rename/core/collect/collector.rs:
+  struct SymbolCollector  { module_path, file, symbols, current_impl, alias_graph }  (line 12)
+  struct ImplContext  { struct_path, trait_path }  (line 21)
+  impl SymbolCollector<'a>  { fn new(
+        module_path: &'a str,
+        file: &'a Path,
+        alias_graph: &'a mut crate::rename::alias::AliasGraph,
+    ) -> Self, fn into_symbols(self) -> Vec<SymbolRecord>, fn add_symbol(
+        &mut self,
+        id: String,
+        kind: &str,
+        name: &str,
+        span: Span,
+        docs: Vec<String>,
+        attrs: Vec<String>,
+    ), fn extract_docs_and_attrs(attrs: &[syn::Attribute]) -> (Vec<String>, Vec<String>), fn collect_use_tree_root(
+        &mut self,
+        tree: &syn::UseTree,
+        docs: &[String],
+        attrs: &[String],
+        visibility: VisibilityScope,
+    ), fn collect_use_tree_with_prefix(
+        &mut self,
+        tree: &syn::UseTree,
+        prefix: String,
+        docs: &[String],
+        attrs: &[String],
+        visibility: VisibilityScope,
+    ) }  (line 26)
+  impl Visit<'ast> for SymbolCollector<'_>  { fn visit_item_mod(&mut self, i: &'ast syn::ItemMod), fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct), fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum), fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait), fn visit_item_fn(&mut self, i: &'ast syn::ItemFn), fn visit_item_type(&mut self, i: &'ast syn::ItemType), fn visit_item_const(&mut self, i: &'ast syn::ItemConst), fn visit_item_static(&mut self, i: &'ast syn::ItemStatic), fn visit_item_macro(&mut self, i: &'ast syn::ItemMacro), fn visit_item_use(&mut self, i: &'ast syn::ItemUse), fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl), fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) }  (line 231)
+
+rename/core/use_map.rs:
+  fn build_use_map(ast: &syn::File, module_path: &str) -> HashMap<String, String>  (line 2)
+  fn use_tree_to_map(
+    tree: &syn::UseTree,
+    prefix: &mut Vec<String>,
+    module_path: &str,
+    map: &mut HashMap<String, String>,
+)  (line 15)
+  fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 46)
+  fn resolve_relative_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 60)
+  fn path_to_string(path: &syn::Path, module_path: &str) -> String  (line 77)
+  fn type_path_string(ty: &syn::Type, module_path: &str) -> String  (line 91)
+
+rename/core/span.rs:
+  fn span_to_range(span: Span) -> SpanRange  (line 5)
+  fn span_to_offsets(
+    content: &str,
+    start: &LineColumn,
+    end: &LineColumn,
+) -> (usize, usize)  (line 20)
+
+rename/core/paths.rs:
+  fn plan_file_renames(
+    table: &SymbolIndex,
+    mapping: &HashMap<String, String>,
+) -> Result<Vec<FileRename>>  (line 7)
+  fn compute_new_file_path(
+    old_file: &str,
+    _old_module_id: &str,
+    new_module_path: &str,
+) -> Result<Option<String>>  (line 132)
+  fn module_path_for_file(project: &Path, file: &Path) -> String  (line 203)
+  fn module_child_path(module_path: &str, child: String) -> String  (line 231)
+
+rename/occurrence.rs:
+  struct EnhancedOccurrenceVisitor  { module_path, file, symbol_table, use_map, occurrences, scoped_binder, current_impl, current_struct }  (line 17)
+  struct ImplContext  { type_name }  (line 29)
+  impl EnhancedOccurrenceVisitor<'a>  { fn new(
+        module_path: &'a str,
+        file: &'a Path,
+        symbol_table: &'a SymbolIndex,
+        use_map: &'a HashMap<String, String>,
+        occurrences: &'a mut Vec<SymbolOccurrence>,
+    ) -> Self, fn add_occurrence(&mut self, id: String, kind: &str, span: Span), fn process_pattern_bindings(&mut self, pat: &Pat), fn infer_expr_type(&self, expr: &Expr) -> Option<String> }  (line 33)
+  impl Visit<'a> for EnhancedOccurrenceVisitor<'a>  { fn visit_item_struct(&mut self, node: &'a syn::ItemStruct), fn visit_item_enum(&mut self, node: &'a syn::ItemEnum), fn visit_item_fn(&mut self, node: &'a syn::ItemFn), fn visit_item_impl(&mut self, node: &'a ItemImpl), fn visit_impl_item_fn(&mut self, node: &'a ImplItemFn), fn visit_local(&mut self, node: &'a Local), fn visit_arm(&mut self, node: &'a Arm), fn visit_expr_for_loop(&mut self, node: &'a ExprForLoop), fn visit_expr_closure(&mut self, node: &'a ExprClosure), fn visit_expr_method_call(&mut self, node: &'a ExprMethodCall), fn visit_path(&mut self, path: &'a syn::Path), fn visit_item_use(&mut self, node: &'a syn::ItemUse), fn visit_item_macro(&mut self, node: &'a ItemMacro) }  (line 140)
+  fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 365)
+  fn resolve_relative_prefix(prefix: &[String], module_path: &str) -> Vec<String>  (line 379)
+  fn path_to_string(path: &syn::Path) -> String  (line 395)
+  fn path_to_symbol(
+    path: &syn::Path,
+    module_path: &str,
+    use_map: &HashMap<String, String>,
+    symbol_table: &SymbolIndex,
+) -> Option<String>  (line 403)
+  impl EnhancedOccurrenceVisitor<'a>  { fn resolve_symbol(&self, symbol: &str) -> Option<String>, fn record_use_tree(&mut self, tree: &syn::UseTree, prefix: &mut Vec<String>) }  (line 425)
+
+rename/pattern.rs:
+  struct PatternBindingCollector  { bindings }  (line 7)
+  impl PatternBindingCollector  { fn new() -> Self, fn collect_from_pattern(pat: &Pat) -> Vec<(String, Option<String>)> }  (line 12)
+  impl Visit<'ast> for PatternBindingCollector  { fn visit_pat_ident(&mut self, node: &'ast PatIdent), fn visit_pat_tuple(&mut self, node: &'ast PatTuple), fn visit_pat_struct(&mut self, node: &'ast PatStruct), fn visit_pat_tuple_struct(&mut self, node: &'ast PatTupleStruct), fn visit_pat_slice(&mut self, node: &'ast PatSlice) }  (line 27)
+  fn extract_type_from_pattern(pat: &Pat) -> Option<String>  (line 76)
+  fn type_to_string(ty: &syn::Type) -> String  (line 87)
+  fn path_to_string(path: &syn::Path) -> String  (line 105)
+
+rename/api.rs:
+  struct QueryRequest  { kinds, module_prefix, name_contains }  (line 20)
+  impl Default for QueryRequest  { fn default() -> Self }  (line 32)
+  struct QueryResult  { report, matches }  (line 44)
+  impl QueryRequest  { fn new() -> Self, fn kind(mut self, kind: impl Into<String>) -> Self, fn module_prefix(mut self, prefix: impl Into<String>) -> Self, fn name_contains(mut self, needle: impl Into<String>) -> Self, fn execute(&self, project: &Path) -> Result<QueryResult>, fn matches_symbol(&self, symbol: &SymbolRecord) -> bool }  (line 51)
+  struct MutationRequest  { renames, dry_run, preview_path }  (line 108)
+  struct MutationResult  { renamed, dry_run, preview_path }  (line 122)
+  impl MutationRequest  { fn new() -> Self, fn rename(mut self, id: impl Into<String>, new_name: impl Into<String>) -> Self, fn extend(mut self, entries: I) -> Self, fn dry_run(mut self, dry_run: bool) -> Self, fn preview_path(mut self, path: impl Into<PathBuf>) -> Self, fn execute(self, project: &Path) -> Result<MutationResult> }  (line 128)
+  struct UpsertRequest  { edits, format }  (line 182)
+  struct UpsertResult  { touched_files }  (line 193)
+  impl UpsertRequest  { fn new() -> Self, fn edit(mut self, edit: AstEdit) -> Self, fn format(mut self, enabled: bool) -> Self, fn execute(self) -> Result<UpsertResult> }  (line 197)
+  fn default_true() -> bool  (line 227)
+  fn execute_query_json(project: &Path, payload: &str) -> Result<String>  (line 232)
+  fn execute_mutation_json(project: &Path, payload: &str) -> Result<String>  (line 239)
+  fn execute_upsert_json(payload: &str) -> Result<String>  (line 246)
+
+rename/macros.rs:
+  fn extract_macro_rules_identifiers(item_macro: &ItemMacro) -> Vec<(String, Span)>  (line 8)
+  fn extract_identifiers_from_tokens(tokens: &TokenStream, identifiers: &mut Vec<(String, Span)>)  (line 23)
+  fn is_macro_keyword(ident: &str) -> bool  (line 43)
+  fn is_metavariable(ident: &str) -> bool  (line 62)
+  fn extract_derive_identifiers(meta_list: &syn::MetaList) -> Vec<(String, Span)>  (line 67)
+  fn extract_proc_macro_identifiers(meta_list: &syn::MetaList) -> Vec<(String, Span)>  (line 78)
+  struct MacroInvocationAnalyzer  { patterns }  (line 94)
+  struct MacroPattern  { macro_name, predict }  (line 99)
+  impl MacroInvocationAnalyzer  { fn new() -> Self, fn predict_generated_identifiers(
+        &self,
+        macro_name: &str,
+        tokens: &TokenStream,
+    ) -> Vec<String> }  (line 105)
+  fn is_unsupported_macro(macro_path: &syn::Path) -> bool  (line 133)
+  struct MacroHandlingReport  { supported_macros, unsupported_macros, extracted_identifiers, flagged_for_review }  (line 156)
+  impl MacroHandlingReport  { fn new() -> Self, fn add_unsupported(&mut self, macro_name: String), fn add_flagged(&mut self, reason: String) }  (line 163)
+  struct MacroIdentifierCollector  { identifiers, report }  (line 183)
+  impl MacroIdentifierCollector  { fn new() -> Self, fn process_macro_rules(&mut self, item_macro: &ItemMacro), fn process_macro_invocation(&mut self, mac: &syn::Macro) }  (line 188)
+
+rename/alias/visibility.rs:
+  impl AliasGraph  { fn analyze_visibility_leaks(
+        &self,
+        symbols: &HashMap<String, VisibilityScope>,
+    ) -> VisibilityLeakAnalysis, fn detect_visibility_leak(
+        &self,
+        symbol_id: &str,
+        original_visibility: &VisibilityScope,
+        origin_module: &str,
+        leaked: &mut Vec<LeakedSymbol>,
+    ), fn detect_visibility_leak_recursive(
+        &self,
+        current_path: &str,
+        original_visibility: &VisibilityScope,
+        origin_module: &str,
+        chain: Vec<String>,
+        leaked: &mut Vec<LeakedSymbol>,
+    ) }  (line 7)
+
+rename/alias/types.rs:
+  struct ImportNode  { id, module_path, source_path, local_name, original_name, kind, visibility, file }  (line 7)
+  enum UseKind  { Simple, Aliased, Glob, ReExport, ReExportAliased }  (line 34)
+  enum VisibilityScope  { Public, Crate, Super, Private, Restricted }  (line 52)
+  impl From<&Visibility> for VisibilityScope  { fn from(vis: &Visibility) -> Self }  (line 69)
+  struct AliasEdge  { from, to, kind }  (line 99)
+  enum EdgeKind  { Import, ReExport, Alias, Transitive }  (line 111)
+  struct ResolutionChain  { start_name, start_module, steps, resolved_symbol }  (line 127)
+  struct ResolutionStep  { kind, name, module, use_node_id }  (line 142)
+  enum StepKind  { Start, LocalUse, ReExport, GlobImport, DirectLookup }  (line 157)
+  struct VisibilityLeakAnalysis  { public_symbols, restricted_symbols, leaked_private_symbols }  (line 176)
+  struct ExposurePath  { origin_module, reexport_chain, visibility }  (line 190)
+  struct LeakedSymbol  { symbol_id, original_visibility, leaked_to, leak_chain }  (line 203)
+
+rename/alias/graph.rs:
+  struct AliasGraph  { nodes, local_names, source_imports, glob_imports, edges }  (line 11)
+  impl AliasGraph  { fn new() -> Self, fn add_use_node(&mut self, node: ImportNode), fn resolve_local(&self, module_path: &str, local_name: &str) -> Option<&str>, fn get_importers(&self, source_path: &str) -> Vec<&ImportNode>, fn get_glob_imports(&self, module_path: &str) -> Vec<&ImportNode>, fn is_visible(
+        &self,
+        symbol_module: &str,
+        from_module: &str,
+        visibility: &VisibilityScope,
+    ) -> bool, fn all_nodes(&self) -> Vec<&ImportNode>, fn nodes_in_file(&self, file_path: &str) -> Vec<&ImportNode>, fn add_edge(&mut self, from: String, to: String, kind: EdgeKind), fn build_edges(&mut self), fn resolve_chain(&self, module_path: &str, name: &str) -> ResolutionChain, fn follow_reexport_chain(&self, chain: &mut ResolutionChain, current_path: &str), fn resolve_through_glob(&self, module_path: &str, name: &str) -> Option<String>, fn all_edges(&self) -> &[AliasEdge], fn find_reexport_chains(&self, symbol_id: &str) -> Vec<Vec<ImportNode>>, fn find_reexport_chains_recursive(
+        &self,
+        symbol_id: &str,
+        current_chains: &mut Vec<Vec<ImportNode>>,
+        result: &mut Vec<Vec<ImportNode>>,
+    ) }  (line 31)
+
+rename/alias/helpers.rs:
+  fn extract_module_from_path(path: &str) -> String  (line 1)
+
+

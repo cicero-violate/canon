@@ -75,14 +75,14 @@ pub fn rewrite_doc_and_attr_literals(
     Ok(visitor.finish())
 }
 
-struct AttributeRewriteVisitor<'a> {
+struct AttributeRewriteVisitor {
     replacements: Vec<(String, String)>,
     rewrite_docs: bool,
     rewrite_attrs: bool,
     result: StructuredAttributeResult,
 }
 
-impl<'a> AttributeRewriteVisitor<'a> {
+impl AttributeRewriteVisitor {
     fn new(
         mapping: &HashMap<String, String>,
         config: &StructuredEditConfig,
@@ -127,7 +127,7 @@ impl<'a> AttributeRewriteVisitor<'a> {
     }
 }
 
-impl VisitMut for AttributeRewriteVisitor<'_> {
+impl VisitMut for AttributeRewriteVisitor {
     fn visit_attribute_mut(&mut self, attr: &mut syn::Attribute) {
         self.process_attribute(attr);
     }
