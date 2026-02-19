@@ -1,5 +1,7 @@
 #[cfg(feature = "cuda")]
-use crate::hash::{cuda_ffi::*, gpu};
+use crate::hash::cuda_ffi::*;
+#[cfg(feature = "cuda")]
+use crate::hash::gpu;
 use core::ffi::c_void;
 use std::ptr::null_mut;
 
