@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use crate::rename::core::{StructuralEditOracle, normalize_symbol_id};
 use crate::state::graph::GraphSnapshot;
+use graph_gpu::csr::EdgeKind as GpuEdgeKind;
+use graph_gpu::traversal::{bfs, bfs_mask, EdgeMask};
 /// Handle discovery of Cargo metadata and extern artifacts for a project.
 #[derive(Debug, Clone)]
 pub struct CargoProject {
@@ -267,20 +269,26 @@ pub struct ProjectMetadata {
 }
 #[derive(Debug, Clone)]
 struct OracleData {
-    adjacency: HashMap<String, Vec<String>>,
+    snapshot: std::sync::Arc<GraphSnapshot>,
+    id_by_key: HashMap<String, u64>,
+    key_by_id: HashMap<u64, String>,
     macro_generated: HashSet<String>,
     crate_by_key: HashMap<String, String>,
     signature_by_key: HashMap<String, String>,
 }
 impl OracleData {
     fn from_snapshot(snapshot: GraphSnapshot) -> Self {
-        let mut id_to_key = HashMap::new();
+        let snapshot = std::sync::Arc::new(snapshot);
+        let mut id_by_key = HashMap::new();
+        let mut key_by_id = HashMap::new();
         let mut macro_generated = HashSet::new();
         let mut crate_by_key = HashMap::new();
         let mut signature_by_key = HashMap::new();
         for node in snapshot.nodes() {
             let key = node.key.to_string();
-            id_to_key.insert(node.id, key.clone());
+            let external_id = node.id.low_u64_le();
+            id_by_key.insert(key.clone(), external_id);
+            key_by_id.insert(external_id, key.clone());
             if is_macro_generated(&node.metadata) {
                 macro_generated.insert(key.clone());
             }
@@ -296,17 +304,10 @@ impl OracleData {
                 signature_by_key.insert(key.clone(), signature.clone());
             }
         }
-        let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
-        for edge in snapshot.edges() {
-            let from = id_to_key.get(&edge.from).cloned();
-            let to = id_to_key.get(&edge.to).cloned();
-            if let (Some(from), Some(to)) = (from, to) {
-                adjacency.entry(from.clone()).or_default().push(to.clone());
-                adjacency.entry(to).or_default().push(from);
-            }
-        }
         Self {
-            adjacency,
+            snapshot,
+            id_by_key,
+            key_by_id,
             macro_generated,
             crate_by_key,
             signature_by_key,
@@ -324,12 +325,24 @@ fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> 
 impl StructuralEditOracle for CargoProject {
     fn impact_of(&self, symbol_id: &str) -> Vec<String> {
         let symbol_id = normalize_symbol_id(symbol_id);
-        if let Some(oracle) = &self.oracle {
-            if let Some(edges) = oracle.adjacency.get(&symbol_id) {
-                return edges.clone();
-            }
-        }
-        Vec::new()
+        let Some(oracle) = &self.oracle else { return Vec::new() };
+        let Some(external_id) = oracle.id_by_key.get(&symbol_id).copied() else {
+            return Vec::new();
+        };
+        let csr = oracle.snapshot.to_csr();
+        let Some(source_idx) = csr.node_index(external_id) else {
+            return Vec::new();
+        };
+        let result = bfs(&csr, source_idx, Some(GpuEdgeKind::Call));
+        result
+            .reachable()
+            .into_iter()
+            .filter_map(|idx| {
+                let external = csr.node_ids.as_slice().get(idx as usize).copied()?;
+                let key = oracle.key_by_id.get(&external)?;
+                if key == &symbol_id { None } else { Some(key.clone()) }
+            })
+            .collect()
     }
     fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool {
         let id = normalize_symbol_id(id);
@@ -351,17 +364,25 @@ impl StructuralEditOracle for CargoProject {
     fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> {
         let symbol_id = normalize_symbol_id(symbol_id);
         let Some(oracle) = &self.oracle else { return Vec::new() };
-        let Some(symbol_crate) = oracle.crate_by_key.get(&symbol_id) else {
-            return Vec::new();
-        };
-        oracle
-            .adjacency
-            .get(&symbol_id)
+        let Some(symbol_crate) = oracle.crate_by_key.get(&symbol_id) else { return Vec::new() };
+        let Some(external_id) = oracle.id_by_key.get(&symbol_id).copied() else { return Vec::new() };
+
+        let csr = oracle.snapshot.to_csr();
+        let Some(source_idx) = csr.node_index(external_id) else { return Vec::new() };
+        let mask = EdgeMask::from_kinds(&[GpuEdgeKind::Call, GpuEdgeKind::Reference]);
+        let result = bfs_mask(&csr, source_idx, mask);
+
+        result
+            .reachable()
             .into_iter()
-            .flatten()
-            .filter_map(|neighbor| {
-                let other_crate = oracle.crate_by_key.get(neighbor)?;
-                if other_crate != symbol_crate { Some(neighbor.clone()) } else { None }
+            .filter_map(|idx| {
+                let external = csr.node_ids.as_slice().get(idx as usize).copied()?;
+                let key = oracle.key_by_id.get(&external)?;
+                if key == &symbol_id {
+                    return None;
+                }
+                let other_crate = oracle.crate_by_key.get(key)?;
+                if other_crate != symbol_crate { Some(key.clone()) } else { None }
             })
             .collect()
     }

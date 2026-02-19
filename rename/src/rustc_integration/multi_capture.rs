@@ -7,6 +7,7 @@ use crate::rustc_integration::project::CargoProject;
 use crate::state::graph::{GraphDelta, GraphDeltaError, GraphMaterializer, GraphSnapshot};
 use crate::state::ids::{EdgeId, NodeId};
 use crate::state::workspace::{GraphWorkspace, WorkspaceBuilder};
+use memory_engine::{MemoryEngine, MemoryEngineConfig, MemoryEngineError};
 
 /// Captured artifacts from a workspace build (snapshot + workspace overlay).
 pub struct CaptureArtifacts {
@@ -24,6 +25,8 @@ pub enum CaptureError {
     Io(std::io::Error),
     /// Rustc frontend failure.
     Frontend(RustcFrontendError),
+    /// Memory engine failure.
+    Engine(MemoryEngineError),
 }
 
 impl std::fmt::Display for CaptureError {
@@ -32,6 +35,7 @@ impl std::fmt::Display for CaptureError {
             CaptureError::Generic(msg) => write!(f, "capture error: {msg}"),
             CaptureError::Io(err) => write!(f, "{err}"),
             CaptureError::Frontend(err) => write!(f, "{err}"),
+            CaptureError::Engine(err) => write!(f, "{err}"),
         }
     }
 }
@@ -50,6 +54,12 @@ impl From<RustcFrontendError> for CaptureError {
     }
 }
 
+impl From<MemoryEngineError> for CaptureError {
+    fn from(err: MemoryEngineError) -> Self {
+        CaptureError::Engine(err)
+    }
+}
+
 /// Capture all targets (lib + bins) of a cargo project and merge into one snapshot.
 pub fn capture_project(
     frontend: &RustcFrontend,
@@ -61,6 +71,7 @@ pub fn capture_project(
     let project_meta = project.metadata()?;
     let workspace_root = project_meta.workspace_root.clone();
     let primary_package = project_meta.packages.first().cloned();
+    let engine = open_engine(&workspace_root)?;
 
     let mut externs = project
         .extern_args("debug")
@@ -125,6 +136,9 @@ pub fn capture_project(
             match materializer.apply(GraphDelta::AddNode(cloned.clone())) {
                 Ok(_) => {
                     graph_deltas.push(GraphDelta::AddNode(cloned));
+                    engine
+                        .commit_graph_delta(graph_deltas.last().unwrap().to_wire())
+                        .map_err(CaptureError::Engine)?;
                     id_map.insert(node.id, new_id);
                 }
                 Err(GraphDeltaError::NodeExists(existing)) => {
@@ -147,20 +161,34 @@ pub fn capture_project(
             cloned.to = to;
             cloned.id = EdgeId::from_components(&from, &to, cloned.kind.as_str());
             match materializer.apply(GraphDelta::AddEdge(cloned.clone())) {
-                Ok(_) => graph_deltas.push(GraphDelta::AddEdge(cloned)),
+                Ok(_) => {
+                    graph_deltas.push(GraphDelta::AddEdge(cloned));
+                    engine
+                        .commit_graph_delta(graph_deltas.last().unwrap().to_wire())
+                        .map_err(CaptureError::Engine)?;
+                }
                 Err(GraphDeltaError::EdgeExists(_)) => {}
                 Err(e) => return Err(CaptureError::Generic(format!("merge edge failed: {e:?}"))),
             }
         }
     }
 
-    let snapshot = materializer.snapshot();
+    let snapshot = GraphSnapshot::from_wire(
+        engine.materialized_graph().map_err(CaptureError::Engine)?,
+    );
     let workspace = WorkspaceBuilder::new(snapshot.hash()).finalize();
     Ok(CaptureArtifacts {
         snapshot,
         workspace,
         graph_deltas,
     })
+}
+
+fn open_engine(root: &std::path::Path) -> Result<MemoryEngine, CaptureError> {
+    let state_dir = root.join(".rename");
+    std::fs::create_dir_all(&state_dir)?;
+    let tlog_path = state_dir.join("state.tlog");
+    Ok(MemoryEngine::new(MemoryEngineConfig { tlog_path })?)
 }
 
 fn find_out_dir(project: &CargoProject) -> Option<std::path::PathBuf> {

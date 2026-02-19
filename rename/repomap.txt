@@ -228,18 +228,20 @@ rustc_integration/mod.rs:
   struct SourceLocation  { file, line, column }  (line 267)
 
 rustc_integration/multi_capture.rs:
-  struct CaptureArtifacts  { snapshot, workspace, graph_deltas }  (line 12)
-  enum CaptureError  { Generic, Io, Frontend }  (line 20)
-  impl std::fmt::Display for CaptureError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 29)
-  impl std::error::Error for CaptureError  (line 39)
-  impl From<std::io::Error> for CaptureError  { fn from(err: std::io::Error) -> Self }  (line 41)
-  impl From<RustcFrontendError> for CaptureError  { fn from(err: RustcFrontendError) -> Self }  (line 47)
+  struct CaptureArtifacts  { snapshot, workspace, graph_deltas }  (line 13)
+  enum CaptureError  { Generic, Io, Frontend, Engine }  (line 21)
+  impl std::fmt::Display for CaptureError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 32)
+  impl std::error::Error for CaptureError  (line 43)
+  impl From<std::io::Error> for CaptureError  { fn from(err: std::io::Error) -> Self }  (line 45)
+  impl From<RustcFrontendError> for CaptureError  { fn from(err: RustcFrontendError) -> Self }  (line 51)
+  impl From<MemoryEngineError> for CaptureError  { fn from(err: MemoryEngineError) -> Self }  (line 57)
   fn capture_project(
     frontend: &RustcFrontend,
     project: &CargoProject,
     extra_args: &[String],
-) -> Result<CaptureArtifacts, CaptureError>  (line 54)
-  fn find_out_dir(project: &CargoProject) -> Option<std::path::PathBuf>  (line 166)
+) -> Result<CaptureArtifacts, CaptureError>  (line 64)
+  fn open_engine(root: &std::path::Path) -> Result<MemoryEngine, CaptureError>  (line 187)
+  fn find_out_dir(project: &CargoProject) -> Option<std::path::PathBuf>  (line 194)
 
 rustc_integration/capture/validation.rs:
   fn validate(result: &ExtractionResult) -> bool  (line 6)
@@ -285,23 +287,23 @@ rustc_integration/transform/normalizer.rs:
   fn parent_key(path: &str) -> Option<String>  (line 158)
 
 rustc_integration/project.rs:
-  struct CargoProject  { root, target_dir, oracle }  (line 12)
-  impl CargoProject  { fn from_entry(entry: &Path) -> io::Result<Self>, fn with_snapshot(mut self, snapshot: GraphSnapshot) -> Self, fn ensure_dependencies_built(&self) -> io::Result<()>, fn extern_args(&self, profile: &str) -> io::Result<Vec<String>>, fn metadata(&self) -> io::Result<ProjectMetadata>, fn targets(&self) -> io::Result<Vec<CargoTarget>>, fn workspace_root(&self) -> &Path }  (line 17)
-  fn find_cargo_root(start: &Path) -> io::Result<PathBuf>  (line 145)
-  fn fetch_target_dir(root: &Path) -> io::Result<PathBuf>  (line 155)
-  fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata>  (line 159)
-  enum ArtifactKind  { ProcMacro, Rlib, Rmeta }  (line 174)
-  struct Artifact  { path, kind }  (line 180)
-  fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)>  (line 184)
-  fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf>  (line 199)
-  struct CargoMetadata  { target_directory, workspace_root, packages }  (line 221)
-  struct CargoPackage  { name, version, edition, rust_version, features, targets, manifest_path }  (line 228)
-  struct CargoTarget  { name, kind, src_path }  (line 246)
-  struct ProjectMetadata  { workspace_root, target_directory, packages, edition, rust_version }  (line 256)
-  struct OracleData  { adjacency, macro_generated, crate_by_key, signature_by_key }  (line 269)
-  impl OracleData  { fn from_snapshot(snapshot: GraphSnapshot) -> Self }  (line 275)
-  fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool  (line 316)
-  impl StructuralEditOracle for CargoProject  { fn impact_of(&self, symbol_id: &str) -> Vec<String>, fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool, fn is_macro_generated(&self, symbol_id: &str) -> bool, fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> }  (line 324)
+  struct CargoProject  { root, target_dir, oracle }  (line 14)
+  impl CargoProject  { fn from_entry(entry: &Path) -> io::Result<Self>, fn with_snapshot(mut self, snapshot: GraphSnapshot) -> Self, fn ensure_dependencies_built(&self) -> io::Result<()>, fn extern_args(&self, profile: &str) -> io::Result<Vec<String>>, fn metadata(&self) -> io::Result<ProjectMetadata>, fn targets(&self) -> io::Result<Vec<CargoTarget>>, fn workspace_root(&self) -> &Path }  (line 19)
+  fn find_cargo_root(start: &Path) -> io::Result<PathBuf>  (line 147)
+  fn fetch_target_dir(root: &Path) -> io::Result<PathBuf>  (line 157)
+  fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata>  (line 161)
+  enum ArtifactKind  { ProcMacro, Rlib, Rmeta }  (line 176)
+  struct Artifact  { path, kind }  (line 182)
+  fn classify_artifact(file_name: &str) -> Option<(&str, ArtifactKind)>  (line 186)
+  fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf>  (line 201)
+  struct CargoMetadata  { target_directory, workspace_root, packages }  (line 223)
+  struct CargoPackage  { name, version, edition, rust_version, features, targets, manifest_path }  (line 230)
+  struct CargoTarget  { name, kind, src_path }  (line 248)
+  struct ProjectMetadata  { workspace_root, target_directory, packages, edition, rust_version }  (line 258)
+  struct OracleData  { snapshot, id_by_key, key_by_id, macro_generated, crate_by_key, signature_by_key }  (line 271)
+  impl OracleData  { fn from_snapshot(snapshot: GraphSnapshot) -> Self }  (line 279)
+  fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool  (line 317)
+  impl StructuralEditOracle for CargoProject  { fn impact_of(&self, symbol_id: &str) -> Vec<String>, fn satisfies_bounds(&self, id: &str, new_sig: &syn::Signature) -> bool, fn is_macro_generated(&self, symbol_id: &str) -> bool, fn cross_crate_users(&self, symbol_id: &str) -> Vec<String> }  (line 325)
 
 rustc_integration/linux/mod.rs:
   fn capture_linux_state(facts: &[LinuxFact]) -> GraphSnapshot  (line 9)
@@ -309,9 +311,9 @@ rustc_integration/linux/mod.rs:
 
 state/ids.rs:
   struct NodeId  (line 5)
-  impl NodeId  { fn from_bytes(bytes: [u8; 16]) -> Self, fn from_key(key: &str) -> Self }  (line 7)
-  struct EdgeId  (line 24)
-  impl EdgeId  { fn from_components(from: &NodeId, to: &NodeId, kind: &str) -> Self }  (line 26)
+  impl NodeId  { fn from_bytes(bytes: [u8; 16]) -> Self, fn as_bytes(&self) -> [u8; 16], fn from_key(key: &str) -> Self, fn low_u64_le(&self) -> u64 }  (line 7)
+  struct EdgeId  (line 32)
+  impl EdgeId  { fn from_bytes(bytes: [u8; 16]) -> Self, fn as_bytes(&self) -> [u8; 16], fn from_components(from: &NodeId, to: &NodeId, kind: &str) -> Self }  (line 34)
 
 state/capability/shell.rs:
   enum LinuxFact  { Exists, File, Dir, ProcessRunning, BinaryInstalled }  (line 4)
@@ -332,18 +334,19 @@ state/node.rs:
   impl NodeRegistry  { fn new() -> Self, fn insert_handle(&mut self, symbol_id: impl Into<String>, handle: NodeHandle), fn insert_ast(&mut self, file: impl Into<PathBuf>, ast: syn::File) }  (line 41)
 
 state/graph.rs:
-  enum EdgeKind  { Contains, Call, ControlFlow, Reference }  (line 8)
-  impl EdgeKind  { fn as_str(&self) -> &'static str }  (line 15)
-  struct NodeRecord  { id, key, label, metadata }  (line 27)
-  struct EdgeRecord  { id, from, to, kind, metadata }  (line 35)
-  enum GraphDelta  { AddNode, AddEdge }  (line 44)
-  enum GraphDeltaError  { NodeExists, EdgeExists, NodeMissing }  (line 50)
-  impl std::fmt::Display for GraphDeltaError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 56)
-  impl std::error::Error for GraphDeltaError  (line 66)
-  struct GraphSnapshot  { nodes, edges, hash }  (line 69)
-  impl GraphSnapshot  { fn new(nodes: Vec<NodeRecord>, edges: Vec<EdgeRecord>) -> Self, fn nodes(&self) -> &[NodeRecord], fn edges(&self) -> &[EdgeRecord], fn hash(&self) -> u64 }  (line 75)
-  struct GraphMaterializer  { nodes, edges }  (line 102)
-  impl GraphMaterializer  { fn new() -> Self, fn apply(&mut self, delta: GraphDelta) -> Result<(), GraphDeltaError>, fn snapshot(&self) -> GraphSnapshot }  (line 107)
+  enum EdgeKind  { Contains, Call, ControlFlow, Reference }  (line 10)
+  impl EdgeKind  { fn as_str(&self) -> &'static str, fn from_str(value: &str) -> Self }  (line 17)
+  struct NodeRecord  { id, key, label, metadata }  (line 38)
+  struct EdgeRecord  { id, from, to, kind, metadata }  (line 46)
+  enum GraphDelta  { AddNode, AddEdge }  (line 55)
+  enum GraphDeltaError  { NodeExists, EdgeExists, NodeMissing, Persistence }  (line 61)
+  impl std::fmt::Display for GraphDeltaError  { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result }  (line 68)
+  impl std::error::Error for GraphDeltaError  (line 79)
+  struct GraphSnapshot  { nodes, edges, hash }  (line 82)
+  impl GraphSnapshot  { fn new(nodes: Vec<NodeRecord>, edges: Vec<EdgeRecord>) -> Self, fn nodes(&self) -> &[NodeRecord], fn edges(&self) -> &[EdgeRecord], fn hash(&self) -> u64, fn from_wire(snapshot: wire::GraphSnapshot) -> Self, fn diff_nodes(&self, other: &GraphSnapshot) -> Vec<NodeId>, fn to_csr(&self) -> CsrGraph }  (line 88)
+  impl GraphDelta  { fn to_wire(&self) -> wire::GraphDelta }  (line 234)
+  struct GraphMaterializer  { nodes, edges }  (line 255)
+  impl GraphMaterializer  { fn new() -> Self, fn apply(&mut self, delta: GraphDelta) -> Result<(), GraphDeltaError>, fn snapshot(&self) -> GraphSnapshot }  (line 260)
 
 state/builder.rs:
   struct NodePayload  { key, label, metadata }  (line 8)

@@ -9,6 +9,10 @@ impl NodeId {
         Self(bytes)
     }
 
+    pub fn as_bytes(&self) -> [u8; 16] {
+        self.0
+    }
+
     pub fn from_key(key: &str) -> Self {
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
@@ -28,6 +32,14 @@ impl NodeId {
 pub struct EdgeId([u8; 16]);
 
 impl EdgeId {
+    pub fn from_bytes(bytes: [u8; 16]) -> Self {
+        Self(bytes)
+    }
+
+    pub fn as_bytes(&self) -> [u8; 16] {
+        self.0
+    }
+
     pub fn from_components(from: &NodeId, to: &NodeId, kind: &str) -> Self {
         let mut hasher = DefaultHasher::new();
         from.hash(&mut hasher);
