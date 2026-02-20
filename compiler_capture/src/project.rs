@@ -13,6 +13,58 @@ pub struct CargoProject {
     target_dir: PathBuf,
 }
 
+/// Read the cargo fingerprint JSON for a built library and extract the exact
+/// rlib hash suffixes that cargo chose for each dep crate name.
+/// Returns a map of crate_name -> hex hash suffix.
+fn read_fingerprint_dep_hashes(
+    fingerprint_dir: &std::path::Path,
+    lib_name: &str,
+) -> Option<HashMap<String, String>> {
+    let json_path = fingerprint_dir.join(format!("lib-{}.json", lib_name));
+    let content = fs::read_to_string(&json_path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&content).ok()?;
+    let deps = v.get("deps")?.as_array()?;
+    let mut map = HashMap::new();
+    for dep in deps {
+        let arr = dep.as_array()?;
+        let name = arr.get(1)?.as_str()?;
+        let hash_u64 = arr.get(3)?.as_u64()?;
+        let hex = format!("{:016x}", hash_u64);
+        map.insert(name.replace('-', "_"), hex);
+    }
+    Some(map)
+}
+
+/// Find the fingerprint directory for a given package lib name under target/.fingerprint/
+fn find_fingerprint_dir(
+    target_dir: &std::path::Path,
+    lib_name: &str,
+) -> Option<std::path::PathBuf> {
+    let fp_root = target_dir.join(".fingerprint");
+    let entries = fs::read_dir(&fp_root).ok()?;
+    let prefix = format!("{}-", lib_name);
+    let mut best: Option<(u64, std::path::PathBuf)> = None;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with(&prefix) {
+            let json = entry.path().join(format!("lib-{}.json", lib_name));
+            if json.exists() {
+                let mtime = fs::metadata(&json)
+                    .and_then(|m| m.modified())
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                if best.as_ref().map_or(true, |(m, _)| mtime > *m) {
+                    best = Some((mtime, entry.path()));
+                }
+            }
+        }
+    }
+    best.map(|(_, p)| p)
+}
+
 impl CargoProject {
     /// Attempts to load a Cargo project by walking up from the entry file.
     pub fn from_entry(entry: &Path) -> io::Result<Self> {
@@ -45,7 +97,70 @@ impl CargoProject {
     }
 
     /// Collects `--extern` and `-L dependency=` flags for the requested profile.
+    /// Attempts to extract exact flags from `cargo build -v`, falling back to deps dir scan.
     pub fn extern_args(&self, profile: &str) -> io::Result<Vec<String>> {
+        if let Some(args) = self.extern_args_from_cargo_verbose() {
+            return Ok(args);
+        }
+        self.extern_args_from_deps_dir(profile)
+    }
+
+    fn extern_args_from_cargo_verbose(&self) -> Option<Vec<String>> {
+        let crate_name = self.root.file_name()?.to_str()?.replace('-', "_");
+        let lib_rs = self.root.join("src").join("lib.rs");
+
+        // Touch lib.rs so cargo emits a fresh rustc invocation
+        if lib_rs.exists() {
+            let _ = Command::new("touch").arg(&lib_rs).status();
+        }
+
+        let manifest = self.root.join("Cargo.toml");
+        let output = Command::new("cargo")
+            .arg("build")
+            .arg("--lib")
+            .arg("-v")
+            .arg("--manifest-path")
+            .arg(&manifest)
+            .stderr(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .output()
+            .ok()?;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        let rustc_line = stderr.lines().find(|l| {
+            l.contains("Running") && l.contains("--crate-name") && l.contains(&crate_name)
+        })?;
+
+        let inner = rustc_line.split('`').nth(1)?;
+        let tokens: Vec<&str> = inner.split_whitespace().collect();
+
+        let mut args = Vec::new();
+        let mut i = 0;
+        while i < tokens.len() {
+            match tokens[i] {
+                "--extern" if i + 1 < tokens.len() => {
+                    args.push("--extern".to_string());
+                    args.push(tokens[i + 1].to_string());
+                    i += 2;
+                }
+                "-L" if i + 1 < tokens.len() => {
+                    args.push("-L".to_string());
+                    args.push(tokens[i + 1].to_string());
+                    i += 2;
+                }
+                t if t.starts_with("-L") => {
+                    args.push(t.to_string());
+                    i += 1;
+                }
+                _ => { i += 1; }
+            }
+        }
+
+        if args.is_empty() { None } else { Some(args) }
+    }
+
+    fn extern_args_from_deps_dir(&self, profile: &str) -> io::Result<Vec<String>> {
         let deps_dir = self.target_dir.join(profile).join("deps");
         if !deps_dir.exists() {
             return Err(io::Error::new(
@@ -53,6 +168,7 @@ impl CargoProject {
                 format!("deps dir missing: {}", deps_dir.display()),
             ));
         }
+
         let mut by_crate: HashMap<String, Vec<Artifact>> = HashMap::new();
         for entry in fs::read_dir(&deps_dir)? {
             let entry = entry?;
@@ -66,6 +182,7 @@ impl CargoProject {
                 }
             }
         }
+
         let mut args = Vec::new();
         for (crate_name, artifacts) in by_crate {
             if let Some(best) = select_best_artifact(&artifacts) {
@@ -73,6 +190,7 @@ impl CargoProject {
                 args.push(format!("{}={}", crate_name, best.display()));
             }
         }
+
         args.push("-L".to_string());
         args.push(format!("dependency={}", deps_dir.display()));
         Ok(args)
@@ -216,7 +334,9 @@ fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf> {
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
-            (rank, size, mtime)
+            // Prefer mtime over size so all externs come from the same cargo invocation
+            // and share compatible serde/schemars versions.
+            (rank, mtime, size)
         })
         .map(|artifact| artifact.path.clone())
 }
