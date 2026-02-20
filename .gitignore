@@ -99,3 +99,5 @@ docs/
 *.patch
 tests/
 *.tarcanonical.tar
+
+*.tlog
