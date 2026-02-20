@@ -44,11 +44,11 @@ cargo run -p canon -- materialize \
 
 # 3. Run the agent
 cargo run -- run-agent \
-  --ir /workspace/ai_sandbox/canon/canon.ir.json \
-  --layout /workspace/ai_sandbox/canon/canon.layout.json \
-  --graph /workspace/ai_sandbox/canon/canon.graph.json \
-  --proposal /workspace/ai_sandbox/canon/canon.proposal.json \
-  --ir-out /workspace/ai_sandbox/canon/canon.ir.out.json \
-  --ledger-out /workspace/ai_sandbox/canon/canon.ledger.json \
-  --graph-out /workspace/ai_sandbox/canon/canon.graph.out.json \
+  --ir /workspace/ai_sandbox/canon_workspace/canon.ir.json \
+  --layout /workspace/ai_sandbox/canon_workspace/canon.layout.json \
+  --graph /workspace/ai_sandbox/canon_workspace/canon.graph.json \
+  --proposal /workspace/ai_sandbox/canon_workspace/canon.proposal.json \
+  --ir-out /workspace/ai_sandbox/canon_workspace/canon.ir.out.json \
+  --ledger-out /workspace/ai_sandbox/canon_workspace/canon.ledger.json \
+  --graph-out /workspace/ai_sandbox/canon_workspace/canon.graph.out.json \
   --max-ticks 1
