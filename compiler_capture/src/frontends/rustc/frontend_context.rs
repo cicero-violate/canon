@@ -1,6 +1,8 @@
 #![cfg(feature = "rustc_frontend")]
 /// Frontend metadata propagated to captured nodes.
-#[derive(Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct FrontendMetadata {
     pub edition: String,
     pub rust_version: Option<String>,
