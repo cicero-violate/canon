@@ -33,7 +33,7 @@ cargo run -p canon -- materialize \
 #   --graph-out /home/cicero-arch-omen/ai_sandbox/canon/canon.graph.json \
 #   --proposal-out /home/cicero-arch-omen/ai_sandbox/canon/canon.proposal.json
 
-/workspace/ai_sandbox/canon/target/debug/canon bootstrap-graph \
+/workspace/ai_sandbox/canon_workspace/target/debug/canon bootstrap-graph \
   --ir /workspace/ai_sandbox/canon_workspace/canon.ir.json \
   --graph-out /workspace/canon_workspace/canon.graph.json \
   --proposal-out /workspace/ai_sandbox/canon_workspace/canon.proposal.json
