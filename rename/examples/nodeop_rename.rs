@@ -8,12 +8,10 @@ use rename::rename::structured::FieldMutation;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let project_path = Path::new(
-        "/workspace/ai_sandbox/canon_workspace/test_projects/test_rust_project/src",
-    );
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/graph_gpu/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    let renames = [("crate::results::Result", "Result1231")];
+    let renames = [("crate::traversal1235", "traversal2222")];
 
     for (symbol_id, new_name) in renames {
         editor.queue_by_id(symbol_id, FieldMutation::RenameIdent(new_name.to_string()))?;
