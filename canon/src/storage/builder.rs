@@ -1,9 +1,9 @@
 use bincode::{Options, config::DefaultOptions};
-use memory_engine::delta::Delta;
-use memory_engine::delta::delta_types::Source;
-use memory_engine::epoch::Epoch;
-use memory_engine::primitives::{DeltaID, Hash as EngineHash, PageID};
-use memory_engine::{
+use database::delta::Delta;
+use database::delta::delta_types::Source;
+use database::epoch::Epoch;
+use database::primitives::{DeltaID, Hash as EngineHash, PageID};
+use database::{
     AdmissionError, AdmissionProof, CommitProof, JudgmentProof, MemoryEngine,
 };
 use serde::Serialize;
@@ -448,9 +448,9 @@ pub enum MemoryIrBuilderError {
     #[error("manifest missing slot for `{artifact_id}` in {segment:?}")]
     MissingSlot { segment: ArtifactSegment, artifact_id: String },
     #[error("delta encode failed for `{artifact_id}`: {source}")]
-    Delta { artifact_id: String, #[source] source: memory_engine::delta::DeltaError },
+    Delta { artifact_id: String, #[source] source: database::delta::DeltaError },
     #[error("memory engine error: {0}")]
-    Memory(#[from] memory_engine::MemoryEngineError),
+    Memory(#[from] database::MemoryEngineError),
     #[error("admission failed: {0}")]
     Admission(#[from] AdmissionError),
 }

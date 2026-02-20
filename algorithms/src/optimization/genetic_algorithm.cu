@@ -39,7 +39,7 @@ __global__ void evolve_kernel(
     pop[tid] = (parent_a + parent_b) / 2;
 }
 
-uint64_t gpu_genetic_optimize(
+extern "C" uint64_t gpu_genetic_optimize(
     uint64_t* population,
     int POP,
     int GEN)

@@ -7,7 +7,7 @@ use canon::ir::{CanonicalIr, SystemGraph};
 use canon::runtime::value::ScalarValue;
 use canon::runtime::{SystemExecutionEvent, SystemExecutionResult, SystemInterpreter, Value};
 use hex;
-use memory_engine::primitives::PageID;
+use database::primitives::PageID;
 
 use crate::shell_flow::{ShellOptions, parse_shell_mode};
 use crate::state_io::{gate_and_commit, load_state, resolve_fixture_path};
@@ -61,28 +61,28 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
 
     println!("Intent: lhs={}, rhs={}", intent.lhs, intent.rhs);
 
-    let config = memory_engine::MemoryEngineConfig {
+    let config = database::MemoryEngineConfig {
         tlog_path: repo_root.join("canon_store").join("engine.wal"),
     };
-    let engine = memory_engine::MemoryEngine::new(config)?;
+    let engine = database::MemoryEngine::new(config)?;
     let interpreter = SystemInterpreter::new(&ir, &engine);
     let inputs = build_initial_inputs(&intent);
     let graph = select_system_graph(&ir)?;
     let execution = interpreter.execute_graph(&graph.id, inputs)?;
     report_execution(&execution)?;
-    let deltas: Vec<memory_engine::delta::Delta> = execution
+    let deltas: Vec<database::delta::Delta> = execution
         .emitted_deltas
         .iter()
         .map(|dv| {
-            memory_engine::delta::Delta::new_dense(
-                memory_engine::primitives::DeltaID(
+            database::delta::Delta::new_dense(
+                database::primitives::DeltaID(
                     dv.delta_id.parse().expect("delta_id must be a valid u64"),
                 ),
                 PageID(0),
-                memory_engine::epoch::Epoch(0),
+                database::epoch::Epoch(0),
                 dv.payload_hash.clone().into(),
                 vec![],
-                memory_engine::delta::Source(dv.delta_id.clone()),
+                database::delta::Source(dv.delta_id.clone()),
             )
         })
         .collect::<Result<Vec<_>, _>>()?;

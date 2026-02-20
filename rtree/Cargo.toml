@@ -1,0 +1,25 @@
+[package]
+name = "rtree"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+cargo_metadata = "0.18"
+colored = "2.0"
+algorithms = { path = "../algorithms", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+syn = { version = "2.0", features = ["full"] }
+walkdir = "2.3"
+
+[[bin]]
+name = "rtree"
+path = "src/main.rs"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = ["cuda"]
+cuda = ["algorithms/cuda"]

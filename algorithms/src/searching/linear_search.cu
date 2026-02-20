@@ -20,7 +20,7 @@ __global__ void linear_search_kernel(
     }
 }
 
-int gpu_linear_search(const int64_t* arr, int N, int64_t target) {
+extern "C" int gpu_linear_search(const int64_t* arr, int N, int64_t target) {
     int64_t* d_arr;
     int* d_res;
 

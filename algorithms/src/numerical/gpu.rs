@@ -16,7 +16,7 @@
 //!   Equation: primes_out = { p | 2 <= p <= N, p prime }
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     pub fn gpu_matrix_multiply(
         a: *const i64, b: *const i64, c: *mut i64, n: i32,
     );

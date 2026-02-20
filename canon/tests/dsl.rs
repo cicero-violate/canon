@@ -1,4 +1,4 @@
-use canon::{CanonicalIr, auto_accept_dsl_proposal, create_proposal_from_dsl, ir::ProposalStatus};
+use canon::{CanonicalIr, apply_dsl_proposal, create_proposal_from_dsl, ir::ProposalStatus};
 use std::path::PathBuf;
 
 #[path = "support.rs"]
@@ -57,7 +57,7 @@ fn auto_accept_dsl_proposal_builds_canon() {
 
         goal pipeline: parse -> lint
     "#;
-    let acceptance = auto_accept_dsl_proposal(&ir, &layout, source).expect("accepted");
+    let acceptance = apply_dsl_proposal(&ir, &layout, source).expect("accepted");
     assert!(
         acceptance
             .ir

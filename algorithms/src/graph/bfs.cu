@@ -28,8 +28,8 @@ __global__ void bfs_kernel(
     }
 }
 
-void gpu_bfs(const int* row_ptr, const int* col_idx,
-             int V, int E, int source, int* level_out)
+extern "C" void gpu_bfs(const int* row_ptr, const int* col_idx,
+                         int V, int E, int source, int* level_out)
 {
     int *d_row, *d_col, *d_level, *d_changed;
     cudaMalloc(&d_row,     (V + 1) * sizeof(int));

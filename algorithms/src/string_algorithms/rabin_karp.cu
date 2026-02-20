@@ -45,7 +45,7 @@ __global__ void rk_kernel(
     matches[idx] = pos;
 }
 
-void gpu_rabin_karp(
+extern "C" void gpu_rabin_karp(
     const char* text, int T,
     const char* pattern, int P,
     int* matches_out,

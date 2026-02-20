@@ -1,0 +1,11 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box fontname="monospace"];
+  "main";
+  "dep_info";
+  "dep_info::parser";
+  "metadata";
+  "main" -> "dep_info";
+  "main" -> "metadata";
+  "dep_info" -> "dep_info::parser";
+}

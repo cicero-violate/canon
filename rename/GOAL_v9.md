@@ -22,7 +22,7 @@ knowledge graph.
 │      │ emit_deltas() → Vec<GraphDelta>               │
 │      ▼                                               │
 │  ┌──────────────┐      ┌─────────────────────────┐  │
-│  │ memory_engine│      │      graph_gpu           │  │
+│  │ database│      │      graph_gpu           │  │
 │  │              │      │                          │  │
 │  │ commit_graph │      │ GraphSnapshot            │  │
 │  │  _delta()    │      │   .to_csr()              │  │
@@ -43,7 +43,7 @@ knowledge graph.
 
 ---
 
-## State Layer — memory_engine
+## State Layer — database
 
 **Responsibility:** durability, integrity, history.
 
@@ -123,7 +123,7 @@ let idx: Option<u32> = csr.node_index(external_id);
 
 - Built from a `GraphSnapshot`, lives as long as needed, then dropped
 - Unified memory freed on `Drop`
-- No writes back to `memory_engine`
+- No writes back to `database`
 - Rebuild it whenever the snapshot changes
 
 ---
@@ -164,7 +164,7 @@ let idx: Option<u32> = csr.node_index(external_id);
 You are operating on the `rename` crate in the canon workspace.
 The following crates are available as dependencies:
 
-- `memory_engine` — state, persistence, WAL, Merkle integrity
+- `database` — state, persistence, WAL, Merkle integrity
 - `graph_gpu` — CSR builder, GPU BFS, zero-copy unified memory
 
 ### Rules
@@ -195,7 +195,7 @@ The following crates are available as dependencies:
 |------|---------------|
 | Capture a crate | `rustc_integration/frontends/rustc/frontend_driver.rs` |
 | Normalize to graph | `rustc_integration/transform/normalizer.rs` |
-| Persist graph deltas | `memory_engine::MemoryEngine::commit_graph_delta` |
+| Persist graph deltas | `database::MemoryEngine::commit_graph_delta` |
 | Query reachability | `graph_gpu::traversal::bfs` |
 | Rename with impact | `rename/core/project_editor/propagate.rs` |
 | Oracle implementation | `rename/core/oracle.rs` — replace NullOracle with GPU-backed impl |

@@ -51,7 +51,7 @@ __global__ void matmul_kernel(
     }
 }
 
-void gpu_matrix_multiply(
+extern "C" void gpu_matrix_multiply(
     const int64_t* A,
     const int64_t* B,
     int64_t* C,

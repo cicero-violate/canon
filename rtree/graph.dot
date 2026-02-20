@@ -1,0 +1,27 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box fontname="monospace" fillcolor=lightblue style=filled];
+  edge [fontname="monospace"];
+
+  subgraph cluster_0 {
+    label="(root)";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n0 [label="metadata"];
+    n2 [label="dep_info"];
+    n3 [label="main"];
+  }
+
+  subgraph cluster_1 {
+    label="dep_info";
+    style=filled;
+    fillcolor=lightgray;
+    color=black;
+    n1 [label="dep_info::parser"];
+  }
+
+  n2 -> n1;
+  n3 -> n2;
+  n3 -> n0;
+}

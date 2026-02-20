@@ -26,7 +26,7 @@ __global__ void bitonic_step(int64_t* arr, int j, int k) {
     }
 }
 
-void gpu_bitonic_sort(int64_t* arr, int N) {
+extern "C" void gpu_bitonic_sort(int64_t* arr, int N) {
     int64_t* d;
     cudaMalloc(&d, N * sizeof(int64_t));
     cudaMemcpy(d, arr, N * sizeof(int64_t), cudaMemcpyHostToDevice);

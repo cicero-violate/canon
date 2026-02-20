@@ -9,7 +9,7 @@
 //!   Complexity: O(log^2 N) kernel passes, O(N) parallel compare-swaps each
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     pub fn gpu_bitonic_sort(arr: *mut i64, n: i32);
 }
 

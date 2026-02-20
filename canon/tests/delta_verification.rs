@@ -1,8 +1,6 @@
 //! Integration tests for delta verification (Phase 1, Task 1.2).
 
 use canon::runtime::delta_verifier::{DeltaVerifier, VerificationError};
-use canon::{CanonicalIr, apply_deltas};
-use std::fs;
 
 #[test]
 fn test_verification_detects_missing_proof() {

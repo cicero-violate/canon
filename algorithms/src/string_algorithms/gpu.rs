@@ -11,7 +11,7 @@
 //!   match iff H(pos) == H(pattern)  + char-level verify
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     pub fn gpu_rabin_karp(
         text:        *const u8,
         t:           i32,

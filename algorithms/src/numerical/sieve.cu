@@ -20,7 +20,7 @@ __global__ void sieve_kernel(int* is_prime, int p, int N) {
     }
 }
 
-void gpu_sieve(int N, int* primes_out, int* count_out) {
+extern "C" void gpu_sieve(int N, int* primes_out, int* count_out) {
     size_t bytes = (size_t)(N + 1) * sizeof(int);
 
     int* h = (int*)malloc(bytes);

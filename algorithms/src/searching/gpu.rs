@@ -11,7 +11,7 @@
 //!   Each thread: O(1), fully parallel
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     pub fn gpu_linear_search(arr: *const i64, n: i32, target: i64) -> i32;
 }
 

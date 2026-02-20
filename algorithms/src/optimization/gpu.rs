@@ -13,11 +13,11 @@
 //!   result   = max_i population[i]
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     pub fn gpu_genetic_optimize(
         population: *mut u64,
         pop:        i32,
-        gen:        i32,
+        r#gen:      i32,
     ) -> u64;
 }
 

@@ -1,0 +1,8 @@
+rustc_session
+rustc_metadata
+rustc_hir
+rustc_middle
+rustc_span
+rustc_target
+rustc_lint
+rustc_expand

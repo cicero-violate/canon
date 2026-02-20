@@ -5,10 +5,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow, bail};
 use hex;
 use host_state_controller::{RunReceipt, StateController};
-use memory_engine::delta::{Delta, ShellDelta};
-use memory_engine::hash::gpu::create_gpu_backend;
-use memory_engine::primitives::Hash;
-use memory_engine::MerkleState;
+use database::delta::{Delta, ShellDelta};
+use database::hash::gpu::create_gpu_backend;
+use database::primitives::Hash;
+use database::MerkleState;
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -47,7 +47,7 @@ impl CanonicalState {
         self.inner.root_hash()
     }
 
-    pub fn apply_delta(&mut self, delta: &Delta) -> Result<(), memory_engine::delta::DeltaError> {
+    pub fn apply_delta(&mut self, delta: &Delta) -> Result<(), database::delta::DeltaError> {
         self.inner.apply_delta(delta)
     }
 
@@ -268,9 +268,9 @@ pub fn verify_proof_hash(repo_root: &Path, entry: &TlogEntry) -> Result<()> {
 mod tests {
     use super::*;
     use host_state_controller::StateController;
-    use memory_engine::delta::delta_types::Source;
-    use memory_engine::epoch::Epoch;
-    use memory_engine::primitives::{DeltaID, PageID};
+    use database::delta::delta_types::Source;
+    use database::epoch::Epoch;
+    use database::primitives::{DeltaID, PageID};
     use serde::Deserialize;
     use tempfile::TempDir;
 

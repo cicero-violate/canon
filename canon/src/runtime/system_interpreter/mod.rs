@@ -12,11 +12,11 @@ use crate::runtime::context::ExecutionContext;
 use crate::runtime::executor::{ExecutorError, FunctionExecutor};
 use crate::runtime::value::Value;
 use blake3::Hasher;
-use memory_engine::delta::Delta as EngineDelta;
-use memory_engine::delta::delta_types::{DeltaError, Source};
-use memory_engine::epoch::Epoch;
-use memory_engine::primitives::{DeltaID, Hash as EngineHash, PageID};
-use memory_engine::{
+use database::delta::Delta as EngineDelta;
+use database::delta::delta_types::{DeltaError, Source};
+use database::epoch::Epoch;
+use database::primitives::{DeltaID, Hash as EngineHash, PageID};
+use database::{
     AdmissionProof, CommitProof, JudgmentProof, MemoryEngine, MemoryEngineError, OutcomeProof,
 };
 
