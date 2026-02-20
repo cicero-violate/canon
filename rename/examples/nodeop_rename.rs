@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/graph_gpu/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    let renames = [("crate::traversal2222", "traversal2111")];
+    let renames = [("crate::traversal2111", "traversaltest")];
 
     for (symbol_id, new_name) in renames {
         editor.queue_by_id(symbol_id, FieldMutation::RenameIdent(new_name.to_string()))?;
