@@ -32,7 +32,7 @@ pub fn bellman_ford_gpu(
     // flatten edges to (u, v, w) u64 triples
     let flat: Vec<u64> = edges
         .iter()
-        .flat_map(|&(u, w, weight)| [u as u64, w as u64, weight])
+        .flat_map(|&(u, v, weight)| [u as u64, v as u64, weight])
         .collect();
 
     let mut dist = vec![INF; v];

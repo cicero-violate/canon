@@ -7,6 +7,7 @@ use std::process::Command;
 const CUDA_SOURCES: &[(&str, &str)] = &[
     ("src/graph/bfs.cu",                      "graph_bfs"),
     ("src/graph/bellman_ford.cu",              "graph_bellman_ford"),
+    ("src/cryptography/merkle_tree.cu",        "cryptography_merkle_tree"),
     ("src/sorting/bitonic_sort.cu",            "sorting_bitonic_sort"),
     ("src/searching/linear_search.cu",         "searching_linear_search"),
     ("src/numerical/matrix_multiply.cu",       "numerical_matrix_multiply"),

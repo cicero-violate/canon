@@ -90,28 +90,25 @@ extern "C" int gpu_bellman_ford(
     int threads = 256;
     int blocks  = (E + threads - 1) / threads;
 
-    for (int pass = 0; pass < V; pass++) {
-        cudaMemset(d_changed, 0, sizeof(int));
-
-        relax_kernel<<<blocks, threads>>>(
-            d_edges, d_dist, E, d_changed);
-
+    // Run exactly V-1 passes unconditionally.
+    // Early exit is unsafe on GPU: concurrent threads within a pass
+    // do not see each other's dist[] writes, so changed=0 in pass k
+    // does NOT mean convergence — it means no thread saw a stale-but-
+    // already-updated neighbour. Must complete all passes.
+    for (int pass = 0; pass < V - 1; pass++) {
+        relax_kernel<<<blocks, threads>>>(d_edges, d_dist, E, d_changed);
         cudaDeviceSynchronize();
+    }
 
-        int h_changed = 0;
-        cudaMemcpy(&h_changed, d_changed,
-                   sizeof(int), cudaMemcpyDeviceToHost);
-
-        if (pass < V - 1 && !h_changed) {
-            break; // early exit
-        }
-
-        if (pass == V - 1 && h_changed) {
-            cudaFree(d_dist);
-            cudaFree(d_edges);
-            cudaFree(d_changed);
-            return 1; // negative cycle
-        }
+    // Pass V: negative cycle check
+    cudaMemset(d_changed, 0, sizeof(int));
+    relax_kernel<<<blocks, threads>>>(d_edges, d_dist, E, d_changed);
+    cudaDeviceSynchronize();
+    int h_neg = 0;
+    cudaMemcpy(&h_neg, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
+    if (h_neg) {
+        cudaFree(d_dist); cudaFree(d_edges); cudaFree(d_changed);
+        return 1;
     }
 
     cudaMemcpy(dist_out, d_dist,

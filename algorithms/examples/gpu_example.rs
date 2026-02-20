@@ -17,6 +17,8 @@ use algorithms::numerical::gpu::{matrix_multiply_gpu, sieve_gpu};
 use algorithms::string_algorithms::gpu::rabin_karp_gpu;
 #[cfg(feature = "cuda")]
 use algorithms::optimization::gpu::genetic_optimize_gpu;
+#[cfg(feature = "cuda")]
+use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, root, PAGE_SIZE};
 
 fn main() {
     #[cfg(not(feature = "cuda"))]
@@ -129,6 +131,19 @@ fn main() {
         let mut population: Vec<u64> = vec![1, 50, 23, 8, 99, 42, 17, 65];
         let best = genetic_optimize_gpu(&mut population, 20);
         println!("best individual after 20 generations: {}", best);
+
+        // ── 9. Merkle Tree ───────────────────────────────────────────────────
+        // Phase 1: one thread per page -> SHA256(4096 bytes) -> leaf node
+        // Phase 2: log2(L) reduction passes, one thread per parent node
+        //          SHA256(left_child_hash || right_child_hash)
+        // root = tree[32..64]  (1-indexed, node 1)
+        println!("\n=== GPU Merkle Tree ===");
+        let leaf_count = if stress { 1024 } else { 4 };
+        let pages = vec![0xabu8; leaf_count * PAGE_SIZE];
+        let tree  = merkle_build_gpu(&pages);
+        let r     = root(&tree);
+        println!("leaves: {}  root: {}", leaf_count,
+            r.iter().map(|b| format!("{:02x}", b)).collect::<String>());
 
         // ── 8. Bellman-Ford ──────────────────────────────────────────────────
         // One thread per edge per pass; V-1 passes total.
