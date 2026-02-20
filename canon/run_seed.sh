@@ -34,9 +34,9 @@ cargo run -p canon -- materialize \
 #   --proposal-out /home/cicero-arch-omen/ai_sandbox/canon/canon.proposal.json
 
 /workspace/ai_sandbox/canon/target/debug/canon bootstrap-graph \
-  --ir /workspace/ai_sandbox/canon/canon.ir.json \
-  --graph-out /workspace/canon/canon.graph.json \
-  --proposal-out /workspace/ai_sandbox/canon/canon.proposal.json
+  --ir /workspace/ai_sandbox/canon_workspace/canon.ir.json \
+  --graph-out /workspace/canon_workspace/canon.graph.json \
+  --proposal-out /workspace/ai_sandbox/canon_workspace/canon.proposal.json
 
 # 2. Start the chromium_messenger daemon (you do this manually)
 # ./run_chromium_daemon.sh
