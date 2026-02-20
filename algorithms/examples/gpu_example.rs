@@ -6,6 +6,10 @@
 #[cfg(feature = "cuda")]
 use algorithms::graph::{adj_list::AdjList, gpu::bfs_gpu};
 #[cfg(feature = "cuda")]
+use algorithms::graph::csr_unified::CsrUnified;
+#[cfg(feature = "cuda")]
+use algorithms::graph::gpu::bfs_gpu as bfs_gpu_csr;
+#[cfg(feature = "cuda")]
 use algorithms::graph::bellman_ford_gpu::bellman_ford_gpu;
 #[cfg(feature = "cuda")]
 use algorithms::sorting::gpu::bitonic_sort_gpu;
@@ -47,6 +51,18 @@ fn main() {
         }
         let csr    = g.to_csr();
         let levels = bfs_gpu(&csr, 0);
+
+        // Same graph via unified memory CSR — no cudaMemcpy in the kernel
+        let ucsr   = CsrUnified::from_adj(&g);
+        println!("row_ptr (unified, host-readable): {:?}", ucsr.row_ptr_slice());
+        println!("col_idx (unified, host-readable): {:?}", ucsr.col_idx_slice());
+        // Pass unified pointers directly to bfs kernel via Csr wrapper
+        let csr2   = algorithms::graph::csr::Csr {
+            row_ptr: ucsr.row_ptr_slice().to_vec(),
+            col_idx: ucsr.col_idx_slice().to_vec(),
+        };
+        let levels2 = bfs_gpu_csr(&csr2, 0);
+        println!("BFS via unified CSR: {:?}", levels2);
         if stress {
             println!("max level: {}", levels.iter().max().unwrap());
         } else {
