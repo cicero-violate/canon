@@ -4,6 +4,9 @@ use super::types::{
     VisibilityScope,
 };
 use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "cuda")]
+use algorithms::graph::{csr::Csr, gpu::bfs_gpu};
 /// Graph tracking all use statements and their relationships
 #[derive(Debug, Default)]
 pub struct AliasGraph {
@@ -212,6 +215,44 @@ impl AliasGraph {
     /// Get all edges
     pub fn all_edges(&self) -> &[AliasEdge] {
         &self.edges
+    }
+
+    /// Return all node IDs reachable from `start_id` via directed alias edges, using GPU BFS.
+    /// Assigns a dense integer index to each node, builds a Csr, runs bfs_gpu,
+    /// then maps level >= 0 entries back to node IDs.
+    #[cfg(feature = "cuda")]
+    pub fn reachable_nodes_from(&self, start_id: &str) -> Vec<String> {
+        // Build dense index: node_id -> usize
+        let mut id_to_idx: HashMap<&str, usize> = HashMap::new();
+        let mut idx_to_id: Vec<&str> = Vec::new();
+        for id in self.nodes.keys() {
+            id_to_idx.insert(id.as_str(), idx_to_id.len());
+            idx_to_id.push(id.as_str());
+        }
+        let v = idx_to_id.len();
+        if v == 0 {
+            return vec![];
+        }
+        let Some(&start_idx) = id_to_idx.get(start_id) else {
+            return vec![];
+        };
+        // Build adjacency list from alias edges (from -> to by index)
+        let mut adj: Vec<Vec<usize>> = vec![vec![]; v];
+        for edge in &self.edges {
+            if let (Some(&fi), Some(&ti)) =
+                (id_to_idx.get(edge.from.as_str()), id_to_idx.get(edge.to.as_str()))
+            {
+                adj[fi].push(ti);
+            }
+        }
+        let csr = Csr::from_adj(&adj);
+        let levels = bfs_gpu(&csr, start_idx);
+        levels
+            .into_iter()
+            .enumerate()
+            .filter(|(_, lvl)| *lvl >= 0)
+            .map(|(i, _)| idx_to_id[i].to_string())
+            .collect()
     }
     /// Find all re-export chains for a symbol
     pub fn find_reexport_chains(&self, symbol_id: &str) -> Vec<Vec<ImportNode>> {

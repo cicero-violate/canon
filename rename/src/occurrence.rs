@@ -10,6 +10,16 @@ use std::path::Path;
 use syn::visit::{self, Visit};
 use syn::ItemMacro;
 use syn::{Arm, Expr, ExprClosure, ExprForLoop, ExprMethodCall, ImplItemFn, ItemImpl, Local, Pat};
+use algorithms::string_algorithms::kmp::kmp_search;
+
+/// KMP pre-filter: returns true if `symbol` appears anywhere in `source`.
+/// Avoids running the full AST visitor on files that cannot contain the symbol.
+pub fn file_contains_symbol(source: &str, symbol: &str) -> bool {
+    if symbol.is_empty() {
+        return false;
+    }
+    !kmp_search(source, symbol).is_empty()
+}
 /// Enhanced occurrence visitor with full pattern and attribute support
 pub struct EnhancedOccurrenceVisitor<'a> {
     module_path: &'a str,

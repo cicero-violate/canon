@@ -5,6 +5,9 @@ use std::sync::Arc;
 use super::ids::{EdgeId, NodeId};
 use database::graph_log as wire;
 
+#[cfg(feature = "cuda")]
+use algorithms::graph::{csr::Csr, gpu::bfs_gpu};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EdgeKind {
     Contains,
@@ -209,6 +212,42 @@ impl GraphSnapshot {
     }
 
     pub fn to_wire_snapshot(&self) -> wire::GraphSnapshot {
+
+    /// Return all NodeIds reachable from `start` via directed edges, using GPU BFS.
+    /// Builds a CSR from current edges, runs bfs_gpu, returns nodes with level >= 0.
+    /// Falls back to empty vec if `start` is not found.
+    #[cfg(feature = "cuda")]
+    pub fn reachable_from(&self, start: NodeId) -> Vec<NodeId> {
+        // Assign a dense integer index to each node
+        let mut node_to_idx: HashMap<NodeId, usize> = HashMap::new();
+        let mut idx_to_node: Vec<NodeId> = Vec::new();
+        for node in &self.nodes {
+            node_to_idx.insert(node.id, idx_to_node.len());
+            idx_to_node.push(node.id);
+        }
+        let v = idx_to_node.len();
+        if v == 0 {
+            return vec![];
+        }
+        let Some(&start_idx) = node_to_idx.get(&start) else {
+            return vec![];
+        };
+        // Build adjacency list from edges
+        let mut adj: Vec<Vec<usize>> = vec![vec![]; v];
+        for edge in &self.edges {
+            if let (Some(&fi), Some(&ti)) = (node_to_idx.get(&edge.from), node_to_idx.get(&edge.to)) {
+                adj[fi].push(ti);
+            }
+        }
+        let csr = Csr::from_adj(&adj);
+        let levels = bfs_gpu(&csr, start_idx);
+        levels
+            .into_iter()
+            .enumerate()
+            .filter(|(_, lvl)| *lvl >= 0)
+            .map(|(i, _)| idx_to_node[i])
+            .collect()
+    }
         let nodes: Vec<wire::WireNode> = self
             .nodes
             .iter()

@@ -1,7 +1,6 @@
 pub mod adj_list;
 pub mod bellman_ford;
 pub mod bellman_ford_gpu;
-pub mod bfs;
 pub mod csr;
 pub mod csr_unified;
 pub mod dfs;

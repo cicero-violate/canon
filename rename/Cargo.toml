@@ -7,11 +7,13 @@ edition = "2024"
 default = ["rustc_frontend"]
 rustc_frontend = []
 compiler_capture_crate = []
+cuda = ["algorithms/cuda"]
 
 [dependencies]
 anyhow = "1"
 compiler_capture = { path = "../compiler_capture" }
 database = { path = "../memory/database" }
+algorithms = { path = "../algorithms" }
 syn = { version = "2", features = ["full", "visit", "visit-mut"] }
 quote = "1"
 proc-macro2 = { version = "1", features = ["span-locations"] }
