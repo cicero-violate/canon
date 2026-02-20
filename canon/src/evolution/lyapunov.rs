@@ -9,7 +9,10 @@
 //! We approximate the Frobenius norm over the adjacency matrix using
 //! compute_goal_drift() over topology fingerprints (module + edge counts).
 //! This keeps the gate purely data-structural — no LLM calls, no SMT.
-use crate::ir::{CanonicalIr, goals::{GoalDriftMetric, compute_goal_drift}};
+use crate::ir::{
+    goals::{compute_goal_drift, GoalDriftMetric},
+    CanonicalIr,
+};
 /// Default drift bound θ for structural mutations.
 /// Tighter than goal mutation (0.05) — topology changes must be small per tick.
 pub const DEFAULT_TOPOLOGY_THETA: f64 = 0.15;
@@ -44,21 +47,20 @@ impl TopologyFingerprint {
     /// reflects relative change in topology weight.
     pub fn as_token_string(&self) -> String {
         format!(
-            "{} {} {} {} {} {} {} {}", "module ".repeat(self.module_count.max(1)),
-            "module_edge ".repeat(self.module_edge_count.max(1)), "struct ".repeat(self
-            .struct_count.max(1)), "trait ".repeat(self.trait_count.max(1)), "function "
-            .repeat(self.function_count.max(1)), "call_edge ".repeat(self.call_edge_count
-            .max(1)), "tick_graph ".repeat(self.tick_graph_count.max(1)), "delta "
-            .repeat(self.delta_count.max(1)),
+            "{} {} {} {} {} {} {} {}",
+            "module ".repeat(self.module_count.max(1)),
+            "module_edge ".repeat(self.module_edge_count.max(1)),
+            "struct ".repeat(self.struct_count.max(1)),
+            "trait ".repeat(self.trait_count.max(1)),
+            "function ".repeat(self.function_count.max(1)),
+            "call_edge ".repeat(self.call_edge_count.max(1)),
+            "tick_graph ".repeat(self.tick_graph_count.max(1)),
+            "delta ".repeat(self.delta_count.max(1)),
         )
     }
     /// Frobenius-approximated drift between two fingerprints.
     /// Uses the same Jaccard-based compute_goal_drift as goal mutation.
-    pub fn drift_from(
-        &self,
-        other: &TopologyFingerprint,
-        theta: f64,
-    ) -> GoalDriftMetric {
+    pub fn drift_from(&self, other: &TopologyFingerprint, theta: f64) -> GoalDriftMetric {
         compute_goal_drift(&self.as_token_string(), &other.as_token_string(), theta)
     }
 }
@@ -74,10 +76,7 @@ impl std::fmt::Display for LyapunovError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LyapunovError::DriftExceeded { cosine_distance, bound_theta } => {
-                write!(
-                    f,
-                    "topology drift {cosine_distance:.4} exceeds bound θ={bound_theta:.4}"
-                )
+                write!(f, "topology drift {cosine_distance:.4} exceeds bound θ={bound_theta:.4}")
             }
             LyapunovError::NoInvariantProofs => {
                 write!(f, "structural mutation requires at least one invariant proof")
@@ -97,27 +96,16 @@ impl std::error::Error for LyapunovError {}
 /// - `after`          — proposed IR after mutation
 /// - `invariant_proof_ids` — proof ids that must be non-empty
 /// - `theta`          — drift bound (use DEFAULT_TOPOLOGY_THETA if unsure)
-pub fn enforce_lyapunov_bound(
-    before: &CanonicalIr,
-    after: &CanonicalIr,
-    invariant_proof_ids: &[String],
-    theta: f64,
-) -> Result<GoalDriftMetric, LyapunovError> {
+pub fn enforce_lyapunov_bound(before: &CanonicalIr, after: &CanonicalIr, invariant_proof_ids: &[String], theta: f64) -> Result<GoalDriftMetric, LyapunovError> {
     if invariant_proof_ids.is_empty() {
         return Err(LyapunovError::NoInvariantProofs);
     }
     let fp_before = TopologyFingerprint::of(before);
     let fp_after = TopologyFingerprint::of(after);
     let mut metric = fp_before.drift_from(&fp_after, theta);
-    metric.mutation_id = format!(
-        "topology:modules={}->{},functions={}->{}", fp_before.module_count, fp_after
-        .module_count, fp_before.function_count, fp_after.function_count,
-    );
+    metric.mutation_id = format!("topology:modules={}->{},functions={}->{}", fp_before.module_count, fp_after.module_count, fp_before.function_count, fp_after.function_count,);
     if !metric.within_bound {
-        return Err(LyapunovError::DriftExceeded {
-            cosine_distance: metric.cosine_distance,
-            bound_theta: theta,
-        });
+        return Err(LyapunovError::DriftExceeded { cosine_distance: metric.cosine_distance, bound_theta: theta });
     }
     Ok(metric)
 }

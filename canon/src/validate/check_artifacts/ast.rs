@@ -51,12 +51,7 @@ pub fn check_ast_node_kinds(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
     }
 }
 
-fn validate_ast_node(
-    value: &JsonValue,
-    function_id: &str,
-    allowed: &HashSet<&str>,
-    violations: &mut Vec<Violation>,
-) {
+fn validate_ast_node(value: &JsonValue, function_id: &str, allowed: &HashSet<&str>, violations: &mut Vec<Violation>) {
     match value {
         JsonValue::Array(items) => {
             for item in items {
@@ -69,10 +64,7 @@ fn validate_ast_node(
                     violations.push(Violation::structured(
                         CanonRule::FunctionAst,
                         function_id.to_string(),
-                        ViolationDetail::UnknownAstNodeKind {
-                            function_id: function_id.to_string(),
-                            kind: kind.to_string(),
-                        },
+                        ViolationDetail::UnknownAstNodeKind { function_id: function_id.to_string(), kind: kind.to_string() },
                     ));
                 }
             }

@@ -56,23 +56,8 @@ pub struct RefactorProposal {
 }
 
 impl RefactorProposal {
-    pub fn new(
-        id: impl Into<String>,
-        kind: RefactorKind,
-        target: RefactorTarget,
-        rationale: impl Into<String>,
-        stage: PipelineStage,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            kind,
-            target,
-            destination_id: None,
-            rationale: rationale.into(),
-            ir_proposal_id: None,
-            proof_id: None,
-            stage,
-        }
+    pub fn new(id: impl Into<String>, kind: RefactorKind, target: RefactorTarget, rationale: impl Into<String>, stage: PipelineStage) -> Self {
+        Self { id: id.into(), kind, target, destination_id: None, rationale: rationale.into(), ir_proposal_id: None, proof_id: None, stage }
     }
 
     /// Returns true if the Prover has populated a proof_id.

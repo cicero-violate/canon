@@ -6,7 +6,7 @@ use crate::ir::{CallEdge, Function, Visibility};
 
 use super::super::parser::ParsedWorkspace;
 use super::modules::{collect_use_aliases, module_key};
-use super::types::{AliasBinding, UseEntry, module_segments_from_key, slugify};
+use super::types::{module_segments_from_key, slugify, AliasBinding, UseEntry};
 
 // ── Shared data structures ────────────────────────────────────────────────────
 
@@ -18,11 +18,7 @@ pub(crate) struct FunctionLookupEntry {
 
 // ── Call edge builder ─────────────────────────────────────────────────────────
 
-pub(crate) fn build_call_edges(
-    parsed: &ParsedWorkspace,
-    module_lookup: &HashMap<String, String>,
-    functions: &[Function],
-) -> Vec<CallEdge> {
+pub(crate) fn build_call_edges(parsed: &ParsedWorkspace, module_lookup: &HashMap<String, String>, functions: &[Function]) -> Vec<CallEdge> {
     let mut module_reverse = HashMap::new();
     for (key, id) in module_lookup {
         module_reverse.insert(id.clone(), key.clone());
@@ -31,13 +27,7 @@ pub(crate) fn build_call_edges(
     for function in functions {
         if let Some(mk) = module_reverse.get(&function.module) {
             if let Some(slug) = function_name_slug(function) {
-                function_lookup.insert(
-                    (mk.clone(), slug),
-                    FunctionLookupEntry {
-                        id: function.id.clone(),
-                        visibility: function.visibility,
-                    },
-                );
+                function_lookup.insert((mk.clone(), slug), FunctionLookupEntry { id: function.id.clone(), visibility: function.visibility });
             }
         }
     }
@@ -52,33 +42,15 @@ pub(crate) fn build_call_edges(
         for item in &file.ast.items {
             match item {
                 syn::Item::Fn(item_fn) => {
-                    if let Some(caller_id) =
-                        lookup_function_id(&mk, &item_fn.sig.ident, &function_lookup)
-                    {
-                        collect_calls_in_block(
-                            &item_fn.block,
-                            &module_segments,
-                            &caller_id,
-                            &function_lookup,
-                            &alias_map,
-                            &mut discovered,
-                        );
+                    if let Some(caller_id) = lookup_function_id(&mk, &item_fn.sig.ident, &function_lookup) {
+                        collect_calls_in_block(&item_fn.block, &module_segments, &caller_id, &function_lookup, &alias_map, &mut discovered);
                     }
                 }
                 syn::Item::Impl(impl_block) => {
                     for impl_item in &impl_block.items {
                         if let syn::ImplItem::Fn(method) = impl_item {
-                            if let Some(caller_id) =
-                                lookup_function_id(&mk, &method.sig.ident, &function_lookup)
-                            {
-                                collect_calls_in_block(
-                                    &method.block,
-                                    &module_segments,
-                                    &caller_id,
-                                    &function_lookup,
-                                    &alias_map,
-                                    &mut discovered,
-                                );
+                            if let Some(caller_id) = lookup_function_id(&mk, &method.sig.ident, &function_lookup) {
+                                collect_calls_in_block(&method.block, &module_segments, &caller_id, &function_lookup, &alias_map, &mut discovered);
                             }
                         }
                     }
@@ -90,41 +62,20 @@ pub(crate) fn build_call_edges(
     discovered
         .into_iter()
         .enumerate()
-        .map(|(idx, (caller, callee))| CallEdge {
-            id: format!("call_edge.{}", idx + 1),
-            caller,
-            callee,
-            rationale: "ING-001: discovered call expression".to_owned(),
-        })
+        .map(|(idx, (caller, callee))| CallEdge { id: format!("call_edge.{}", idx + 1), caller, callee, rationale: "ING-001: discovered call expression".to_owned() })
         .collect()
 }
 
-pub(crate) fn lookup_function_id(
-    module_key: &str,
-    ident: &syn::Ident,
-    functions: &HashMap<(String, String), FunctionLookupEntry>,
-) -> Option<String> {
+pub(crate) fn lookup_function_id(module_key: &str, ident: &syn::Ident, functions: &HashMap<(String, String), FunctionLookupEntry>) -> Option<String> {
     let slug = slugify(&ident.to_string());
-    functions
-        .get(&(module_key.to_owned(), slug))
-        .map(|entry| entry.id.clone())
+    functions.get(&(module_key.to_owned(), slug)).map(|entry| entry.id.clone())
 }
 
 pub(crate) fn collect_calls_in_block(
-    block: &syn::Block,
-    module_segments: &[String],
-    caller_id: &str,
-    functions: &HashMap<(String, String), FunctionLookupEntry>,
-    aliases: &HashMap<String, AliasBinding>,
+    block: &syn::Block, module_segments: &[String], caller_id: &str, functions: &HashMap<(String, String), FunctionLookupEntry>, aliases: &HashMap<String, AliasBinding>,
     discovered: &mut BTreeSet<(String, String)>,
 ) {
-    let mut visitor = CallCollector {
-        caller_id,
-        module_segments,
-        functions,
-        aliases,
-        discovered,
-    };
+    let mut visitor = CallCollector { caller_id, module_segments, functions, aliases, discovered };
     visitor.visit_block(block);
 }
 
@@ -141,8 +92,7 @@ impl<'ast, 'a> Visit<'ast> for CallCollector<'a> {
         if let Some(path) = extract_call_path(&node.func) {
             if let Some(entry) = resolve_function_path(self.module_segments, path, self.functions) {
                 if entry.visibility == Visibility::Public && entry.id != self.caller_id {
-                    self.discovered
-                        .insert((self.caller_id.to_owned(), entry.id.clone()));
+                    self.discovered.insert((self.caller_id.to_owned(), entry.id.clone()));
                 }
             } else if path.segments.len() == 1 {
                 if let Some(segment) = path.segments.first() {
@@ -150,10 +100,8 @@ impl<'ast, 'a> Visit<'ast> for CallCollector<'a> {
                     if let Some(binding) = self.aliases.get(&name) {
                         let key = (binding.module_key.clone(), binding.function_slug.clone());
                         if let Some(entry) = self.functions.get(&key) {
-                            if entry.visibility == Visibility::Public && entry.id != self.caller_id
-                            {
-                                self.discovered
-                                    .insert((self.caller_id.to_owned(), entry.id.clone()));
+                            if entry.visibility == Visibility::Public && entry.id != self.caller_id {
+                                self.discovered.insert((self.caller_id.to_owned(), entry.id.clone()));
                             }
                         }
                     }
@@ -174,24 +122,12 @@ fn extract_call_path(expr: &syn::Expr) -> Option<&syn::Path> {
     }
 }
 
-pub(crate) fn resolve_function_path<'a>(
-    module_segments: &[String],
-    path: &syn::Path,
-    functions: &'a HashMap<(String, String), FunctionLookupEntry>,
-) -> Option<&'a FunctionLookupEntry> {
-    let mut segments: Vec<String> = path
-        .segments
-        .iter()
-        .map(|seg| seg.ident.to_string())
-        .collect();
+pub(crate) fn resolve_function_path<'a>(module_segments: &[String], path: &syn::Path, functions: &'a HashMap<(String, String), FunctionLookupEntry>) -> Option<&'a FunctionLookupEntry> {
+    let mut segments: Vec<String> = path.segments.iter().map(|seg| seg.ident.to_string()).collect();
     if segments.is_empty() {
         return None;
     }
-    let mut base = if path.leading_colon.is_some() {
-        Vec::new()
-    } else {
-        module_segments.to_vec()
-    };
+    let mut base = if path.leading_colon.is_some() { Vec::new() } else { module_segments.to_vec() };
     if let Some(first) = segments.first() {
         match first.as_str() {
             "crate" => {
@@ -223,11 +159,7 @@ pub(crate) fn resolve_function_path<'a>(
         return None;
     }
     let fn_name = base.pop()?;
-    let module_key = if base.is_empty() {
-        "crate".to_owned()
-    } else {
-        base.join("::")
-    };
+    let module_key = if base.is_empty() { "crate".to_owned() } else { base.join("::") };
     let slug = slugify(&fn_name);
     functions.get(&(module_key, slug))
 }

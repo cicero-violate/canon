@@ -13,38 +13,14 @@ pub fn render_struct(structure: &Struct) -> String {
     }
     match structure.kind {
         StructKind::Unit => {
-            lines.push(format!(
-                "{}struct {};",
-                render_visibility(structure.visibility),
-                structure.name
-            ));
+            lines.push(format!("{}struct {};", render_visibility(structure.visibility), structure.name));
         }
         StructKind::Tuple => {
-            let tuple_fields = structure
-                .fields
-                .iter()
-                .map(|field| {
-                    format!(
-                        "{}{}",
-                        render_visibility(field.visibility),
-                        render_type(&field.ty)
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            lines.push(format!(
-                "{}struct {}({});",
-                render_visibility(structure.visibility),
-                structure.name,
-                tuple_fields
-            ));
+            let tuple_fields = structure.fields.iter().map(|field| format!("{}{}", render_visibility(field.visibility), render_type(&field.ty))).collect::<Vec<_>>().join(", ");
+            lines.push(format!("{}struct {}({});", render_visibility(structure.visibility), structure.name, tuple_fields));
         }
         StructKind::Normal => {
-            lines.push(format!(
-                "{}struct {} {{",
-                render_visibility(structure.visibility),
-                structure.name
-            ));
+            lines.push(format!("{}struct {} {{", render_visibility(structure.visibility), structure.name));
             let mut fields = structure.fields.clone();
             fields.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
             if fields.is_empty() {
@@ -56,12 +32,7 @@ pub fn render_struct(structure: &Struct) -> String {
                             lines.push(format!("    /// {doc_line}"));
                         }
                     }
-                    lines.push(format!(
-                        "    {}{}: {},",
-                        render_visibility(field.visibility),
-                        field.name,
-                        render_type(&field.ty)
-                    ));
+                    lines.push(format!("    {}{}: {},", render_visibility(field.visibility), field.name, render_type(&field.ty)));
                 }
             }
             lines.push("}".to_owned());
@@ -74,11 +45,7 @@ pub use super::render_common::render_visibility;
 
 pub fn render_enum(en: &EnumNode) -> String {
     let mut lines = Vec::new();
-    lines.push(format!(
-        "{}enum {} {{",
-        render_visibility(en.visibility),
-        en.name
-    ));
+    lines.push(format!("{}enum {} {{", render_visibility(en.visibility), en.name));
     if en.variants.is_empty() {
         lines.push("    // no variants".to_owned());
     } else {
@@ -90,11 +57,7 @@ pub fn render_enum(en: &EnumNode) -> String {
                     format!("    {}({}),", v.name, inner)
                 }
                 EnumVariantFields::Struct { fields } => {
-                    let inner = fields
-                        .iter()
-                        .map(|f| format!("        {}: {}", f.name, render_type(&f.ty)))
-                        .collect::<Vec<_>>()
-                        .join(",\n");
+                    let inner = fields.iter().map(|f| format!("        {}: {}", f.name, render_type(&f.ty))).collect::<Vec<_>>().join(",\n");
                     format!("    {} {{\n{}\n    }},", v.name, inner)
                 }
             };

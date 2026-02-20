@@ -27,29 +27,12 @@ pub struct OutputExpr {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Expr {
-    Literal {
-        value: Value,
-    },
-    Input {
-        name: String,
-    },
-    BinOp {
-        left: Box<Expr>,
-        op: BinOp,
-        right: Box<Expr>,
-    },
-    FieldAccess {
-        expr: Box<Expr>,
-        field: String,
-    },
-    Call {
-        function: FunctionId,
-        args: Vec<Expr>,
-    },
-    EmitDelta {
-        delta_id: String,
-        payload_hash: String,
-    },
+    Literal { value: Value },
+    Input { name: String },
+    BinOp { left: Box<Expr>, op: BinOp, right: Box<Expr> },
+    FieldAccess { expr: Box<Expr>, field: String },
+    Call { function: FunctionId, args: Vec<Expr> },
+    EmitDelta { delta_id: String, payload_hash: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -107,14 +90,8 @@ fn compile_expr(expr: &Expr, instructions: &mut Vec<Instruction>) -> Result<(), 
             }
             instructions.push(Instruction::Call(function.clone()));
         }
-        Expr::EmitDelta {
-            delta_id,
-            payload_hash,
-        } => {
-            instructions.push(Instruction::EmitDelta(DeltaValue {
-                delta_id: delta_id.clone(),
-                payload_hash: payload_hash.clone(),
-            }));
+        Expr::EmitDelta { delta_id, payload_hash } => {
+            instructions.push(Instruction::EmitDelta(DeltaValue { delta_id: delta_id.clone(), payload_hash: payload_hash.clone() }));
             instructions.push(Instruction::LoadConst(Value::Unit));
         }
     }

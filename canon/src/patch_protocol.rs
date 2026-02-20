@@ -26,16 +26,10 @@ pub struct PatchQueue {
 
 impl PatchQueue {
     pub fn new() -> Self {
-        Self {
-            proposals: VecDeque::new(),
-        }
+        Self { proposals: VecDeque::new() }
     }
 
-    pub fn enqueue(
-        &mut self,
-        diff: String,
-        metadata: PatchMetadata,
-    ) -> Result<&PatchProposal, PatchError> {
+    pub fn enqueue(&mut self, diff: String, metadata: PatchMetadata) -> Result<&PatchProposal, PatchError> {
         if !is_structured_patch(&diff) {
             return Err(PatchError::MalformedPatch);
         }
@@ -80,28 +74,14 @@ impl PatchGate {
 
     pub fn evaluate(&mut self, proposal: PatchProposal) -> PatchDecision {
         if !is_structured_patch(&proposal.diff) {
-            let entry = PatchLogEntry {
-                proposal_id: proposal.id.clone(),
-                decision: PatchDecisionData::Rejected {
-                    reason: "Patch not structured".into(),
-                },
-            };
+            let entry = PatchLogEntry { proposal_id: proposal.id.clone(), decision: PatchDecisionData::Rejected { reason: "Patch not structured".into() } };
             self.log.push(entry.clone());
-            return PatchDecision::Rejected {
-                proposal,
-                reason: "Patch not structured".into(),
-            };
+            return PatchDecision::Rejected { proposal, reason: "Patch not structured".into() };
         }
 
         let proof_id = compute_patch_id(&proposal.diff, &proposal.metadata);
-        let verified = VerifiedPatch {
-            proposal,
-            proof_id: proof_id.clone(),
-        };
-        let entry = PatchLogEntry {
-            proposal_id: verified.proposal.id.clone(),
-            decision: PatchDecisionData::Accepted { proof_id },
-        };
+        let verified = VerifiedPatch { proposal, proof_id: proof_id.clone() };
+        let entry = PatchLogEntry { proposal_id: verified.proposal.id.clone(), decision: PatchDecisionData::Accepted { proof_id } };
         self.log.push(entry);
         PatchDecision::Accepted { verified }
     }
@@ -114,13 +94,8 @@ impl PatchGate {
 /// Result of a gate evaluation.
 #[derive(Debug)]
 pub enum PatchDecision {
-    Accepted {
-        verified: VerifiedPatch,
-    },
-    Rejected {
-        proposal: PatchProposal,
-        reason: String,
-    },
+    Accepted { verified: VerifiedPatch },
+    Rejected { proposal: PatchProposal, reason: String },
 }
 
 /// Canon-certified patch ready for controlled application.
@@ -138,9 +113,7 @@ pub struct ApprovedPatchRegistry {
 
 impl ApprovedPatchRegistry {
     pub fn new() -> Self {
-        Self {
-            patches: BTreeMap::new(),
-        }
+        Self { patches: BTreeMap::new() }
     }
 
     pub fn insert(&mut self, patch: VerifiedPatch) {
@@ -158,15 +131,13 @@ impl ApprovedPatchRegistry {
 
 /// Controlled applier that runs tests prior to applying patch content.
 pub struct PatchApplier<F>
-where
-    F: Fn(&VerifiedPatch) -> bool,
+where F: Fn(&VerifiedPatch) -> bool
 {
     test_runner: F,
 }
 
 impl<F> PatchApplier<F>
-where
-    F: Fn(&VerifiedPatch) -> bool,
+where F: Fn(&VerifiedPatch) -> bool
 {
     pub fn new(test_runner: F) -> Self {
         Self { test_runner }

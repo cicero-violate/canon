@@ -28,14 +28,8 @@ const W_ENTROPY: f64 = 0.2;
 ///   Δcaps    = new functions + new traits + new modules in candidate vs before
 ///   Δdeltas  = total applied deltas in candidate
 ///   entropy_before / entropy_after = pre-computed graph entropy scalars (pass 0.0 if unavailable)
-pub fn compute_pipeline_reward(
-    before: &CanonicalIr,
-    after: &CanonicalIr,
-    entropy_before: f64,
-    entropy_after: f64,
-) -> f64 {
-    let new_functions = after.functions.len().saturating_sub(before.functions.len())
-        as f64;
+pub fn compute_pipeline_reward(before: &CanonicalIr, after: &CanonicalIr, entropy_before: f64, entropy_after: f64) -> f64 {
+    let new_functions = after.functions.len().saturating_sub(before.functions.len()) as f64;
     let new_traits = after.traits.len().saturating_sub(before.traits.len()) as f64;
     let new_modules = after.modules.len().saturating_sub(before.modules.len()) as f64;
     let delta_caps = new_functions + new_traits + new_modules;

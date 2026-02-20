@@ -36,11 +36,7 @@ pub struct GoalDriftMetric {
 
 pub fn compute_goal_drift(original: &str, proposed: &str, theta: f64) -> GoalDriftMetric {
     fn tokenize(text: &str) -> std::collections::HashSet<String> {
-        text.split_whitespace()
-            .map(|token| token.trim_matches(|c: char| !c.is_alphanumeric()))
-            .filter(|token| !token.is_empty())
-            .map(|token| token.to_lowercase())
-            .collect()
+        text.split_whitespace().map(|token| token.trim_matches(|c: char| !c.is_alphanumeric())).filter(|token| !token.is_empty()).map(|token| token.to_lowercase()).collect()
     }
 
     let original_tokens = tokenize(original);
@@ -51,11 +47,5 @@ pub fn compute_goal_drift(original: &str, proposed: &str, theta: f64) -> GoalDri
     let cosine_distance = 1.0 - keyword_overlap;
     let within_bound = keyword_overlap >= 1.0 - theta;
 
-    GoalDriftMetric {
-        mutation_id: GoalMutationId::default(),
-        cosine_distance,
-        keyword_overlap,
-        within_bound,
-        bound_theta: theta,
-    }
+    GoalDriftMetric { mutation_id: GoalMutationId::default(), cosine_distance, keyword_overlap, within_bound, bound_theta: theta }
 }

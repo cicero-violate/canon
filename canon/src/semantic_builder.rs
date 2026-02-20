@@ -12,27 +12,15 @@ pub struct SemanticIrBuilder {
 impl SemanticIrBuilder {
     pub fn new(name: &str) -> Self {
         Self {
-            meta: CanonicalMeta {
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                law_revision: Word::new("SemanticOnly").unwrap(),
-                description: format!("Semantic graph for `{name}`"),
-            },
-            project: Project {
-                name: Word::new(name).unwrap(),
-                version: "0.0.0".to_owned(),
-                language: Language::Rust,
-            },
+            meta: CanonicalMeta { version: env!("CARGO_PKG_VERSION").to_string(), law_revision: Word::new("SemanticOnly").unwrap(), description: format!("Semantic graph for `{name}`") },
+            project: Project { name: Word::new(name).unwrap(), version: "0.0.0".to_owned(), language: Language::Rust },
         }
     }
 
     pub fn build(&self, semantic: SemanticGraph) -> CanonicalIr {
         CanonicalIr {
             meta: self.meta.clone(),
-            version_contract: VersionContract {
-                current: self.meta.version.clone(),
-                compatible_with: vec![],
-                migration_proofs: vec![],
-            },
+            version_contract: VersionContract { current: self.meta.version.clone(), compatible_with: vec![], migration_proofs: vec![] },
             project: self.project.clone(),
             modules: semantic.modules,
             module_edges: semantic.module_edges,

@@ -59,9 +59,7 @@ impl Value {
                 // Type checking would compare s.scalar_type() with type_ref.name
                 true
             }
-            (Value::Struct(s), crate::ir::TypeKind::Struct) => {
-                s.type_name == type_ref.name.as_str()
-            }
+            (Value::Struct(s), crate::ir::TypeKind::Struct) => s.type_name == type_ref.name.as_str(),
             (Value::Delta(_), crate::ir::TypeKind::Delta) => true,
             (Value::Unit, crate::ir::TypeKind::External) => true,
             _ => false,
@@ -71,30 +69,21 @@ impl Value {
     pub fn as_scalar(&self) -> Result<&ScalarValue, ValueError> {
         match self {
             Value::Scalar(s) => Ok(s),
-            _ => Err(ValueError::TypeMismatch {
-                expected: "Scalar".into(),
-                found: format!("{:?}", self.kind()),
-            }),
+            _ => Err(ValueError::TypeMismatch { expected: "Scalar".into(), found: format!("{:?}", self.kind()) }),
         }
     }
 
     pub fn as_struct(&self) -> Result<&StructValue, ValueError> {
         match self {
             Value::Struct(s) => Ok(s),
-            _ => Err(ValueError::TypeMismatch {
-                expected: "Struct".into(),
-                found: format!("{:?}", self.kind()),
-            }),
+            _ => Err(ValueError::TypeMismatch { expected: "Struct".into(), found: format!("{:?}", self.kind()) }),
         }
     }
 
     pub fn as_delta(&self) -> Result<&DeltaValue, ValueError> {
         match self {
             Value::Delta(d) => Ok(d),
-            _ => Err(ValueError::TypeMismatch {
-                expected: "Delta".into(),
-                found: format!("{:?}", self.kind()),
-            }),
+            _ => Err(ValueError::TypeMismatch { expected: "Delta".into(), found: format!("{:?}", self.kind()) }),
         }
     }
 }
@@ -130,10 +119,7 @@ pub enum ValueError {
 
 impl StructValue {
     pub fn new(type_name: impl Into<String>) -> Self {
-        Self {
-            type_name: type_name.into(),
-            fields: BTreeMap::new(),
-        }
+        Self { type_name: type_name.into(), fields: BTreeMap::new() }
     }
 
     pub fn with_field(mut self, name: impl Into<String>, value: Value) -> Self {
@@ -142,8 +128,6 @@ impl StructValue {
     }
 
     pub fn get_field(&self, name: &str) -> Result<&Value, ValueError> {
-        self.fields
-            .get(name)
-            .ok_or_else(|| ValueError::FieldNotFound(name.to_string()))
+        self.fields.get(name).ok_or_else(|| ValueError::FieldNotFound(name.to_string()))
     }
 }

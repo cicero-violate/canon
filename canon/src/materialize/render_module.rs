@@ -9,20 +9,13 @@ use std::collections::{BTreeSet, HashMap};
 /// Render a single named file within a module that has explicit FileNode topology.
 /// Emits all impls (and their functions) whose functions are assigned to this file_id.
 pub fn render_file(
-    file_node: &LayoutFile,
-    module: &crate::ir::Module,
-    ir: &CanonicalIr,
-    layout: &LayoutGraph,
-    struct_map: &HashMap<&str, &Struct>,
-    trait_map: &HashMap<&str, &Trait>,
-    function_map: &HashMap<&str, &Function>,
-    use_lines: &[String],
+    file_node: &LayoutFile, module: &crate::ir::Module, ir: &CanonicalIr, layout: &LayoutGraph, struct_map: &HashMap<&str, &Struct>, trait_map: &HashMap<&str, &Trait>,
+    function_map: &HashMap<&str, &Function>, use_lines: &[String],
 ) -> String {
     let mut lines = Vec::new();
     lines.push("// Derived from Canonical IR. Do not edit.".to_owned());
     push_module_attributes(&mut lines, module);
-    let mut combined_use_lines =
-        collect_intramodule_types(module, file_node.id.as_str(), layout, ir);
+    let mut combined_use_lines = collect_intramodule_types(module, file_node.id.as_str(), layout, ir);
     combined_use_lines.extend_from_slice(use_lines);
     combined_use_lines.extend(collect_external_uses(&module.id, ir, function_map));
     let combined_use_lines = sort_use_lines(combined_use_lines);
@@ -32,24 +25,14 @@ pub fn render_file(
 
     // structs assigned to this file
     let layout_file_id = file_node.id.as_str();
-    let mut structs: Vec<_> = ir
-        .structs
-        .iter()
-        .filter(|s| s.module == module.id)
-        .filter(|s| struct_layout_file(layout, s.id.as_str()) == Some(layout_file_id))
-        .collect();
+    let mut structs: Vec<_> = ir.structs.iter().filter(|s| s.module == module.id).filter(|s| struct_layout_file(layout, s.id.as_str()) == Some(layout_file_id)).collect();
     structs.sort_by_key(|s| s.name.as_str());
     for s in &structs {
         lines.push(render_struct(s));
     }
 
     // traits assigned to this file (heuristic: same sort order)
-    let mut traits: Vec<_> = ir
-        .traits
-        .iter()
-        .filter(|t| t.module == module.id)
-        .filter(|t| trait_layout_file(layout, t.id.as_str()) == Some(layout_file_id))
-        .collect();
+    let mut traits: Vec<_> = ir.traits.iter().filter(|t| t.module == module.id).filter(|t| trait_layout_file(layout, t.id.as_str()) == Some(layout_file_id)).collect();
     traits.sort_by_key(|t| t.name.as_str());
     for t in &traits {
         lines.push(render_trait(t));
@@ -60,11 +43,7 @@ pub fn render_file(
         .impls
         .iter()
         .filter(|block| block.module == module.id)
-        .filter(|block| {
-            block.functions.iter().any(|binding| {
-                function_layout_file(layout, binding.function.as_str()) == Some(layout_file_id)
-            })
-        })
+        .filter(|block| block.functions.iter().any(|binding| function_layout_file(layout, binding.function.as_str()) == Some(layout_file_id)))
         .collect();
     impls.sort_by_key(|i| i.id.as_str());
     for block in impls {
@@ -72,13 +51,8 @@ pub fn render_file(
     }
 
     // ── standalone (free) functions assigned to this file ─────────────────────
-    let mut free_functions: Vec<_> = ir
-        .functions
-        .iter()
-        .filter(|f| f.module == module.id)
-        .filter(|f| f.impl_id.is_empty())
-        .filter(|f| function_layout_file(layout, f.id.as_str()) == Some(layout_file_id))
-        .collect();
+    let mut free_functions: Vec<_> =
+        ir.functions.iter().filter(|f| f.module == module.id).filter(|f| f.impl_id.is_empty()).filter(|f| function_layout_file(layout, f.id.as_str()) == Some(layout_file_id)).collect();
     free_functions.sort_by_key(|f| f.name.as_str());
     for f in free_functions {
         lines.push(render_impl_function(f));
@@ -87,12 +61,7 @@ pub fn render_file(
     lines.join("\n\n") + "\n"
 }
 pub fn render_module(
-    module: &crate::ir::Module,
-    _layout: &LayoutGraph,
-    ir: &CanonicalIr,
-    struct_map: &HashMap<&str, &Struct>,
-    trait_map: &HashMap<&str, &Trait>,
-    function_map: &HashMap<&str, &Function>,
+    module: &crate::ir::Module, _layout: &LayoutGraph, ir: &CanonicalIr, struct_map: &HashMap<&str, &Struct>, trait_map: &HashMap<&str, &Trait>, function_map: &HashMap<&str, &Function>,
 ) -> String {
     let mut lines = Vec::new();
     lines.push("// Derived from Canonical IR. Do not edit.".to_owned());
@@ -108,11 +77,7 @@ pub fn render_module(
         lines.push(items);
     }
 
-    let mut structs: Vec<_> = ir
-        .structs
-        .iter()
-        .filter(|s| s.module == module.id)
-        .collect();
+    let mut structs: Vec<_> = ir.structs.iter().filter(|s| s.module == module.id).collect();
     structs.sort_by_key(|s| s.name.as_str());
     for s in structs {
         lines.push(render_struct(s));
@@ -131,12 +96,7 @@ pub fn render_module(
     }
 
     // ── standalone (free) functions ───────────────────────────────────────────
-    let mut free_functions: Vec<_> = ir
-        .functions
-        .iter()
-        .filter(|f| f.module == module.id)
-        .filter(|f| f.impl_id.is_empty())
-        .collect();
+    let mut free_functions: Vec<_> = ir.functions.iter().filter(|f| f.module == module.id).filter(|f| f.impl_id.is_empty()).collect();
     free_functions.sort_by_key(|f| f.name.as_str());
     for f in free_functions {
         lines.push(render_impl_function(f));
@@ -160,12 +120,7 @@ pub fn render_module_items_block(module: &crate::ir::Module) -> Option<String> {
     }
     if !module.constants.is_empty() {
         for constant in &module.constants {
-            lines.push(format!(
-                "pub const {}: {} = {};",
-                constant.name,
-                render_type(&constant.ty),
-                constant.value_expr
-            ));
+            lines.push(format!("pub const {}: {} = {};", constant.name, render_type(&constant.ty), constant.value_expr));
         }
     }
     if !module.statics.is_empty() {
@@ -174,22 +129,12 @@ pub fn render_module_items_block(module: &crate::ir::Module) -> Option<String> {
                 push_doc_lines(&mut lines, doc);
             }
             let mut_kw = if item.mutable { "mut " } else { "" };
-            lines.push(format!(
-                "{}static {mut_kw}{}: {} = {};",
-                render_visibility(item.visibility),
-                item.name,
-                render_type(&item.ty),
-                item.value_expr
-            ));
+            lines.push(format!("{}static {mut_kw}{}: {} = {};", render_visibility(item.visibility), item.name, render_type(&item.ty), item.value_expr));
         }
     }
     if !module.type_aliases.is_empty() {
         for alias in &module.type_aliases {
-            lines.push(format!(
-                "pub type {} = {};",
-                alias.name,
-                render_type(&alias.target)
-            ));
+            lines.push(format!("pub type {} = {};", alias.name, render_type(&alias.target)));
         }
     }
     if lines.is_empty() {
@@ -221,12 +166,7 @@ pub fn collect_incoming_types(ir: &CanonicalIr, module_id: &str) -> Vec<(String,
         if edge.target != module_id || edge.imported_types.is_empty() {
             continue;
         }
-        let source_name = ir
-            .modules
-            .iter()
-            .find(|m| m.id == edge.source)
-            .map(|m| m.name.as_str().to_string())
-            .unwrap_or_else(|| edge.source.clone());
+        let source_name = ir.modules.iter().find(|m| m.id == edge.source).map(|m| m.name.as_str().to_string()).unwrap_or_else(|| edge.source.clone());
         out.push((source_name, edge.imported_types.clone()));
     }
     out
@@ -261,12 +201,7 @@ fn normalize_use_prefix(source: &str) -> String {
     }
 }
 
-fn collect_intramodule_types(
-    module: &crate::ir::Module,
-    current_file_id: &str,
-    layout: &LayoutGraph,
-    ir: &CanonicalIr,
-) -> Vec<String> {
+fn collect_intramodule_types(module: &crate::ir::Module, current_file_id: &str, layout: &LayoutGraph, ir: &CanonicalIr) -> Vec<String> {
     // Intramodule import generation is currently disabled.
     // Returning empty avoids generating incorrect `use super::...` paths.
     let _ = module;
@@ -276,13 +211,7 @@ fn collect_intramodule_types(
     Vec::new()
 }
 
-fn intramodule_use_line(
-    type_name: &str,
-    explicit_file_id: Option<&str>,
-    current_file_id: &str,
-    id_to_stem: &HashMap<String, String>,
-    stem_to_id: &HashMap<String, String>,
-) -> Option<String> {
+fn intramodule_use_line(type_name: &str, explicit_file_id: Option<&str>, current_file_id: &str, id_to_stem: &HashMap<String, String>, stem_to_id: &HashMap<String, String>) -> Option<String> {
     let _ = type_name;
     let _ = explicit_file_id;
     let _ = current_file_id;
@@ -308,11 +237,7 @@ fn build_file_maps(module: &LayoutModule) -> (HashMap<String, String>, HashMap<S
 // derive module name from layout file id map
 // removed incorrect path expansion
 
-fn collect_external_uses(
-    module_id: &str,
-    ir: &CanonicalIr,
-    _function_map: &HashMap<&str, &Function>,
-) -> Vec<String> {
+fn collect_external_uses(module_id: &str, ir: &CanonicalIr, _function_map: &HashMap<&str, &Function>) -> Vec<String> {
     // Fully-qualified type paths are emitted directly in signatures.
     // We do NOT auto-generate `use` statements.
     let _ = module_id;
@@ -340,11 +265,7 @@ fn sort_use_lines(mut lines: Vec<String>) -> Vec<String> {
     if lines.is_empty() {
         return lines;
     }
-    lines.sort_by(|a, b| {
-        use_line_rank(a)
-            .cmp(&use_line_rank(b))
-            .then_with(|| a.cmp(b))
-    });
+    lines.sort_by(|a, b| use_line_rank(a).cmp(&use_line_rank(b)).then_with(|| a.cmp(b)));
     lines.dedup();
     lines
 }
@@ -386,25 +307,13 @@ fn file_stem(name: &str) -> &str {
     name.trim_end_matches(".rs")
 }
 fn function_layout_file<'a>(layout: &'a LayoutGraph, function_id: &str) -> Option<&'a str> {
-    layout
-        .routing
-        .iter()
-        .find(|assign| matches!(assign.node, LayoutNode::Function(ref id) if id == function_id))
-        .map(|assign| assign.file_id.as_str())
+    layout.routing.iter().find(|assign| matches!(assign.node, LayoutNode::Function(ref id) if id == function_id)).map(|assign| assign.file_id.as_str())
 }
 
 fn struct_layout_file<'a>(layout: &'a LayoutGraph, struct_id: &str) -> Option<&'a str> {
-    layout
-        .routing
-        .iter()
-        .find(|assign| matches!(assign.node, LayoutNode::Struct(ref id) if id == struct_id))
-        .map(|assign| assign.file_id.as_str())
+    layout.routing.iter().find(|assign| matches!(assign.node, LayoutNode::Struct(ref id) if id == struct_id)).map(|assign| assign.file_id.as_str())
 }
 
 fn trait_layout_file<'a>(layout: &'a LayoutGraph, trait_id: &str) -> Option<&'a str> {
-    layout
-        .routing
-        .iter()
-        .find(|assign| matches!(assign.node, LayoutNode::Trait(ref id) if id == trait_id))
-        .map(|assign| assign.file_id.as_str())
+    layout.routing.iter().find(|assign| matches!(assign.node, LayoutNode::Trait(ref id) if id == trait_id)).map(|assign| assign.file_id.as_str())
 }

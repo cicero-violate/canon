@@ -3,19 +3,16 @@ use std::collections::HashSet;
 use thiserror::Error;
 
 use crate::{
-    dot_import::{
-        DotImportError, dot_graph_to_file_topology, dot_graph_to_imported_types,
-        dot_graph_to_proposal, dot_graph_to_routing_hints, parse_dot,
-    },
-    ir::CanonicalIr,
+    dot_import::{dot_graph_to_file_topology, dot_graph_to_imported_types, dot_graph_to_proposal, dot_graph_to_routing_hints, parse_dot, DotImportError},
     ir::proposal::sanitize_identifier,
-    layout::{LayoutGraph, LayoutNode, apply_topology_to_layout},
+    ir::CanonicalIr,
+    layout::{apply_topology_to_layout, LayoutGraph, LayoutNode},
 };
 
 use super::{
-    DSL_PREDICATE_ID, DSL_PROOF_ID, DSL_TICK_ID,
-    accept::{AcceptProposalError, ProposalAcceptance, ProposalAcceptanceInput, accept_proposal},
+    accept::{accept_proposal, AcceptProposalError, ProposalAcceptance, ProposalAcceptanceInput},
     bootstrap::{ensure_dsl_predicate, ensure_dsl_proof, ensure_dsl_tick},
+    DSL_PREDICATE_ID, DSL_PROOF_ID, DSL_TICK_ID,
 };
 
 #[derive(Debug, Error)]
@@ -33,12 +30,7 @@ pub enum AutoAcceptDotError {
 /// Parse a DOT source, bootstrap proof/predicate/tick if absent,
 /// accept the generated proposal, then patch file topology and
 /// imported_types onto the resulting IR — all in one call.
-pub fn auto_accept_dot_proposal(
-    ir: &CanonicalIr,
-    layout: &LayoutGraph,
-    dot_source: &str,
-    goal: &str,
-) -> Result<ProposalAcceptance, AutoAcceptDotError> {
+pub fn auto_accept_dot_proposal(ir: &CanonicalIr, layout: &LayoutGraph, dot_source: &str, goal: &str) -> Result<ProposalAcceptance, AutoAcceptDotError> {
     let graph = parse_dot(dot_source)?;
     if graph.clusters.is_empty() {
         return Err(AutoAcceptDotError::Empty);
@@ -87,10 +79,7 @@ pub fn auto_accept_dot_proposal(
     Ok(acceptance)
 }
 
-fn apply_routing_hints(
-    layout: &mut LayoutGraph,
-    hints: &std::collections::HashMap<String, String>,
-) {
+fn apply_routing_hints(layout: &mut LayoutGraph, hints: &std::collections::HashMap<String, String>) {
     if hints.is_empty() {
         return;
     }

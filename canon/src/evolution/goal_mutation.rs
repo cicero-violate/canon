@@ -1,15 +1,12 @@
 use crate::{
     decision::accept::proposal_checks::ensure_proof_exists,
     ir::{
+        goals::{compute_goal_drift, GoalMutation, GoalMutationStatus},
         CanonicalIr,
-        goals::{GoalMutation, GoalMutationStatus, compute_goal_drift},
     },
 };
 
-pub fn mutate_goal(
-    ir: &CanonicalIr,
-    mutation: &GoalMutation,
-) -> Result<CanonicalIr, GoalMutationError> {
+pub fn mutate_goal(ir: &CanonicalIr, mutation: &GoalMutation) -> Result<CanonicalIr, GoalMutationError> {
     for proof_id in &mutation.invariant_proof_ids {
         ensure_proof_exists(ir, proof_id).map_err(|_| GoalMutationError::MissingProof)?;
     }

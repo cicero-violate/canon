@@ -11,10 +11,7 @@ mod ids;
 mod syn_conv;
 
 pub(crate) use ids::{trait_path_to_trait_fn_id, trait_path_to_trait_id, type_path_to_struct_id};
-pub(crate) use syn_conv::{
-    enum_from_syn, enum_variant_from_syn, function_from_impl_item, function_from_syn,
-    impl_block_from_syn, struct_from_syn, trait_fn_from_syn, trait_from_syn,
-};
+pub(crate) use syn_conv::{enum_from_syn, enum_variant_from_syn, function_from_impl_item, function_from_syn, impl_block_from_syn, struct_from_syn, trait_fn_from_syn, trait_from_syn};
 
 pub(crate) enum ImplMapping {
     Standalone(ImplBlock, Vec<Function>),
@@ -22,12 +19,7 @@ pub(crate) enum ImplMapping {
     Unsupported,
 }
 
-pub(crate) fn build_structs(
-    parsed: &ParsedWorkspace,
-    module_lookup: &HashMap<String, String>,
-    file_lookup: &HashMap<String, String>,
-    layout: &mut LayoutAccumulator,
-) -> Vec<Struct> {
+pub(crate) fn build_structs(parsed: &ParsedWorkspace, module_lookup: &HashMap<String, String>, file_lookup: &HashMap<String, String>, layout: &mut LayoutAccumulator) -> Vec<Struct> {
     let mut structs = Vec::new();
     for file in &parsed.files {
         let Some(module_id) = module_lookup.get(&module_key(file)) else {
@@ -45,12 +37,7 @@ pub(crate) fn build_structs(
     structs
 }
 
-pub(crate) fn build_enums(
-    parsed: &ParsedWorkspace,
-    module_lookup: &HashMap<String, String>,
-    file_lookup: &HashMap<String, String>,
-    layout: &mut LayoutAccumulator,
-) -> Vec<EnumNode> {
+pub(crate) fn build_enums(parsed: &ParsedWorkspace, module_lookup: &HashMap<String, String>, file_lookup: &HashMap<String, String>, layout: &mut LayoutAccumulator) -> Vec<EnumNode> {
     let mut enums = Vec::new();
     for file in &parsed.files {
         let Some(module_id) = module_lookup.get(&module_key(file)) else {
@@ -68,12 +55,7 @@ pub(crate) fn build_enums(
     enums
 }
 
-pub(crate) fn build_traits(
-    parsed: &ParsedWorkspace,
-    module_lookup: &HashMap<String, String>,
-    file_lookup: &HashMap<String, String>,
-    layout: &mut LayoutAccumulator,
-) -> Vec<Trait> {
+pub(crate) fn build_traits(parsed: &ParsedWorkspace, module_lookup: &HashMap<String, String>, file_lookup: &HashMap<String, String>, layout: &mut LayoutAccumulator) -> Vec<Trait> {
     let mut traits = Vec::new();
     for file in &parsed.files {
         let Some(module_id) = module_lookup.get(&module_key(file)) else {
@@ -92,13 +74,8 @@ pub(crate) fn build_traits(
 }
 
 pub(crate) fn build_impls_and_functions(
-    parsed: &ParsedWorkspace,
-    module_lookup: &HashMap<String, String>,
-    file_lookup: &HashMap<String, String>,
-    layout: &mut LayoutAccumulator,
-    trait_name_to_id: &HashMap<String, String>,
-    type_slug_to_id: &HashMap<String, String>,
-    type_id_to_module: &HashMap<String, String>,
+    parsed: &ParsedWorkspace, module_lookup: &HashMap<String, String>, file_lookup: &HashMap<String, String>, layout: &mut LayoutAccumulator, trait_name_to_id: &HashMap<String, String>,
+    type_slug_to_id: &HashMap<String, String>, type_id_to_module: &HashMap<String, String>,
 ) -> (Vec<ImplBlock>, Vec<Function>) {
     let mut impls = Vec::new();
     let mut functions = Vec::new();
@@ -114,31 +91,23 @@ pub(crate) fn build_impls_and_functions(
                     layout.assign(LayoutNode::Function(function.id.clone()), file_id.clone());
                     functions.push(function);
                 }
-                syn::Item::Impl(impl_block) => {
-                    match impl_block_from_syn(
-                        module_id,
-                        impl_block,
-                        trait_name_to_id,
-                        type_slug_to_id,
-                        type_id_to_module,
-                    ) {
-                        ImplMapping::Standalone(block, funcs) => {
-                            for f in &funcs {
-                                layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());
-                            }
-                            functions.extend(funcs);
-                            impls.push(block);
+                syn::Item::Impl(impl_block) => match impl_block_from_syn(module_id, impl_block, trait_name_to_id, type_slug_to_id, type_id_to_module) {
+                    ImplMapping::Standalone(block, funcs) => {
+                        for f in &funcs {
+                            layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());
                         }
-                        ImplMapping::ImplBlock(block, funcs) => {
-                            for f in &funcs {
-                                layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());
-                            }
-                            functions.extend(funcs);
-                            impls.push(block);
-                        }
-                        ImplMapping::Unsupported => {}
+                        functions.extend(funcs);
+                        impls.push(block);
                     }
-                }
+                    ImplMapping::ImplBlock(block, funcs) => {
+                        for f in &funcs {
+                            layout.assign(LayoutNode::Function(f.id.clone()), file_id.clone());
+                        }
+                        functions.extend(funcs);
+                        impls.push(block);
+                    }
+                    ImplMapping::Unsupported => {}
+                },
                 _ => {}
             }
         }

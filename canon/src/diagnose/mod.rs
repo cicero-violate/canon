@@ -52,11 +52,7 @@ impl std::fmt::Display for StructuredReport {
                 writeln!(f, "  struct_id: {}", r.struct_id)?;
                 writeln!(f, "  trait_resolves: {}", r.trait_resolves)?;
                 writeln!(f, "  struct_resolves: {}", r.struct_resolves)?;
-                writeln!(
-                    f,
-                    "  trait_name_exists_elsewhere: {}",
-                    r.trait_name_exists_elsewhere
-                )?;
+                writeln!(f, "  trait_name_exists_elsewhere: {}", r.trait_name_exists_elsewhere)?;
                 Ok(())
             }
         }
@@ -122,10 +118,7 @@ pub fn trace_root_causes(errors: &ValidationErrors, ir: &CanonicalIr) -> Vec<Roo
 
     let clusters = cluster_by_rule(errors.violations());
 
-    let mut briefs: Vec<RootCauseBrief> = clusters
-        .iter()
-        .map(|(rule, violations)| trace_cluster(*rule, violations, ir))
-        .collect();
+    let mut briefs: Vec<RootCauseBrief> = clusters.iter().map(|(rule, violations)| trace_cluster(*rule, violations, ir)).collect();
 
     briefs.sort_by(|a, b| b.violation_count.cmp(&a.violation_count));
     briefs
@@ -171,11 +164,7 @@ fn trace_cluster(rule: CanonRule, violations: &[&Violation], ir: &CanonicalIr) -
 
                     let struct_resolves = ir.structs.iter().any(|s| s.id == block.struct_id);
 
-                    let trait_name_exists_elsewhere = ir.traits.iter().any(|t| {
-                        t.name
-                            .as_str()
-                            .eq_ignore_ascii_case(block.trait_id.split('.').last().unwrap_or(""))
-                    });
+                    let trait_name_exists_elsewhere = ir.traits.iter().any(|t| t.name.as_str().eq_ignore_ascii_case(block.trait_id.split('.').last().unwrap_or("")));
 
                     Some(StructuredReport::Rule26(Rule26Report {
                         impl_id: block.id.clone(),
@@ -196,52 +185,20 @@ fn trace_cluster(rule: CanonRule, violations: &[&Violation], ir: &CanonicalIr) -
     };
 
     // Compute cycle in pure Rust if needed.
-    let cycle = if defect == DefectClass::CycleDetected {
-        compute_module_cycle(ir)
-    } else {
-        None
-    };
+    let cycle = if defect == DefectClass::CycleDetected { compute_module_cycle(ir) } else { None };
 
-    let tick_slice = if defect == DefectClass::CycleDetected {
-        Some(render_tick_executor_edges(ir))
-    } else {
-        None
-    };
+    let tick_slice = if defect == DefectClass::CycleDetected { Some(render_tick_executor_edges(ir)) } else { None };
 
     // Layer 4: compose the brief from structured inputs.
-    let brief_text = brief::render(
-        pred.as_ref().unwrap_or(&fallback_predicate(rule)),
-        pipe.as_ref(),
-        &defect,
-        count,
-        &examples,
-        cycle.as_deref(),
-        tick_slice.as_deref(),
-    );
+    let brief_text = brief::render(pred.as_ref().unwrap_or(&fallback_predicate(rule)), pipe.as_ref(), &defect, count, &examples, cycle.as_deref(), tick_slice.as_deref());
 
     // ir_field and fix_site are derived from the structured layers; fall back
     // to "unknown" only when no predicate or pipeline entry exists.
-    let ir_field = pred
-        .as_ref()
-        .map(|p| p.ir_field.to_owned())
-        .unwrap_or_else(|| "unknown".to_owned());
+    let ir_field = pred.as_ref().map(|p| p.ir_field.to_owned()).unwrap_or_else(|| "unknown".to_owned());
 
-    let fix_site = pipe
-        .as_ref()
-        .map(|pe| format!("{} :: {}", pe.file, pe.ingest_fn))
-        .unwrap_or_else(|| "unknown".to_owned());
+    let fix_site = pipe.as_ref().map(|pe| format!("{} :: {}", pe.file, pe.ingest_fn)).unwrap_or_else(|| "unknown".to_owned());
 
-    RootCauseBrief {
-        rule,
-        violation_count: count,
-        defect_class: defect,
-        ir_field,
-        fix_site,
-        examples,
-        brief: brief_text,
-        cycle,
-        structured_report,
-    }
+    RootCauseBrief { rule, violation_count: count, defect_class: defect, ir_field, fix_site, examples, brief: brief_text, cycle, structured_report }
 }
 
 // ── Pure Rust Cycle Detection ────────────────────────────────────────────────
@@ -252,9 +209,7 @@ fn compute_module_cycle(ir: &CanonicalIr) -> Option<Vec<String>> {
     let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
 
     for e in &ir.module_edges {
-        adj.entry(e.source.as_str())
-            .or_default()
-            .push(e.target.as_str());
+        adj.entry(e.source.as_str()).or_default().push(e.target.as_str());
         adj.entry(e.target.as_str()).or_default();
     }
 
@@ -262,13 +217,7 @@ fn compute_module_cycle(ir: &CanonicalIr) -> Option<Vec<String>> {
     let mut visited: HashSet<&str> = HashSet::new();
     let mut parent: HashMap<&str, &str> = HashMap::new();
 
-    fn dfs<'a>(
-        u: &'a str,
-        adj: &HashMap<&'a str, Vec<&'a str>>,
-        visiting: &mut HashSet<&'a str>,
-        visited: &mut HashSet<&'a str>,
-        parent: &mut HashMap<&'a str, &'a str>,
-    ) -> Option<Vec<String>> {
+    fn dfs<'a>(u: &'a str, adj: &HashMap<&'a str, Vec<&'a str>>, visiting: &mut HashSet<&'a str>, visited: &mut HashSet<&'a str>, parent: &mut HashMap<&'a str, &'a str>) -> Option<Vec<String>> {
         visiting.insert(u);
 
         if let Some(neighbors) = adj.get(u) {
@@ -336,10 +285,5 @@ fn render_tick_executor_edges(ir: &CanonicalIr) -> String {
 /// Synthetic predicate used only when a rule has no registered entry yet,
 /// so that the brief generator always has something to work with.
 fn fallback_predicate(rule: CanonRule) -> predicate::RulePredicate {
-    predicate::RulePredicate {
-        rule,
-        ir_collection: "unknown",
-        ir_field: "unknown",
-        pass_condition: "no predicate registered for this rule",
-    }
+    predicate::RulePredicate { rule, ir_collection: "unknown", ir_field: "unknown", pass_condition: "no predicate registered for this rule" }
 }

@@ -1,8 +1,8 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
 use schemars::{
-    JsonSchema,
     schema::{InstanceType, Schema, SchemaObject, StringValidation},
+    JsonSchema,
 };
 use serde::de::Error as DeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -11,8 +11,7 @@ use thiserror::Error;
 
 pub const WORD_PATTERN: &str = "^[A-Za-z][A-Za-z0-9_]*$";
 
-static WORD_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(WORD_PATTERN).expect("Canonical word pattern must compile"));
+static WORD_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(WORD_PATTERN).expect("Canonical word pattern must compile"));
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Word(String);
@@ -46,18 +45,14 @@ pub enum WordError {
 
 impl Serialize for Word {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
+    where S: Serializer {
         serializer.serialize_str(&self.0)
     }
 }
 
 impl<'de> Deserialize<'de> for Word {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+    where D: Deserializer<'de> {
         let value = String::deserialize(deserializer)?;
         Word::new(value).map_err(D::Error::custom)
     }
@@ -71,10 +66,7 @@ impl JsonSchema for Word {
     fn json_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
         Schema::Object(SchemaObject {
             instance_type: Some(InstanceType::String.into()),
-            string: Some(Box::new(StringValidation {
-                pattern: Some(WORD_PATTERN.to_owned()),
-                ..Default::default()
-            })),
+            string: Some(Box::new(StringValidation { pattern: Some(WORD_PATTERN.to_owned()), ..Default::default() })),
             ..Default::default()
         })
     }

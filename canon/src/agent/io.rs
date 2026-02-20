@@ -14,10 +14,7 @@ pub fn load_capability_graph(path: &Path) -> Result<CapabilityGraph, Box<dyn std
 }
 
 /// Saves a CapabilityGraph to disk as pretty-printed JSON.
-pub fn save_capability_graph(
-    graph: &CapabilityGraph,
-    path: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn save_capability_graph(graph: &CapabilityGraph, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(graph)?;
     fs::write(path, json)?;
     Ok(())

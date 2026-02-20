@@ -1,4 +1,4 @@
-use crate::dot_import::{DotGraph, parse_dot};
+use crate::dot_import::{parse_dot, DotGraph};
 use crate::ir::CanonicalIr;
 use crate::layout::{LayoutGraph, LayoutModule};
 use std::collections::{BTreeMap, BTreeSet};
@@ -23,26 +23,18 @@ impl std::error::Error for DotVerifyError {}
 
 /// Parse `original_dot`, export `ir` to DOT, parse that, then compare
 /// cluster ids, per-cluster node ids, and inter-cluster edges (order-insensitive).
-pub fn verify_dot(
-    ir: &CanonicalIr,
-    layout: &LayoutGraph,
-    original_dot: &str,
-) -> Result<(), DotVerifyError> {
+pub fn verify_dot(ir: &CanonicalIr, layout: &LayoutGraph, original_dot: &str) -> Result<(), DotVerifyError> {
     let a: DotGraph = match parse_dot(original_dot) {
         Ok(g) => g,
         Err(e) => {
-            return Err(DotVerifyError {
-                mismatches: vec![format!("parse original: {e}")],
-            });
+            return Err(DotVerifyError { mismatches: vec![format!("parse original: {e}")] });
         }
     };
     let exported = export_dot(ir, layout);
     let b: DotGraph = match parse_dot(&exported) {
         Ok(g) => g,
         Err(e) => {
-            return Err(DotVerifyError {
-                mismatches: vec![format!("parse export: {e}")],
-            });
+            return Err(DotVerifyError { mismatches: vec![format!("parse export: {e}")] });
         }
     };
 
@@ -52,48 +44,22 @@ pub fn verify_dot(
     let ca: BTreeSet<&str> = a.clusters.iter().map(|c| c.id.as_str()).collect();
     let cb: BTreeSet<&str> = b.clusters.iter().map(|c| c.id.as_str()).collect();
     for id in ca.difference(&cb) {
-        mismatches.push(format!(
-            "cluster `{id}` present in original but not in export"
-        ));
+        mismatches.push(format!("cluster `{id}` present in original but not in export"));
     }
     for id in cb.difference(&ca) {
-        mismatches.push(format!(
-            "cluster `{id}` present in export but not in original"
-        ));
+        mismatches.push(format!("cluster `{id}` present in export but not in original"));
     }
 
     // per-cluster node id sets
-    let na: BTreeMap<&str, BTreeSet<&str>> = a
-        .clusters
-        .iter()
-        .map(|c| {
-            (
-                c.id.as_str(),
-                c.nodes.iter().map(|n| n.id.as_str()).collect(),
-            )
-        })
-        .collect();
-    let nb: BTreeMap<&str, BTreeSet<&str>> = b
-        .clusters
-        .iter()
-        .map(|c| {
-            (
-                c.id.as_str(),
-                c.nodes.iter().map(|n| n.id.as_str()).collect(),
-            )
-        })
-        .collect();
+    let na: BTreeMap<&str, BTreeSet<&str>> = a.clusters.iter().map(|c| (c.id.as_str(), c.nodes.iter().map(|n| n.id.as_str()).collect())).collect();
+    let nb: BTreeMap<&str, BTreeSet<&str>> = b.clusters.iter().map(|c| (c.id.as_str(), c.nodes.iter().map(|n| n.id.as_str()).collect())).collect();
     for (cid, nodes_a) in &na {
         if let Some(nodes_b) = nb.get(cid) {
             for n in nodes_a.difference(nodes_b) {
-                mismatches.push(format!(
-                    "cluster `{cid}`: node `{n}` in original but not export"
-                ));
+                mismatches.push(format!("cluster `{cid}`: node `{n}` in original but not export"));
             }
             for n in nodes_b.difference(nodes_a) {
-                mismatches.push(format!(
-                    "cluster `{cid}`: node `{n}` in export but not original"
-                ));
+                mismatches.push(format!("cluster `{cid}`: node `{n}` in export but not original"));
             }
         }
     }
@@ -113,16 +79,10 @@ pub fn verify_dot(
     let ea = edge_set(&a);
     let eb = edge_set(&b);
     for e in ea.difference(&eb) {
-        mismatches.push(format!(
-            "edge `{}`->`{}` {:?} in original but not export",
-            e.0, e.1, e.2
-        ));
+        mismatches.push(format!("edge `{}`->`{}` {:?} in original but not export", e.0, e.1, e.2));
     }
     for e in eb.difference(&ea) {
-        mismatches.push(format!(
-            "edge `{}`->`{}` {:?} in export but not original",
-            e.0, e.1, e.2
-        ));
+        mismatches.push(format!("edge `{}`->`{}` {:?} in export but not original", e.0, e.1, e.2));
     }
 
     if mismatches.is_empty() {
@@ -136,9 +96,7 @@ pub fn verify_dot(
 // Derived deterministically from module id hash so new crates get a stable
 // color and the original DOT palette is preserved for known crates.
 
-const PALETTE: &[&str] = &[
-    "#0055aa", "#884400", "#006600", "#aa6600", "#880088", "#aa0000", "#005555",
-];
+const PALETTE: &[&str] = &["#0055aa", "#884400", "#006600", "#aa6600", "#880088", "#aa0000", "#005555"];
 
 fn edge_color(module_id: &str) -> &'static str {
     let mut hash: usize = 5381;
@@ -183,11 +141,7 @@ pub fn export_dot(ir: &CanonicalIr, layout: &LayoutGraph) -> String {
         } else {
             let layout_module = layout_module.expect("layout module missing");
             for file in &layout_module.files {
-                out.push_str(&format!(
-                    "        {} [label=\"{}\"];\n",
-                    sanitize_node_id(&file.id),
-                    file.path
-                ));
+                out.push_str(&format!("        {} [label=\"{}\"];\n", sanitize_node_id(&file.id), file.path));
             }
 
             out.push('\n');
@@ -201,31 +155,19 @@ pub fn export_dot(ir: &CanonicalIr, layout: &LayoutGraph) -> String {
         let from_module = layout.modules.iter().find(|m| m.id == edge.source);
         let to_module = layout.modules.iter().find(|m| m.id == edge.target);
 
-        let from_node = from_module
-            .and_then(|m| lib_node(m))
-            .unwrap_or_else(|| format!("{}_lib", cluster_id_of(&edge.source)));
+        let from_node = from_module.and_then(|m| lib_node(m)).unwrap_or_else(|| format!("{}_lib", cluster_id_of(&edge.source)));
 
-        let to_node = to_module
-            .and_then(|m| entry_node(m))
-            .unwrap_or_else(|| format!("{}_lib", cluster_id_of(&edge.target)));
+        let to_node = to_module.and_then(|m| entry_node(m)).unwrap_or_else(|| format!("{}_lib", cluster_id_of(&edge.target)));
 
         let color = edge_color(&edge.source);
 
-        let label_attr = if edge.imported_types.is_empty() {
-            String::new()
-        } else {
-            format!(" label=\"{}\"", edge.imported_types.join(", "))
-        };
+        let label_attr = if edge.imported_types.is_empty() { String::new() } else { format!(" label=\"{}\"", edge.imported_types.join(", ")) };
 
         out.push_str(&format!(
             "    {} -> {} [{} color=\"{}\" ltail={} lhead={}];\n",
             sanitize_node_id(&from_node),
             sanitize_node_id(&to_node),
-            if label_attr.is_empty() {
-                String::new()
-            } else {
-                format!("{} ", label_attr.trim_start())
-            },
+            if label_attr.is_empty() { String::new() } else { format!("{} ", label_attr.trim_start()) },
             color,
             cluster_id_of(&edge.source),
             cluster_id_of(&edge.target),
@@ -254,25 +196,9 @@ fn cluster_id_of(module_id: &str) -> String {
 }
 
 fn sanitize_node_id(id: &str) -> String {
-    id.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
+    id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' }).collect()
 }
 
 fn slugify(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else {
-                '_'
-            }
-        })
-        .collect()
+    s.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' }).collect()
 }

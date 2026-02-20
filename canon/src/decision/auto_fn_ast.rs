@@ -3,17 +3,14 @@ use thiserror::Error;
 
 use crate::{
     ir::proposal::{derive_word_from_identifier, sanitize_identifier},
-    ir::{
-        CanonicalIr, Delta, DeltaKind, DeltaPayload, PipelineStage, Proposal, ProposalGoal,
-        ProposalKind, ProposalStatus, ProposedApi, ProposedNode, ProposedNodeKind,
-    },
+    ir::{CanonicalIr, Delta, DeltaKind, DeltaPayload, PipelineStage, Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedNode, ProposedNodeKind},
     layout::LayoutGraph,
 };
 
 use super::{
-    DSL_PREDICATE_ID, DSL_PROOF_ID, DSL_TICK_ID,
-    accept::{AcceptProposalError, ProposalAcceptance, ProposalAcceptanceInput, accept_proposal},
+    accept::{accept_proposal, AcceptProposalError, ProposalAcceptance, ProposalAcceptanceInput},
     bootstrap::{ensure_dsl_predicate, ensure_dsl_proof, ensure_dsl_tick},
+    DSL_PREDICATE_ID, DSL_PROOF_ID, DSL_TICK_ID,
 };
 
 #[derive(Debug, Error)]
@@ -28,17 +25,10 @@ pub enum AutoAcceptFnAstError {
 
 /// Wrap an AST update for `function_id` in a full proposal+delta pipeline
 /// and auto-accept it, returning the evolved IR with the new function body.
-pub fn auto_accept_fn_ast(
-    ir: &CanonicalIr,
-    layout: &LayoutGraph,
-    function_id: &str,
-    ast: JsonValue,
-) -> Result<ProposalAcceptance, AutoAcceptFnAstError> {
+pub fn auto_accept_fn_ast(ir: &CanonicalIr, layout: &LayoutGraph, function_id: &str, ast: JsonValue) -> Result<ProposalAcceptance, AutoAcceptFnAstError> {
     // ensure the function exists before building the proposal
     if !ir.functions.iter().any(|f| f.id == function_id) {
-        return Err(AutoAcceptFnAstError::UnknownFunction(
-            function_id.to_string(),
-        ));
+        return Err(AutoAcceptFnAstError::UnknownFunction(function_id.to_string()));
     }
 
     let fn_slug = sanitize_identifier(function_id);
@@ -56,10 +46,7 @@ pub fn auto_accept_fn_ast(
         proof: DSL_PROOF_ID.to_string(),
         description: format!("Update AST body for function `{function_id}`."),
         related_function: Some(function_id.to_string()),
-        payload: Some(DeltaPayload::UpdateFunctionAst {
-            function_id: function_id.to_string(),
-            ast,
-        }),
+        payload: Some(DeltaPayload::UpdateFunctionAst { function_id: function_id.to_string(), ast }),
         proof_object_hash: None,
     };
 
@@ -69,34 +56,17 @@ pub fn auto_accept_fn_ast(
     ensure_dsl_tick(&mut working).map_err(|_| AutoAcceptFnAstError::MissingTickGraph)?;
 
     // build a minimal structural proposal so accept_proposal is satisfied
-    let fn_word = derive_word_from_identifier(function_id)
-        .map_err(|e| AutoAcceptFnAstError::Accept(AcceptProposalError::Resolution(e)))?;
-    let module_id = working
-        .functions
-        .iter()
-        .find(|f| f.id == function_id)
-        .map(|f| f.module.clone())
-        .unwrap_or_default();
+    let fn_word = derive_word_from_identifier(function_id).map_err(|e| AutoAcceptFnAstError::Accept(AcceptProposalError::Resolution(e)))?;
+    let module_id = working.functions.iter().find(|f| f.id == function_id).map(|f| f.module.clone()).unwrap_or_default();
     let trait_id = format!("trait.fn_ast.{fn_slug}");
     let trait_fn_id = format!("trait_fn.fn_ast.{fn_slug}");
 
     working.proposals.push(Proposal {
         id: proposal_id.clone(),
         kind: ProposalKind::FunctionBody,
-        goal: ProposalGoal {
-            id: fn_word.clone(),
-            description: format!("AST update for function `{function_id}`."),
-        },
-        nodes: vec![ProposedNode {
-            id: Some(trait_id.clone()),
-            name: fn_word,
-            module: Some(module_id),
-            kind: ProposedNodeKind::Trait,
-        }],
-        apis: vec![ProposedApi {
-            trait_id: trait_id.clone(),
-            functions: vec![trait_fn_id],
-        }],
+        goal: ProposalGoal { id: fn_word.clone(), description: format!("AST update for function `{function_id}`.") },
+        nodes: vec![ProposedNode { id: Some(trait_id.clone()), name: fn_word, module: Some(module_id), kind: ProposedNodeKind::Trait }],
+        apis: vec![ProposedApi { trait_id: trait_id.clone(), functions: vec![trait_fn_id] }],
         edges: vec![],
         status: ProposalStatus::Submitted,
     });
@@ -120,18 +90,8 @@ pub fn auto_accept_fn_ast(
 
     // patch the ast directly — accept_proposal only runs its own emitted deltas,
     // not our pre-injected one, so we apply it manually here
-    if let Some(function) = acceptance
-        .ir
-        .functions
-        .iter_mut()
-        .find(|f| f.id == function_id)
-    {
-        if let Some(DeltaPayload::UpdateFunctionAst { ast, .. }) = working
-            .deltas
-            .iter()
-            .find(|d| d.id == delta_id)
-            .and_then(|d| d.payload.as_ref())
-        {
+    if let Some(function) = acceptance.ir.functions.iter_mut().find(|f| f.id == function_id) {
+        if let Some(DeltaPayload::UpdateFunctionAst { ast, .. }) = working.deltas.iter().find(|d| d.id == delta_id).and_then(|d| d.payload.as_ref()) {
             function.metadata.ast = Some(ast.clone());
         }
     }

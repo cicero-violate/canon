@@ -25,11 +25,7 @@ pub struct MaterializeResult {
     pub file_hashes: HashMap<String, String>,
 }
 
-pub fn materialize(
-    ir: &CanonicalIr,
-    layout: &LayoutGraph,
-    existing_root: Option<&Path>,
-) -> MaterializeResult {
+pub fn materialize(ir: &CanonicalIr, layout: &LayoutGraph, existing_root: Option<&Path>) -> MaterializeResult {
     let mut tree = FileTree::new();
     tree.add_directory("src");
     let mut next_hashes = HashMap::new();
@@ -37,11 +33,9 @@ pub fn materialize(
     let mut modules: Vec<_> = ir.modules.iter().collect();
     modules.sort_by_key(|m| m.name.as_str());
 
-    let struct_map: HashMap<&str, &Struct> =
-        ir.structs.iter().map(|s| (s.id.as_str(), s)).collect();
+    let struct_map: HashMap<&str, &Struct> = ir.structs.iter().map(|s| (s.id.as_str(), s)).collect();
     let trait_map: HashMap<&str, &Trait> = ir.traits.iter().map(|t| (t.id.as_str(), t)).collect();
-    let function_map: HashMap<&str, &Function> =
-        ir.functions.iter().map(|f| (f.id.as_str(), f)).collect();
+    let function_map: HashMap<&str, &Function> = ir.functions.iter().map(|f| (f.id.as_str(), f)).collect();
 
     let mut lib_rs = String::from("// Derived from Canonical IR. Do not edit.\n\n");
 
@@ -52,22 +46,8 @@ pub fn materialize(
 
         let layout_module = layout.modules.iter().find(|m| m.id == module.id);
         if layout_module.map(|m| m.files.is_empty()).unwrap_or(true) {
-            let contents = render_module::render_module(
-                module,
-                layout,
-                ir,
-                &struct_map,
-                &trait_map,
-                &function_map,
-            );
-            finalize_file(
-                &mut tree,
-                &mut next_hashes,
-                &ir.file_hashes,
-                &format!("{module_dir}/mod.rs"),
-                contents,
-                existing_root,
-            );
+            let contents = render_module::render_module(module, layout, ir, &struct_map, &trait_map, &function_map);
+            finalize_file(&mut tree, &mut next_hashes, &ir.file_hashes, &format!("{module_dir}/mod.rs"), contents, existing_root);
         } else {
             let layout_module = layout_module.expect("layout module missing");
             let ordered = render_module::topo_sort_layout_files(&layout_module.files);
@@ -76,12 +56,7 @@ pub fn materialize(
 
             let mut mod_sections = vec!["// Derived from Canonical IR. Do not edit.".to_owned()];
             if !module.attributes.is_empty() {
-                let attrs = module
-                    .attributes
-                    .iter()
-                    .map(|attr| format!("#![{}]", attr))
-                    .collect::<Vec<_>>()
-                    .join("\n");
+                let attrs = module.attributes.iter().map(|attr| format!("#![{}]", attr)).collect::<Vec<_>>().join("\n");
                 mod_sections.push(attrs);
             }
             if let Some(items) = render_module::render_module_items_block(module) {
@@ -117,14 +92,7 @@ pub fn materialize(
                 mod_sections.push(submods.join("\n"));
             }
             let mod_rs = mod_sections.join("\n\n") + "\n";
-            finalize_file(
-                &mut tree,
-                &mut next_hashes,
-                &ir.file_hashes,
-                &format!("{module_dir}/mod.rs"),
-                mod_rs,
-                existing_root,
-            );
+            finalize_file(&mut tree, &mut next_hashes, &ir.file_hashes, &format!("{module_dir}/mod.rs"), mod_rs, existing_root);
 
             let empty_use: Vec<String> = Vec::new();
             for (idx, file_node) in ordered.iter().enumerate() {
@@ -133,52 +101,21 @@ pub fn materialize(
                 let parts: Vec<&str> = path.split('/').collect();
 
                 let use_block: &[String] = if idx == 0 { &use_lines } else { &empty_use };
-                let contents = render_file(
-                    file_node,
-                    module,
-                    ir,
-                    layout,
-                    &struct_map,
-                    &trait_map,
-                    &function_map,
-                    use_block,
-                );
+                let contents = render_file(file_node, module, ir, layout, &struct_map, &trait_map, &function_map, use_block);
 
                 if parts.len() == 1 {
                     if stem == "lib" || stem == "mod" {
                         continue;
                     }
-                    let file = if parts[0].ends_with(".rs") {
-                        parts[0].to_string()
-                    } else {
-                        format!("{}.rs", parts[0])
-                    };
-                    finalize_file(
-                        &mut tree,
-                        &mut next_hashes,
-                        &ir.file_hashes,
-                        &format!("{module_dir}/{file}"),
-                        contents,
-                        existing_root,
-                    );
+                    let file = if parts[0].ends_with(".rs") { parts[0].to_string() } else { format!("{}.rs", parts[0]) };
+                    finalize_file(&mut tree, &mut next_hashes, &ir.file_hashes, &format!("{module_dir}/{file}"), contents, existing_root);
                 } else {
                     let dir = parts[0];
-                    let file = if parts[1].ends_with(".rs") {
-                        parts[1].to_string()
-                    } else {
-                        format!("{}.rs", parts[1])
-                    };
+                    let file = if parts[1].ends_with(".rs") { parts[1].to_string() } else { format!("{}.rs", parts[1]) };
 
                     tree.add_directory(format!("{module_dir}/{dir}"));
 
-                    finalize_file(
-                        &mut tree,
-                        &mut next_hashes,
-                        &ir.file_hashes,
-                        &format!("{module_dir}/{dir}/{file}"),
-                        contents,
-                        existing_root,
-                    );
+                    finalize_file(&mut tree, &mut next_hashes, &ir.file_hashes, &format!("{module_dir}/{dir}/{file}"), contents, existing_root);
                 }
             }
 
@@ -186,8 +123,7 @@ pub fn materialize(
             for (dir, children) in dir_children {
                 let nested_mod_path = format!("{module_dir}/{dir}/mod.rs");
 
-                let mut nested_lines =
-                    vec!["// Derived from Canonical IR. Do not edit.".to_owned()];
+                let mut nested_lines = vec!["// Derived from Canonical IR. Do not edit.".to_owned()];
 
                 for child in children {
                     if child != "mod" {
@@ -197,56 +133,22 @@ pub fn materialize(
 
                 let nested_contents = nested_lines.join("\n") + "\n";
 
-                finalize_file(
-                    &mut tree,
-                    &mut next_hashes,
-                    &ir.file_hashes,
-                    &nested_mod_path,
-                    nested_contents,
-                    existing_root,
-                );
+                finalize_file(&mut tree, &mut next_hashes, &ir.file_hashes, &nested_mod_path, nested_contents, existing_root);
             }
         }
     }
 
-    finalize_file(
-        &mut tree,
-        &mut next_hashes,
-        &ir.file_hashes,
-        "src/lib.rs",
-        lib_rs,
-        existing_root,
-    );
+    finalize_file(&mut tree, &mut next_hashes, &ir.file_hashes, "src/lib.rs", lib_rs, existing_root);
     let cargo = render_cargo::render_cargo_toml(&ir.project, &ir.dependencies);
-    finalize_file(
-        &mut tree,
-        &mut next_hashes,
-        &ir.file_hashes,
-        "Cargo.toml",
-        cargo,
-        existing_root,
-    );
-    MaterializeResult {
-        tree,
-        file_hashes: next_hashes,
-    }
+    finalize_file(&mut tree, &mut next_hashes, &ir.file_hashes, "Cargo.toml", cargo, existing_root);
+    MaterializeResult { tree, file_hashes: next_hashes }
 }
 
-fn finalize_file(
-    tree: &mut FileTree,
-    next_hashes: &mut HashMap<String, String>,
-    previous_hashes: &HashMap<String, String>,
-    path: &str,
-    rendered: String,
-    existing_root: Option<&Path>,
-) {
+fn finalize_file(tree: &mut FileTree, next_hashes: &mut HashMap<String, String>, previous_hashes: &HashMap<String, String>, path: &str, rendered: String, existing_root: Option<&Path>) {
     let content = apply_preserve_regions(existing_root, path, rendered);
     let hash = hash_contents(&content);
     next_hashes.insert(path.to_owned(), hash.clone());
-    let unchanged = previous_hashes
-        .get(path)
-        .map(|prev| prev == &hash)
-        .unwrap_or(false);
+    let unchanged = previous_hashes.get(path).map(|prev| prev == &hash).unwrap_or(false);
     if unchanged {
         return;
     }
@@ -259,11 +161,7 @@ fn hash_contents(content: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn apply_preserve_regions(
-    existing_root: Option<&Path>,
-    relative_path: &str,
-    rendered: String,
-) -> String {
+fn apply_preserve_regions(existing_root: Option<&Path>, relative_path: &str, rendered: String) -> String {
     let Some(root) = existing_root else {
         return rendered;
     };
@@ -351,15 +249,9 @@ fn split_lines_with_endings(content: &str) -> Vec<String> {
     if content.is_empty() {
         return Vec::new();
     }
-    let mut lines: Vec<String> = content
-        .split_inclusive('\n')
-        .map(|line| line.to_string())
-        .collect();
+    let mut lines: Vec<String> = content.split_inclusive('\n').map(|line| line.to_string()).collect();
     if !content.ends_with('\n') {
-        let remainder = content
-            .rsplit_once('\n')
-            .map(|(_, trailing)| trailing)
-            .unwrap_or(content);
+        let remainder = content.rsplit_once('\n').map(|(_, trailing)| trailing).unwrap_or(content);
         if remainder != lines.last().map(|s| s.as_str()).unwrap_or("") {
             lines.push(remainder.to_string());
         }
@@ -377,9 +269,7 @@ fn parse_preserve_end(line: &str) -> Option<String> {
 
 fn parse_preserve_marker(line: &str, marker: &str) -> Option<String> {
     let trimmed = line.trim();
-    trimmed
-        .strip_prefix(marker)
-        .map(|rest| rest.trim().to_string())
+    trimmed.strip_prefix(marker).map(|rest| rest.trim().to_string())
 }
 
 pub fn write_file_tree(tree: &FileTree, root: impl AsRef<Path>) -> std::io::Result<()> {

@@ -23,16 +23,10 @@ pub(crate) fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, 
     let src_root = resolve_src_root(root)?;
 
     eprintln!("INGEST DEBUG: final src_root = {}", src_root.display());
-    eprintln!(
-        "INGEST DEBUG: final src_root.is_dir() = {}",
-        src_root.is_dir()
-    );
+    eprintln!("INGEST DEBUG: final src_root.is_dir() = {}", src_root.is_dir());
 
     let mut files = Vec::new();
-    for entry in WalkDir::new(&src_root)
-        .into_iter()
-        .filter_entry(|e| !is_ignored(e.path()))
-    {
+    for entry in WalkDir::new(&src_root).into_iter().filter_entry(|e| !is_ignored(e.path())) {
         let entry = entry.map_err(map_walkdir_error)?;
         let path = entry.path();
         if !path.is_file() {
@@ -41,15 +35,8 @@ pub(crate) fn discover_source_files(root: &Path) -> Result<Vec<DiscoveredFile>, 
         if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
             continue;
         }
-        let relative = path
-            .strip_prefix(root)
-            .or_else(|_| path.strip_prefix(&src_root))
-            .unwrap_or(path)
-            .to_path_buf();
-        files.push(DiscoveredFile {
-            absolute: path.to_path_buf(),
-            relative,
-        });
+        let relative = path.strip_prefix(root).or_else(|_| path.strip_prefix(&src_root)).unwrap_or(path).to_path_buf();
+        files.push(DiscoveredFile { absolute: path.to_path_buf(), relative });
     }
     // Allow empty src directories (needed for materialize → ingest roundtrip tests)
     if files.is_empty() {
@@ -72,12 +59,7 @@ fn is_ignored(path: &Path) -> bool {
 }
 
 fn resolve_src_root(root: &Path) -> Result<PathBuf, IngestError> {
-    if root
-        .file_name()
-        .and_then(|name| name.to_str())
-        .map(|name| name == "src")
-        .unwrap_or(false)
-    {
+    if root.file_name().and_then(|name| name.to_str()).map(|name| name == "src").unwrap_or(false) {
         return Ok(root.to_path_buf());
     }
 

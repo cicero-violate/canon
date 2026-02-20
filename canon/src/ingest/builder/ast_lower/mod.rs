@@ -8,7 +8,7 @@ mod expr;
 mod pat;
 mod util;
 
-use serde_json::{Value as JsonValue, json};
+use serde_json::{json, Value as JsonValue};
 
 pub(crate) use expr::lower_expr;
 

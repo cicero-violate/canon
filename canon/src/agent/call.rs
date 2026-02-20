@@ -52,11 +52,7 @@ pub enum AgentCallError {
     /// A predecessor node's output was missing when required.
     MissingPredecessorOutput(String),
     /// Proof confidence on an incoming edge was below the required threshold.
-    InsufficientTrust {
-        node_id: String,
-        score: f64,
-        required: f64,
-    },
+    InsufficientTrust { node_id: String, score: f64, required: f64 },
 }
 
 impl std::fmt::Display for AgentCallError {
@@ -68,15 +64,8 @@ impl std::fmt::Display for AgentCallError {
             AgentCallError::MissingPredecessorOutput(id) => {
                 write!(f, "missing predecessor output from node: {id}")
             }
-            AgentCallError::InsufficientTrust {
-                node_id,
-                score,
-                required,
-            } => {
-                write!(
-                    f,
-                    "insufficient trust on node {node_id}: score={score:.3} required={required:.3}"
-                )
+            AgentCallError::InsufficientTrust { node_id, score, required } => {
+                write!(f, "insufficient trust on node {node_id}: score={score:.3} required={required:.3}")
             }
         }
     }

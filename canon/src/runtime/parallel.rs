@@ -27,10 +27,7 @@ pub struct ParallelJobResult {
 }
 
 /// Partition a topologically sorted order into batches where nodes share no dependencies.
-pub fn partition_independent_batches(
-    order: &[FunctionId],
-    dependencies: &HashMap<FunctionId, Vec<FunctionId>>,
-) -> Vec<Vec<FunctionId>> {
+pub fn partition_independent_batches(order: &[FunctionId], dependencies: &HashMap<FunctionId, Vec<FunctionId>>) -> Vec<Vec<FunctionId>> {
     let mut batches = Vec::new();
     let mut current = Vec::new();
     let mut blockers: HashSet<FunctionId> = HashSet::new();
@@ -59,15 +56,8 @@ pub fn partition_independent_batches(
 }
 
 /// Execute a batch of jobs in parallel using rayon and collect results via channel.
-pub fn execute_jobs<F>(
-    jobs: Vec<ParallelJob>,
-    worker: &F,
-) -> Result<Vec<ParallelJobResult>, ExecutorError>
-where
-    F: Sync
-        + Send
-        + Fn(&FunctionId, BTreeMap<String, Value>) -> Result<ParallelJobResult, ExecutorError>,
-{
+pub fn execute_jobs<F>(jobs: Vec<ParallelJob>, worker: &F) -> Result<Vec<ParallelJobResult>, ExecutorError>
+where F: Sync + Send + Fn(&FunctionId, BTreeMap<String, Value>) -> Result<ParallelJobResult, ExecutorError> {
     let (tx, rx) = mpsc::channel();
     scope(|scope| {
         for job in jobs {

@@ -1,35 +1,21 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{
-    ir::proposal::{
-        ModuleSpec, ResolvedProposalNodes, StructSpec, TraitSpec, derive_word_from_identifier,
-        sanitize_identifier,
-    },
-    ir::{
-        Delta, DeltaId, DeltaKind, DeltaPayload, FunctionSignature, PipelineStage, Proposal,
-        ProposedEdge, TraitFunction, TypeKind, TypeRef, ValuePort, Visibility, Word,
-    },
+    ir::proposal::{derive_word_from_identifier, sanitize_identifier, ModuleSpec, ResolvedProposalNodes, StructSpec, TraitSpec},
+    ir::{Delta, DeltaId, DeltaKind, DeltaPayload, FunctionSignature, PipelineStage, Proposal, ProposedEdge, TraitFunction, TypeKind, TypeRef, ValuePort, Visibility, Word},
 };
 
 use super::{AcceptProposalError, ProposalAcceptanceInput};
 
 pub(super) fn emit_deltas(
-    input: &ProposalAcceptanceInput,
-    proposal: &Proposal,
-    resolved: &ResolvedProposalNodes,
-    trait_function_map: &BTreeMap<String, Vec<TraitFunction>>,
-    known_delta_ids: &mut HashSet<String>,
+    input: &ProposalAcceptanceInput, proposal: &Proposal, resolved: &ResolvedProposalNodes, trait_function_map: &BTreeMap<String, Vec<TraitFunction>>, known_delta_ids: &mut HashSet<String>,
 ) -> Result<(Vec<Delta>, Vec<DeltaId>), AcceptProposalError> {
     let mut deltas = Vec::new();
     let mut delta_ids = Vec::new();
 
     for module in sorted_modules(&resolved.modules) {
-        let payload = DeltaPayload::AddModule {
-            module_id: module.id.clone(),
-            name: module.name.clone(),
-            visibility: Visibility::Public,
-            description: format!("Accepted via proposal `{}`.", proposal.id),
-        };
+        let payload =
+            DeltaPayload::AddModule { module_id: module.id.clone(), name: module.name.clone(), visibility: Visibility::Public, description: format!("Accepted via proposal `{}`.", proposal.id) };
         let identifier = delta_identifier(&proposal.id, "module", &module.id);
         let delta = build_delta(&identifier, input, &payload, None, &module.id)?;
         register_delta(known_delta_ids, &delta)?;
@@ -38,11 +24,7 @@ pub(super) fn emit_deltas(
     }
 
     for structure in sorted_structs(&resolved.structs) {
-        let payload = DeltaPayload::AddStruct {
-            module: structure.module.clone(),
-            struct_id: structure.id.clone(),
-            name: structure.name.clone(),
-        };
+        let payload = DeltaPayload::AddStruct { module: structure.module.clone(), struct_id: structure.id.clone(), name: structure.name.clone() };
         let identifier = delta_identifier(&proposal.id, "struct", &structure.id);
         let delta = build_delta(&identifier, input, &payload, None, &structure.id)?;
         register_delta(known_delta_ids, &delta)?;
@@ -51,11 +33,7 @@ pub(super) fn emit_deltas(
     }
 
     for trait_spec in sorted_traits(&resolved.traits) {
-        let payload = DeltaPayload::AddTrait {
-            module: trait_spec.module.clone(),
-            trait_id: trait_spec.id.clone(),
-            name: trait_spec.name.clone(),
-        };
+        let payload = DeltaPayload::AddTrait { module: trait_spec.module.clone(), trait_id: trait_spec.id.clone(), name: trait_spec.name.clone() };
         let identifier = delta_identifier(&proposal.id, "trait", &trait_spec.id);
         let delta = build_delta(&identifier, input, &payload, None, &trait_spec.id)?;
         register_delta(known_delta_ids, &delta)?;
@@ -65,10 +43,7 @@ pub(super) fn emit_deltas(
 
     for (trait_id, functions) in trait_function_map {
         for function in functions {
-            let payload = DeltaPayload::AddTraitFunction {
-                trait_id: trait_id.clone(),
-                function: function.clone(),
-            };
+            let payload = DeltaPayload::AddTraitFunction { trait_id: trait_id.clone(), function: function.clone() };
             let identifier = delta_identifier(&proposal.id, "trait_fn", &function.id);
             let delta = build_delta(&identifier, input, &payload, None, &function.id)?;
             register_delta(known_delta_ids, &delta)?;
@@ -78,11 +53,7 @@ pub(super) fn emit_deltas(
     }
 
     let trait_targets: Vec<_> = trait_function_map.keys().cloned().collect();
-    let trait_modules: HashMap<String, String> = resolved
-        .traits
-        .iter()
-        .map(|spec| (spec.id.clone(), spec.module.clone()))
-        .collect();
+    let trait_modules: HashMap<String, String> = resolved.traits.iter().map(|spec| (spec.id.clone(), spec.module.clone())).collect();
     for structure in sorted_structs(&resolved.structs) {
         for trait_id in trait_targets.iter() {
             if let Some(module) = trait_modules.get(trait_id) {
@@ -90,17 +61,8 @@ pub(super) fn emit_deltas(
                     continue;
                 }
             }
-            let impl_id = format!(
-                "impl.{}.{}",
-                sanitize_identifier(&structure.id),
-                sanitize_identifier(trait_id),
-            );
-            let payload = DeltaPayload::AddImpl {
-                module: structure.module.clone(),
-                impl_id: impl_id.clone(),
-                struct_id: structure.id.clone(),
-                trait_id: trait_id.clone(),
-            };
+            let impl_id = format!("impl.{}.{}", sanitize_identifier(&structure.id), sanitize_identifier(trait_id),);
+            let payload = DeltaPayload::AddImpl { module: structure.module.clone(), impl_id: impl_id.clone(), struct_id: structure.id.clone(), trait_id: trait_id.clone() };
             let identifier = delta_identifier(&proposal.id, "impl", &impl_id);
             let delta = build_delta(&identifier, input, &payload, None, &impl_id)?;
             register_delta(known_delta_ids, &delta)?;
@@ -110,24 +72,10 @@ pub(super) fn emit_deltas(
             if let Some(functions) = trait_function_map.get(trait_id) {
                 for function in functions {
                     let signature = build_function_signature(function, &structure.name)?;
-                    let function_id = format!(
-                        "fn.{}.{}",
-                        sanitize_identifier(&impl_id),
-                        sanitize_identifier(&function.id),
-                    );
-                    let payload = DeltaPayload::AddFunction {
-                        function_id: function_id.clone(),
-                        impl_id: impl_id.clone(),
-                        signature,
-                    };
+                    let function_id = format!("fn.{}.{}", sanitize_identifier(&impl_id), sanitize_identifier(&function.id),);
+                    let payload = DeltaPayload::AddFunction { function_id: function_id.clone(), impl_id: impl_id.clone(), signature };
                     let identifier = delta_identifier(&proposal.id, "fn", &function_id);
-                    let delta = build_delta(
-                        &identifier,
-                        input,
-                        &payload,
-                        Some(function_id.clone()),
-                        &function_id,
-                    )?;
+                    let delta = build_delta(&identifier, input, &payload, Some(function_id.clone()), &function_id)?;
                     register_delta(known_delta_ids, &delta)?;
                     delta_ids.push(delta.id.clone());
                     deltas.push(delta);
@@ -137,11 +85,7 @@ pub(super) fn emit_deltas(
     }
 
     for edge in sorted_edges(&proposal.edges) {
-        let payload = DeltaPayload::AddModuleEdge {
-            from: edge.from.clone(),
-            to: edge.to.clone(),
-            rationale: edge.rationale.clone(),
-        };
+        let payload = DeltaPayload::AddModuleEdge { from: edge.from.clone(), to: edge.to.clone(), rationale: edge.rationale.clone() };
         let artifact = format!("{}->{}", edge.from, edge.to);
         let identifier = delta_identifier(&proposal.id, "module_edge", &artifact);
         let delta = build_delta(&identifier, input, &payload, None, &artifact)?;
@@ -153,27 +97,17 @@ pub(super) fn emit_deltas(
     Ok((deltas, delta_ids))
 }
 
-pub(super) fn build_trait_function_map(
-    proposal: &Proposal,
-) -> Result<BTreeMap<String, Vec<TraitFunction>>, AcceptProposalError> {
+pub(super) fn build_trait_function_map(proposal: &Proposal) -> Result<BTreeMap<String, Vec<TraitFunction>>, AcceptProposalError> {
     let mut map: BTreeMap<String, Vec<TraitFunction>> = BTreeMap::new();
     for api in &proposal.apis {
         if api.functions.is_empty() {
-            return Err(AcceptProposalError::EmptyApi {
-                trait_id: api.trait_id.clone(),
-            });
+            return Err(AcceptProposalError::EmptyApi { trait_id: api.trait_id.clone() });
         }
         let entry = map.entry(api.trait_id.clone()).or_default();
         for fn_id in &api.functions {
             let name = derive_word_from_identifier(fn_id)?;
             let output = default_trait_output(&name)?;
-            entry.push(TraitFunction {
-                id: fn_id.clone(),
-                name: name.clone(),
-                inputs: vec![],
-                outputs: vec![output],
-                default_body: None,
-            });
+            entry.push(TraitFunction { id: fn_id.clone(), name: name.clone(), inputs: vec![], outputs: vec![output], default_body: None });
         }
     }
     for functions in map.values_mut() {
@@ -184,49 +118,26 @@ pub(super) fn build_trait_function_map(
 }
 
 fn default_trait_output(name: &Word) -> Result<ValuePort, AcceptProposalError> {
-    let output_name =
-        Word::new(format!("{}Output", name.as_str())).map_err(AcceptProposalError::Word)?;
-    let ty_name =
-        Word::new(format!("{}Result", name.as_str())).map_err(AcceptProposalError::Word)?;
-    Ok(ValuePort {
-        name: output_name,
-        ty: TypeRef {
-            name: ty_name,
-            kind: TypeKind::External,
-            params: vec![],
-            ref_kind: crate::ir::RefKind::None,
-            lifetime: None,
-        },
-    })
+    let output_name = Word::new(format!("{}Output", name.as_str())).map_err(AcceptProposalError::Word)?;
+    let ty_name = Word::new(format!("{}Result", name.as_str())).map_err(AcceptProposalError::Word)?;
+    Ok(ValuePort { name: output_name, ty: TypeRef { name: ty_name, kind: TypeKind::External, params: vec![], ref_kind: crate::ir::RefKind::None, lifetime: None } })
 }
 
-fn build_delta(
-    identifier: &str,
-    input: &ProposalAcceptanceInput,
-    payload: &DeltaPayload,
-    related_function: Option<String>,
-    artifact_label: &str,
-) -> Result<Delta, AcceptProposalError> {
+fn build_delta(identifier: &str, input: &ProposalAcceptanceInput, payload: &DeltaPayload, related_function: Option<String>, artifact_label: &str) -> Result<Delta, AcceptProposalError> {
     Ok(Delta {
         id: identifier.to_owned(),
         kind: DeltaKind::Structure,
         stage: PipelineStage::Decide,
         append_only: true,
         proof: input.proof_id.clone(),
-        description: format!(
-            "Proposal `{}` impacts `{}`.",
-            input.proposal_id, artifact_label
-        ),
+        description: format!("Proposal `{}` impacts `{}`.", input.proposal_id, artifact_label),
         related_function,
         payload: Some(payload.clone()),
         proof_object_hash: None,
     })
 }
 
-fn register_delta(
-    known_ids: &mut HashSet<String>,
-    delta: &Delta,
-) -> Result<(), AcceptProposalError> {
+fn register_delta(known_ids: &mut HashSet<String>, delta: &Delta) -> Result<(), AcceptProposalError> {
     if known_ids.insert(delta.id.clone()) {
         Ok(())
     } else {
@@ -235,18 +146,10 @@ fn register_delta(
 }
 
 fn delta_identifier(proposal_id: &str, kind: &str, artifact: &str) -> String {
-    format!(
-        "delta.{}.{}.{}",
-        sanitize_identifier(proposal_id),
-        kind,
-        sanitize_identifier(artifact)
-    )
+    format!("delta.{}.{}.{}", sanitize_identifier(proposal_id), kind, sanitize_identifier(artifact))
 }
 
-fn build_function_signature(
-    trait_function: &TraitFunction,
-    struct_name: &Word,
-) -> Result<FunctionSignature, AcceptProposalError> {
+fn build_function_signature(trait_function: &TraitFunction, struct_name: &Word) -> Result<FunctionSignature, AcceptProposalError> {
     let signature_name = format!("{}{}", trait_function.name, struct_name);
     let name = Word::new(signature_name)?;
     Ok(FunctionSignature {

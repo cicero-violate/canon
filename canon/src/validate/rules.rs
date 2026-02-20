@@ -80,31 +80,23 @@ impl CanonRule {
 
     pub fn text(self) -> &'static str {
         match self {
-            CanonRule::ExplicitArtifacts => {
-                "All referenced artifacts must exist and remain unique."
-            }
+            CanonRule::ExplicitArtifacts => "All referenced artifacts must exist and remain unique.",
             CanonRule::ModuleDag => "Modules must form a strict acyclic DAG.",
             CanonRule::ModuleSelfImport => "Modules may not import themselves.",
             CanonRule::ImplBinding => "Impl blocks must bind nouns to verbs lawfully.",
             CanonRule::ExecutionOnlyInImpl => "Execution may only occur inside impl blocks.",
-            CanonRule::FunctionContracts => {
-                "Functions must be total with explicit IO and delta effects."
-            }
+            CanonRule::FunctionContracts => "Functions must be total with explicit IO and delta effects.",
             CanonRule::EffectsAreDeltas => "All effects must surface as declared deltas.",
             CanonRule::DeltaProofs => "Every delta must carry an attached proof obligation.",
             CanonRule::DeltaAppendOnly => "Deltas must be append-only artifacts.",
             CanonRule::CallGraphPublicApis => "Call edges may target public APIs only.",
-            CanonRule::CallGraphRespectsDag => {
-                "Call graphs must respect module import permissions."
-            }
+            CanonRule::CallGraphRespectsDag => "Call graphs must respect module import permissions.",
             CanonRule::CallGraphAcyclic => "No recursion or cycles are allowed in execution.",
             CanonRule::TickGraphAcyclic => "Each tick graph must be acyclic.",
             CanonRule::TickGraphEdgesDeclared => "Tick graphs must align with the call graph.",
             CanonRule::LoopContinuationJudgment => "Loop continuation is a judgment decision.",
             CanonRule::GpuLawfulMath => "GPU kernels may contain lawful math only.",
-            CanonRule::ProposalDeclarative => {
-                "Proposals must enumerate goals, nodes, APIs, and edges."
-            }
+            CanonRule::ProposalDeclarative => "Proposals must enumerate goals, nodes, APIs, and edges.",
             CanonRule::JudgmentDecisions => "Judgment references must be explicit and structural.",
             CanonRule::LearningDeclarations => "Learning proposals must be explicit artifacts.",
             CanonRule::TraitVerbs => "Traits declare verbs/capabilities in a unique namespace.",
@@ -116,27 +108,13 @@ impl CanonRule {
             CanonRule::VersionEvolution => "Version upgrades require explicit law-scoped proofs.",
             CanonRule::TickEpochs => "Ticks must belong to an acyclic epoch hierarchy.",
             CanonRule::PlanArtifacts => "Plans must reference accepted judgments and lawful steps.",
-            CanonRule::ExecutionBoundary => {
-                "Execution results must reference known plans, ticks, and deltas."
-            }
-            CanonRule::AdmissionBridge => {
-                "Admissions bridge judgments to applied deltas deterministically."
-            }
-            CanonRule::FunctionAst => {
-                "UpdateFunctionAst delta must reference an existing function."
-            }
-            CanonRule::RewardMonotonicity => {
-                "Reward must not decrease by more than the declared slack across consecutive ticks."
-            }
-            CanonRule::RewardCollapseDetected => {
-                "Reward collapse beyond epsilon is not permitted across epochs."
-            }
-            CanonRule::GoalMutationRequiresJudgment => {
-                "Accepted goal mutations must reference a judgment."
-            }
-            CanonRule::GoalMutationInvariantMissing => {
-                "Goal mutations must cite existing invariant proofs."
-            }
+            CanonRule::ExecutionBoundary => "Execution results must reference known plans, ticks, and deltas.",
+            CanonRule::AdmissionBridge => "Admissions bridge judgments to applied deltas deterministically.",
+            CanonRule::FunctionAst => "UpdateFunctionAst delta must reference an existing function.",
+            CanonRule::RewardMonotonicity => "Reward must not decrease by more than the declared slack across consecutive ticks.",
+            CanonRule::RewardCollapseDetected => "Reward collapse beyond epsilon is not permitted across epochs.",
+            CanonRule::GoalMutationRequiresJudgment => "Accepted goal mutations must reference a judgment.",
+            CanonRule::GoalMutationInvariantMissing => "Goal mutations must cite existing invariant proofs.",
         }
     }
 }

@@ -111,26 +111,17 @@ impl CapabilityGraph {
 
     /// Returns all nodes that feed into `id` (predecessors).
     pub fn predecessors(&self, id: &str) -> Vec<&CapabilityNode> {
-        self.edges
-            .iter()
-            .filter(|e| e.to == id)
-            .filter_map(|e| self.node(&e.from))
-            .collect()
+        self.edges.iter().filter(|e| e.to == id).filter_map(|e| self.node(&e.from)).collect()
     }
 
     /// Returns all nodes that `id` feeds into (successors).
     pub fn successors(&self, id: &str) -> Vec<&CapabilityNode> {
-        self.edges
-            .iter()
-            .filter(|e| e.from == id)
-            .filter_map(|e| self.node(&e.to))
-            .collect()
+        self.edges.iter().filter(|e| e.from == id).filter_map(|e| self.node(&e.to)).collect()
     }
 
     /// Validates that every edge references existing node ids.
     pub fn validate_edges(&self) -> Vec<String> {
-        let ids: std::collections::HashSet<&str> =
-            self.nodes.iter().map(|n| n.id.as_str()).collect();
+        let ids: std::collections::HashSet<&str> = self.nodes.iter().map(|n| n.id.as_str()).collect();
         let mut violations = Vec::new();
         for edge in &self.edges {
             if !ids.contains(edge.from.as_str()) {
@@ -148,8 +139,7 @@ impl CapabilityGraph {
     pub fn entropy(&self) -> f64 {
         let mut h = 0.0_f64;
         for node in &self.nodes {
-            let out_edges: Vec<&CapabilityEdge> =
-                self.edges.iter().filter(|e| e.from == node.id).collect();
+            let out_edges: Vec<&CapabilityEdge> = self.edges.iter().filter(|e| e.from == node.id).collect();
             let n = out_edges.len() as f64;
             if n > 1.0 {
                 let p = 1.0 / n;
@@ -162,23 +152,16 @@ impl CapabilityGraph {
     /// Returns node trust scores τ(v) propagated from proof_confidence on edges.
     /// Nodes with no predecessors get trust = 1.0 (root axiom).
     pub fn trust_scores(&self) -> HashMap<String, f64> {
-        let mut scores: HashMap<String, f64> =
-            self.nodes.iter().map(|n| (n.id.clone(), 1.0_f64)).collect();
+        let mut scores: HashMap<String, f64> = self.nodes.iter().map(|n| (n.id.clone(), 1.0_f64)).collect();
 
         // Single-pass topological propagation (best-effort, no cycle guard needed here).
         for _ in 0..self.nodes.len() {
             for node in &self.nodes {
-                let preds: Vec<&CapabilityEdge> =
-                    self.edges.iter().filter(|e| e.to == node.id).collect();
+                let preds: Vec<&CapabilityEdge> = self.edges.iter().filter(|e| e.to == node.id).collect();
                 if preds.is_empty() {
                     continue;
                 }
-                let sum: f64 = preds
-                    .iter()
-                    .map(|e| {
-                        e.proof_confidence * scores.get(e.from.as_str()).copied().unwrap_or(1.0)
-                    })
-                    .sum();
+                let sum: f64 = preds.iter().map(|e| e.proof_confidence * scores.get(e.from.as_str()).copied().unwrap_or(1.0)).sum();
                 scores.insert(node.id.clone(), sum / preds.len() as f64);
             }
         }

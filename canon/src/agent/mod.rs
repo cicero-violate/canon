@@ -22,24 +22,17 @@ pub mod slice;
 pub mod sse;
 pub mod ws_server;
 pub use bootstrap::{seed_capability_graph, seed_refactor_proposal};
-pub use call::{
-    AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
-};
-pub use capability::{
-    CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField,
-};
+pub use call::{AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult};
+pub use capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField};
 pub use dispatcher::{CapabilityNodeDispatcher, DEFAULT_TRUST_THRESHOLD};
 pub use io::{load_capability_graph, save_capability_graph};
-pub use llm_provider::{LlmProviderError, call_llm};
-pub use meta::{
-    GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, GraphEvolutionError,
-    GraphEvolutionResult, UNDERPERFORM_THRESHOLD, evolve_capability_graph,
-};
-pub use observe::{IrAnalysisReport, IrTotals, ir_observation_to_json, analyze_ir};
+pub use llm_provider::{call_llm, LlmProviderError};
+pub use meta::{evolve_capability_graph, GraphEvolutionError, GraphEvolutionResult, GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, UNDERPERFORM_THRESHOLD};
+pub use observe::{analyze_ir, ir_observation_to_json, IrAnalysisReport, IrTotals};
 pub use pipeline::record_refactor_reward;
-pub use pipeline::{RefactorError, RefactorResult, RefactorStage, run_refactor_pipeline};
+pub use pipeline::{run_refactor_pipeline, RefactorError, RefactorResult, RefactorStage};
 pub use refactor::{RefactorKind, RefactorProposal, RefactorTarget};
-pub use reward::{PipelineNodeOutcome, NodeRewardEntry, NodeRewardLedger};
-pub use runner::{RunnerConfig, RunnerError, TickStats, run_agent};
+pub use reward::{NodeRewardEntry, NodeRewardLedger, PipelineNodeOutcome};
+pub use runner::{run_agent, RunnerConfig, RunnerError, TickStats};
 pub use slice::slice_ir_fields;
 pub use ws_server::WsBridge;

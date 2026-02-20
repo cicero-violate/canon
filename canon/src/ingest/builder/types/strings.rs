@@ -43,17 +43,11 @@ pub(crate) fn word_from_ident(ident: &syn::Ident, fallback: &str) -> Word {
 }
 
 pub(crate) fn word_from_string(value: &str, fallback: &str) -> Word {
-    Word::new(value)
-        .or_else(|_| Word::new(to_pascal_case(value)))
-        .unwrap_or_else(|_| Word::new(fallback).unwrap())
+    Word::new(value).or_else(|_| Word::new(to_pascal_case(value))).unwrap_or_else(|_| Word::new(fallback).unwrap())
 }
 
 pub(crate) fn path_to_string(path: &syn::Path) -> String {
-    path.segments
-        .iter()
-        .map(|seg| seg.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::")
+    path.segments.iter().map(|seg| seg.ident.to_string()).collect::<Vec<_>>().join("::")
 }
 
 pub(crate) fn expr_to_string(expr: &syn::Expr) -> String {
@@ -73,11 +67,7 @@ pub(crate) fn attribute_to_string(attr: &syn::Attribute) -> Option<String> {
                 Some(format!("{path}{tokens}"))
             }
         }
-        syn::Meta::NameValue(name_value) => Some(format!(
-            "{} = {}",
-            path_to_string(&name_value.path),
-            expr_to_string(&name_value.value)
-        )),
+        syn::Meta::NameValue(name_value) => Some(format!("{} = {}", path_to_string(&name_value.path), expr_to_string(&name_value.value))),
     }
 }
 
@@ -109,8 +99,7 @@ pub(crate) fn collect_derives(attrs: &[syn::Attribute]) -> Vec<String> {
             continue;
         }
         if let Ok(list) = attr.parse_args_with(|input: syn::parse::ParseStream| {
-            let punct: syn::punctuated::Punctuated<syn::Path, syn::Token![,]> =
-                syn::punctuated::Punctuated::parse_terminated(input)?;
+            let punct: syn::punctuated::Punctuated<syn::Path, syn::Token![,]> = syn::punctuated::Punctuated::parse_terminated(input)?;
             Ok(punct)
         }) {
             for path in list {

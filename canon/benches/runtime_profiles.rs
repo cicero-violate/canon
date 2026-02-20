@@ -1,18 +1,16 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use canon::CanonicalIr;
 use canon::gpu::codegen::{flatten_ports, generate_shader};
 use canon::gpu::dispatch::GpuExecutor;
 use canon::runtime::value::ScalarValue;
 use canon::runtime::{ExecutionContext, FunctionExecutor, Value};
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use canon::CanonicalIr;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use pollster::block_on;
 
 fn load_fixture(name: &str) -> CanonicalIr {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
-        .join(name);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures").join(name);
     let data = std::fs::read(path).expect("fixture exists");
     serde_json::from_slice(&data).expect("valid CanonicalIr")
 }
@@ -28,9 +26,7 @@ fn bench_bytecode_interpreter(c: &mut Criterion) {
             let mut inputs = BTreeMap::new();
             inputs.insert("Lhs".into(), Value::Scalar(ScalarValue::I32(5)));
             inputs.insert("Rhs".into(), Value::Scalar(ScalarValue::I32(7)));
-            let outputs = executor
-                .execute_by_id(&function_id, inputs, &mut ctx)
-                .expect("bytecode execution");
+            let outputs = executor.execute_by_id(&function_id, inputs, &mut ctx).expect("bytecode execution");
             assert!(outputs.contains_key("Sum"));
         });
     });

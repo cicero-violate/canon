@@ -1,4 +1,4 @@
-use canon::{CanonicalIr, FileTree, materialize, write_file_tree};
+use canon::{materialize, write_file_tree, CanonicalIr, FileTree};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
@@ -8,10 +8,7 @@ mod support;
 use support::default_layout_for;
 
 fn load_fixture(name: &str) -> CanonicalIr {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("data")
-        .join(name);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("data").join(name);
     let data = fs::read(path).expect("fixture must exist");
     serde_json::from_slice(&data).expect("fixture must be valid CanonicalIr")
 }

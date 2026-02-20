@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use thiserror::Error;
 
-use crate::ir::{
-    Proposal, ProposalGoal, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
-    ProposedNodeKind, Word, WordError,
-};
+use crate::ir::{Proposal, ProposalGoal, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode, ProposedNodeKind, Word, WordError};
 use crate::layout::LayoutFile;
 
 // ── parser types ────────────────────────────────────────────────────────────
@@ -88,29 +85,15 @@ pub fn parse_dot(source: &str) -> Result<DotGraph, DotImportError> {
 
         // ── open cluster ────────────────────────────────────────────────────
         if line.starts_with("subgraph cluster_") {
-            let cluster_id = line
-                .trim_start_matches("subgraph ")
-                .trim_end_matches(" {")
-                .trim_end_matches('{')
-                .trim()
-                .to_string();
-            current_cluster = Some(DotCluster {
-                id: cluster_id,
-                label: String::new(),
-                nodes: Vec::new(),
-                intra_edges: Vec::new(),
-            });
+            let cluster_id = line.trim_start_matches("subgraph ").trim_end_matches(" {").trim_end_matches('{').trim().to_string();
+            current_cluster = Some(DotCluster { id: cluster_id, label: String::new(), nodes: Vec::new(), intra_edges: Vec::new() });
             continue;
         }
 
         // ── cluster label ────────────────────────────────────────────────────
         if let Some(ref mut cluster) = current_cluster {
             if line.starts_with("label=") {
-                cluster.label = line
-                    .trim_start_matches("label=")
-                    .trim_matches('"')
-                    .trim_end_matches(';')
-                    .to_string();
+                cluster.label = line.trim_start_matches("label=").trim_matches('"').trim_end_matches(';').to_string();
                 continue;
             }
         }
@@ -150,14 +133,8 @@ pub fn parse_dot(source: &str) -> Result<DotGraph, DotImportError> {
     let mut inter_edges: Vec<DotInterEdge> = Vec::new();
 
     for (from, to, label_types) in pending_inter {
-        let from_cluster = node_to_cluster
-            .get(&from)
-            .ok_or_else(|| DotImportError::UnknownNode(from.clone()))?
-            .clone();
-        let to_cluster = node_to_cluster
-            .get(&to)
-            .ok_or_else(|| DotImportError::UnknownNode(to.clone()))?
-            .clone();
+        let from_cluster = node_to_cluster.get(&from).ok_or_else(|| DotImportError::UnknownNode(from.clone()))?.clone();
+        let to_cluster = node_to_cluster.get(&to).ok_or_else(|| DotImportError::UnknownNode(to.clone()))?.clone();
 
         if from_cluster == to_cluster {
             // intra-cluster edge: attach to the cluster
@@ -166,29 +143,19 @@ pub fn parse_dot(source: &str) -> Result<DotGraph, DotImportError> {
             }
         } else {
             // inter-cluster: merge with any existing edge between the same pair
-            if let Some(existing) = inter_edges
-                .iter_mut()
-                .find(|e| e.from_cluster == from_cluster && e.to_cluster == to_cluster)
-            {
+            if let Some(existing) = inter_edges.iter_mut().find(|e| e.from_cluster == from_cluster && e.to_cluster == to_cluster) {
                 for t in label_types {
                     if !existing.imported_types.contains(&t) {
                         existing.imported_types.push(t);
                     }
                 }
             } else {
-                inter_edges.push(DotInterEdge {
-                    from_cluster: from_cluster.clone(),
-                    to_cluster: to_cluster.clone(),
-                    imported_types: label_types,
-                });
+                inter_edges.push(DotInterEdge { from_cluster: from_cluster.clone(), to_cluster: to_cluster.clone(), imported_types: label_types });
             }
         }
     }
 
-    Ok(DotGraph {
-        clusters,
-        inter_edges,
-    })
+    Ok(DotGraph { clusters, inter_edges })
 }
 
 /// Convert a `DotGraph` into a `Proposal` that can be fed into `accept_proposal`.
@@ -200,20 +167,11 @@ pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, D
     let mut seen_traits: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for cluster in &graph.clusters {
-        let label = if cluster.label.is_empty() {
-            &cluster.id
-        } else {
-            &cluster.label
-        };
+        let label = if cluster.label.is_empty() { &cluster.id } else { &cluster.label };
         let name = cluster_label_to_word(label)?;
         let module_id = format!("module.{}", slugify(label));
 
-        nodes.push(ProposedNode {
-            id: Some(module_id.clone()),
-            name,
-            module: None,
-            kind: ProposedNodeKind::Module,
-        });
+        nodes.push(ProposedNode { id: Some(module_id.clone()), name, module: None, kind: ProposedNodeKind::Module });
     }
 
     for inter in &graph.inter_edges {
@@ -221,21 +179,9 @@ pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, D
         let to_label = cluster_label(&graph.clusters, &inter.to_cluster);
         let from_id = format!("module.{}", slugify(from_label));
         let to_id = format!("module.{}", slugify(to_label));
-        let rationale = if inter.imported_types.is_empty() {
-            format!("{} imports {}", from_label, to_label)
-        } else {
-            format!(
-                "{} imports {} from {}",
-                from_label,
-                inter.imported_types.join(", "),
-                to_label
-            )
-        };
-        edges.push(ProposedEdge {
-            from: from_id,
-            to: to_id,
-            rationale,
-        });
+        let rationale =
+            if inter.imported_types.is_empty() { format!("{} imports {}", from_label, to_label) } else { format!("{} imports {} from {}", from_label, inter.imported_types.join(", "), to_label) };
+        edges.push(ProposedEdge { from: from_id, to: to_id, rationale });
 
         // synthesize one Trait node + ProposedApi per type label on this edge
         for type_label in &inter.imported_types {
@@ -244,17 +190,9 @@ pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, D
             if seen_traits.insert(trait_id.clone()) {
                 let trait_name = cluster_label_to_word(type_label)?;
                 let to_module_id = format!("module.{}", slugify(to_label));
-                nodes.push(ProposedNode {
-                    id: Some(trait_id.clone()),
-                    name: trait_name,
-                    module: Some(to_module_id),
-                    kind: ProposedNodeKind::Trait,
-                });
+                nodes.push(ProposedNode { id: Some(trait_id.clone()), name: trait_name, module: Some(to_module_id), kind: ProposedNodeKind::Trait });
                 let fn_id = format!("trait_fn.{}.{}", slugify(to_label), trait_slug);
-                apis.push(ProposedApi {
-                    trait_id,
-                    functions: vec![fn_id],
-                });
+                apis.push(ProposedApi { trait_id, functions: vec![fn_id] });
             }
         }
     }
@@ -273,16 +211,8 @@ pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, D
         let trait_slug = slugify(goal);
         let trait_id = format!("trait.{}.{}", slugify(goal), trait_slug);
         let trait_name = cluster_label_to_word(goal)?;
-        nodes.push(ProposedNode {
-            id: Some(trait_id.clone()),
-            name: trait_name,
-            module: Some(first_module_id),
-            kind: ProposedNodeKind::Trait,
-        });
-        apis.push(ProposedApi {
-            trait_id,
-            functions: vec![format!("trait_fn.{}.{}", slugify(goal), trait_slug)],
-        });
+        nodes.push(ProposedNode { id: Some(trait_id.clone()), name: trait_name, module: Some(first_module_id), kind: ProposedNodeKind::Trait });
+        apis.push(ProposedApi { trait_id, functions: vec![format!("trait_fn.{}.{}", slugify(goal), trait_slug)] });
     }
 
     let goal_word = cluster_label_to_word(goal)?;
@@ -291,10 +221,7 @@ pub fn dot_graph_to_proposal(graph: &DotGraph, goal: &str) -> Result<Proposal, D
     Ok(Proposal {
         id: format!("proposal.dot.{goal_slug}"),
         kind: crate::ir::ProposalKind::Structural,
-        goal: ProposalGoal {
-            id: goal_word,
-            description: format!("Imported from DOT: {goal}"),
-        },
+        goal: ProposalGoal { id: goal_word, description: format!("Imported from DOT: {goal}") },
         nodes,
         apis,
         edges,
@@ -308,22 +235,10 @@ pub fn dot_graph_to_file_topology(graph: &DotGraph) -> HashMap<String, Vec<Layou
     let mut out: HashMap<String, Vec<LayoutFile>> = HashMap::new();
 
     for cluster in &graph.clusters {
-        let label = if cluster.label.is_empty() {
-            &cluster.id
-        } else {
-            &cluster.label
-        };
+        let label = if cluster.label.is_empty() { &cluster.id } else { &cluster.label };
         let module_id = format!("module.{}", slugify(label));
 
-        let files: Vec<LayoutFile> = cluster
-            .nodes
-            .iter()
-            .map(|n| LayoutFile {
-                id: n.id.clone(),
-                path: n.label.clone(),
-                use_block: Vec::new(),
-            })
-            .collect();
+        let files: Vec<LayoutFile> = cluster.nodes.iter().map(|n| LayoutFile { id: n.id.clone(), path: n.label.clone(), use_block: Vec::new() }).collect();
 
         out.insert(module_id, files);
     }
@@ -339,11 +254,7 @@ pub fn dot_graph_to_routing_hints(graph: &DotGraph) -> HashMap<String, String> {
     let mut module_files: HashMap<String, HashMap<String, String>> = HashMap::new();
 
     for cluster in &graph.clusters {
-        let label = if cluster.label.is_empty() {
-            &cluster.id
-        } else {
-            &cluster.label
-        };
+        let label = if cluster.label.is_empty() { &cluster.id } else { &cluster.label };
         let module_slug = slugify(label);
         let mut file_lookup = HashMap::new();
         for node in &cluster.nodes {
@@ -413,25 +324,14 @@ fn parse_edge_line(line: &str) -> Option<(String, String, Vec<String>)> {
     let from = line[..arrow].trim().to_string();
     let rest = line[arrow + 2..].trim();
 
-    let (to_raw, label_str) = if let Some(bracket) = rest.find('[') {
-        (
-            &rest[..bracket],
-            extract_attr(rest, "label").unwrap_or_default(),
-        )
-    } else {
-        (rest, String::new())
-    };
+    let (to_raw, label_str) = if let Some(bracket) = rest.find('[') { (&rest[..bracket], extract_attr(rest, "label").unwrap_or_default()) } else { (rest, String::new()) };
 
     let to = to_raw.trim().trim_end_matches(';').to_string();
     if from.is_empty() || to.is_empty() {
         return None;
     }
 
-    let types: Vec<String> = label_str
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let types: Vec<String> = label_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
 
     Some((from, to, types))
 }
@@ -445,16 +345,7 @@ fn extract_attr(line: &str, attr: &str) -> Option<String> {
 }
 
 fn cluster_label<'a>(clusters: &'a [DotCluster], cluster_id: &'a str) -> &'a str {
-    clusters
-        .iter()
-        .find(|c| c.id == cluster_id)
-        .map_or(cluster_id, |c| {
-            if c.label.is_empty() {
-                c.id.as_str()
-            } else {
-                c.label.as_str()
-            }
-        })
+    clusters.iter().find(|c| c.id == cluster_id).map_or(cluster_id, |c| if c.label.is_empty() { c.id.as_str() } else { c.label.as_str() })
 }
 
 fn cluster_label_to_word(label: &str) -> Result<Word, DotImportError> {
@@ -479,22 +370,10 @@ fn cluster_label_to_word(label: &str) -> Result<Word, DotImportError> {
 }
 
 fn slugify(label: &str) -> String {
-    label
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else {
-                '_'
-            }
-        })
-        .collect()
+    label.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' }).collect()
 }
 
 fn file_stem(label: &str) -> &str {
     let trimmed = label.trim();
-    trimmed
-        .strip_suffix(".mod.rs")
-        .or_else(|| trimmed.strip_suffix(".rs"))
-        .unwrap_or(trimmed)
+    trimmed.strip_suffix(".mod.rs").or_else(|| trimmed.strip_suffix(".rs")).unwrap_or(trimmed)
 }

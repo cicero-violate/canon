@@ -8,10 +8,7 @@ pub struct FileTree {
 
 impl FileTree {
     pub fn new() -> Self {
-        Self {
-            directories: BTreeSet::new(),
-            files: BTreeMap::new(),
-        }
+        Self { directories: BTreeSet::new(), files: BTreeMap::new() }
     }
 
     pub fn add_directory(&mut self, path: impl Into<String>) {
@@ -19,8 +16,7 @@ impl FileTree {
     }
 
     pub fn add_file(&mut self, path: impl Into<String>, contents: impl Into<String>) {
-        self.files
-            .insert(path.into(), FileEntry::new(contents.into()));
+        self.files.insert(path.into(), FileEntry::new(contents.into()));
     }
 
     pub fn directories(&self) -> &BTreeSet<String> {

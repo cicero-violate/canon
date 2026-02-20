@@ -1,4 +1,4 @@
-use canon::{CanonicalIr, materialize};
+use canon::{materialize, CanonicalIr};
 use std::path::PathBuf;
 
 #[path = "support.rs"]
@@ -6,10 +6,7 @@ mod support;
 use support::default_layout_for;
 
 fn load_fixture(name: &str) -> CanonicalIr {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("data")
-        .join(name);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("data").join(name);
     let data = std::fs::read(path).expect("fixture must exist");
     serde_json::from_slice(&data).expect("fixture must be valid CanonicalIr")
 }
@@ -28,18 +25,11 @@ fn materializer_builds_module_tree() {
     assert!(lib.contents.contains("pub mod Core;"));
     assert!(lib.contents.contains("pub mod Delta;"));
 
-    let core_mod = tree
-        .files()
-        .get("src/Core/mod.rs")
-        .expect("Core mod expected");
+    let core_mod = tree.files().get("src/Core/mod.rs").expect("Core mod expected");
     assert!(core_mod.contents.contains("pub struct State"));
     assert!(core_mod.contents.contains("pub trait Compute"));
     assert!(core_mod.contents.contains("impl Compute for State"));
-    assert!(
-        core_mod
-            .contents
-            .contains("canon_runtime::execute_function")
-    );
+    assert!(core_mod.contents.contains("canon_runtime::execute_function"));
 
     let cargo = tree.files().get("Cargo.toml").expect("Cargo file expected");
     assert!(cargo.contents.contains("[package]"));

@@ -1,18 +1,10 @@
-use super::{DefectClass, pipeline::PipelineEntry, predicate::RulePredicate};
+use super::{pipeline::PipelineEntry, predicate::RulePredicate, DefectClass};
 
 /// Layer 4 — Brief Generator.
 ///
 /// Composes the human-readable brief from structured inputs only.
 /// No ad-hoc format strings live in the tracers; all templates are here.
-pub fn render(
-    predicate: &RulePredicate,
-    pipeline: Option<&PipelineEntry>,
-    defect: &DefectClass,
-    count: usize,
-    examples: &[String],
-    cycle: Option<&[String]>,
-    tick_slice: Option<&str>,
-) -> String {
+pub fn render(predicate: &RulePredicate, pipeline: Option<&PipelineEntry>, defect: &DefectClass, count: usize, examples: &[String], cycle: Option<&[String]>, tick_slice: Option<&str>) -> String {
     match defect {
         DefectClass::MissingEmit => render_missing_emit(predicate, pipeline, count),
         DefectClass::WrongValue => render_wrong_value(predicate, pipeline, count),
@@ -26,11 +18,7 @@ pub fn render(
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 
-fn render_missing_emit(
-    p: &RulePredicate,
-    pipeline: Option<&PipelineEntry>,
-    count: usize,
-) -> String {
+fn render_missing_emit(p: &RulePredicate, pipeline: Option<&PipelineEntry>, count: usize) -> String {
     let rule_code = p.rule.code();
     let coll = p.ir_collection;
     let field = p.ir_field;
@@ -76,11 +64,7 @@ fn render_wrong_value(p: &RulePredicate, pipeline: Option<&PipelineEntry>, count
     }
 }
 
-fn render_wrong_direction(
-    p: &RulePredicate,
-    pipeline: Option<&PipelineEntry>,
-    count: usize,
-) -> String {
+fn render_wrong_direction(p: &RulePredicate, pipeline: Option<&PipelineEntry>, count: usize) -> String {
     let rule_code = p.rule.code();
     let field = p.ir_field;
     match pipeline {
@@ -100,11 +84,7 @@ fn render_wrong_direction(
     }
 }
 
-fn render_missing_context(
-    p: &RulePredicate,
-    pipeline: Option<&PipelineEntry>,
-    count: usize,
-) -> String {
+fn render_missing_context(p: &RulePredicate, pipeline: Option<&PipelineEntry>, count: usize) -> String {
     let rule_code = p.rule.code();
     let field = p.ir_field;
     let coll = p.ir_collection;
@@ -129,11 +109,7 @@ fn render_missing_context(
     }
 }
 
-fn render_over_constraint(
-    p: &RulePredicate,
-    pipeline: Option<&PipelineEntry>,
-    count: usize,
-) -> String {
+fn render_over_constraint(p: &RulePredicate, pipeline: Option<&PipelineEntry>, count: usize) -> String {
     let rule_code = p.rule.code();
     let field = p.ir_field;
     let cond = p.pass_condition;
@@ -170,13 +146,7 @@ fn render_domain_input(p: &RulePredicate, count: usize) -> String {
     )
 }
 
-fn render_cycle(
-    p: &RulePredicate,
-    count: usize,
-    _examples: &[String],
-    cycle: Option<&[String]>,
-    tick_slice: Option<&str>,
-) -> String {
+fn render_cycle(p: &RulePredicate, count: usize, _examples: &[String], cycle: Option<&[String]>, tick_slice: Option<&str>) -> String {
     let rule_code = p.rule.code();
     let cycle_part = match cycle {
         Some(path) if !path.is_empty() => format!("Cycle path:\n{}\n\n", path.join(" -> ")),

@@ -76,9 +76,6 @@ fn _ensure_path_is_dir(path: &Path) -> Result<(), IngestError> {
     if path.is_dir() {
         Ok(())
     } else {
-        Err(IngestError::UnsupportedFeature(format!(
-            "ingest requires a directory root: {}",
-            path.display()
-        )))
+        Err(IngestError::UnsupportedFeature(format!("ingest requires a directory root: {}", path.display())))
     }
 }

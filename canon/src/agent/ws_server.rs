@@ -24,9 +24,9 @@ use std::sync::Arc;
 
 use super::sse::{extract_sse_delta, is_done};
 use futures_util::{SinkExt, StreamExt};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -77,12 +77,7 @@ struct ServerState {
 
 impl ServerState {
     fn new() -> Self {
-        Self {
-            tab_buffers: HashMap::new(),
-            pending: HashMap::new(),
-            live_tabs: Vec::new(),
-            tx_out: None,
-        }
+        Self { tab_buffers: HashMap::new(), pending: HashMap::new(), live_tabs: Vec::new(), tx_out: None }
     }
 
     fn first_tab(&self) -> Option<u32> {
@@ -99,11 +94,7 @@ pub struct WsBridge {
 impl WsBridge {
     /// Send a TURN to the given tab (or first live tab if tabId is None)
     /// and wait for the assembled response.
-    pub async fn send_turn(
-        &self,
-        tab_id: Option<u32>,
-        text: String,
-    ) -> Result<String, WsBridgeError> {
+    pub async fn send_turn(&self, tab_id: Option<u32>, text: String) -> Result<String, WsBridgeError> {
         let (tx, rx) = oneshot::channel::<String>();
 
         let target = {
@@ -121,10 +112,7 @@ impl WsBridge {
             st.tab_buffers.insert(target, Vec::new());
 
             let frame = json!({ "type": "TURN", "tabId": target, "text": text });
-            out_tx
-                .send(Message::Text(frame.to_string().into()))
-                .await
-                .map_err(|_| WsBridgeError::NotConnected)?;
+            out_tx.send(Message::Text(frame.to_string().into())).await.map_err(|_| WsBridgeError::NotConnected)?;
 
             target
         };
@@ -132,8 +120,7 @@ impl WsBridge {
         eprintln!("[ws] TURN sent to tab {target}");
 
         // Wait for the assembled response with a timeout.
-        match tokio::time::timeout(std::time::Duration::from_secs(RESPONSE_TIMEOUT_SECS), rx).await
-        {
+        match tokio::time::timeout(std::time::Duration::from_secs(RESPONSE_TIMEOUT_SECS), rx).await {
             Ok(Ok(text)) => Ok(text),
             Ok(Err(_)) => Err(WsBridgeError::Cancelled),
             Err(_) => Err(WsBridgeError::Timeout),
@@ -145,9 +132,7 @@ impl WsBridge {
         let st = self.state.lock().await;
         let tx = st.tx_out.clone().ok_or(WsBridgeError::NotConnected)?;
         let frame = json!({ "type": "OPEN_TAB" });
-        tx.send(Message::Text(frame.to_string().into()))
-            .await
-            .map_err(|_| WsBridgeError::NotConnected)
+        tx.send(Message::Text(frame.to_string().into())).await.map_err(|_| WsBridgeError::NotConnected)
     }
 
     /// Send a CLOSE_TAB command to the extension.
@@ -155,9 +140,7 @@ impl WsBridge {
         let st = self.state.lock().await;
         let tx = st.tx_out.clone().ok_or(WsBridgeError::NotConnected)?;
         let frame = json!({ "type": "CLOSE_TAB", "tabId": tab_id });
-        tx.send(Message::Text(frame.to_string().into()))
-            .await
-            .map_err(|_| WsBridgeError::NotConnected)
+        tx.send(Message::Text(frame.to_string().into())).await.map_err(|_| WsBridgeError::NotConnected)
     }
 
     /// Block until the extension has an open WS connection.
@@ -220,9 +203,7 @@ impl WsBridge {
 /// Returns a WsBridge handle immediately — the server runs concurrently.
 pub fn spawn(addr: SocketAddr) -> WsBridge {
     let state = Arc::new(Mutex::new(ServerState::new()));
-    let bridge = WsBridge {
-        state: state.clone(),
-    };
+    let bridge = WsBridge { state: state.clone() };
 
     tokio::spawn(async move {
         loop {
@@ -360,9 +341,7 @@ async fn handle_inbound(raw: &str, state: &Arc<Mutex<ServerState>>) {
             }
 
             if done {
-                if let (Some(buffer), Some(tx)) =
-                    (st.tab_buffers.remove(&tab_id), st.pending.remove(&tab_id))
-                {
+                if let (Some(buffer), Some(tx)) = (st.tab_buffers.remove(&tab_id), st.pending.remove(&tab_id)) {
                     let assembled = buffer.join("");
                     eprintln!("[ws] tab {tab_id} done — {} bytes", assembled.len());
                     let _ = tx.send(assembled);

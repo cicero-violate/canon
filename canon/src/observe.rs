@@ -1,10 +1,5 @@
-use crate::ir::{
-    Delta, DeltaKind, DeltaPayload, ExecutionEvent, ExecutionRecord, PipelineStage,
-};
-pub fn wrap_execution_events_as_deltas(
-    execution: &ExecutionRecord,
-    proof_id: &str,
-) -> Vec<Delta> {
+use crate::ir::{Delta, DeltaKind, DeltaPayload, ExecutionEvent, ExecutionRecord, PipelineStage};
+pub fn wrap_execution_events_as_deltas(execution: &ExecutionRecord, proof_id: &str) -> Vec<Delta> {
     execution
         .events
         .iter()
@@ -17,10 +12,7 @@ pub fn wrap_execution_events_as_deltas(
             proof: proof_id.to_string(),
             description: describe_event(&execution.id, idx, event),
             related_function: None,
-            payload: Some(DeltaPayload::AttachExecutionEvent {
-                execution_id: execution.id.clone(),
-                event: event.clone(),
-            }),
+            payload: Some(DeltaPayload::AttachExecutionEvent { execution_id: execution.id.clone(), event: event.clone() }),
             proof_object_hash: None,
         })
         .collect()

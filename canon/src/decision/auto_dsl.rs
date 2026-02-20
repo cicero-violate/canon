@@ -1,16 +1,14 @@
-use thiserror::Error;
+use super::{
+    accept::{accept_proposal, AcceptProposalError, ProposalAcceptance, ProposalAcceptanceInput},
+    bootstrap::{ensure_dsl_predicate, ensure_dsl_proof, ensure_dsl_tick},
+    DSL_PREDICATE_ID, DSL_PROOF_ID, DSL_TICK_ID,
+};
 use crate::{
+    ir::proposal::{create_proposal_from_dsl, DslProposalArtifacts, DslProposalError},
     ir::CanonicalIr,
-    ir::proposal::{DslProposalArtifacts, DslProposalError, create_proposal_from_dsl},
     layout::LayoutGraph,
 };
-use super::{
-    DSL_PREDICATE_ID, DSL_PROOF_ID, DSL_TICK_ID,
-    accept::{
-        AcceptProposalError, ProposalAcceptance, ProposalAcceptanceInput, accept_proposal,
-    },
-    bootstrap::{ensure_dsl_predicate, ensure_dsl_proof, ensure_dsl_tick},
-};
+use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum AutoAcceptDslError {
     #[error(transparent)]
@@ -20,14 +18,8 @@ pub enum AutoAcceptDslError {
     #[error("unable to infer tick graph for bootstrap tick")]
     MissingTickGraph,
 }
-pub fn apply_dsl_proposal(
-    ir: &CanonicalIr,
-    layout: &LayoutGraph,
-    dsl_source: &str,
-) -> Result<ProposalAcceptance, AutoAcceptDslError> {
-    let DslProposalArtifacts { proposal, goal_slug } = create_proposal_from_dsl(
-        dsl_source,
-    )?;
+pub fn apply_dsl_proposal(ir: &CanonicalIr, layout: &LayoutGraph, dsl_source: &str) -> Result<ProposalAcceptance, AutoAcceptDslError> {
+    let DslProposalArtifacts { proposal, goal_slug } = create_proposal_from_dsl(dsl_source)?;
     let mut working = ir.clone();
     ensure_dsl_proof(&mut working);
     ensure_dsl_predicate(&mut working);

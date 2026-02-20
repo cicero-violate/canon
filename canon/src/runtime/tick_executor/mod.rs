@@ -43,105 +43,44 @@ impl<'a> TickExecutor<'a> {
 
     /// Execute a tick by its ID.
     pub fn execute_tick(&mut self, tick_id: &str) -> Result<TickExecutionResult, RuntimeError> {
-        self.execute_tick_with_mode_and_inputs(
-            tick_id,
-            TickExecutionMode::Sequential,
-            BTreeMap::new(),
-        )
+        self.execute_tick_with_mode_and_inputs(tick_id, TickExecutionMode::Sequential, BTreeMap::new())
     }
 
     /// Execute a tick with explicit initial inputs provided to the root nodes.
-    pub fn execute_tick_with_inputs(
-        &mut self,
-        tick_id: &str,
-        initial_inputs: BTreeMap<String, Value>,
-    ) -> Result<TickExecutionResult, RuntimeError> {
-        self.execute_tick_with_mode_and_inputs(
-            tick_id,
-            TickExecutionMode::Sequential,
-            initial_inputs,
-        )
+    pub fn execute_tick_with_inputs(&mut self, tick_id: &str, initial_inputs: BTreeMap<String, Value>) -> Result<TickExecutionResult, RuntimeError> {
+        self.execute_tick_with_mode_and_inputs(tick_id, TickExecutionMode::Sequential, initial_inputs)
     }
 
     /// Execute a tick with an explicit mode (sequential or parallel-verified).
-    pub fn execute_tick_with_mode(
-        &mut self,
-        tick_id: &str,
-        mode: TickExecutionMode,
-    ) -> Result<TickExecutionResult, RuntimeError> {
+    pub fn execute_tick_with_mode(&mut self, tick_id: &str, mode: TickExecutionMode) -> Result<TickExecutionResult, RuntimeError> {
         self.execute_tick_with_mode_and_inputs(tick_id, mode, BTreeMap::new())
     }
 
     /// Execute a tick with an explicit mode and initial inputs.
-    pub fn execute_tick_with_mode_and_inputs(
-        &mut self,
-        tick_id: &str,
-        mode: TickExecutionMode,
-        initial_inputs: BTreeMap<String, Value>,
-    ) -> Result<TickExecutionResult, RuntimeError> {
+    pub fn execute_tick_with_mode_and_inputs(&mut self, tick_id: &str, mode: TickExecutionMode, initial_inputs: BTreeMap<String, Value>) -> Result<TickExecutionResult, RuntimeError> {
         let plan_ctx = plan_tick(self.ir, tick_id, self.skip_planning);
         self.execute_internal(tick_id, mode, initial_inputs, plan_ctx)
     }
 
-    fn execute_internal(
-        &mut self,
-        tick_id: &str,
-        mode: TickExecutionMode,
-        initial_inputs: BTreeMap<String, Value>,
-        plan_ctx: PlanContext,
-    ) -> Result<TickExecutionResult, RuntimeError> {
-        let tick = self
-            .ir
-            .ticks
-            .iter()
-            .find(|t| t.id == tick_id)
-            .ok_or_else(|| RuntimeError::UnknownTick(tick_id.to_string()))?;
+    fn execute_internal(&mut self, tick_id: &str, mode: TickExecutionMode, initial_inputs: BTreeMap<String, Value>, plan_ctx: PlanContext) -> Result<TickExecutionResult, RuntimeError> {
+        let tick = self.ir.ticks.iter().find(|t| t.id == tick_id).ok_or_else(|| RuntimeError::UnknownTick(tick_id.to_string()))?;
 
-        let graph = self
-            .ir
-            .tick_graphs
-            .iter()
-            .find(|g| g.id == tick.graph)
-            .ok_or_else(|| RuntimeError::UnknownGraph(tick.graph.clone()))?;
+        let graph = self.ir.tick_graphs.iter().find(|g| g.id == tick.graph).ok_or_else(|| RuntimeError::UnknownGraph(tick.graph.clone()))?;
 
         let graph_cloned = graph.clone();
         let tick_id_owned = tick.id.clone();
-        let PlanContext {
-            planned_utility,
-            planning_depth,
-            predicted_deltas,
-            prediction_context,
-        } = plan_ctx;
+        let PlanContext { planned_utility, planning_depth, predicted_deltas, prediction_context } = plan_ctx;
 
-        let result = self.execute_graph_with_prediction(
-            &graph_cloned,
-            &tick_id_owned,
-            mode,
-            &initial_inputs,
-            prediction_context,
-        )?;
+        let result = self.execute_graph_with_prediction(&graph_cloned, &tick_id_owned, mode, &initial_inputs, prediction_context)?;
 
-        finalize_execution(
-            self.ir,
-            tick_id,
-            &result,
-            planned_utility,
-            planning_depth,
-            predicted_deltas,
-        );
+        finalize_execution(self.ir, tick_id, &result, planned_utility, planning_depth, predicted_deltas);
 
         Ok(result)
     }
 
     /// Execute a tick graph in topological order.
     /// Graph must be acyclic (Canon Line 48).
-    fn execute_graph(
-        &mut self,
-        graph: &TickGraph,
-        tick_id: &str,
-        mode: TickExecutionMode,
-        initial_inputs: &BTreeMap<String, Value>,
-    ) -> Result<TickExecutionResult, RuntimeError> {
+    fn execute_graph(&mut self, graph: &TickGraph, tick_id: &str, mode: TickExecutionMode, initial_inputs: &BTreeMap<String, Value>) -> Result<TickExecutionResult, RuntimeError> {
         let dependencies = build_dependency_map(graph);
         let execution_order = topological_sort(graph, &dependencies)?;
         let mut context = ExecutionContext::new(initial_inputs.clone());
@@ -151,9 +90,7 @@ impl<'a> TickExecutor<'a> {
 
         for function_id in &execution_order {
             let inputs = gather_inputs(function_id, &dependencies, &results, initial_inputs)?;
-            let outputs = function_executor
-                .execute_by_id(function_id, inputs, &mut context)
-                .map_err(RuntimeError::Executor)?;
+            let outputs = function_executor.execute_by_id(function_id, inputs, &mut context).map_err(RuntimeError::Executor)?;
             results.insert(function_id.clone(), outputs);
         }
         let sequential_duration = sequential_start.elapsed();
@@ -161,8 +98,7 @@ impl<'a> TickExecutor<'a> {
 
         if matches!(mode, TickExecutionMode::ParallelVerified) {
             let parallel_start = Instant::now();
-            let (parallel_results, parallel_deltas) =
-                execute_parallel(self.ir, &execution_order, &dependencies, initial_inputs)?;
+            let (parallel_results, parallel_deltas) = execute_parallel(self.ir, &execution_order, &dependencies, initial_inputs)?;
             parallel_duration = Some(parallel_start.elapsed());
             verify_parallel_outputs(&results, &parallel_results)?;
             verify_parallel_deltas(context.deltas(), &parallel_deltas)?;
@@ -180,12 +116,7 @@ impl<'a> TickExecutor<'a> {
     }
 
     fn execute_graph_with_prediction(
-        &mut self,
-        graph: &TickGraph,
-        tick_id: &str,
-        mode: TickExecutionMode,
-        initial_inputs: &BTreeMap<String, Value>,
-        prediction: PredictionContext,
+        &mut self, graph: &TickGraph, tick_id: &str, mode: TickExecutionMode, initial_inputs: &BTreeMap<String, Value>, prediction: PredictionContext,
     ) -> Result<TickExecutionResult, RuntimeError> {
         let result = self.execute_graph(graph, tick_id, mode, initial_inputs)?;
         reconcile_prediction(self.ir, &result, prediction);

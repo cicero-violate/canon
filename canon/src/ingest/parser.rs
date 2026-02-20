@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::IngestError;
 use super::fs_walk::DiscoveredFile;
+use super::IngestError;
 
 use crate::ingest::_ensure_path_is_dir;
 
@@ -26,21 +26,14 @@ impl ParsedFile {
 /// Parse the workspace into intermediate AST structures.
 ///
 /// TODO(ING-001): Extend to capture items, attributes, and macro invocations.
-pub(crate) fn parse_workspace(
-    root: &Path,
-    discovered: &[DiscoveredFile],
-) -> Result<ParsedWorkspace, IngestError> {
+pub(crate) fn parse_workspace(root: &Path, discovered: &[DiscoveredFile]) -> Result<ParsedWorkspace, IngestError> {
     _ensure_path_is_dir(root)?;
     let mut files = Vec::new();
     for file in discovered {
         let source = fs::read_to_string(&file.absolute)?;
         let ast = syn::parse_file(&source).map_err(|err| IngestError::Parse(err.to_string()))?;
         let module_path = infer_module_path(&file.relative);
-        files.push(ParsedFile {
-            path: file.relative.clone(),
-            module_path,
-            ast,
-        });
+        files.push(ParsedFile { path: file.relative.clone(), module_path, ast });
     }
     Ok(ParsedWorkspace { files })
 }

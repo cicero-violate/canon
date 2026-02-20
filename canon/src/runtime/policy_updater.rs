@@ -12,10 +12,7 @@ impl PolicyUpdater {
 }
 
 /// Rule-based proxy for a gradient step.
-pub fn update_policy(
-    current: &PolicyParameters,
-    reward: f64,
-) -> Result<PolicyParameters, PolicyUpdateError> {
+pub fn update_policy(current: &PolicyParameters, reward: f64) -> Result<PolicyParameters, PolicyUpdateError> {
     if current.learning_rate <= 0.0 {
         return Err(PolicyUpdateError::InvalidLearningRate);
     }

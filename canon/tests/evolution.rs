@@ -1,12 +1,9 @@
 use canon::ir::DeltaPayload;
-use canon::{CanonicalIr, apply_admitted_deltas, wrap_execution_events_as_deltas};
+use canon::{apply_admitted_deltas, wrap_execution_events_as_deltas, CanonicalIr};
 use std::path::PathBuf;
 
 fn load_fixture() -> CanonicalIr {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("data")
-        .join("valid_ir.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("data").join("valid_ir.json");
     let data = std::fs::read(path).expect("fixture");
     serde_json::from_slice(&data).expect("canonical ir")
 }
@@ -23,18 +20,9 @@ fn apply_deltas_appends_history() {
 #[test]
 fn execution_events_become_observe_deltas() {
     let ir = load_fixture();
-    let exec = ir
-        .executions
-        .iter()
-        .find(|e| e.id == "exec.tick1")
-        .expect("execution");
+    let exec = ir.executions.iter().find(|e| e.id == "exec.tick1").expect("execution");
     let deltas = wrap_execution_events_as_deltas(exec, "proof.delta");
     assert!(!deltas.is_empty());
     assert!(deltas[0].proof == "proof.delta");
-    assert!(
-        deltas[0]
-            .payload
-            .as_ref()
-            .is_some_and(|p| matches!(p, DeltaPayload::AttachExecutionEvent { .. }))
-    );
+    assert!(deltas[0].payload.as_ref().is_some_and(|p| matches!(p, DeltaPayload::AttachExecutionEvent { .. })));
 }

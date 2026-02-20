@@ -109,28 +109,12 @@ impl MemoryArtifactLayout {
         Self
     }
 
-    pub fn page_for(
-        &self,
-        segment: ArtifactSegment,
-        artifact_id: &str,
-        slot: u64,
-        chunk_index: u64,
-    ) -> Result<PageAddress, LayoutError> {
+    pub fn page_for(&self, segment: ArtifactSegment, artifact_id: &str, slot: u64, chunk_index: u64) -> Result<PageAddress, LayoutError> {
         if chunk_index >= PAGES_PER_SLOT {
-            return Err(LayoutError::ChunkOverflow {
-                segment,
-                artifact_id: artifact_id.to_owned(),
-                chunk_index,
-                limit: PAGES_PER_SLOT,
-            });
+            return Err(LayoutError::ChunkOverflow { segment, artifact_id: artifact_id.to_owned(), chunk_index, limit: PAGES_PER_SLOT });
         }
         if slot >= SEGMENT_SLOTS {
-            return Err(LayoutError::SlotOverflow {
-                segment,
-                artifact_id: artifact_id.to_owned(),
-                slot,
-                limit: SEGMENT_SLOTS,
-            });
+            return Err(LayoutError::SlotOverflow { segment, artifact_id: artifact_id.to_owned(), slot, limit: SEGMENT_SLOTS });
         }
         let page_id = segment.base_page() + slot * PAGES_PER_SLOT + chunk_index;
         Ok(PageAddress { page_id, slot })
@@ -145,22 +129,8 @@ pub struct PageAddress {
 
 #[derive(Debug, Error)]
 pub enum LayoutError {
-    #[error(
-        "artifact `{artifact_id}` ({segment:?}) requires chunk {chunk_index} but only {limit} chunks allowed"
-    )]
-    ChunkOverflow {
-        segment: ArtifactSegment,
-        artifact_id: String,
-        chunk_index: u64,
-        limit: u64,
-    },
-    #[error(
-        "artifact `{artifact_id}` ({segment:?}) assigned slot {slot} but only {limit} slots available"
-    )]
-    SlotOverflow {
-        segment: ArtifactSegment,
-        artifact_id: String,
-        slot: u64,
-        limit: u64,
-    },
+    #[error("artifact `{artifact_id}` ({segment:?}) requires chunk {chunk_index} but only {limit} chunks allowed")]
+    ChunkOverflow { segment: ArtifactSegment, artifact_id: String, chunk_index: u64, limit: u64 },
+    #[error("artifact `{artifact_id}` ({segment:?}) assigned slot {slot} but only {limit} slots available")]
+    SlotOverflow { segment: ArtifactSegment, artifact_id: String, slot: u64, limit: u64 },
 }

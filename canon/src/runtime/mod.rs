@@ -18,15 +18,12 @@ pub mod system_interpreter;
 pub mod tick_executor;
 pub mod value;
 
-pub use ast::{BinOp, Expr, FunctionAst, OutputExpr, compile_function_ast};
+pub use ast::{compile_function_ast, BinOp, Expr, FunctionAst, OutputExpr};
 pub use bytecode_types::{FunctionBytecode, Instruction};
 pub use context::{ExecutionContext, ExecutionState};
 pub use delta_verifier::{DeltaVerifier, Snapshot, VerificationError, VerificationResult};
 pub use executor::{Executor, ExecutorError, FunctionExecutor};
-pub use policy_updater::{PolicyUpdateError, PolicyUpdater, update_policy};
-pub use system_interpreter::{
-    DeltaEmission, ProofArtifact, SystemExecutionEvent, SystemExecutionResult, SystemInterpreter,
-    SystemInterpreterError,
-};
+pub use policy_updater::{update_policy, PolicyUpdateError, PolicyUpdater};
+pub use system_interpreter::{DeltaEmission, ProofArtifact, SystemExecutionEvent, SystemExecutionResult, SystemInterpreter, SystemInterpreterError};
 pub use tick_executor::{TickExecutionMode, TickExecutionResult, TickExecutor};
 pub use value::{Value, ValueKind};

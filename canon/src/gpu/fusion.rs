@@ -20,11 +20,7 @@ pub struct FusionCandidate {
 pub fn analyze_fusion_candidates(ir: &CanonicalIr) -> Vec<FusionCandidate> {
     let mut function_to_gpu: HashMap<&str, &crate::ir::GpuFunction> = HashMap::new();
     for gpu in &ir.gpu_functions {
-        if gpu.properties.pure
-            && gpu.properties.no_io
-            && gpu.properties.no_alloc
-            && gpu.properties.no_branch
-        {
+        if gpu.properties.pure && gpu.properties.no_io && gpu.properties.no_alloc && gpu.properties.no_branch {
             function_to_gpu.insert(gpu.function.as_str(), gpu);
         }
     }
@@ -35,14 +31,8 @@ pub fn analyze_fusion_candidates(ir: &CanonicalIr) -> Vec<FusionCandidate> {
     let mut outgoing: HashMap<&str, HashSet<&str>> = HashMap::new();
     let mut incoming: HashMap<&str, HashSet<&str>> = HashMap::new();
     for edge in &ir.call_edges {
-        outgoing
-            .entry(edge.caller.as_str())
-            .or_default()
-            .insert(edge.callee.as_str());
-        incoming
-            .entry(edge.callee.as_str())
-            .or_default()
-            .insert(edge.caller.as_str());
+        outgoing.entry(edge.caller.as_str()).or_default().insert(edge.callee.as_str());
+        incoming.entry(edge.callee.as_str()).or_default().insert(edge.caller.as_str());
     }
 
     let mut candidates = Vec::new();
@@ -57,15 +47,7 @@ pub fn analyze_fusion_candidates(ir: &CanonicalIr) -> Vec<FusionCandidate> {
         };
 
         // Require exclusive edge between producer and consumer.
-        if outgoing
-            .get(producer_fn)
-            .map(|set| set.len() == 1)
-            .unwrap_or(false)
-            && incoming
-                .get(consumer_fn)
-                .map(|set| set.len() == 1)
-                .unwrap_or(false)
-        {
+        if outgoing.get(producer_fn).map(|set| set.len() == 1).unwrap_or(false) && incoming.get(consumer_fn).map(|set| set.len() == 1).unwrap_or(false) {
             candidates.push(FusionCandidate {
                 producer_gpu: producer_gpu.id.clone(),
                 consumer_gpu: consumer_gpu.id.clone(),

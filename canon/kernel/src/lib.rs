@@ -41,16 +41,8 @@ pub struct Delta {
 }
 
 impl Delta {
-    pub fn new(
-        id: impl Into<String>,
-        proof: &ProofArtifact,
-        payload_hash: impl Into<String>,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            proof_id: proof.id.clone(),
-            payload_hash: payload_hash.into(),
-        }
+    pub fn new(id: impl Into<String>, proof: &ProofArtifact, payload_hash: impl Into<String>) -> Self {
+        Self { id: id.into(), proof_id: proof.id.clone(), payload_hash: payload_hash.into() }
     }
 }
 
@@ -101,19 +93,11 @@ pub struct Admission {
 }
 
 impl Admission {
-    pub fn new(
-        id: impl Into<String>,
-        judgment_id: impl Into<String>,
-        deltas: Vec<Delta>,
-    ) -> Result<Self, KernelError> {
+    pub fn new(id: impl Into<String>, judgment_id: impl Into<String>, deltas: Vec<Delta>) -> Result<Self, KernelError> {
         if deltas.is_empty() {
             return Err(KernelError::EmptyAdmission);
         }
-        Ok(Self {
-            id: id.into(),
-            judgment_id: judgment_id.into(),
-            deltas,
-        })
+        Ok(Self { id: id.into(), judgment_id: judgment_id.into(), deltas })
     }
 }
 
@@ -131,17 +115,11 @@ pub struct StateLog {
 
 impl StateLog {
     pub fn new(initial_state: impl Into<String>) -> Self {
-        Self {
-            initial_state: initial_state.into(),
-            log: Vec::new(),
-        }
+        Self { initial_state: initial_state.into(), log: Vec::new() }
     }
 
     pub fn from_records(initial_state: impl Into<String>, records: Vec<DeltaRecord>) -> Self {
-        Self {
-            initial_state: initial_state.into(),
-            log: records,
-        }
+        Self { initial_state: initial_state.into(), log: records }
     }
 
     pub fn records(&self) -> &[DeltaRecord] {
@@ -162,10 +140,7 @@ impl StateLog {
         let mut next = self.clone();
         let mut order = next.log.last().map(|r| r.order + 1).unwrap_or(0);
         for delta in &admission.deltas {
-            next.log.push(DeltaRecord {
-                order,
-                delta: delta.clone(),
-            });
+            next.log.push(DeltaRecord { order, delta: delta.clone() });
             order += 1;
         }
         next
@@ -214,22 +189,14 @@ impl ProofRegistry {
     }
 }
 
-pub fn apply_admission(
-    state: &StateLog,
-    judgment: &Judgment,
-    admission: &Admission,
-    invariants: &InvariantRegistry,
-    proofs: &ProofRegistry,
-) -> Result<StateLog, KernelError> {
+pub fn apply_admission(state: &StateLog, judgment: &Judgment, admission: &Admission, invariants: &InvariantRegistry, proofs: &ProofRegistry) -> Result<StateLog, KernelError> {
     if judgment.id != admission.judgment_id {
         return Err(KernelError::JudgmentMismatch);
     }
     match judgment.evaluate(state, invariants) {
         JudgmentDecision::Accept => {
             for delta in &admission.deltas {
-                let proof = proofs.get(&delta.proof_id).ok_or_else(|| {
-                    KernelError::UnknownProof(delta.proof_id.as_str().to_string())
-                })?;
+                let proof = proofs.get(&delta.proof_id).ok_or_else(|| KernelError::UnknownProof(delta.proof_id.as_str().to_string()))?;
                 if !invariants.is_scope_allowed(proof.scope) {
                     return Err(KernelError::ProofScopeRejected(delta.id.clone()));
                 }
@@ -259,12 +226,7 @@ mod tests {
     use super::*;
 
     fn proof(scope: ProofScope) -> ProofArtifact {
-        ProofArtifact {
-            id: ProofId::new(format!("proof-{:?}", scope)),
-            uri: "file://proof".into(),
-            hash: "abc123".into(),
-            scope,
-        }
+        ProofArtifact { id: ProofId::new(format!("proof-{:?}", scope)), uri: "file://proof".into(), hash: "abc123".into(), scope }
     }
 
     #[test]
@@ -277,21 +239,13 @@ mod tests {
     #[test]
     fn apply_appends_deterministically() {
         let pr = proof(ProofScope::Execution);
-        let admission = Admission::new(
-            "admit",
-            "judgment",
-            vec![Delta::new("delta", &pr, "hash-x")],
-        )
-        .unwrap();
+        let admission = Admission::new("admit", "judgment", vec![Delta::new("delta", &pr, "hash-x")]).unwrap();
         let state = StateLog::new("s0");
         let mut invariants = InvariantRegistry::new();
         invariants.allow_scope(ProofScope::Execution);
         let mut proofs = ProofRegistry::new();
         proofs.register(pr.clone());
-        let judgment = Judgment {
-            id: "judgment".into(),
-            predicate: JudgmentPredicate::StateHashEquals(state.state_hash()),
-        };
+        let judgment = Judgment { id: "judgment".into(), predicate: JudgmentPredicate::StateHashEquals(state.state_hash()) };
         let next = apply_admission(&state, &judgment, &admission, &invariants, &proofs).unwrap();
         assert_eq!(next.records().len(), 1);
         let again = apply_admission(&state, &judgment, &admission, &invariants, &proofs).unwrap();
@@ -301,21 +255,13 @@ mod tests {
     #[test]
     fn replay_is_deterministic() {
         let pr = proof(ProofScope::Execution);
-        let admission = Admission::new(
-            "admit",
-            "judgment",
-            vec![Delta::new("delta", &pr, "hash-x")],
-        )
-        .unwrap();
+        let admission = Admission::new("admit", "judgment", vec![Delta::new("delta", &pr, "hash-x")]).unwrap();
         let state = StateLog::new("s0");
         let mut invariants = InvariantRegistry::new();
         invariants.allow_scope(ProofScope::Execution);
         let mut proofs = ProofRegistry::new();
         proofs.register(pr.clone());
-        let judgment = Judgment {
-            id: "judgment".into(),
-            predicate: JudgmentPredicate::StateHashEquals(state.state_hash()),
-        };
+        let judgment = Judgment { id: "judgment".into(), predicate: JudgmentPredicate::StateHashEquals(state.state_hash()) };
         let next = apply_admission(&state, &judgment, &admission, &invariants, &proofs).unwrap();
         assert_ne!(state.state_hash(), next.state_hash());
         let replay = apply_admission(&state, &judgment, &admission, &invariants, &proofs).unwrap();
@@ -331,10 +277,7 @@ mod tests {
         let mut proofs = ProofRegistry::new();
         proofs.register(pr.clone());
         let state = StateLog::new("s0");
-        let judgment = Judgment {
-            id: "judgment".into(),
-            predicate: JudgmentPredicate::StateHashEquals("invalid".into()),
-        };
+        let judgment = Judgment { id: "judgment".into(), predicate: JudgmentPredicate::StateHashEquals("invalid".into()) };
         assert!(apply_admission(&state, &judgment, &admission, &invariants, &proofs).is_err());
     }
 }

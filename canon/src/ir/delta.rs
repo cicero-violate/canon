@@ -39,90 +39,23 @@ pub enum DeltaKind {
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum DeltaPayload {
-    AddModule {
-        module_id: ModuleId,
-        name: Word,
-        visibility: Visibility,
-        description: String,
-    },
-    AddStruct {
-        module: ModuleId,
-        struct_id: StructId,
-        name: Word,
-    },
-    AddField {
-        struct_id: StructId,
-        field: Field,
-    },
-    AddTrait {
-        module: ModuleId,
-        trait_id: TraitId,
-        name: Word,
-    },
-    AddTraitFunction {
-        trait_id: TraitId,
-        function: TraitFunction,
-    },
-    AddImpl {
-        module: ModuleId,
-        impl_id: ImplId,
-        struct_id: StructId,
-        trait_id: TraitId,
-    },
-    AddFunction {
-        function_id: FunctionId,
-        impl_id: ImplId,
-        signature: FunctionSignature,
-    },
-    AddModuleEdge {
-        from: ModuleId,
-        to: ModuleId,
-        rationale: String,
-    },
-    AddCallEdge {
-        caller: FunctionId,
-        callee: FunctionId,
-    },
-    AttachExecutionEvent {
-        execution_id: ExecutionRecordId,
-        event: ExecutionEvent,
-    },
-    UpdateFunctionAst {
-        function_id: FunctionId,
-        ast: JsonValue,
-    },
-    AddEnum {
-        module: ModuleId,
-        enum_id: EnumId,
-        name: Word,
-        visibility: Visibility,
-    },
-    AddEnumVariant {
-        enum_id: EnumId,
-        variant: EnumVariant,
-    },
-    UpdateFunctionInputs {
-        function_id: FunctionId,
-        inputs: Vec<ValuePort>,
-    },
-    UpdateFunctionOutputs {
-        function_id: FunctionId,
-        outputs: Vec<ValuePort>,
-    },
-    UpdateStructVisibility {
-        struct_id: StructId,
-        visibility: Visibility,
-    },
-    RemoveField {
-        struct_id: StructId,
-        field_name: Word,
-    },
-    RenameArtifact {
-        kind: String,
-        old_id: String,
-        new_id: String,
-    },
-    RecordReward {
-        record: RewardRecord,
-    },
+    AddModule { module_id: ModuleId, name: Word, visibility: Visibility, description: String },
+    AddStruct { module: ModuleId, struct_id: StructId, name: Word },
+    AddField { struct_id: StructId, field: Field },
+    AddTrait { module: ModuleId, trait_id: TraitId, name: Word },
+    AddTraitFunction { trait_id: TraitId, function: TraitFunction },
+    AddImpl { module: ModuleId, impl_id: ImplId, struct_id: StructId, trait_id: TraitId },
+    AddFunction { function_id: FunctionId, impl_id: ImplId, signature: FunctionSignature },
+    AddModuleEdge { from: ModuleId, to: ModuleId, rationale: String },
+    AddCallEdge { caller: FunctionId, callee: FunctionId },
+    AttachExecutionEvent { execution_id: ExecutionRecordId, event: ExecutionEvent },
+    UpdateFunctionAst { function_id: FunctionId, ast: JsonValue },
+    AddEnum { module: ModuleId, enum_id: EnumId, name: Word, visibility: Visibility },
+    AddEnumVariant { enum_id: EnumId, variant: EnumVariant },
+    UpdateFunctionInputs { function_id: FunctionId, inputs: Vec<ValuePort> },
+    UpdateFunctionOutputs { function_id: FunctionId, outputs: Vec<ValuePort> },
+    UpdateStructVisibility { struct_id: StructId, visibility: Visibility },
+    RemoveField { struct_id: StructId, field_name: Word },
+    RenameArtifact { kind: String, old_id: String, new_id: String },
+    RecordReward { record: RewardRecord },
 }

@@ -6,20 +6,15 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::ir::{
-    CallEdge, CanonicalIr, EnumId, EnumNode, Function, FunctionId, ImplBlock, ImplId, Module,
-    ModuleEdge, ModuleId, Struct, StructId, SystemGraph, TickGraph, Trait, TraitId, Word,
-};
+use crate::ir::{CallEdge, CanonicalIr, EnumId, EnumNode, Function, FunctionId, ImplBlock, ImplId, Module, ModuleEdge, ModuleId, Struct, StructId, SystemGraph, TickGraph, Trait, TraitId, Word};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 mod strategies;
 mod validation;
 
-pub use strategies::{
-    FlatNodeLayoutStrategy, OriginalLayoutStrategy, PerTypeLayoutStrategy, SingleFileLayoutStrategy,
-};
-pub use validation::{LayoutValidationError, validate_layout};
+pub use strategies::{FlatNodeLayoutStrategy, OriginalLayoutStrategy, PerTypeLayoutStrategy, SingleFileLayoutStrategy};
+pub use validation::{validate_layout, LayoutValidationError};
 
 /// Container that pairs the semantic and layout graphs used during
 /// ingestion/materialization.
@@ -113,10 +108,7 @@ pub trait LayoutStrategy {
 
 /// Transform one layout graph into another using a strategy.
 /// This enables graph-to-graph layout rewrites.
-pub fn transform_layout_graph(
-    semantic: &SemanticGraph,
-    strategy: &dyn LayoutStrategy,
-) -> LayoutGraph {
+pub fn transform_layout_graph(semantic: &SemanticGraph, strategy: &dyn LayoutStrategy) -> LayoutGraph {
     strategy.plan(semantic)
 }
 
@@ -163,10 +155,7 @@ pub fn normalize_layout(layout: &mut LayoutGraph) {
 ///
 /// Applies a layout strategy to a semantic graph and returns
 /// a new fully validated LayoutGraph.
-pub fn transform_layout<S: LayoutStrategy>(
-    semantic: &SemanticGraph,
-    strategy: &S,
-) -> Result<LayoutGraph, LayoutValidationError> {
+pub fn transform_layout<S: LayoutStrategy>(semantic: &SemanticGraph, strategy: &S) -> Result<LayoutGraph, LayoutValidationError> {
     let mut layout = strategy.plan(semantic);
 
     // Canonical normalization invariant
@@ -181,13 +170,8 @@ pub trait LayoutCleaner {
 }
 
 /// Apply a file topology (usually derived from DOT) to the given layout graph.
-pub fn apply_topology_to_layout(
-    layout: &mut LayoutGraph,
-    modules: &[Module],
-    topology: HashMap<String, Vec<LayoutFile>>,
-) {
-    let module_lookup: HashMap<&str, &Module> =
-        modules.iter().map(|m| (m.id.as_str(), m)).collect();
+pub fn apply_topology_to_layout(layout: &mut LayoutGraph, modules: &[Module], topology: HashMap<String, Vec<LayoutFile>>) {
+    let module_lookup: HashMap<&str, &Module> = modules.iter().map(|m| (m.id.as_str(), m)).collect();
     for (module_id, files) in topology {
         if let Some(existing) = layout.modules.iter_mut().find(|m| m.id == module_id) {
             existing.files = files;
@@ -196,12 +180,7 @@ pub fn apply_topology_to_layout(
         let Some(ir_module) = module_lookup.get(module_id.as_str()) else {
             continue;
         };
-        layout.modules.push(LayoutModule {
-            id: module_id,
-            name: ir_module.name.clone(),
-            files,
-            imports: Vec::new(),
-        });
+        layout.modules.push(LayoutModule { id: module_id, name: ir_module.name.clone(), files, imports: Vec::new() });
     }
 }
 
@@ -215,12 +194,7 @@ fn layout_node_key(node: &LayoutNode) -> (&str, &'static str) {
     }
 }
 
-fn enforce_routing_completeness<'a>(
-    label: &'static str,
-    ids: impl Iterator<Item = &'a str>,
-    assigned: &HashSet<String>,
-    violations: &mut Vec<String>,
-) {
+fn enforce_routing_completeness<'a>(label: &'static str, ids: impl Iterator<Item = &'a str>, assigned: &HashSet<String>, violations: &mut Vec<String>) {
     for id in ids {
         let key = format!("{label}:{id}");
         if !assigned.contains(&key) {
@@ -232,10 +206,7 @@ fn enforce_routing_completeness<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{
-        CanonicalIr, CanonicalMeta, Function, FunctionContract, FunctionMetadata, Language, Module,
-        Project, Receiver, Struct, StructKind, VersionContract, Visibility, Word,
-    };
+    use crate::ir::{CanonicalIr, CanonicalMeta, Function, FunctionContract, FunctionMetadata, Language, Module, Project, Receiver, Struct, StructKind, VersionContract, Visibility, Word};
     use std::collections::HashMap;
 
     #[test]
@@ -251,10 +222,7 @@ mod tests {
         let mut layout = sample_layout(&ir);
         layout.routing[0].file_id = "file.missing".to_owned();
         let err = validate_layout(&ir, &layout).expect_err("missing file should fail");
-        assert!(
-            err.to_string().contains("unknown file"),
-            "unexpected error: {err}"
-        );
+        assert!(err.to_string().contains("unknown file"), "unexpected error: {err}");
     }
 
     #[test]
@@ -262,29 +230,17 @@ mod tests {
         let ir = sample_ir();
         let mut layout = sample_layout(&ir);
         layout.routing.push(layout.routing[0].clone());
-        let err =
-            validate_layout(&ir, &layout).expect_err("duplicate node assignments should fail");
-        assert!(
-            err.to_string().contains("assigned more than once"),
-            "unexpected error: {err}"
-        );
+        let err = validate_layout(&ir, &layout).expect_err("duplicate node assignments should fail");
+        assert!(err.to_string().contains("assigned more than once"), "unexpected error: {err}");
     }
 
     #[test]
     fn validate_layout_rejects_missing_assignment() {
         let mut ir = sample_ir();
-        ir.functions.push(sample_function(
-            "function.core.do_it",
-            ir.modules[0].id.as_str(),
-        ));
+        ir.functions.push(sample_function("function.core.do_it", ir.modules[0].id.as_str()));
         let layout = sample_layout(&ir);
-        let err =
-            validate_layout(&ir, &layout).expect_err("missing function assignment should fail");
-        assert!(
-            err.to_string()
-                .contains("function `function.core.do_it` is missing"),
-            "unexpected error: {err}"
-        );
+        let err = validate_layout(&ir, &layout).expect_err("missing function assignment should fail");
+        assert!(err.to_string().contains("function `function.core.do_it` is missing"), "unexpected error: {err}");
     }
 
     #[test]
@@ -293,10 +249,7 @@ mod tests {
         let mut layout = sample_layout(&ir);
         layout.modules[0].files[0].use_block.push(" ".to_owned());
         let err = validate_layout(&ir, &layout).expect_err("empty use block entry should fail");
-        assert!(
-            err.to_string().contains("empty use_block entry"),
-            "unexpected error: {err}"
-        );
+        assert!(err.to_string().contains("empty use_block entry"), "unexpected error: {err}");
     }
 
     fn sample_ir() -> CanonicalIr {
@@ -323,21 +276,9 @@ mod tests {
             history: Vec::new(),
         };
         CanonicalIr {
-            meta: CanonicalMeta {
-                version: "0.0.0".to_owned(),
-                law_revision: Word::new("law").unwrap(),
-                description: String::new(),
-            },
-            version_contract: VersionContract {
-                current: "0.0.0".to_owned(),
-                compatible_with: Vec::new(),
-                migration_proofs: Vec::new(),
-            },
-            project: Project {
-                name: Word::new("canon").unwrap(),
-                version: "0.0.0".to_owned(),
-                language: Language::Rust,
-            },
+            meta: CanonicalMeta { version: "0.0.0".to_owned(), law_revision: Word::new("law").unwrap(), description: String::new() },
+            version_contract: VersionContract { current: "0.0.0".to_owned(), compatible_with: Vec::new(), migration_proofs: Vec::new() },
+            project: Project { name: Word::new("canon").unwrap(), version: "0.0.0".to_owned(), language: Language::Rust },
             modules: vec![module],
             module_edges: Vec::new(),
             structs: vec![structure],
@@ -379,18 +320,10 @@ mod tests {
             modules: vec![LayoutModule {
                 id: ir.modules[0].id.clone(),
                 name: ir.modules[0].name.clone(),
-                files: vec![LayoutFile {
-                    id: "file.core.mod".to_owned(),
-                    path: "mod.rs".to_owned(),
-                    use_block: Vec::new(),
-                }],
+                files: vec![LayoutFile { id: "file.core.mod".to_owned(), path: "mod.rs".to_owned(), use_block: Vec::new() }],
                 imports: Vec::new(),
             }],
-            routing: vec![LayoutAssignment {
-                node: LayoutNode::Struct(ir.structs[0].id.clone()),
-                file_id: "file.core.mod".to_owned(),
-                rationale: "test".to_owned(),
-            }],
+            routing: vec![LayoutAssignment { node: LayoutNode::Struct(ir.structs[0].id.clone()), file_id: "file.core.mod".to_owned(), rationale: "test".to_owned() }],
         }
     }
 
@@ -412,13 +345,7 @@ mod tests {
             inputs: Vec::new(),
             outputs: Vec::new(),
             deltas: Vec::new(),
-            contract: FunctionContract {
-                total: true,
-                deterministic: true,
-                explicit_inputs: true,
-                explicit_outputs: true,
-                effects_are_deltas: true,
-            },
+            contract: FunctionContract { total: true, deterministic: true, explicit_inputs: true, explicit_outputs: true, effects_are_deltas: true },
             metadata: FunctionMetadata::default(),
         }
     }

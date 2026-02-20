@@ -1,11 +1,7 @@
 use serde_json::Value as JsonValue;
 
 pub(crate) fn path_to_str(path: &syn::Path) -> String {
-    path.segments
-        .iter()
-        .map(|s| s.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::")
+    path.segments.iter().map(|s| s.ident.to_string()).collect::<Vec<_>>().join("::")
 }
 
 pub(crate) fn type_to_str(ty: &syn::Type) -> String {

@@ -2,98 +2,47 @@ pub mod goal_mutation;
 mod kernel_bridge;
 pub mod lyapunov;
 mod structural;
-use std::collections::HashMap;
-use canon_kernel::{self as kernel, Judgment as KernelJudgment, JudgmentPredicate};
-use thiserror::Error;
-use crate::ir::{
-    AdmissionId, AppliedDeltaRecord, CanonicalIr, Delta, DeltaId, DeltaKind,
-    DeltaPayload, JudgmentDecision,
-};
+use crate::ir::{AdmissionId, AppliedDeltaRecord, CanonicalIr, Delta, DeltaId, DeltaKind, DeltaPayload, JudgmentDecision};
 use crate::runtime::delta_verifier::{DeltaVerifier, VerificationError};
-pub use goal_mutation::{GoalMutationError, mutate_goal};
-use kernel_bridge::{
-    build_invariant_registry, build_kernel_admission, build_proof_registry,
-    build_state_log,
-};
-pub use lyapunov::{
-    DEFAULT_TOPOLOGY_THETA, LyapunovError, TopologyFingerprint, enforce_lyapunov_bound,
-};
+use canon_kernel::{self as kernel, Judgment as KernelJudgment, JudgmentPredicate};
+pub use goal_mutation::{mutate_goal, GoalMutationError};
+use kernel_bridge::{build_invariant_registry, build_kernel_admission, build_proof_registry, build_state_log};
+pub use lyapunov::{enforce_lyapunov_bound, LyapunovError, TopologyFingerprint, DEFAULT_TOPOLOGY_THETA};
+use std::collections::HashMap;
 use structural::apply_structural_delta;
-pub fn apply_admitted_deltas(
-    ir: &CanonicalIr,
-    admission_ids: &[AdmissionId],
-) -> Result<CanonicalIr, EvolutionError> {
+use thiserror::Error;
+pub fn apply_admitted_deltas(ir: &CanonicalIr, admission_ids: &[AdmissionId]) -> Result<CanonicalIr, EvolutionError> {
     let snapshot = DeltaVerifier::create_snapshot(ir);
-    let judgments: HashMap<_, _> = ir
-        .judgments
-        .iter()
-        .map(|j| (j.id.as_str(), j))
-        .collect();
+    let judgments: HashMap<_, _> = ir.judgments.iter().map(|j| (j.id.as_str(), j)).collect();
     let deltas: HashMap<_, _> = ir.deltas.iter().map(|d| (d.id.as_str(), d)).collect();
-    let admissions: HashMap<_, _> = ir
-        .admissions
-        .iter()
-        .map(|a| (a.id.as_str(), a))
-        .collect();
+    let admissions: HashMap<_, _> = ir.admissions.iter().map(|a| (a.id.as_str(), a)).collect();
     let mut next = ir.clone();
     let mut order = next.applied_deltas.last().map(|r| r.order + 1).unwrap_or(0);
     let proof_registry = build_proof_registry(&ir.proofs);
     let invariants = build_invariant_registry();
     let mut state = build_state_log(&next, &deltas)?;
     for admission_id in admission_ids {
-        let admission = admissions
-            .get(admission_id.as_str())
-            .ok_or_else(|| EvolutionError::UnknownAdmission(admission_id.clone()))?;
-        let judgment = judgments
-            .get(admission.judgment.as_str())
-            .ok_or_else(|| EvolutionError::UnknownJudgment(admission.judgment.clone()))?;
+        let admission = admissions.get(admission_id.as_str()).ok_or_else(|| EvolutionError::UnknownAdmission(admission_id.clone()))?;
+        let judgment = judgments.get(admission.judgment.as_str()).ok_or_else(|| EvolutionError::UnknownJudgment(admission.judgment.clone()))?;
         if judgment.decision != JudgmentDecision::Accept {
             return Err(EvolutionError::JudgmentNotAccepted(admission.judgment.clone()));
         }
         let kernel_admission = build_kernel_admission(admission, &deltas)?;
-        let kernel_judgment = KernelJudgment {
-            id: admission.judgment.clone(),
-            predicate: JudgmentPredicate::StateHashEquals(state.state_hash()),
-        };
-        state = kernel::apply_admission(
-                &state,
-                &kernel_judgment,
-                &kernel_admission,
-                &invariants,
-                &proof_registry,
-            )
-            .map_err(|err| EvolutionError::Kernel(err.to_string()))?;
+        let kernel_judgment = KernelJudgment { id: admission.judgment.clone(), predicate: JudgmentPredicate::StateHashEquals(state.state_hash()) };
+        state = kernel::apply_admission(&state, &kernel_judgment, &kernel_admission, &invariants, &proof_registry).map_err(|err| EvolutionError::Kernel(err.to_string()))?;
         for delta_id in &admission.delta_ids {
-            let delta = deltas
-                .get(delta_id.as_str())
-                .ok_or_else(|| EvolutionError::UnknownDelta(delta_id.clone()))?;
+            let delta = deltas.get(delta_id.as_str()).ok_or_else(|| EvolutionError::UnknownDelta(delta_id.clone()))?;
             assert_delta_is_applicable(delta)?;
             if delta.kind == DeltaKind::Structure {
-                let proof_ids: Vec<String> = ir
-                    .proofs
-                    .iter()
-                    .map(|p| p.id.clone())
-                    .collect();
+                let proof_ids: Vec<String> = ir.proofs.iter().map(|p| p.id.clone()).collect();
                 let mut candidate = next.clone();
                 apply_structural_delta(&mut candidate, delta)?;
-                enforce_lyapunov_bound(
-                        &next,
-                        &candidate,
-                        &proof_ids,
-                        DEFAULT_TOPOLOGY_THETA,
-                    )
-                    .map_err(EvolutionError::TopologyDrift)?;
+                enforce_lyapunov_bound(&next, &candidate, &proof_ids, DEFAULT_TOPOLOGY_THETA).map_err(EvolutionError::TopologyDrift)?;
                 next = candidate;
             } else {
                 apply_structural_delta(&mut next, delta)?;
             }
-            next.applied_deltas
-                .push(AppliedDeltaRecord {
-                    id: format!("{}#{}", admission.id, order),
-                    admission: admission.id.clone(),
-                    delta: delta_id.clone(),
-                    order,
-                });
+            next.applied_deltas.push(AppliedDeltaRecord { id: format!("{}#{}", admission.id, order), admission: admission.id.clone(), delta: delta_id.clone(), order });
             order += 1;
         }
     }
@@ -107,9 +56,7 @@ pub fn apply_admitted_deltas(
     }
 }
 fn assert_delta_is_applicable(delta: &Delta) -> Result<(), EvolutionError> {
-    if matches!(delta.payload, Some(DeltaPayload::AddFunction { .. }))
-        && delta.related_function.is_none()
-    {
+    if matches!(delta.payload, Some(DeltaPayload::AddFunction { .. })) && delta.related_function.is_none() {
         return Err(EvolutionError::MissingContext(delta.id.clone()));
     }
     Ok(())

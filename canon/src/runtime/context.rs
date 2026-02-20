@@ -38,10 +38,7 @@ pub struct ExecutionState {
 impl ExecutionContext {
     pub fn new(inputs: BTreeMap<String, Value>) -> Self {
         Self {
-            state: ExecutionState {
-                inputs,
-                bindings: HashMap::new(),
-            },
+            state: ExecutionState { inputs, bindings: HashMap::new() },
             emitted_deltas: Vec::new(),
             call_stack: Vec::new(),
             max_call_depth: 100, // Prevent deep recursion (Canon Line 75)
@@ -62,11 +59,7 @@ impl ExecutionContext {
 
     /// Lookup a value by name.
     pub fn lookup(&self, name: &str) -> Result<&Value, ContextError> {
-        self.state
-            .bindings
-            .get(name)
-            .or_else(|| self.state.inputs.get(name))
-            .ok_or_else(|| ContextError::UnboundName(name.to_string()))
+        self.state.bindings.get(name).or_else(|| self.state.inputs.get(name)).ok_or_else(|| ContextError::UnboundName(name.to_string()))
     }
 
     /// Emit a delta (Canon Line 34: effects as deltas).
@@ -98,9 +91,7 @@ impl ExecutionContext {
 
     /// Pop function from call stack.
     pub fn pop_call(&mut self) -> Result<FunctionId, ContextError> {
-        self.call_stack
-            .pop()
-            .ok_or(ContextError::CallStackUnderflow)
+        self.call_stack.pop().ok_or(ContextError::CallStackUnderflow)
     }
 
     /// Get current call stack (for debugging).
@@ -111,13 +102,7 @@ impl ExecutionContext {
     /// Create a child context for nested execution.
     /// Inherits state but maintains separate delta log.
     pub fn create_child(&self) -> Self {
-        Self {
-            state: self.state.clone(),
-            emitted_deltas: Vec::new(),
-            call_stack: self.call_stack.clone(),
-            max_call_depth: self.max_call_depth,
-            binding_counter: self.binding_counter,
-        }
+        Self { state: self.state.clone(), emitted_deltas: Vec::new(), call_stack: self.call_stack.clone(), max_call_depth: self.max_call_depth, binding_counter: self.binding_counter }
     }
 
     /// Merge child context back (Canon Line 30: composition only).
@@ -129,12 +114,7 @@ impl ExecutionContext {
     }
 
     /// Bind a value with an auto-generated unique key tied to the function ID and slot.
-    pub fn bind_scoped(
-        &mut self,
-        function_id: &FunctionId,
-        slot: impl Into<String>,
-        value: Value,
-    ) -> Result<String, ContextError> {
+    pub fn bind_scoped(&mut self, function_id: &FunctionId, slot: impl Into<String>, value: Value) -> Result<String, ContextError> {
         let slot = slot.into();
         let key = format!("{}::{}::{}", function_id, slot, self.binding_counter);
         self.binding_counter += 1;
@@ -145,9 +125,7 @@ impl ExecutionContext {
 
 impl ExecutionState {
     pub fn get_input(&self, name: &str) -> Result<&Value, ContextError> {
-        self.inputs
-            .get(name)
-            .ok_or_else(|| ContextError::UnboundName(name.to_string()))
+        self.inputs.get(name).ok_or_else(|| ContextError::UnboundName(name.to_string()))
     }
 }
 

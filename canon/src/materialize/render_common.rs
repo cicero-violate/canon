@@ -34,12 +34,7 @@ fn render_named_type(ty: &TypeRef) -> String {
     if ty.params.is_empty() {
         ty.name.as_str().to_owned()
     } else {
-        let args = ty
-            .params
-            .iter()
-            .map(render_type)
-            .collect::<Vec<_>>()
-            .join(", ");
+        let args = ty.params.iter().map(render_type).collect::<Vec<_>>().join(", ");
         format!("{}<{}>", ty.name, args)
     }
 }
@@ -48,14 +43,7 @@ fn render_tuple_type(params: &[TypeRef]) -> String {
     match params.len() {
         0 => "()".to_owned(),
         1 => format!("({},)", render_type(&params[0])),
-        _ => format!(
-            "({})",
-            params
-                .iter()
-                .map(render_type)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
+        _ => format!("({})", params.iter().map(render_type).collect::<Vec<_>>().join(", ")),
     }
 }
 
@@ -63,11 +51,7 @@ fn render_fn_ptr_type(params: &[TypeRef]) -> String {
     match params.split_last() {
         None => "fn()".to_owned(),
         Some((ret, inputs)) => {
-            let rendered_inputs = inputs
-                .iter()
-                .map(render_type)
-                .collect::<Vec<_>>()
-                .join(", ");
+            let rendered_inputs = inputs.iter().map(render_type).collect::<Vec<_>>().join(", ");
             let mut sig = format!("fn({rendered_inputs})");
             if !matches!(ret.kind, TypeKind::Tuple) || !ret.params.is_empty() {
                 sig.push_str(" -> ");
@@ -79,11 +63,7 @@ fn render_fn_ptr_type(params: &[TypeRef]) -> String {
 }
 
 fn render_slice_type(ty: &TypeRef) -> String {
-    let elem = ty
-        .params
-        .get(0)
-        .map(render_type)
-        .unwrap_or_else(|| "()".to_owned());
+    let elem = ty.params.get(0).map(render_type).unwrap_or_else(|| "()".to_owned());
     match ty.ref_kind {
         RefKind::None => format!("[{elem}]"),
         RefKind::Ref => format!("&{}[{elem}]", lifetime_fragment(ty.lifetime.as_deref())),
@@ -118,10 +98,6 @@ fn render_impl_dyn_trait(prefix: &str, params: &[TypeRef]) -> String {
     if params.is_empty() {
         return format!("{prefix} _");
     }
-    let bounds = params
-        .iter()
-        .map(render_type)
-        .collect::<Vec<_>>()
-        .join(" + ");
+    let bounds = params.iter().map(render_type).collect::<Vec<_>>().join(" + ");
     format!("{prefix} {bounds}")
 }

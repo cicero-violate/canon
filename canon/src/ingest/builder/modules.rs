@@ -1,17 +1,13 @@
 use std::collections::{BTreeSet, HashMap};
 
-use crate::ir::{
-    ConstItem, Module, ModuleEdge, PubUseItem, StaticItem, TypeAlias, Visibility, Word,
-};
+use crate::ir::{ConstItem, Module, ModuleEdge, PubUseItem, StaticItem, TypeAlias, Visibility, Word};
 
 use super::super::parser::{ParsedFile, ParsedWorkspace};
+use super::types::{
+    attribute_to_string, collect_doc_string, convert_type, expr_to_string, flatten_use_tree, map_visibility, render_use_item, resolve_use_entry, slugify, to_pascal_case, word_from_ident, AliasBinding,
+};
 use super::IngestError;
 use super::ModulesBuild;
-use super::types::{
-    AliasBinding, attribute_to_string, collect_doc_string, convert_type, expr_to_string,
-    flatten_use_tree, map_visibility, render_use_item, resolve_use_entry, slugify, to_pascal_case,
-    word_from_ident,
-};
 pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, IngestError> {
     let mut acc: HashMap<String, ModuleAccumulator> = HashMap::new();
     for file in &parsed.files {
@@ -27,9 +23,7 @@ pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, In
             continue;
         }
 
-        acc.entry(key.clone())
-            .or_insert_with(|| ModuleAccumulator::new(&key))
-            .add_file(file);
+        acc.entry(key.clone()).or_insert_with(|| ModuleAccumulator::new(&key)).add_file(file);
     }
     let mut modules = Vec::new();
     let mut module_lookup = HashMap::new();
@@ -43,17 +37,10 @@ pub(crate) fn build_modules(parsed: &ParsedWorkspace) -> Result<ModulesBuild, In
         let file_id = format!("file.{}", slugify(&path));
         file_lookup.insert(path.clone(), file_id);
     }
-    Ok(ModulesBuild {
-        modules,
-        module_lookup,
-        file_lookup,
-    })
+    Ok(ModulesBuild { modules, module_lookup, file_lookup })
 }
 
-pub(crate) fn build_module_edges(
-    parsed: &ParsedWorkspace,
-    module_lookup: &HashMap<String, String>,
-) -> Vec<ModuleEdge> {
+pub(crate) fn build_module_edges(parsed: &ParsedWorkspace, module_lookup: &HashMap<String, String>) -> Vec<ModuleEdge> {
     let mut acc: HashMap<(String, String), BTreeSet<String>> = HashMap::new();
     for file in &parsed.files {
         let module_key = module_key(file);
@@ -72,23 +59,15 @@ pub(crate) fn build_module_edges(
                 let child_key = format!("{}::{}", module_key, item_mod.ident);
                 if let Some(child_id) = module_lookup.get(&slugify(&child_key)) {
                     if child_id != target_id {
-                        acc.entry((target_id.clone(), child_id.clone()))
-                            .or_default()
-                            .insert(item_mod.ident.to_string());
+                        acc.entry((target_id.clone(), child_id.clone())).or_default().insert(item_mod.ident.to_string());
                     }
                 }
             }
             if let syn::Item::Use(item_use) = item {
                 let mut entries = Vec::new();
-                flatten_use_tree(
-                    Vec::new(),
-                    &item_use.tree,
-                    item_use.leading_colon.is_some(),
-                    &mut entries,
-                );
+                flatten_use_tree(Vec::new(), &item_use.tree, item_use.leading_colon.is_some(), &mut entries);
                 for entry in entries {
-                    let Some((source_key, imported)) = resolve_use_entry(&entry, &module_key)
-                    else {
+                    let Some((source_key, imported)) = resolve_use_entry(&entry, &module_key) else {
                         continue;
                     };
                     let Some(source_id) = module_lookup.get(&slugify(&source_key)) else {
@@ -112,45 +91,25 @@ pub(crate) fn build_module_edges(
                     if module_key.starts_with(&format!("{}::", source_key)) {
                         continue;
                     }
-                    acc.entry((target_id.clone(), source_id.clone()))
-                        .or_default()
-                        .insert(imported);
+                    acc.entry((target_id.clone(), source_id.clone())).or_default().insert(imported);
                 }
             }
         }
     }
     let mut edges: Vec<ModuleEdge> = acc
         .into_iter()
-        .map(|((source, target), imports)| ModuleEdge {
-            source,
-            target,
-            rationale: "ING-001: discovered use statements".to_owned(),
-            imported_types: imports.into_iter().collect(),
-        })
+        .map(|((source, target), imports)| ModuleEdge { source, target, rationale: "ING-001: discovered use statements".to_owned(), imported_types: imports.into_iter().collect() })
         .collect();
-    edges.sort_by(|a, b| {
-        a.source
-            .cmp(&b.source)
-            .then_with(|| a.target.cmp(&b.target))
-    });
+    edges.sort_by(|a, b| a.source.cmp(&b.source).then_with(|| a.target.cmp(&b.target)));
     edges
 }
 
-pub(crate) fn collect_use_aliases(
-    file: &ParsedFile,
-    module_key: &str,
-    module_lookup: &HashMap<String, String>,
-) -> HashMap<String, AliasBinding> {
+pub(crate) fn collect_use_aliases(file: &ParsedFile, module_key: &str, module_lookup: &HashMap<String, String>) -> HashMap<String, AliasBinding> {
     let mut aliases = HashMap::new();
     for item in &file.ast.items {
         if let syn::Item::Use(item_use) = item {
             let mut entries = Vec::new();
-            flatten_use_tree(
-                Vec::new(),
-                &item_use.tree,
-                item_use.leading_colon.is_some(),
-                &mut entries,
-            );
+            flatten_use_tree(Vec::new(), &item_use.tree, item_use.leading_colon.is_some(), &mut entries);
             for entry in entries {
                 if entry.is_glob {
                     continue;
@@ -171,13 +130,7 @@ pub(crate) fn collect_use_aliases(
                 if alias_name.is_empty() {
                     continue;
                 }
-                aliases.insert(
-                    alias_name,
-                    AliasBinding {
-                        module_key: source_key.clone(),
-                        function_slug: slugify(&original_name),
-                    },
-                );
+                aliases.insert(alias_name, AliasBinding { module_key: source_key.clone(), function_slug: slugify(&original_name) });
             }
         }
     }
@@ -221,17 +174,7 @@ impl ModuleAccumulator {
         let name = Word::new(to_pascal_case(key)).unwrap_or_else(|_| Word::new("Module").unwrap());
         let id = format!("module.{}", slugify(key));
         let description = format!("Ingested module `{key}`");
-        Self {
-            key: key.to_owned(),
-            id,
-            name,
-            description,
-            pub_uses: Vec::new(),
-            constants: Vec::new(),
-            type_aliases: Vec::new(),
-            statics: Vec::new(),
-            attributes: Vec::new(),
-        }
+        Self { key: key.to_owned(), id, name, description, pub_uses: Vec::new(), constants: Vec::new(), type_aliases: Vec::new(), statics: Vec::new(), attributes: Vec::new() }
     }
 
     pub fn add_file(&mut self, file: &ParsedFile) {
@@ -263,19 +206,12 @@ impl ModuleAccumulator {
                 }
                 syn::Item::Const(item_const) => {
                     if matches!(map_visibility(&item_const.vis), Visibility::Public) {
-                        self.constants.push(ConstItem {
-                            name: word_from_ident(&item_const.ident, "Const"),
-                            ty: convert_type(&item_const.ty),
-                            value_expr: expr_to_string(&item_const.expr),
-                        });
+                        self.constants.push(ConstItem { name: word_from_ident(&item_const.ident, "Const"), ty: convert_type(&item_const.ty), value_expr: expr_to_string(&item_const.expr) });
                     }
                 }
                 syn::Item::Type(item_type) => {
                     if matches!(map_visibility(&item_type.vis), Visibility::Public) {
-                        self.type_aliases.push(TypeAlias {
-                            name: word_from_ident(&item_type.ident, "TypeAlias"),
-                            target: convert_type(&item_type.ty),
-                        });
+                        self.type_aliases.push(TypeAlias { name: word_from_ident(&item_type.ident, "TypeAlias"), target: convert_type(&item_type.ty) });
                     }
                 }
                 syn::Item::Static(item_static) => {

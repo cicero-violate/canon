@@ -17,10 +17,7 @@ pub fn render_cargo_toml(project: &Project, dependencies: &[ExternalDependency])
             if dep.name == dep.source {
                 out.push_str(&format!("{} = \"{}\"\n", dep.name, dep.version));
             } else {
-                out.push_str(&format!(
-                    "{} = {{ package = \"{}\", version = \"{}\" }}\n",
-                    dep.name, dep.source, dep.version
-                ));
+                out.push_str(&format!("{} = {{ package = \"{}\", version = \"{}\" }}\n", dep.name, dep.source, dep.version));
             }
         }
     }

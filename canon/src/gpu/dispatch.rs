@@ -27,48 +27,16 @@ pub enum GpuExecutorError {
 impl GpuExecutor {
     pub async fn new() -> Result<Self, GpuExecutorError> {
         let instance = wgpu::Instance::default();
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok_or(GpuExecutorError::NoAdapter)?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default(), None)
-            .await
-            .map_err(|err| GpuExecutorError::Init(err.to_string()))?;
-        Ok(Self {
-            device: Arc::new(device),
-            queue: Arc::new(queue),
-        })
+        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok_or(GpuExecutorError::NoAdapter)?;
+        let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor::default(), None).await.map_err(|err| GpuExecutorError::Init(err.to_string()))?;
+        Ok(Self { device: Arc::new(device), queue: Arc::new(queue) })
     }
 
-    pub async fn execute(
-        &self,
-        program: &GpuProgram,
-        inputs: &[f32],
-        outputs: &mut [f32],
-    ) -> Result<(), GpuExecutorError> {
-        let shader_module = self
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("canon_shader"),
-                source: wgpu::ShaderSource::Wgsl(program.shader.clone().into()),
-            });
-        let pipeline = self
-            .device
-            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("canon_pipeline"),
-                layout: None,
-                module: &shader_module,
-                entry_point: "main",
-            });
+    pub async fn execute(&self, program: &GpuProgram, inputs: &[f32], outputs: &mut [f32]) -> Result<(), GpuExecutorError> {
+        let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor { label: Some("canon_shader"), source: wgpu::ShaderSource::Wgsl(program.shader.clone().into()) });
+        let pipeline = self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor { label: Some("canon_pipeline"), layout: None, module: &shader_module, entry_point: "main" });
 
-        let input_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("gpu_inputs"),
-                contents: bytemuck::cast_slice(inputs),
-                usage: wgpu::BufferUsages::STORAGE,
-            });
+        let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some("gpu_inputs"), contents: bytemuck::cast_slice(inputs), usage: wgpu::BufferUsages::STORAGE });
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("gpu_outputs"),
             size: (outputs.len() * std::mem::size_of::<f32>()) as u64,
@@ -84,22 +52,11 @@ impl GpuExecutor {
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &pipeline.get_bind_group_layout(0),
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: input_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: output_buffer.as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry { binding: 0, resource: input_buffer.as_entire_binding() }, wgpu::BindGroupEntry { binding: 1, resource: output_buffer.as_entire_binding() }],
             label: Some("canon_bind_group"),
         });
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
             pass.set_pipeline(&pipeline);
@@ -112,15 +69,9 @@ impl GpuExecutor {
 
         let slice = staging_buffer.slice(..);
         let (sender, receiver) = oneshot_channel();
-        slice.map_async(wgpu::MapMode::Read, move |result| {
-            sender.send(result).unwrap()
-        });
+        slice.map_async(wgpu::MapMode::Read, move |result| sender.send(result).unwrap());
         self.device.poll(wgpu::Maintain::Wait);
-        receiver
-            .receive()
-            .await
-            .ok_or_else(|| GpuExecutorError::Execution("map_async failed".into()))?
-            .map_err(|_| GpuExecutorError::Execution("GPU mapping error".into()))?;
+        receiver.receive().await.ok_or_else(|| GpuExecutorError::Execution("map_async failed".into()))?.map_err(|_| GpuExecutorError::Execution("GPU mapping error".into()))?;
 
         {
             let data = slice.get_mapped_range();

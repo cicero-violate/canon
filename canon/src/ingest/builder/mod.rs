@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::layout::{LayoutMap, SemanticGraph};
 
-use super::IngestError;
 use super::parser::ParsedWorkspace;
+use super::IngestError;
 
 pub(crate) mod ast_lower;
 pub(crate) mod edges;
@@ -19,15 +19,8 @@ pub(crate) struct ModulesBuild {
 }
 
 /// Convert parsed files into semantic + layout graphs.
-pub(crate) fn build_layout_map(
-    _root: &Path,
-    parsed: ParsedWorkspace,
-) -> Result<LayoutMap, IngestError> {
-    let ModulesBuild {
-        modules,
-        module_lookup,
-        file_lookup,
-    } = modules::build_modules(&parsed)?;
+pub(crate) fn build_layout_map(_root: &Path, parsed: ParsedWorkspace) -> Result<LayoutMap, IngestError> {
+    let ModulesBuild { modules, module_lookup, file_lookup } = modules::build_modules(&parsed)?;
     let module_edges = modules::build_module_edges(&parsed, &module_lookup);
     let mut layout_acc = layout::LayoutAccumulator::default();
     // Register every file so layout can build LayoutFile entries per module
@@ -57,10 +50,7 @@ pub(crate) fn build_layout_map(
     let structs = functions::build_structs(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
     let enums = functions::build_enums(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
     let traits = functions::build_traits(&parsed, &module_lookup, &file_lookup, &mut layout_acc);
-    let trait_name_to_id: std::collections::HashMap<String, String> = traits
-        .iter()
-        .map(|t| (t.name.as_str().to_ascii_lowercase(), t.id.clone()))
-        .collect();
+    let trait_name_to_id: std::collections::HashMap<String, String> = traits.iter().map(|t| (t.name.as_str().to_ascii_lowercase(), t.id.clone())).collect();
     let type_slug_to_id: std::collections::HashMap<String, String> = structs
         .iter()
         .map(|s| {
@@ -72,33 +62,10 @@ pub(crate) fn build_layout_map(
             (slug, e.id.clone())
         }))
         .collect();
-    let type_id_to_module: std::collections::HashMap<String, String> = structs
-        .iter()
-        .map(|s| (s.id.clone(), s.module.clone()))
-        .chain(enums.iter().map(|e| (e.id.clone(), e.module.clone())))
-        .collect();
-    let (impls, fns) = functions::build_impls_and_functions(
-        &parsed,
-        &module_lookup,
-        &file_lookup,
-        &mut layout_acc,
-        &trait_name_to_id,
-        &type_slug_to_id,
-        &type_id_to_module,
-    );
+    let type_id_to_module: std::collections::HashMap<String, String> = structs.iter().map(|s| (s.id.clone(), s.module.clone())).chain(enums.iter().map(|e| (e.id.clone(), e.module.clone()))).collect();
+    let (impls, fns) = functions::build_impls_and_functions(&parsed, &module_lookup, &file_lookup, &mut layout_acc, &trait_name_to_id, &type_slug_to_id, &type_id_to_module);
     let call_edges = edges::build_call_edges(&parsed, &module_lookup, &fns);
-    let semantic = SemanticGraph {
-        modules,
-        structs,
-        enums,
-        traits,
-        impls: impls,
-        functions: fns,
-        module_edges,
-        call_edges,
-        tick_graphs: Vec::new(),
-        system_graphs: Vec::new(),
-    };
+    let semantic = SemanticGraph { modules, structs, enums, traits, impls: impls, functions: fns, module_edges, call_edges, tick_graphs: Vec::new(), system_graphs: Vec::new() };
     let layout = layout_acc.into_graph(&semantic.modules);
     Ok(LayoutMap { semantic, layout })
 }
@@ -107,15 +74,5 @@ pub(crate) fn build_layout_map(
 /// declaration order. These are stored verbatim in `LayoutFile.use_block`
 /// so the materializer can emit them before its synthesised imports.
 fn collect_use_lines(file: &super::parser::ParsedFile) -> Vec<String> {
-    file.ast
-        .items
-        .iter()
-        .filter_map(|item| {
-            if let syn::Item::Use(item_use) = item {
-                Some(types::render_use_item(item_use))
-            } else {
-                None
-            }
-        })
-        .collect()
+    file.ast.items.iter().filter_map(|item| if let syn::Item::Use(item_use) = item { Some(types::render_use_item(item_use)) } else { None }).collect()
 }

@@ -1,17 +1,14 @@
+use crate::{
+    layout::{LayoutGraph, SemanticGraph},
+    semantic_builder::SemanticIrBuilder,
+    storage::reader::MemoryIrReader,
+    CanonicalIr,
+};
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::{
-    CanonicalIr, layout::{LayoutGraph, SemanticGraph},
-    semantic_builder::SemanticIrBuilder, storage::reader::MemoryIrReader,
-};
 fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
-    if path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.eq_ignore_ascii_case("bin"))
-        .unwrap_or(false)
-    {
+    if path.extension().and_then(|ext| ext.to_str()).map(|ext| ext.eq_ignore_ascii_case("bin")).unwrap_or(false) {
         return Ok(MemoryIrReader::read_ir_from_checkpoint(path)?);
     }
     let data = fs::read(path)?;
@@ -23,17 +20,13 @@ fn load_ir_from_path(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Err
     let base_name = name.split('.').next().unwrap_or("canon");
     Ok(SemanticIrBuilder::new(base_name).build(semantic))
 }
-pub fn load_ir_from_file(
-    path: &Path,
-) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
+pub fn load_ir_from_file(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
     load_ir_from_path(path)
 }
 /// Load either a full `CanonicalIr` or a `SemanticGraph` produced by
 /// `canon ingest`. When a semantic graph is detected it is promoted to
 /// a `CanonicalIr` via `SemanticIrBuilder`.
-pub fn load_ir_or_semantic_graph(
-    path: &Path,
-) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
+pub fn load_ir_or_semantic_graph(path: &Path) -> Result<CanonicalIr, Box<dyn std::error::Error>> {
     load_ir_from_path(path)
 }
 pub fn load_layout(path: PathBuf) -> Result<LayoutGraph, Box<dyn std::error::Error>> {
@@ -44,10 +37,7 @@ pub fn resolve_layout(arg: Option<PathBuf>, ir: &Path) -> PathBuf {
     arg.unwrap_or_else(|| default_layout_path_for(ir))
 }
 pub fn default_layout_path_for(ir_path: &Path) -> PathBuf {
-    let stem = ir_path
-        .file_stem()
-        .map(|s| s.to_os_string())
-        .unwrap_or_else(|| OsString::from("canonical"));
+    let stem = ir_path.file_stem().map(|s| s.to_os_string()).unwrap_or_else(|| OsString::from("canonical"));
     let mut layout_name = stem;
     layout_name.push(".layout.json");
     ir_path.with_file_name(layout_name)
@@ -55,10 +45,7 @@ pub fn default_layout_path_for(ir_path: &Path) -> PathBuf {
 /// Derives the default capability graph path for a given IR path.
 /// e.g. `canon.ir.json` → `canon.graph.json`
 pub fn default_graph_path_for(ir_path: &Path) -> PathBuf {
-    let stem = ir_path
-        .file_stem()
-        .map(|s| s.to_os_string())
-        .unwrap_or_else(|| OsString::from("canonical"));
+    let stem = ir_path.file_stem().map(|s| s.to_os_string()).unwrap_or_else(|| OsString::from("canonical"));
     let mut graph_name = stem;
     graph_name.push(".graph.json");
     ir_path.with_file_name(graph_name)

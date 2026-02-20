@@ -51,16 +51,10 @@ impl From<WsBridgeError> for LlmProviderError {
 /// Public Entry Point
 /// ------------------------------------------------------------------------
 
-pub async fn call_llm(
-    bridge: &WsBridge,
-    input: &AgentCallInput,
-) -> Result<AgentCallOutput, LlmProviderError> {
+pub async fn call_llm(bridge: &WsBridge, input: &AgentCallInput) -> Result<AgentCallOutput, LlmProviderError> {
     let prompt = PromptBuilder::new(input).build();
 
-    let raw_response = bridge
-        .send_turn(Some(bridge.open_fresh_tab().await?), prompt)
-        .await
-        .map_err(LlmProviderError::Transport)?;
+    let raw_response = bridge.send_turn(Some(bridge.open_fresh_tab().await?), prompt).await.map_err(LlmProviderError::Transport)?;
 
     let payload = JsonExtractor::extract(&raw_response)?;
 
@@ -124,14 +118,7 @@ impl<'a> PromptBuilder<'a> {
         self.input
             .predecessor_outputs
             .iter()
-            .map(|p| {
-                format!(
-                    "node={} stage={:?} payload={}",
-                    p.node_id,
-                    p.stage,
-                    serde_json::to_string(&p.payload).unwrap_or_default()
-                )
-            })
+            .map(|p| format!("node={} stage={:?} payload={}", p.node_id, p.stage, serde_json::to_string(&p.payload).unwrap_or_default()))
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -148,15 +135,11 @@ impl JsonExtractor {
         let start = Self::find_open(text)?;
         let content = &text[start..];
         let json_str = Self::slice_json(content)?;
-        serde_json::from_str(json_str)
-            .map_err(|e| LlmProviderError::JsonDecodeFailure(e.to_string()))
+        serde_json::from_str(json_str).map_err(|e| LlmProviderError::JsonDecodeFailure(e.to_string()))
     }
 
     fn find_open(text: &str) -> Result<usize, LlmProviderError> {
-        text.find("```json")
-            .or_else(|| text.find("```JSON"))
-            .map(|i| i + 7)
-            .ok_or(LlmProviderError::MissingJsonFence)
+        text.find("```json").or_else(|| text.find("```JSON")).map(|i| i + 7).ok_or(LlmProviderError::MissingJsonFence)
     }
 
     fn slice_json(text: &str) -> Result<&str, LlmProviderError> {
@@ -173,29 +156,11 @@ struct OutputAssembler;
 
 impl OutputAssembler {
     fn assemble(input: &AgentCallInput, payload: Value) -> AgentCallOutput {
-        let proof_id = payload
-            .get("proof_id")
-            .and_then(|v| v.as_str())
-            .map(str::to_owned);
+        let proof_id = payload.get("proof_id").and_then(|v| v.as_str()).map(str::to_owned);
 
-        let emitted_delta_ids = payload
-            .get("emitted_delta_ids")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let emitted_delta_ids = payload.get("emitted_delta_ids").and_then(|v| v.as_array()).map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
 
-        AgentCallOutput {
-            call_id: input.call_id.clone(),
-            node_id: input.node_id.clone(),
-            payload,
-            proof_id,
-            emitted_delta_ids,
-            stage: input.stage.clone(),
-        }
+        AgentCallOutput { call_id: input.call_id.clone(), node_id: input.node_id.clone(), payload, proof_id, emitted_delta_ids, stage: input.stage.clone() }
     }
 }
 

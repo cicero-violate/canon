@@ -52,14 +52,7 @@ pub struct WorldModel {
 
 impl WorldModel {
     pub fn new() -> Self {
-        Self {
-            version: "0.1.0-world-model".to_string(),
-            last_tick: None,
-            state_root: None,
-            state_snapshot: None,
-            prediction_head: Vec::new(),
-            predictions: Vec::new(),
-        }
+        Self { version: "0.1.0-world-model".to_string(), last_tick: None, state_root: None, state_snapshot: None, prediction_head: Vec::new(), predictions: Vec::new() }
     }
 
     pub fn push_prediction_head(&mut self, head: PredictionHead) {
@@ -92,14 +85,8 @@ pub struct PredictionRecord {
 
 impl PredictionRecord {
     pub fn new(tick: TickId, predicted_deltas: Vec<DeltaId>, actual_deltas: Vec<DeltaId>) -> Self {
-        let error =
-            (predicted_deltas.len() as i64 - actual_deltas.len() as i64).unsigned_abs() as f64;
+        let error = (predicted_deltas.len() as i64 - actual_deltas.len() as i64).unsigned_abs() as f64;
 
-        Self {
-            tick,
-            predicted_deltas,
-            actual_deltas,
-            error,
-        }
+        Self { tick, predicted_deltas, actual_deltas, error }
     }
 }

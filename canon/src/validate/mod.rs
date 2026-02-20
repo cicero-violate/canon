@@ -19,5 +19,9 @@ pub fn validate_ir(ir: &CanonicalIr) -> Result<(), ValidationErrors> {
     check_graphs::check_graphs(ir, &indexes, &mut violations);
     check_proposals::check(ir, &indexes, &mut violations);
     check_execution::check(ir, &indexes, &mut violations);
-    if violations.is_empty() { Ok(()) } else { Err(ValidationErrors::new(violations)) }
+    if violations.is_empty() {
+        Ok(())
+    } else {
+        Err(ValidationErrors::new(violations))
+    }
 }

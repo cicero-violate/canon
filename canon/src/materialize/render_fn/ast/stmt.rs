@@ -45,18 +45,12 @@ fn render_let(node: &JsonValue, depth: usize, out: &mut String) {
         _ => "",
     };
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("_");
-    let rhs = node
-        .get("value")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "()".to_owned());
+    let rhs = node.get("value").map(render_ast_expr).unwrap_or_else(|| "()".to_owned());
     out.push_str(&format!("{}let {mut_part}{name} = {rhs};\n", indent(depth)));
 }
 
 fn render_if(node: &JsonValue, depth: usize, out: &mut String) {
-    let cond = node
-        .get("cond")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "true".to_owned());
+    let cond = node.get("cond").map(render_ast_expr).unwrap_or_else(|| "true".to_owned());
     out.push_str(&format!("{}if {cond} {{\n", indent(depth)));
     if let Some(then_branch) = node.get("then") {
         render_ast_node(then_branch, depth + 1, out);
@@ -69,10 +63,7 @@ fn render_if(node: &JsonValue, depth: usize, out: &mut String) {
 }
 
 fn render_match(node: &JsonValue, depth: usize, out: &mut String) {
-    let expr = node
-        .get("expr")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "_".to_owned());
+    let expr = node.get("expr").map(render_ast_expr).unwrap_or_else(|| "_".to_owned());
     out.push_str(&format!("{}match {expr} {{\n", indent(depth)));
     if let Some(arms) = node.get("arms").and_then(|a| a.as_array()) {
         for arm in arms {
@@ -88,10 +79,7 @@ fn render_match(node: &JsonValue, depth: usize, out: &mut String) {
 }
 
 fn render_while(node: &JsonValue, depth: usize, out: &mut String) {
-    let cond = node
-        .get("cond")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "true".to_owned());
+    let cond = node.get("cond").map(render_ast_expr).unwrap_or_else(|| "true".to_owned());
     out.push_str(&format!("{}while {cond} {{\n", indent(depth)));
     if let Some(body) = node.get("body") {
         render_ast_node(body, depth + 1, out);
@@ -101,10 +89,7 @@ fn render_while(node: &JsonValue, depth: usize, out: &mut String) {
 
 fn render_for(node: &JsonValue, depth: usize, out: &mut String) {
     let pat = node.get("pat").and_then(|p| p.as_str()).unwrap_or("_");
-    let iter = node
-        .get("iter")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "()".to_owned());
+    let iter = node.get("iter").map(render_ast_expr).unwrap_or_else(|| "()".to_owned());
     out.push_str(&format!("{}for {pat} in {iter} {{\n", indent(depth)));
     if let Some(body) = node.get("body") {
         render_ast_node(body, depth + 1, out);
@@ -129,36 +114,20 @@ fn render_break(node: &JsonValue, depth: usize, out: &mut String) {
 
 fn render_return(node: &JsonValue, depth: usize, out: &mut String) {
     match node.get("value") {
-        Some(v) => out.push_str(&format!(
-            "{}return {};\n",
-            indent(depth),
-            render_ast_expr(v)
-        )),
+        Some(v) => out.push_str(&format!("{}return {};\n", indent(depth), render_ast_expr(v))),
         None => out.push_str(&format!("{}return;\n", indent(depth))),
     }
 }
 
 fn render_assign(node: &JsonValue, depth: usize, out: &mut String) {
-    let target = node
-        .get("target")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "_".to_owned());
-    let value = node
-        .get("value")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "()".to_owned());
+    let target = node.get("target").map(render_ast_expr).unwrap_or_else(|| "_".to_owned());
+    let value = node.get("value").map(render_ast_expr).unwrap_or_else(|| "()".to_owned());
     out.push_str(&format!("{}{target} = {value};\n", indent(depth)));
 }
 
 fn render_compound_assign(node: &JsonValue, depth: usize, out: &mut String) {
-    let target = node
-        .get("target")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "_".to_owned());
-    let value = node
-        .get("value")
-        .map(render_ast_expr)
-        .unwrap_or_else(|| "()".to_owned());
+    let target = node.get("target").map(render_ast_expr).unwrap_or_else(|| "_".to_owned());
+    let value = node.get("value").map(render_ast_expr).unwrap_or_else(|| "()".to_owned());
     let op = node.get("op").and_then(|o| o.as_str()).unwrap_or("+=");
     out.push_str(&format!("{}{target} {op} {value};\n", indent(depth)));
 }

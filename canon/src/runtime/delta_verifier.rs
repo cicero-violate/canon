@@ -14,11 +14,7 @@ pub struct DeltaVerifier;
 impl DeltaVerifier {
     /// Verify that applying deltas produces expected state hash.
     /// Returns error if verification fails (Canon Line 69).
-    pub fn verify_application(
-        original_ir: &CanonicalIr,
-        evolved_ir: &CanonicalIr,
-        admission_ids: &[AdmissionId],
-    ) -> Result<VerificationResult, VerificationError> {
+    pub fn verify_application(original_ir: &CanonicalIr, evolved_ir: &CanonicalIr, admission_ids: &[AdmissionId]) -> Result<VerificationResult, VerificationError> {
         // Step 1: Compute expected state hash before application
         let before_hash = compute_state_hash(original_ir);
 
@@ -34,39 +30,23 @@ impl DeltaVerifier {
         // Step 5: Verify all referenced deltas were applied
         Self::verify_deltas_applied(original_ir, evolved_ir, admission_ids)?;
 
-        Ok(VerificationResult {
-            before_hash,
-            after_hash,
-            verified: true,
-        })
+        Ok(VerificationResult { before_hash, after_hash, verified: true })
     }
 
     /// Verify all deltas have attached proofs (Canon Line 68).
-    fn verify_delta_proofs(
-        ir: &CanonicalIr,
-        admission_ids: &[AdmissionId],
-    ) -> Result<(), VerificationError> {
+    fn verify_delta_proofs(ir: &CanonicalIr, admission_ids: &[AdmissionId]) -> Result<(), VerificationError> {
         let proofs: HashMap<_, _> = ir.proofs.iter().map(|p| (p.id.as_str(), p)).collect();
         let deltas: HashMap<_, _> = ir.deltas.iter().map(|d| (d.id.as_str(), d)).collect();
         let admissions: HashMap<_, _> = ir.admissions.iter().map(|a| (a.id.as_str(), a)).collect();
 
         for admission_id in admission_ids {
-            let admission = admissions
-                .get(admission_id.as_str())
-                .ok_or_else(|| VerificationError::UnknownAdmission(admission_id.clone()))?;
+            let admission = admissions.get(admission_id.as_str()).ok_or_else(|| VerificationError::UnknownAdmission(admission_id.clone()))?;
 
             for delta_id in &admission.delta_ids {
-                let delta = deltas
-                    .get(delta_id.as_str())
-                    .ok_or_else(|| VerificationError::UnknownDelta(delta_id.clone()))?;
+                let delta = deltas.get(delta_id.as_str()).ok_or_else(|| VerificationError::UnknownDelta(delta_id.clone()))?;
 
                 // Verify proof exists (Canon Line 68)
-                let proof = proofs.get(delta.proof.as_str()).ok_or_else(|| {
-                    VerificationError::MissingProof {
-                        delta_id: delta_id.clone(),
-                        proof_id: delta.proof.clone(),
-                    }
-                })?;
+                let proof = proofs.get(delta.proof.as_str()).ok_or_else(|| VerificationError::MissingProof { delta_id: delta_id.clone(), proof_id: delta.proof.clone() })?;
 
                 // Verify proof scope is appropriate for delta kind
                 Self::verify_proof_scope(delta, proof)?;
@@ -83,67 +63,40 @@ impl DeltaVerifier {
         let valid = match delta.kind {
             DeltaKind::State => proof.scope == ProofScope::Execution,
             DeltaKind::Io => proof.scope == ProofScope::Execution,
-            DeltaKind::Structure => {
-                proof.scope == ProofScope::Structure || proof.scope == ProofScope::Law
-            }
-            DeltaKind::History => {
-                proof.scope == ProofScope::Structure || proof.scope == ProofScope::Execution
-            }
+            DeltaKind::Structure => proof.scope == ProofScope::Structure || proof.scope == ProofScope::Law,
+            DeltaKind::History => proof.scope == ProofScope::Structure || proof.scope == ProofScope::Execution,
         };
 
         if !valid {
-            return Err(VerificationError::InvalidProofScope {
-                delta_id: delta.id.clone(),
-                delta_kind: delta.kind,
-                proof_scope: proof.scope,
-            });
+            return Err(VerificationError::InvalidProofScope { delta_id: delta.id.clone(), delta_kind: delta.kind, proof_scope: proof.scope });
         }
 
         Ok(())
     }
 
     /// Verify delta ordering is preserved (Canon Line 38: append-only).
-    fn verify_delta_ordering(
-        original_ir: &CanonicalIr,
-        evolved_ir: &CanonicalIr,
-        admission_ids: &[AdmissionId],
-    ) -> Result<(), VerificationError> {
+    fn verify_delta_ordering(original_ir: &CanonicalIr, evolved_ir: &CanonicalIr, admission_ids: &[AdmissionId]) -> Result<(), VerificationError> {
         let original_count = original_ir.applied_deltas.len();
         let evolved_count = evolved_ir.applied_deltas.len();
 
         // Count expected new records
-        let admissions: HashMap<_, _> = original_ir
-            .admissions
-            .iter()
-            .map(|a| (a.id.as_str(), a))
-            .collect();
+        let admissions: HashMap<_, _> = original_ir.admissions.iter().map(|a| (a.id.as_str(), a)).collect();
 
         let mut expected_new_count = 0;
         for admission_id in admission_ids {
-            let admission = admissions
-                .get(admission_id.as_str())
-                .ok_or_else(|| VerificationError::UnknownAdmission(admission_id.clone()))?;
+            let admission = admissions.get(admission_id.as_str()).ok_or_else(|| VerificationError::UnknownAdmission(admission_id.clone()))?;
             expected_new_count += admission.delta_ids.len();
         }
 
         if evolved_count != original_count + expected_new_count {
-            return Err(VerificationError::DeltaCountMismatch {
-                expected: original_count + expected_new_count,
-                actual: evolved_count,
-            });
+            return Err(VerificationError::DeltaCountMismatch { expected: original_count + expected_new_count, actual: evolved_count });
         }
 
         // Verify original deltas are unchanged (append-only)
         for (idx, original_record) in original_ir.applied_deltas.iter().enumerate() {
             let evolved_record = &evolved_ir.applied_deltas[idx];
-            if original_record.delta != evolved_record.delta
-                || original_record.order != evolved_record.order
-            {
-                return Err(VerificationError::DeltaOrderingViolation {
-                    index: idx,
-                    original: original_record.delta.clone(),
-                    evolved: evolved_record.delta.clone(),
-                });
+            if original_record.delta != evolved_record.delta || original_record.order != evolved_record.order {
+                return Err(VerificationError::DeltaOrderingViolation { index: idx, original: original_record.delta.clone(), evolved: evolved_record.delta.clone() });
             }
         }
 
@@ -153,11 +106,7 @@ impl DeltaVerifier {
         for record in &evolved_ir.applied_deltas[original_count..] {
             if let Some(prev) = previous_order {
                 if record.order <= prev {
-                    return Err(VerificationError::NonMonotonicOrder {
-                        delta_id: record.delta.clone(),
-                        order: record.order,
-                        previous: prev,
-                    });
+                    return Err(VerificationError::NonMonotonicOrder { delta_id: record.delta.clone(), order: record.order, previous: prev });
                 }
             }
             previous_order = Some(record.order);
@@ -167,34 +116,17 @@ impl DeltaVerifier {
     }
 
     /// Verify all deltas in admissions were applied.
-    fn verify_deltas_applied(
-        original_ir: &CanonicalIr,
-        evolved_ir: &CanonicalIr,
-        admission_ids: &[AdmissionId],
-    ) -> Result<(), VerificationError> {
-        let admissions: HashMap<_, _> = original_ir
-            .admissions
-            .iter()
-            .map(|a| (a.id.as_str(), a))
-            .collect();
+    fn verify_deltas_applied(original_ir: &CanonicalIr, evolved_ir: &CanonicalIr, admission_ids: &[AdmissionId]) -> Result<(), VerificationError> {
+        let admissions: HashMap<_, _> = original_ir.admissions.iter().map(|a| (a.id.as_str(), a)).collect();
 
-        let applied_deltas: HashMap<_, _> = evolved_ir
-            .applied_deltas
-            .iter()
-            .map(|r| (r.delta.as_str(), r))
-            .collect();
+        let applied_deltas: HashMap<_, _> = evolved_ir.applied_deltas.iter().map(|r| (r.delta.as_str(), r)).collect();
 
         for admission_id in admission_ids {
-            let admission = admissions
-                .get(admission_id.as_str())
-                .ok_or_else(|| VerificationError::UnknownAdmission(admission_id.clone()))?;
+            let admission = admissions.get(admission_id.as_str()).ok_or_else(|| VerificationError::UnknownAdmission(admission_id.clone()))?;
 
             for delta_id in &admission.delta_ids {
                 if !applied_deltas.contains_key(delta_id.as_str()) {
-                    return Err(VerificationError::DeltaNotApplied {
-                        delta_id: delta_id.clone(),
-                        admission_id: admission_id.clone(),
-                    });
+                    return Err(VerificationError::DeltaNotApplied { delta_id: delta_id.clone(), admission_id: admission_id.clone() });
                 }
             }
         }
@@ -216,8 +148,7 @@ impl DeltaVerifier {
 
     /// Verify snapshot matches current state.
     pub fn verify_snapshot(ir: &CanonicalIr, snapshot: &Snapshot) -> bool {
-        compute_state_hash(ir) == snapshot.state_hash
-            && ir.applied_deltas.len() == snapshot.applied_deltas.len()
+        compute_state_hash(ir) == snapshot.state_hash && ir.applied_deltas.len() == snapshot.applied_deltas.len()
     }
 }
 
@@ -278,35 +209,16 @@ pub enum VerificationError {
     UnknownDelta(DeltaId),
     #[error("delta `{delta_id}` missing proof `{proof_id}` (Canon Line 68)")]
     MissingProof { delta_id: DeltaId, proof_id: String },
-    #[error(
-        "delta `{delta_id}` of kind `{delta_kind:?}` has invalid proof scope `{proof_scope:?}`"
-    )]
-    InvalidProofScope {
-        delta_id: DeltaId,
-        delta_kind: crate::ir::DeltaKind,
-        proof_scope: crate::ir::ProofScope,
-    },
+    #[error("delta `{delta_id}` of kind `{delta_kind:?}` has invalid proof scope `{proof_scope:?}`")]
+    InvalidProofScope { delta_id: DeltaId, delta_kind: crate::ir::DeltaKind, proof_scope: crate::ir::ProofScope },
     #[error("delta count mismatch: expected {expected}, found {actual}")]
     DeltaCountMismatch { expected: usize, actual: usize },
-    #[error(
-        "delta ordering violated at index {index}: original `{original}`, evolved `{evolved}` (Canon Line 38)"
-    )]
-    DeltaOrderingViolation {
-        index: usize,
-        original: DeltaId,
-        evolved: DeltaId,
-    },
+    #[error("delta ordering violated at index {index}: original `{original}`, evolved `{evolved}` (Canon Line 38)")]
+    DeltaOrderingViolation { index: usize, original: DeltaId, evolved: DeltaId },
     #[error("non-monotonic delta order: delta `{delta_id}` has order {order} <= {previous}")]
-    NonMonotonicOrder {
-        delta_id: DeltaId,
-        order: u64,
-        previous: u64,
-    },
+    NonMonotonicOrder { delta_id: DeltaId, order: u64, previous: u64 },
     #[error("delta `{delta_id}` from admission `{admission_id}` was not applied")]
-    DeltaNotApplied {
-        delta_id: DeltaId,
-        admission_id: AdmissionId,
-    },
+    DeltaNotApplied { delta_id: DeltaId, admission_id: AdmissionId },
     #[error("state hash mismatch: expected `{expected}`, found `{actual}`")]
     StateHashMismatch { expected: String, actual: String },
 }

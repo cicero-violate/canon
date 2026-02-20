@@ -20,12 +20,9 @@ pub struct RulePredicate {
 /// Returns `None` for rules that have no tracer yet.
 pub fn lookup(rule: CanonRule) -> Option<RulePredicate> {
     match rule {
-        CanonRule::ExecutionOnlyInImpl => Some(RulePredicate {
-            rule,
-            ir_collection: "ir.impls",
-            ir_field: "function.impl_id",
-            pass_condition: "function.impl_id resolves to a registered ImplBlock in idx.impls",
-        }),
+        CanonRule::ExecutionOnlyInImpl => {
+            Some(RulePredicate { rule, ir_collection: "ir.impls", ir_field: "function.impl_id", pass_condition: "function.impl_id resolves to a registered ImplBlock in idx.impls" })
+        }
         CanonRule::ImplBinding => Some(RulePredicate {
             rule,
             ir_collection: "ir.impls",

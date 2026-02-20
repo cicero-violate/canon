@@ -2,10 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ids::{
-        DeltaId, ExecutionRecordId, FunctionId, JudgmentId, JudgmentPredicateId, LoopPolicyId,
-        PlanId, TickEpochId, TickGraphId, TickId,
-    },
+    ids::{DeltaId, ExecutionRecordId, FunctionId, JudgmentId, JudgmentPredicateId, LoopPolicyId, PlanId, TickEpochId, TickGraphId, TickId},
     word::Word,
 };
 use crate::ir::PolicyParameters;

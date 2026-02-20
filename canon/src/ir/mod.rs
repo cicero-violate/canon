@@ -22,23 +22,16 @@ pub mod world_model;
 
 pub use admission::{AppliedDeltaRecord, DeltaAdmission};
 pub use artifacts::{
-    AssociatedConst, AssociatedType, ConstItem, EnumNode, EnumVariant, EnumVariantFields, Field,
-    ImplBlock, ImplFunctionBinding, Module, ModuleEdge, PubUseItem, StaticItem, Struct, Trait,
+    AssociatedConst, AssociatedType, ConstItem, EnumNode, EnumVariant, EnumVariantFields, Field, ImplBlock, ImplFunctionBinding, Module, ModuleEdge, PubUseItem, StaticItem, Struct, Trait,
     TraitFunction, TypeAlias,
 };
 pub use core::{CanonicalIr, CanonicalMeta, Language, PipelineStage, VersionContract};
 pub use delta::{Delta, DeltaKind, DeltaPayload};
 pub use errors::ErrorArtifact;
-pub use functions::{
-    DeltaRef, Function, FunctionContract, FunctionMetadata, FunctionSignature, GenericParam,
-    Postcondition, WhereClause,
-};
+pub use functions::{DeltaRef, Function, FunctionContract, FunctionMetadata, FunctionSignature, GenericParam, Postcondition, WhereClause};
 pub use goals::{GoalDriftMetric, GoalMutation, GoalMutationStatus};
 pub use gpu::{GpuFunction, GpuProperties, VectorPort};
-pub use graphs::{
-    CallEdge, SystemEdge, SystemEdgeKind, SystemGraph, SystemNode, SystemNodeKind, TickEdge,
-    TickGraph,
-};
+pub use graphs::{CallEdge, SystemEdge, SystemEdgeKind, SystemGraph, SystemNode, SystemNodeKind, TickEdge, TickGraph};
 pub use ids::*; // EnumId now included
 pub use judgment::{Judgment, JudgmentDecision, JudgmentPredicate};
 pub use learning::Learning;
@@ -46,19 +39,11 @@ pub use policy::PolicyParameters;
 pub use project::{ExternalDependency, Project};
 pub use proofs::{Proof, ProofArtifact, ProofScope};
 pub use proposal::{
-    DslProposalArtifacts, DslProposalError, ModuleSpec, ProposalResolutionError,
-    ResolvedProposalNodes, StructSpec, TraitSpec, create_proposal_from_dsl,
-    derive_word_from_identifier, resolve_proposal_nodes, sanitize_identifier, slugify_word,
+    create_proposal_from_dsl, derive_word_from_identifier, resolve_proposal_nodes, sanitize_identifier, slugify_word, DslProposalArtifacts, DslProposalError, ModuleSpec, ProposalResolutionError,
+    ResolvedProposalNodes, StructSpec, TraitSpec,
 };
-pub use proposal::{
-    Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode,
-    ProposedNodeKind,
-};
+pub use proposal::{Proposal, ProposalGoal, ProposalKind, ProposalStatus, ProposedApi, ProposedEdge, ProposedNode, ProposedNodeKind};
 pub use reward::{RewardRecord, UtilityKind};
-pub use timeline::{
-    ExecutionError, ExecutionEvent, ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch,
-};
-pub use types::{
-    Receiver, RefKind, ScalarType, StructKind, TypeKind, TypeRef, ValuePort, Visibility,
-};
-pub use word::{WORD_PATTERN, Word, WordError};
+pub use timeline::{ExecutionError, ExecutionEvent, ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch};
+pub use types::{Receiver, RefKind, ScalarType, StructKind, TypeKind, TypeRef, ValuePort, Visibility};
+pub use word::{Word, WordError, WORD_PATTERN};

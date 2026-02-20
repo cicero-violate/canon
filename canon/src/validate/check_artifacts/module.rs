@@ -16,10 +16,7 @@ pub fn check_module_edges(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
                 violations.push(Violation::structured(
                     CanonRule::ExplicitArtifacts,
                     format!("module_edge:{}->{}", edge.source, edge.target),
-                    ViolationDetail::ModuleEdgeEmptyImport {
-                        source: edge.source.clone(),
-                        target: edge.target.clone(),
-                    },
+                    ViolationDetail::ModuleEdgeEmptyImport { source: edge.source.clone(), target: edge.target.clone() },
                 ));
             }
         }

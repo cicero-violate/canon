@@ -35,10 +35,7 @@ pub(super) struct PredictionContext {
 
 impl Default for PredictionContext {
     fn default() -> Self {
-        Self {
-            predicted_deltas: Vec::new(),
-            predicted_snapshot: None,
-        }
+        Self { predicted_deltas: Vec::new(), predicted_snapshot: None }
     }
 }
 
@@ -52,19 +49,10 @@ pub(super) struct PlanContext {
 
 impl Default for PlanContext {
     fn default() -> Self {
-        Self {
-            planned_utility: 0.0,
-            planning_depth: 0,
-            predicted_deltas: Vec::new(),
-            prediction_context: PredictionContext::default(),
-        }
+        Self { planned_utility: 0.0, planning_depth: 0, predicted_deltas: Vec::new(), prediction_context: PredictionContext::default() }
     }
 }
 
 pub(super) fn default_predicted_snapshot(tick_id: &str, horizon: u32) -> StateSnapshot {
-    StateSnapshot {
-        tick: tick_id.to_string(),
-        delta_ids: Vec::new(),
-        description: format!("baseline horizon {horizon}"),
-    }
+    StateSnapshot { tick: tick_id.to_string(), delta_ids: Vec::new(), description: format!("baseline horizon {horizon}") }
 }

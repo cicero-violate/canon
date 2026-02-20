@@ -123,9 +123,7 @@ pub enum ProposalResolutionError {
     Word(#[from] WordError),
 }
 
-pub fn resolve_proposal_nodes(
-    proposal: &Proposal,
-) -> Result<ResolvedProposalNodes, ProposalResolutionError> {
+pub fn resolve_proposal_nodes(proposal: &Proposal) -> Result<ResolvedProposalNodes, ProposalResolutionError> {
     let mut module_ids = HashSet::new();
     let mut struct_ids = HashSet::new();
     let mut trait_ids = HashSet::new();
@@ -139,71 +137,34 @@ pub fn resolve_proposal_nodes(
             ProposedNodeKind::Module => {
                 let module_id = determine_module_id(node)?;
                 if !module_ids.insert(module_id.clone()) {
-                    return Err(ProposalResolutionError::DuplicateArtifact {
-                        kind: "module",
-                        id: module_id,
-                    });
+                    return Err(ProposalResolutionError::DuplicateArtifact { kind: "module", id: module_id });
                 }
-                modules.push(ModuleSpec {
-                    id: module_id,
-                    name: node.name.clone(),
-                });
+                modules.push(ModuleSpec { id: module_id, name: node.name.clone() });
             }
             ProposedNodeKind::Struct => {
-                let module_id =
-                    node.module
-                        .clone()
-                        .ok_or_else(|| ProposalResolutionError::MissingModule {
-                            name: node.name.to_string(),
-                        })?;
+                let module_id = node.module.clone().ok_or_else(|| ProposalResolutionError::MissingModule { name: node.name.to_string() })?;
                 let struct_id = determine_struct_id(node, &module_id)?;
                 if !struct_ids.insert(struct_id.clone()) {
-                    return Err(ProposalResolutionError::DuplicateArtifact {
-                        kind: "struct",
-                        id: struct_id,
-                    });
+                    return Err(ProposalResolutionError::DuplicateArtifact { kind: "struct", id: struct_id });
                 }
-                structs.push(StructSpec {
-                    id: struct_id,
-                    name: node.name.clone(),
-                    module: module_id,
-                });
+                structs.push(StructSpec { id: struct_id, name: node.name.clone(), module: module_id });
             }
             ProposedNodeKind::Trait => {
-                let module_id =
-                    node.module
-                        .clone()
-                        .ok_or_else(|| ProposalResolutionError::MissingModule {
-                            name: node.name.to_string(),
-                        })?;
+                let module_id = node.module.clone().ok_or_else(|| ProposalResolutionError::MissingModule { name: node.name.to_string() })?;
                 let trait_id = determine_trait_id(node, &module_id)?;
                 if !trait_ids.insert(trait_id.clone()) {
-                    return Err(ProposalResolutionError::DuplicateArtifact {
-                        kind: "trait",
-                        id: trait_id,
-                    });
+                    return Err(ProposalResolutionError::DuplicateArtifact { kind: "trait", id: trait_id });
                 }
-                traits.push(TraitSpec {
-                    id: trait_id,
-                    name: node.name.clone(),
-                    module: module_id,
-                });
+                traits.push(TraitSpec { id: trait_id, name: node.name.clone(), module: module_id });
             }
         }
     }
 
-    Ok(ResolvedProposalNodes {
-        modules,
-        structs,
-        traits,
-    })
+    Ok(ResolvedProposalNodes { modules, structs, traits })
 }
 
 pub fn derive_word_from_identifier(identifier: &str) -> Result<Word, ProposalResolutionError> {
-    let trimmed = identifier
-        .rsplit(|c| c == '.' || c == '#')
-        .next()
-        .unwrap_or(identifier);
+    let trimmed = identifier.rsplit(|c| c == '.' || c == '#').next().unwrap_or(identifier);
     let mut builder = String::new();
     for ch in trimmed.chars() {
         if !ch.is_ascii_alphanumeric() {
@@ -211,9 +172,7 @@ pub fn derive_word_from_identifier(identifier: &str) -> Result<Word, ProposalRes
         }
         if builder.is_empty() {
             if !ch.is_ascii_alphabetic() {
-                return Err(ProposalResolutionError::InvalidIdentifier(
-                    trimmed.to_owned(),
-                ));
+                return Err(ProposalResolutionError::InvalidIdentifier(trimmed.to_owned()));
             }
             builder.push(ch.to_ascii_uppercase());
         } else {
@@ -221,9 +180,7 @@ pub fn derive_word_from_identifier(identifier: &str) -> Result<Word, ProposalRes
         }
     }
     if builder.is_empty() {
-        return Err(ProposalResolutionError::InvalidIdentifier(
-            trimmed.to_owned(),
-        ));
+        return Err(ProposalResolutionError::InvalidIdentifier(trimmed.to_owned()));
     }
     let word = Word::new(builder).map_err(ProposalResolutionError::Word)?;
     Ok(word)
@@ -234,16 +191,7 @@ pub fn slugify_word(word: &Word) -> String {
 }
 
 pub fn sanitize_identifier(value: &str) -> String {
-    value
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else {
-                '_'
-            }
-        })
-        .collect()
+    value.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' }).collect()
 }
 
 fn determine_module_id(node: &ProposedNode) -> Result<ModuleId, ProposalResolutionError> {
@@ -256,32 +204,18 @@ fn determine_module_id(node: &ProposedNode) -> Result<ModuleId, ProposalResoluti
     Ok(format!("module.{}", slugify_word(&node.name)))
 }
 
-fn determine_struct_id(
-    node: &ProposedNode,
-    module_id: &str,
-) -> Result<StructId, ProposalResolutionError> {
+fn determine_struct_id(node: &ProposedNode, module_id: &str) -> Result<StructId, ProposalResolutionError> {
     if let Some(id) = &node.id {
         return Ok(id.clone());
     }
-    Ok(format!(
-        "struct.{}.{}",
-        sanitize_identifier(module_id),
-        slugify_word(&node.name)
-    ))
+    Ok(format!("struct.{}.{}", sanitize_identifier(module_id), slugify_word(&node.name)))
 }
 
-fn determine_trait_id(
-    node: &ProposedNode,
-    module_id: &str,
-) -> Result<TraitId, ProposalResolutionError> {
+fn determine_trait_id(node: &ProposedNode, module_id: &str) -> Result<TraitId, ProposalResolutionError> {
     if let Some(id) = &node.id {
         return Ok(id.clone());
     }
-    Ok(format!(
-        "trait.{}.{}",
-        sanitize_identifier(module_id),
-        slugify_word(&node.name)
-    ))
+    Ok(format!("trait.{}.{}", sanitize_identifier(module_id), slugify_word(&node.name)))
 }
 
 #[derive(Debug, Clone)]
@@ -349,21 +283,11 @@ pub fn create_proposal_from_dsl(source: &str) -> Result<DslProposalArtifacts, Ds
     for module in &modules {
         let module_word = canonical_word(&module.name)?;
         let module_id = format!("module.{}", sanitize_identifier(&module.name));
-        nodes.push(ProposedNode {
-            id: Some(module_id.clone()),
-            name: module_word.clone(),
-            module: None,
-            kind: ProposedNodeKind::Module,
-        });
+        nodes.push(ProposedNode { id: Some(module_id.clone()), name: module_word.clone(), module: None, kind: ProposedNodeKind::Module });
 
         let struct_word = Word::new(format!("{}State", module_word.as_str()))?;
         let struct_id = format!("struct.{}.state", sanitize_identifier(&module_id));
-        nodes.push(ProposedNode {
-            id: Some(struct_id),
-            name: struct_word,
-            module: Some(module_id.clone()),
-            kind: ProposedNodeKind::Struct,
-        });
+        nodes.push(ProposedNode { id: Some(struct_id), name: struct_word, module: Some(module_id.clone()), kind: ProposedNodeKind::Struct });
 
         module_lookup.insert(sanitize_identifier(&module.name), module_id.clone());
     }
@@ -374,23 +298,12 @@ pub fn create_proposal_from_dsl(source: &str) -> Result<DslProposalArtifacts, Ds
         for step in &goal.steps {
             let trait_name = canonical_word(step)?;
             let step_slug = sanitize_identifier(step);
-            let module_id = module_lookup
-                .get(&step_slug)
-                .cloned()
-                .unwrap_or_else(|| default_module_id.clone());
+            let module_id = module_lookup.get(&step_slug).cloned().unwrap_or_else(|| default_module_id.clone());
             let trait_id = format!("trait.{}.{}", sanitize_identifier(&module_id), step_slug);
             if seen_traits.insert(trait_id.clone()) {
-                nodes.push(ProposedNode {
-                    id: Some(trait_id.clone()),
-                    name: trait_name,
-                    module: Some(module_id.clone()),
-                    kind: ProposedNodeKind::Trait,
-                });
+                nodes.push(ProposedNode { id: Some(trait_id.clone()), name: trait_name, module: Some(module_id.clone()), kind: ProposedNodeKind::Trait });
                 let fn_id = format!("trait_fn.{}.{}", sanitize_identifier(&module_id), step_slug);
-                apis.push(ProposedApi {
-                    trait_id: trait_id.clone(),
-                    functions: vec![fn_id],
-                });
+                apis.push(ProposedApi { trait_id: trait_id.clone(), functions: vec![fn_id] });
             }
         }
     }
@@ -405,11 +318,7 @@ pub fn create_proposal_from_dsl(source: &str) -> Result<DslProposalArtifacts, Ds
             if let Some(target) = module_lookup.get(&sanitize_identifier(import)) {
                 let key = (from.clone(), target.clone());
                 if edge_set.insert(key.clone()) {
-                    edges.push(ProposedEdge {
-                        from: key.0,
-                        to: key.1,
-                        rationale: format!("{} imports {}", module.name, import),
-                    });
+                    edges.push(ProposedEdge { from: key.0, to: key.1, rationale: format!("{} imports {}", module.name, import) });
                 }
             }
         }
@@ -420,72 +329,36 @@ pub fn create_proposal_from_dsl(source: &str) -> Result<DslProposalArtifacts, Ds
     let proposal = Proposal {
         id: format!("proposal.dsl.{goal_slug}"),
         kind: ProposalKind::Structural,
-        goal: ProposalGoal {
-            id: goal_id,
-            description: format!("Auto-generated from DSL: {}", goal.signature),
-        },
+        goal: ProposalGoal { id: goal_id, description: format!("Auto-generated from DSL: {}", goal.signature) },
         nodes,
         apis,
         edges,
         status: ProposalStatus::Submitted,
     };
 
-    Ok(DslProposalArtifacts {
-        proposal,
-        goal_slug,
-    })
+    Ok(DslProposalArtifacts { proposal, goal_slug })
 }
 
 fn parse_module_decl(input: &str) -> Result<DslModule, DslProposalError> {
     let mut parts = input.splitn(2, " imports ");
-    let name = parts
-        .next()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| DslProposalError::InvalidModule(input.to_string()))?;
-    let imports = parts
-        .next()
-        .map(|rest| {
-            rest.split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    Ok(DslModule {
-        name: name.to_string(),
-        imports,
-    })
+    let name = parts.next().map(str::trim).filter(|s| !s.is_empty()).ok_or_else(|| DslProposalError::InvalidModule(input.to_string()))?;
+    let imports = parts.next().map(|rest| rest.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<_>>()).unwrap_or_default();
+    Ok(DslModule { name: name.to_string(), imports })
 }
 
 fn parse_goal_decl(input: &str) -> Result<DslGoal, DslProposalError> {
-    let (name, signature) = input
-        .split_once(':')
-        .map(|(lhs, rhs)| (lhs.trim(), rhs.trim()))
-        .filter(|(lhs, rhs)| !lhs.is_empty() && !rhs.is_empty())
-        .ok_or_else(|| DslProposalError::InvalidGoal(input.to_string()))?;
-    let steps: Vec<String> = signature
-        .split("->")
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let (name, signature) =
+        input.split_once(':').map(|(lhs, rhs)| (lhs.trim(), rhs.trim())).filter(|(lhs, rhs)| !lhs.is_empty() && !rhs.is_empty()).ok_or_else(|| DslProposalError::InvalidGoal(input.to_string()))?;
+    let steps: Vec<String> = signature.split("->").map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
     if steps.is_empty() {
         return Err(DslProposalError::InvalidGoal(input.to_string()));
     }
-    Ok(DslGoal {
-        name: name.to_string(),
-        steps,
-        signature: signature.to_string(),
-    })
+    Ok(DslGoal { name: name.to_string(), steps, signature: signature.to_string() })
 }
 
 fn canonical_word(input: &str) -> Result<Word, WordError> {
     let mut builder = String::new();
-    for (idx, ch) in input
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .enumerate()
-    {
+    for (idx, ch) in input.chars().filter(|c| c.is_ascii_alphanumeric()).enumerate() {
         if idx == 0 {
             builder.push(ch.to_ascii_uppercase());
         } else {

@@ -18,27 +18,13 @@ pub fn render_trait(trait_def: &Trait) -> String {
     if !anonymous_bounds.is_empty() {
         supertraits_list.extend(anonymous_bounds);
     }
-    let supertraits = if supertraits_list.is_empty() {
-        String::new()
-    } else {
-        format!(": {}", supertraits_list.join(" + "))
-    };
-    lines.push(format!(
-        "{}trait {}{}{} {{",
-        render_visibility(trait_def.visibility),
-        trait_def.name,
-        generics,
-        supertraits
-    ));
+    let supertraits = if supertraits_list.is_empty() { String::new() } else { format!(": {}", supertraits_list.join(" + ")) };
+    lines.push(format!("{}trait {}{}{} {{", render_visibility(trait_def.visibility), trait_def.name, generics, supertraits));
     for assoc_ty in &trait_def.associated_types {
         lines.push(format!("    type {};", assoc_ty.name));
     }
     for assoc_const in &trait_def.associated_consts {
-        lines.push(format!(
-            "    const {}: {};",
-            assoc_const.name,
-            render_type(&assoc_const.ty)
-        ));
+        lines.push(format!("    const {}: {};", assoc_const.name, render_type(&assoc_const.ty)));
     }
     let mut functions = trait_def.functions.clone();
     functions.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));

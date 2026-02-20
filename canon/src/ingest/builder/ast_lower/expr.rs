@@ -1,4 +1,4 @@
-use serde_json::{Value as JsonValue, json};
+use serde_json::{json, Value as JsonValue};
 
 use super::pat::{pat_is_mut, pat_to_string};
 use super::util::{expr_to_call_str, path_to_str, type_to_str};

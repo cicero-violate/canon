@@ -23,135 +23,31 @@ pub struct Indexes<'a> {
 
 pub fn build_indexes<'a>(ir: &'a CanonicalIr, violations: &mut Vec<Violation>) -> Indexes<'a> {
     Indexes {
-        modules: index_by_id(
-            &ir.modules,
-            |m| m.id.as_str(),
-            CanonRule::ExplicitArtifacts,
-            "module",
-            violations,
-        ),
-        structs: index_by_id(
-            &ir.structs,
-            |s| s.id.as_str(),
-            CanonRule::ExplicitArtifacts,
-            "struct",
-            violations,
-        ),
-        traits: index_by_id(
-            &ir.traits,
-            |t| t.id.as_str(),
-            CanonRule::ExplicitArtifacts,
-            "trait",
-            violations,
-        ),
-        impls: index_by_id(
-            &ir.impls,
-            |i| i.id.as_str(),
-            CanonRule::ImplBinding,
-            "impl",
-            violations,
-        ),
-        functions: index_by_id(
-            &ir.functions,
-            |f| f.id.as_str(),
-            CanonRule::ExecutionOnlyInImpl,
-            "function",
-            violations,
-        ),
-        deltas: index_by_id(
-            &ir.deltas,
-            |d| d.id.as_str(),
-            CanonRule::EffectsAreDeltas,
-            "delta",
-            violations,
-        ),
-        proofs: index_by_id(
-            &ir.proofs,
-            |p| p.id.as_str(),
-            CanonRule::DeltaProofs,
-            "proof",
-            violations,
-        ),
-        predicates: index_by_id(
-            &ir.judgment_predicates,
-            |p| p.id.as_str(),
-            CanonRule::JudgmentDecisions,
-            "judgment predicate",
-            violations,
-        ),
-        judgments: index_by_id(
-            &ir.judgments,
-            |j| j.id.as_str(),
-            CanonRule::JudgmentDecisions,
-            "judgment",
-            violations,
-        ),
-        admissions: index_by_id(
-            &ir.admissions,
-            |a| a.id.as_str(),
-            CanonRule::AdmissionBridge,
-            "admission",
-            violations,
-        ),
-        tick_graphs: index_by_id(
-            &ir.tick_graphs,
-            |g| g.id.as_str(),
-            CanonRule::TickGraphAcyclic,
-            "tick graph",
-            violations,
-        ),
-        ticks: index_by_id(
-            &ir.ticks,
-            |t| t.id.as_str(),
-            CanonRule::TickRoot,
-            "tick",
-            violations,
-        ),
-        epochs: index_by_id(
-            &ir.tick_epochs,
-            |e| e.id.as_str(),
-            CanonRule::TickEpochs,
-            "tick epoch",
-            violations,
-        ),
-        plans: index_by_id(
-            &ir.plans,
-            |p| p.id.as_str(),
-            CanonRule::PlanArtifacts,
-            "plan",
-            violations,
-        ),
-        proposals: index_by_id(
-            &ir.proposals,
-            |p| p.id.as_str(),
-            CanonRule::ProposalDeclarative,
-            "proposal",
-            violations,
-        ),
+        modules: index_by_id(&ir.modules, |m| m.id.as_str(), CanonRule::ExplicitArtifacts, "module", violations),
+        structs: index_by_id(&ir.structs, |s| s.id.as_str(), CanonRule::ExplicitArtifacts, "struct", violations),
+        traits: index_by_id(&ir.traits, |t| t.id.as_str(), CanonRule::ExplicitArtifacts, "trait", violations),
+        impls: index_by_id(&ir.impls, |i| i.id.as_str(), CanonRule::ImplBinding, "impl", violations),
+        functions: index_by_id(&ir.functions, |f| f.id.as_str(), CanonRule::ExecutionOnlyInImpl, "function", violations),
+        deltas: index_by_id(&ir.deltas, |d| d.id.as_str(), CanonRule::EffectsAreDeltas, "delta", violations),
+        proofs: index_by_id(&ir.proofs, |p| p.id.as_str(), CanonRule::DeltaProofs, "proof", violations),
+        predicates: index_by_id(&ir.judgment_predicates, |p| p.id.as_str(), CanonRule::JudgmentDecisions, "judgment predicate", violations),
+        judgments: index_by_id(&ir.judgments, |j| j.id.as_str(), CanonRule::JudgmentDecisions, "judgment", violations),
+        admissions: index_by_id(&ir.admissions, |a| a.id.as_str(), CanonRule::AdmissionBridge, "admission", violations),
+        tick_graphs: index_by_id(&ir.tick_graphs, |g| g.id.as_str(), CanonRule::TickGraphAcyclic, "tick graph", violations),
+        ticks: index_by_id(&ir.ticks, |t| t.id.as_str(), CanonRule::TickRoot, "tick", violations),
+        epochs: index_by_id(&ir.tick_epochs, |e| e.id.as_str(), CanonRule::TickEpochs, "tick epoch", violations),
+        plans: index_by_id(&ir.plans, |p| p.id.as_str(), CanonRule::PlanArtifacts, "plan", violations),
+        proposals: index_by_id(&ir.proposals, |p| p.id.as_str(), CanonRule::ProposalDeclarative, "proposal", violations),
     }
 }
 
-pub fn index_by_id<'a, T, F>(
-    items: &'a [T],
-    id_fn: F,
-    rule: CanonRule,
-    _kind: &str,
-    violations: &mut Vec<Violation>,
-) -> HashMap<&'a str, &'a T>
-where
-    F: Fn(&'a T) -> &'a str,
-{
+pub fn index_by_id<'a, T, F>(items: &'a [T], id_fn: F, rule: CanonRule, _kind: &str, violations: &mut Vec<Violation>) -> HashMap<&'a str, &'a T>
+where F: Fn(&'a T) -> &'a str {
     let mut map = HashMap::new();
     for item in items {
         let id = id_fn(item);
         if map.insert(id, item).is_some() {
-            violations.push(Violation::structured(
-                rule,
-                id.to_string(),
-                ViolationDetail::Duplicate {
-                    name: id.to_string(),
-                },
-            ));
+            violations.push(Violation::structured(rule, id.to_string(), ViolationDetail::Duplicate { name: id.to_string() }));
         }
     }
     map
@@ -160,10 +56,7 @@ where
 pub fn pipeline_stage_allows(stage: PipelineStage, kind: DeltaKind) -> bool {
     match stage {
         PipelineStage::Observe => true,
-        PipelineStage::Learn => matches!(
-            kind,
-            DeltaKind::State | DeltaKind::Structure | DeltaKind::History
-        ),
+        PipelineStage::Learn => matches!(kind, DeltaKind::State | DeltaKind::Structure | DeltaKind::History),
         PipelineStage::Decide => matches!(kind, DeltaKind::Structure | DeltaKind::History),
         PipelineStage::Plan => matches!(kind, DeltaKind::Structure | DeltaKind::History),
         PipelineStage::Act => matches!(kind, DeltaKind::State | DeltaKind::Io | DeltaKind::History),
@@ -179,12 +72,7 @@ pub fn proof_scope_allows(kind: DeltaKind, scope: ProofScope) -> bool {
     }
 }
 
-pub fn module_has_permission<'a>(
-    from: &'a str,
-    to: &'a str,
-    adjacency: &HashMap<&'a str, Vec<&'a str>>,
-    cache: &mut HashMap<&'a str, std::collections::HashSet<&'a str>>,
-) -> bool {
+pub fn module_has_permission<'a>(from: &'a str, to: &'a str, adjacency: &HashMap<&'a str, Vec<&'a str>>, cache: &mut HashMap<&'a str, std::collections::HashSet<&'a str>>) -> bool {
     if from == to {
         return true;
     }

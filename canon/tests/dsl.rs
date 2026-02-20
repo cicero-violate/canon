@@ -1,4 +1,4 @@
-use canon::{CanonicalIr, apply_dsl_proposal, create_proposal_from_dsl, ir::ProposalStatus};
+use canon::{apply_dsl_proposal, create_proposal_from_dsl, ir::ProposalStatus, CanonicalIr};
 use std::path::PathBuf;
 
 #[path = "support.rs"]
@@ -6,10 +6,7 @@ mod support;
 use support::default_layout_for;
 
 fn load_fixture() -> CanonicalIr {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("data")
-        .join("valid_ir.json");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("data").join("valid_ir.json");
     let data = std::fs::read(path).expect("fixture");
     serde_json::from_slice(&data).expect("canonical ir")
 }
@@ -24,27 +21,9 @@ fn create_proposal_from_dsl_generates_structures() {
     "#;
     let artifacts = create_proposal_from_dsl(source).expect("proposal");
     assert_eq!(artifacts.proposal.status, ProposalStatus::Submitted);
-    assert!(
-        artifacts
-            .proposal
-            .nodes
-            .iter()
-            .any(|node| node.id.as_deref() == Some("module.parse"))
-    );
-    assert!(
-        artifacts
-            .proposal
-            .nodes
-            .iter()
-            .any(|node| node.id.as_deref() == Some("struct.module_parse.state"))
-    );
-    assert!(
-        artifacts
-            .proposal
-            .apis
-            .iter()
-            .any(|api| api.trait_id.contains("parse"))
-    );
+    assert!(artifacts.proposal.nodes.iter().any(|node| node.id.as_deref() == Some("module.parse")));
+    assert!(artifacts.proposal.nodes.iter().any(|node| node.id.as_deref() == Some("struct.module_parse.state")));
+    assert!(artifacts.proposal.apis.iter().any(|api| api.trait_id.contains("parse")));
 }
 
 #[test]
@@ -58,11 +37,5 @@ fn auto_accept_dsl_proposal_builds_canon() {
         goal pipeline: parse -> lint
     "#;
     let acceptance = apply_dsl_proposal(&ir, &layout, source).expect("accepted");
-    assert!(
-        acceptance
-            .ir
-            .modules
-            .iter()
-            .any(|module| module.id == "module.parse")
-    );
+    assert!(acceptance.ir.modules.iter().any(|module| module.id == "module.parse"));
 }

@@ -5,358 +5,128 @@ use std::fmt;
 pub enum ViolationDetail {
     Message(String),
 
-    MissingModule {
-        module: String,
-    },
-    MissingStruct {
-        struct_id: String,
-    },
-    MissingTrait {
-        trait_id: String,
-    },
-    MissingFunction {
-        function_id: String,
-    },
-    MissingDelta {
-        delta_id: String,
-    },
+    MissingModule { module: String },
+    MissingStruct { struct_id: String },
+    MissingTrait { trait_id: String },
+    MissingFunction { function_id: String },
+    MissingDelta { delta_id: String },
 
     ModuleCycle,
     CallCycle,
-    TickCycle {
-        graph: String,
-    },
+    TickCycle { graph: String },
 
-    PermissionDenied {
-        caller_module: String,
-        callee_module: String,
-    },
+    PermissionDenied { caller_module: String, callee_module: String },
 
-    Duplicate {
-        name: String,
-    },
+    Duplicate { name: String },
 
     InvalidContract,
 
     // AST
-    UnknownAstNodeKind {
-        function_id: String,
-        kind: String,
-    },
+    UnknownAstNodeKind { function_id: String, kind: String },
 
-    DeltaReferencesUnknownFunction {
-        delta: String,
-        function_id: String,
-    },
-    DeltaReferencesUnknownStruct {
-        delta: String,
-        struct_id: String,
-    },
-    DeltaReferencesUnknownArtifact {
-        delta: String,
-        kind: String,
-        id: String,
-    },
-    DeltaMissingField {
-        delta: String,
-        struct_id: String,
-        field: String,
-    },
-    DeltaAppendOnlyViolation {
-        delta: String,
-    },
-    DeltaPipelineViolation {
-        delta: String,
-    },
-    DeltaMissingProof {
-        delta: String,
-        proof: String,
-    },
-    ProofScopeViolation {
-        delta: String,
-    },
-    StructHistoryMissingDelta {
-        struct_id: String,
-        delta: String,
-    },
-    AdmissionMissingTick {
-        admission: String,
-        tick: String,
-    },
-    AdmissionMissingJudgment {
-        admission: String,
-        judgment: String,
-    },
-    AdmissionNotAccepted {
-        admission: String,
-    },
-    AdmissionMissingDelta {
-        admission: String,
-        delta: String,
-    },
-    AppliedMissingAdmission {
-        applied: String,
-        admission: String,
-    },
-    AppliedMissingDelta {
-        applied: String,
-        delta: String,
-    },
-    AppliedOrderViolation {
-        applied: String,
-    },
+    DeltaReferencesUnknownFunction { delta: String, function_id: String },
+    DeltaReferencesUnknownStruct { delta: String, struct_id: String },
+    DeltaReferencesUnknownArtifact { delta: String, kind: String, id: String },
+    DeltaMissingField { delta: String, struct_id: String, field: String },
+    DeltaAppendOnlyViolation { delta: String },
+    DeltaPipelineViolation { delta: String },
+    DeltaMissingProof { delta: String, proof: String },
+    ProofScopeViolation { delta: String },
+    StructHistoryMissingDelta { struct_id: String, delta: String },
+    AdmissionMissingTick { admission: String, tick: String },
+    AdmissionMissingJudgment { admission: String, judgment: String },
+    AdmissionNotAccepted { admission: String },
+    AdmissionMissingDelta { admission: String, delta: String },
+    AppliedMissingAdmission { applied: String, admission: String },
+    AppliedMissingDelta { applied: String, delta: String },
+    AppliedOrderViolation { applied: String },
 
-    ProposalIncomplete {
-        proposal: String,
-    },
-    ProposalMissingGoal {
-        proposal: String,
-    },
-    ProposalInvalid {
-        proposal: String,
-    },
-    ProposalUnknownModule {
-        proposal: String,
-        module: String,
-    },
-    ProposalUnknownTrait {
-        proposal: String,
-        trait_id: String,
-    },
-    ProposalUnknownEdgeModule {
-        proposal: String,
-        module: String,
-    },
+    ProposalIncomplete { proposal: String },
+    ProposalMissingGoal { proposal: String },
+    ProposalInvalid { proposal: String },
+    ProposalUnknownModule { proposal: String, module: String },
+    ProposalUnknownTrait { proposal: String, trait_id: String },
+    ProposalUnknownEdgeModule { proposal: String, module: String },
 
-    JudgmentMissingProposal {
-        judgment: String,
-        proposal: String,
-    },
-    JudgmentMissingPredicate {
-        judgment: String,
-        predicate: String,
-    },
+    JudgmentMissingProposal { judgment: String, proposal: String },
+    JudgmentMissingPredicate { judgment: String, predicate: String },
 
-    LearningMissingProposal {
-        learning: String,
-        proposal: String,
-    },
-    LearningMissingRules {
-        learning: String,
-    },
-    LearningMissingProofObject {
-        learning: String,
-    },
+    LearningMissingProposal { learning: String, proposal: String },
+    LearningMissingRules { learning: String },
+    LearningMissingProofObject { learning: String },
 
-    GoalMutationMissingJudgment {
-        mutation: String,
-    },
-    GoalMutationMissingProof {
-        mutation: String,
-        proof: String,
-    },
+    GoalMutationMissingJudgment { mutation: String },
+    GoalMutationMissingProof { mutation: String, proof: String },
 
-    StructMissingModule {
-        struct_id: String,
-        module: String,
-    },
-    TupleStructEmpty {
-        struct_id: String,
-    },
-    StructEmptyDerive {
-        struct_id: String,
-    },
+    StructMissingModule { struct_id: String, module: String },
+    TupleStructEmpty { struct_id: String },
+    StructEmptyDerive { struct_id: String },
 
-    EnumMissingModule {
-        enum_id: String,
-        module: String,
-    },
+    EnumMissingModule { enum_id: String, module: String },
 
-    TraitMissingModule {
-        trait_id: String,
-        module: String,
-    },
-    TraitMissingSupertrait {
-        trait_id: String,
-        supertrait: String,
-    },
-    TraitDuplicateFunction {
-        function_id: String,
-    },
+    TraitMissingModule { trait_id: String, module: String },
+    TraitMissingSupertrait { trait_id: String, supertrait: String },
+    TraitDuplicateFunction { function_id: String },
 
-    ImplMissingStruct {
-        impl_id: String,
-        struct_id: String,
-    },
-    ImplMissingTrait {
-        impl_id: String,
-        trait_id: String,
-    },
-    ImplMissingModule {
-        impl_id: String,
-        module: String,
-    },
-    ImplWrongModuleForStruct {
-        impl_id: String,
-    },
-    ImplWrongModuleForTrait {
-        impl_id: String,
-    },
-    ImplDuplicateBinding {
-        impl_id: String,
-        function: String,
-    },
-    ImplWrongTraitFunction {
-        impl_id: String,
-        trait_fn: String,
-    },
+    ImplMissingStruct { impl_id: String, struct_id: String },
+    ImplMissingTrait { impl_id: String, trait_id: String },
+    ImplMissingModule { impl_id: String, module: String },
+    ImplWrongModuleForStruct { impl_id: String },
+    ImplWrongModuleForTrait { impl_id: String },
+    ImplDuplicateBinding { impl_id: String, function: String },
+    ImplWrongTraitFunction { impl_id: String, trait_fn: String },
 
-    FunctionMissingImpl {
-        function_id: String,
-        impl_id: String,
-    },
-    FunctionWrongModule {
-        function_id: String,
-        module: String,
-    },
-    FunctionWrongTraitBinding {
-        function_id: String,
-    },
-    FunctionUnknownTraitFunction {
-        function_id: String,
-        trait_fn: String,
-    },
-    FunctionContractViolation {
-        function_id: String,
-    },
-    FunctionMissingOutputs {
-        function_id: String,
-    },
-    FunctionDuplicateGeneric {
-        function_id: String,
-        generic: String,
-    },
-    FunctionDuplicateLifetime {
-        function_id: String,
-        lifetime: String,
-    },
-    FunctionMissingDelta {
-        function_id: String,
-        delta: String,
-    },
+    FunctionMissingImpl { function_id: String, impl_id: String },
+    FunctionWrongModule { function_id: String, module: String },
+    FunctionWrongTraitBinding { function_id: String },
+    FunctionUnknownTraitFunction { function_id: String, trait_fn: String },
+    FunctionContractViolation { function_id: String },
+    FunctionMissingOutputs { function_id: String },
+    FunctionDuplicateGeneric { function_id: String, generic: String },
+    FunctionDuplicateLifetime { function_id: String, lifetime: String },
+    FunctionMissingDelta { function_id: String, delta: String },
 
     ProjectLanguageInvalid,
     ProjectVersionMissing,
-    VersionMismatch {
-        expected: String,
-        found: String,
-    },
-    VersionDuplicateCompatibility {
-        version: String,
-    },
+    VersionMismatch { expected: String, found: String },
+    VersionDuplicateCompatibility { version: String },
     VersionMissingMigrationProof,
-    DependencyMissingVersion {
-        dependency: String,
-    },
-    DependencyDuplicate {
-        dependency: String,
-    },
+    DependencyMissingVersion { dependency: String },
+    DependencyDuplicate { dependency: String },
 
-    TraitFunctionDuplicate {
-        function_id: String,
-    },
+    TraitFunctionDuplicate { function_id: String },
 
-    ImplFunctionDuplicate {
-        function_id: String,
-    },
-    ImplTraitMismatch {
-        impl_id: String,
-        trait_fn: String,
-    },
+    ImplFunctionDuplicate { function_id: String },
+    ImplTraitMismatch { impl_id: String, trait_fn: String },
 
-    VersionProofWrongScope {
-        proof: String,
-    },
-    VersionProofMissing {
-        proof: String,
-    },
+    VersionProofWrongScope { proof: String },
+    VersionProofMissing { proof: String },
 
-    ModuleEdgeEmptyImport {
-        source: String,
-        target: String,
-    },
+    ModuleEdgeEmptyImport { source: String, target: String },
 
-    EpochMissingTick {
-        epoch: String,
-        tick: String,
-    },
-    EpochSelfParent {
-        epoch: String,
-    },
-    EpochMissingParent {
-        epoch: String,
-        parent: String,
-    },
-    EpochCycle {
-        epoch: String,
-    },
+    EpochMissingTick { epoch: String, tick: String },
+    EpochSelfParent { epoch: String },
+    EpochMissingParent { epoch: String, parent: String },
+    EpochCycle { epoch: String },
 
-    TickMissingGraph {
-        tick: String,
-        graph: String,
-    },
-    TickMissingDelta {
-        tick: String,
-        delta: String,
-    },
+    TickMissingGraph { tick: String, graph: String },
+    TickMissingDelta { tick: String, delta: String },
 
-    PlanMissingJudgment {
-        plan: String,
-        judgment: String,
-    },
-    PlanNotAccepted {
-        plan: String,
-    },
-    PlanMissingFunction {
-        plan: String,
-        function: String,
-    },
-    PlanMissingDelta {
-        plan: String,
-        delta: String,
-    },
+    PlanMissingJudgment { plan: String, judgment: String },
+    PlanNotAccepted { plan: String },
+    PlanMissingFunction { plan: String, function: String },
+    PlanMissingDelta { plan: String, delta: String },
 
-    ExecutionMissingTick {
-        execution: String,
-        tick: String,
-    },
-    ExecutionMissingPlan {
-        execution: String,
-        plan: String,
-    },
-    ExecutionMissingDelta {
-        execution: String,
-        delta: String,
-    },
+    ExecutionMissingTick { execution: String, tick: String },
+    ExecutionMissingPlan { execution: String, plan: String },
+    ExecutionMissingDelta { execution: String, delta: String },
 
-    RewardDrop {
-        subject: String,
-    },
+    RewardDrop { subject: String },
 
-    GpuMissingFunction {
-        gpu: String,
-        function: String,
-    },
-    GpuMissingPorts {
-        gpu: String,
-    },
-    GpuInvalidLanes {
-        gpu: String,
-        port: String,
-    },
-    GpuContractViolation {
-        gpu: String,
-    },
+    GpuMissingFunction { gpu: String, function: String },
+    GpuMissingPorts { gpu: String },
+    GpuInvalidLanes { gpu: String, port: String },
+    GpuContractViolation { gpu: String },
 }
 
 #[derive(Debug, Clone)]
@@ -367,16 +137,8 @@ pub struct Violation {
 }
 
 impl Violation {
-    pub fn structured(
-        rule: CanonRule,
-        subject: impl Into<String>,
-        detail: ViolationDetail,
-    ) -> Self {
-        Self {
-            rule,
-            detail,
-            subject: subject.into(),
-        }
+    pub fn structured(rule: CanonRule, subject: impl Into<String>, detail: ViolationDetail) -> Self {
+        Self { rule, detail, subject: subject.into() }
     }
 
     pub fn rule(&self) -> CanonRule {
@@ -395,91 +157,40 @@ impl Violation {
                 ViolationDetail::TickCycle { graph } => graph.as_str(),
                 ViolationDetail::Duplicate { name } => name.as_str(),
 
-                ViolationDetail::FunctionMissingImpl {
-                    function_id,
-                    impl_id,
-                } => {
-                    return Box::leak(
-                        format!(
-                            "function `{}` references missing impl `{}`",
-                            function_id, impl_id
-                        )
-                        .into_boxed_str(),
-                    );
+                ViolationDetail::FunctionMissingImpl { function_id, impl_id } => {
+                    return Box::leak(format!("function `{}` references missing impl `{}`", function_id, impl_id).into_boxed_str());
                 }
 
                 ViolationDetail::ImplMissingStruct { impl_id, struct_id } => {
-                    return Box::leak(
-                        format!(
-                            "impl `{}` references missing struct `{}`",
-                            impl_id, struct_id
-                        )
-                        .into_boxed_str(),
-                    );
+                    return Box::leak(format!("impl `{}` references missing struct `{}`", impl_id, struct_id).into_boxed_str());
                 }
 
                 ViolationDetail::ImplMissingTrait { impl_id, trait_id } => {
-                    return Box::leak(
-                        format!("impl `{}` references missing trait `{}`", impl_id, trait_id)
-                            .into_boxed_str(),
-                    );
+                    return Box::leak(format!("impl `{}` references missing trait `{}`", impl_id, trait_id).into_boxed_str());
                 }
 
                 ViolationDetail::ImplWrongModuleForStruct { impl_id } => {
-                    return Box::leak(
-                        format!("impl `{}` has wrong module for struct", impl_id).into_boxed_str(),
-                    );
+                    return Box::leak(format!("impl `{}` has wrong module for struct", impl_id).into_boxed_str());
                 }
 
                 ViolationDetail::ImplWrongModuleForTrait { impl_id } => {
-                    return Box::leak(
-                        format!("impl `{}` has wrong module for trait", impl_id).into_boxed_str(),
-                    );
+                    return Box::leak(format!("impl `{}` has wrong module for trait", impl_id).into_boxed_str());
                 }
 
-                ViolationDetail::FunctionMissingImpl {
-                    function_id,
-                    impl_id,
-                } => {
-                    return Box::leak(
-                        format!(
-                            "function `{}` references missing impl `{}`",
-                            function_id, impl_id
-                        )
-                        .into_boxed_str(),
-                    );
+                ViolationDetail::FunctionMissingImpl { function_id, impl_id } => {
+                    return Box::leak(format!("function `{}` references missing impl `{}`", function_id, impl_id).into_boxed_str());
                 }
 
-                ViolationDetail::FunctionWrongModule {
-                    function_id,
-                    module,
-                } => {
-                    return Box::leak(
-                        format!(
-                            "function `{}` is in wrong module (expected `{}`)",
-                            function_id, module
-                        )
-                        .into_boxed_str(),
-                    );
+                ViolationDetail::FunctionWrongModule { function_id, module } => {
+                    return Box::leak(format!("function `{}` is in wrong module (expected `{}`)", function_id, module).into_boxed_str());
                 }
 
                 ViolationDetail::FunctionWrongTraitBinding { function_id } => {
-                    return Box::leak(
-                        format!("function `{}` bound to wrong trait", function_id).into_boxed_str(),
-                    );
+                    return Box::leak(format!("function `{}` bound to wrong trait", function_id).into_boxed_str());
                 }
 
-                ViolationDetail::FunctionUnknownTraitFunction {
-                    function_id,
-                    trait_fn,
-                } => {
-                    return Box::leak(
-                        format!(
-                            "function `{}` references unknown trait function `{}`",
-                            function_id, trait_fn
-                        )
-                        .into_boxed_str(),
-                    );
+                ViolationDetail::FunctionUnknownTraitFunction { function_id, trait_fn } => {
+                    return Box::leak(format!("function `{}` references unknown trait function `{}`", function_id, trait_fn).into_boxed_str());
                 }
 
                 _ => "structured violation",
@@ -510,19 +221,9 @@ impl ValidationErrors {
 
 impl fmt::Display for ValidationErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "Canon validation failed with {} violation(s):",
-            self.violations.len()
-        )?;
+        writeln!(f, "Canon validation failed with {} violation(s):", self.violations.len())?;
         for v in &self.violations {
-            writeln!(
-                f,
-                "- {} ({}) → {}",
-                v.rule().code(),
-                v.rule().text(),
-                v.detail()
-            )?;
+            writeln!(f, "- {} ({}) → {}", v.rule().code(), v.rule().text(), v.detail())?;
         }
         Ok(())
     }

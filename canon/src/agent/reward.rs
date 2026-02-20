@@ -6,9 +6,9 @@
 //! derives a per-node trust threshold adjustment for the dispatcher.
 //!
 //! No LLM calls. No unsafe. Pure arithmetic over existing reward infrastructure.
-use std::collections::HashMap;
 use crate::ir::PolicyParameters;
-use crate::runtime::policy_updater::{PolicyUpdateError, update_policy};
+use crate::runtime::policy_updater::{update_policy, PolicyUpdateError};
+use std::collections::HashMap;
 /// Outcome of a single pipeline run for a capability node.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PipelineNodeOutcome {
@@ -53,25 +53,13 @@ pub struct NodeRewardLedger {
 }
 impl NodeRewardLedger {
     pub fn new(alpha: f64, base_threshold: f64) -> Self {
-        Self {
-            entries: HashMap::new(),
-            alpha,
-            base_threshold,
-        }
+        Self { entries: HashMap::new(), alpha, base_threshold }
     }
     /// Record an outcome for a node and update its EMA reward.
     pub fn record(&mut self, node_id: impl Into<String>, outcome: PipelineNodeOutcome) {
         let node_id = node_id.into();
         let reward = outcome.reward_value();
-        let entry = self
-            .entries
-            .entry(node_id.clone())
-            .or_insert(NodeRewardEntry {
-                node_id: node_id.clone(),
-                outcome: outcome.clone(),
-                ema_reward: reward,
-                run_count: 0,
-            });
+        let entry = self.entries.entry(node_id.clone()).or_insert(NodeRewardEntry { node_id: node_id.clone(), outcome: outcome.clone(), ema_reward: reward, run_count: 0 });
         entry.ema_reward = self.alpha * reward + (1.0 - self.alpha) * entry.ema_reward;
         entry.run_count += 1;
         entry.outcome = outcome;
@@ -90,21 +78,13 @@ impl NodeRewardLedger {
     }
     /// Updates PolicyParameters using the aggregate reward across all nodes.
     /// Returns updated parameters or a PolicyUpdateError.
-    pub fn update_policy(
-        &self,
-        current: &PolicyParameters,
-    ) -> Result<PolicyParameters, PolicyUpdateError> {
+    pub fn update_policy(&self, current: &PolicyParameters) -> Result<PolicyParameters, PolicyUpdateError> {
         let aggregate_reward = self.aggregate_reward();
         update_policy(current, aggregate_reward)
     }
     /// Mean EMA reward across all nodes that have run at least once.
     pub fn aggregate_reward(&self) -> f64 {
-        let active: Vec<f64> = self
-            .entries
-            .values()
-            .filter(|e| e.run_count > 0)
-            .map(|e| e.ema_reward)
-            .collect();
+        let active: Vec<f64> = self.entries.values().filter(|e| e.run_count > 0).map(|e| e.ema_reward).collect();
         if active.is_empty() {
             return 0.0;
         }
@@ -114,12 +94,7 @@ impl NodeRewardLedger {
     /// Useful for surfacing which nodes are performing best.
     pub fn ranked_nodes(&self) -> Vec<&NodeRewardEntry> {
         let mut entries: Vec<&NodeRewardEntry> = self.entries.values().collect();
-        entries
-            .sort_by(|a, b| {
-                b.ema_reward
-                    .partial_cmp(&a.ema_reward)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+        entries.sort_by(|a, b| b.ema_reward.partial_cmp(&a.ema_reward).unwrap_or(std::cmp::Ordering::Equal));
         entries
     }
     /// Returns the entry for a node, if it exists.
