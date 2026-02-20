@@ -6,6 +6,7 @@ use std::process::Command;
 // Each entry: (source path relative to crate root, object name)
 const CUDA_SOURCES: &[(&str, &str)] = &[
     ("src/graph/bfs.cu",                      "graph_bfs"),
+    ("src/graph/bellman_ford.cu",              "graph_bellman_ford"),
     ("src/sorting/bitonic_sort.cu",            "sorting_bitonic_sort"),
     ("src/searching/linear_search.cu",         "searching_linear_search"),
     ("src/numerical/matrix_multiply.cu",       "numerical_matrix_multiply"),
@@ -35,7 +36,7 @@ fn main() {
         let status = Command::new(&nvcc)
             .args([*src, "-c", "-o"])
             .arg(&obj)
-            .args(["-Xcompiler", "-fPIC", "-std=c++17"])
+            .args(["-Xcompiler", "-fPIC", "-std=c++17", "-ccbin", "/usr/bin/g++-11"])
             .status()
             .unwrap_or_else(|_| panic!("nvcc failed to start for {}", src));
         if !status.success() {
