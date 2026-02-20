@@ -3,7 +3,6 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use super::ids::{EdgeId, NodeId};
-use graph_gpu::csr::{CsrGraph, EdgeKind as GpuEdgeKind, InputEdge};
 use database::graph_log as wire;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -205,29 +204,29 @@ impl GraphSnapshot {
         changed.into_iter().collect()
     }
 
-    /// Convert this snapshot into a zero-copy CSR graph for GPU traversal.
-    pub fn to_csr(&self) -> CsrGraph {
-        let node_ids: Vec<u64> = self.nodes
+    pub fn to_wire_snapshot(&self) -> wire::GraphSnapshot {
+        let nodes: Vec<wire::WireNode> = self.nodes
             .iter()
-            .map(|n| n.id.low_u64_le())
-            .collect();
-
-        let edges: Vec<InputEdge> = self.edges
-            .iter()
-            .filter_map(|e| {
-                let from = e.from.low_u64_le();
-                let to   = e.to.low_u64_le();
-                let kind = match e.kind {
-                    EdgeKind::Contains    => GpuEdgeKind::Contains,
-                    EdgeKind::Call        => GpuEdgeKind::Call,
-                    EdgeKind::ControlFlow => GpuEdgeKind::ControlFlow,
-                    EdgeKind::Reference   => GpuEdgeKind::Reference,
-                };
-                Some(InputEdge { from, to, kind })
+            .map(|node| wire::WireNode {
+                id: wire::WireNodeId(node.id.as_bytes()),
+                key: node.key.to_string(),
+                label: node.label.to_string(),
+                metadata: node.metadata.clone(),
             })
             .collect();
 
-        CsrGraph::build(&node_ids, &edges)
+        let edges: Vec<wire::WireEdge> = self.edges
+            .iter()
+            .map(|edge| wire::WireEdge {
+                id: wire::WireEdgeId(edge.id.as_bytes()),
+                from: wire::WireNodeId(edge.from.as_bytes()),
+                to: wire::WireNodeId(edge.to.as_bytes()),
+                kind: edge.kind.as_str().to_string(),
+                metadata: edge.metadata.clone(),
+            })
+            .collect();
+
+        wire::GraphSnapshot::new(nodes, edges)
     }
 }
 

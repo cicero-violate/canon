@@ -6,10 +6,10 @@ edition = "2024"
 [features]
 default = ["rustc_frontend"]
 rustc_frontend = []
+compiler_capture_crate = []
 
 [dependencies]
 anyhow = "1"
-graph_gpu = { path = "../graph_gpu" }
 database = { path = "../memory/database" }
 syn = { version = "2", features = ["full", "visit", "visit-mut"] }
 quote = "1"

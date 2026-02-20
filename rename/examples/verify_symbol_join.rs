@@ -5,9 +5,10 @@ extern crate rustc_driver;
 
 use rename::{collect_names};
 use rename::rename::core::normalize_symbol_id;
-use rename::rustc_integration::frontends::rustc::RustcFrontend;
-use rename::rustc_integration::multi_capture::capture_project;
-use rename::rustc_integration::project::CargoProject;
+use rename::compiler_capture::frontends::rustc::RustcFrontend;
+use rename::compiler_capture::multi_capture::capture_project;
+use rename::compiler_capture::project::CargoProject;
+use database::{MemoryEngine, MemoryEngineConfig};
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cargo = CargoProject::from_entry(project_path)?;
     let frontend = RustcFrontend::new();
-    let artifacts = match capture_project(&frontend, &cargo, &[]) {
+    let _artifacts = match capture_project(&frontend, &cargo, &[]) {
         Ok(artifacts) => artifacts,
         Err(err) => {
             eprintln!("rustc capture unavailable: {err}");
@@ -35,9 +36,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    let state_dir = project_path.join(".rename");
+    let tlog_path = state_dir.join("state.tlog");
+    let engine = MemoryEngine::new(MemoryEngineConfig { tlog_path })?;
+    let snapshot = engine.materialized_graph()?;
+
     let mut rustc_id = None;
     let mut rustc_candidates = Vec::new();
-    for node in artifacts.snapshot.nodes() {
+    for node in snapshot.nodes.iter() {
         let key = normalize_symbol_id(node.key.as_ref());
         if key.contains("ProjectEditor") {
             rustc_candidates.push(key.clone());

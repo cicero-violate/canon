@@ -12,8 +12,19 @@ extern crate rustc_middle;
 extern crate rustc_span;
 
 pub mod fs;
-pub mod rename;
+pub mod alias;
+pub mod api;
+pub mod attributes;
+pub mod core;
+pub mod macros;
+pub mod module_path;
+pub mod occurrence;
+pub mod pattern;
+pub mod scope;
+pub mod structured;
 pub mod state;
-pub mod rustc_integration;
+pub mod rename;
+#[path = "../../compiler_capture/src/mod.rs"]
+pub mod compiler_capture;
 
 pub use rename::core::{apply_rename, apply_rename_with_map, collect_names, emit_names};

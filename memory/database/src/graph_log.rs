@@ -20,6 +20,34 @@ pub struct WireEdgeId(pub [u8; 16]);
 pub type NodeId = WireNodeId;
 pub type GpuBfsResult = Vec<i32>;
 
+impl WireNodeId {
+    pub fn from_key(key: &str) -> Self {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        key.hash(&mut hasher);
+        let hash = hasher.finish();
+        let mut bytes = [0u8; 16];
+        bytes[..8].copy_from_slice(&hash.to_le_bytes());
+        bytes[8..].copy_from_slice(&hash.to_be_bytes());
+        Self(bytes)
+    }
+}
+
+impl WireEdgeId {
+    pub fn from_components(from: &WireNodeId, to: &WireNodeId, kind: &str) -> Self {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        from.hash(&mut hasher);
+        to.hash(&mut hasher);
+        kind.hash(&mut hasher);
+        let hash = hasher.finish();
+        let mut bytes = [0u8; 16];
+        bytes[..8].copy_from_slice(&hash.to_le_bytes());
+        bytes[8..].copy_from_slice(&hash.to_be_bytes());
+        Self(bytes)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WireNode {
     pub id: WireNodeId,
