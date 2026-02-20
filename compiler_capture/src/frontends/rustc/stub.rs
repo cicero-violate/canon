@@ -56,12 +56,7 @@ impl RustcFrontend {
     }
 
     /// Always returns [`RustcFrontendError::Unavailable`].
-    pub fn capture_deltas<P: AsRef<std::path::Path>>(
-        &self,
-        _entry: P,
-        _args: &[String],
-        _env_vars: &[(String, String)],
-    ) -> Result<Vec<GraphDelta>, RustcFrontendError> {
+    pub fn capture_deltas<P: AsRef<std::path::Path>>(&self, _entry: P, _args: &[String], _env_vars: &[(String, String)]) -> Result<Vec<GraphDelta>, RustcFrontendError> {
         Err(RustcFrontendError::Unavailable)
     }
 }

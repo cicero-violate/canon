@@ -2,10 +2,11 @@ use super::config::StructuredEditOptions;
 use super::doc_attr::DocAttrPass;
 use super::use_tree::UsePathRewritePass;
 use crate::alias::ImportNode;
+use crate::resolve::ResolverContext;
+use algorithms::graph::topological_sort::topological_sort;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
-use algorithms::graph::topological_sort::topological_sort;
 
 pub trait StructuredPass {
     fn name(&self) -> &'static str;
@@ -28,21 +29,12 @@ impl StructuredPassRunner {
     pub fn add_pass(&mut self, pass: Box<dyn StructuredPass>) {
         self.passes.push(pass);
     }
-    pub fn execute_passes(
-        &mut self,
-        file: &Path,
-        content: &str,
-        ast: &mut syn::File,
-    ) -> Result<Vec<&'static str>> {
+    pub fn execute_passes(&mut self, file: &Path, content: &str, ast: &mut syn::File) -> Result<Vec<&'static str>> {
         let mut changed = Vec::new();
         // Build topo order over passes using declared dependencies.
         let n = self.passes.len();
         // Map name -> index
-        let name_to_idx: HashMap<&str, usize> = self.passes
-            .iter()
-            .enumerate()
-            .map(|(i, p)| (p.name(), i))
-            .collect();
+        let name_to_idx: HashMap<&str, usize> = self.passes.iter().enumerate().map(|(i, p)| (p.name(), i)).collect();
         // Build adjacency list: edge dep -> pass means dep runs before pass
         let mut adj: Vec<Vec<usize>> = vec![vec![]; n];
         for (i, pass) in self.passes.iter().enumerate() {
@@ -79,13 +71,10 @@ pub fn create_rename_orchestrator(
     path_updates: &HashMap<String, String>,
     alias_nodes: Vec<ImportNode>,
     config: StructuredEditOptions,
+    resolver: ResolverContext,
 ) -> StructuredPassRunner {
     let mut orchestrator = StructuredPassRunner::new();
     orchestrator.add_pass(Box::new(DocAttrPass::new(mapping.clone(), config.clone())));
-    orchestrator.add_pass(Box::new(UsePathRewritePass::new(
-        path_updates.clone(),
-        alias_nodes,
-        config,
-    )));
+    orchestrator.add_pass(Box::new(UsePathRewritePass::new(path_updates.clone(), alias_nodes, config, resolver)));
     orchestrator
 }

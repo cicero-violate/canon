@@ -1,16 +1,18 @@
 //! Enhanced occurrence tracking with pattern destructuring and attribute support
 use super::attributes::extract_symbols_from_attributes;
 use super::core::{span_to_range, SymbolIndex, SymbolOccurrence};
+use super::alias::AliasGraph;
+use super::resolve::Resolver;
 use super::macros::{extract_macro_rules_identifiers, MacroIdentifierCollector};
 use super::pattern::{extract_type_from_pattern, PatternBindingCollector};
 use super::scope::ScopeBinder;
+use algorithms::string_algorithms::kmp::kmp_search;
 use proc_macro2::Span;
 use std::collections::HashMap;
 use std::path::Path;
 use syn::visit::{self, Visit};
 use syn::ItemMacro;
-use syn::{Arm, Expr, ExprClosure, ExprForLoop, ExprMethodCall, ImplItemFn, ItemImpl, Local, Pat};
-use algorithms::string_algorithms::kmp::kmp_search;
+use syn::{Arm, Expr, ExprClosure, ExprForLoop, ExprMacro, ExprMethodCall, ImplItemFn, ItemImpl, Local, Pat};
 
 /// KMP pre-filter: returns true if `symbol` appears anywhere in `source`.
 /// Avoids running the full AST visitor on files that cannot contain the symbol.
@@ -26,6 +28,7 @@ pub struct EnhancedOccurrenceVisitor<'a> {
     file: &'a Path,
     symbol_table: &'a SymbolIndex,
     use_map: &'a HashMap<String, String>,
+    alias_graph: &'a AliasGraph,
     occurrences: &'a mut Vec<SymbolOccurrence>,
     scoped_binder: ScopeBinder,
     current_impl: Option<ImplContext>,
@@ -41,6 +44,7 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
         file: &'a Path,
         symbol_table: &'a SymbolIndex,
         use_map: &'a HashMap<String, String>,
+        alias_graph: &'a AliasGraph,
         occurrences: &'a mut Vec<SymbolOccurrence>,
     ) -> Self {
         Self {
@@ -48,6 +52,7 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
             file,
             symbol_table,
             use_map,
+            alias_graph,
             occurrences,
             scoped_binder: ScopeBinder::new(symbol_table),
             current_impl: None,
@@ -55,12 +60,7 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
         }
     }
     fn add_occurrence(&mut self, id: String, kind: &str, span: Span) {
-        self.occurrences.push(SymbolOccurrence {
-            id,
-            file: self.file.to_string_lossy().to_string(),
-            kind: kind.to_string(),
-            span: span_to_range(span),
-        });
+        self.occurrences.push(SymbolOccurrence { id, file: self.file.to_string_lossy().to_string(), kind: kind.to_string(), span: span_to_range(span) });
     }
     /// Process pattern bindings and add to scope
     fn process_pattern_bindings(&mut self, pat: &Pat) {
@@ -85,19 +85,12 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
             Expr::MethodCall(method_call) => {
                 if let Some(receiver_type) = self.infer_expr_type(&method_call.receiver) {
                     let method_name = method_call.method.to_string();
-                    return self
-                        .scoped_binder
-                        .get_method_return_type(&receiver_type, &method_name);
+                    return self.scoped_binder.get_method_return_type(&receiver_type, &method_name);
                 }
                 None
             }
             Expr::Struct(expr_struct) => {
-                if let Some(symbol) = path_to_symbol(
-                    &expr_struct.path,
-                    self.module_path,
-                    self.use_map,
-                    self.symbol_table,
-                ) {
+                if let Some(symbol) = path_to_symbol(&expr_struct.path, self.module_path, self.alias_graph, self.symbol_table) {
                     Some(symbol)
                 } else {
                     Some(path_to_string(&expr_struct.path))
@@ -105,12 +98,7 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
             }
             Expr::Call(call_expr) => {
                 if let Expr::Path(ref path_expr) = *call_expr.func {
-                    if let Some(func_symbol) = path_to_symbol(
-                        &path_expr.path,
-                        self.module_path,
-                        self.use_map,
-                        self.symbol_table,
-                    ) {
+                    if let Some(func_symbol) = path_to_symbol(&path_expr.path, self.module_path, self.alias_graph, self.symbol_table) {
                         if let Some(last_segment) = func_symbol.rsplit("::").next() {
                             if last_segment == "new" || last_segment == "default" {
                                 let parts: Vec<&str> = func_symbol.rsplitn(2, "::").collect();
@@ -165,13 +153,10 @@ impl<'a> Visit<'a> for EnhancedOccurrenceVisitor<'a> {
     fn visit_item_impl(&mut self, node: &'a ItemImpl) {
         let prev_impl = self.current_impl.clone();
         let type_name = match &*node.self_ty {
-            syn::Type::Path(type_path) => path_to_symbol(
-                &type_path.path,
-                self.module_path,
-                self.use_map,
-                self.symbol_table,
-            )
-            .or_else(|| Some(path_to_string(&type_path.path))),
+            syn::Type::Path(type_path) => {
+                path_to_symbol(&type_path.path, self.module_path, self.alias_graph, self.symbol_table)
+                    .or_else(|| Some(path_to_string(&type_path.path)))
+            }
             _ => None,
         };
         if let Some(type_name) = type_name {
@@ -190,14 +175,9 @@ impl<'a> Visit<'a> for EnhancedOccurrenceVisitor<'a> {
             }
         }
         if let Some(ctx) = &self.current_impl {
-            let has_receiver = node
-                .sig
-                .inputs
-                .iter()
-                .any(|arg| matches!(arg, syn::FnArg::Receiver(_)));
+            let has_receiver = node.sig.inputs.iter().any(|arg| matches!(arg, syn::FnArg::Receiver(_)));
             if has_receiver {
-                self.scoped_binder
-                    .bind("self".to_string(), ctx.type_name.clone());
+                self.scoped_binder.bind("self".to_string(), ctx.type_name.clone());
             }
         }
         for input in &node.sig.inputs {
@@ -243,21 +223,32 @@ impl<'a> Visit<'a> for EnhancedOccurrenceVisitor<'a> {
     fn visit_expr_method_call(&mut self, node: &'a ExprMethodCall) {
         if let Some(receiver_type) = self.infer_expr_type(&node.receiver) {
             let method_name = node.method.to_string();
-            if let Some(method_id) = self
-                .scoped_binder
-                .resolve_method(&receiver_type, &method_name)
-            {
+            if let Some(method_id) = self.scoped_binder.resolve_method(&receiver_type, &method_name) {
                 self.add_occurrence(method_id, "method_call", node.method.span());
             }
         }
         visit::visit_expr_method_call(self, node);
     }
+    fn visit_expr_macro(&mut self, node: &'a ExprMacro) {
+        let mut collector = MacroIdentifierCollector::new();
+        collector.process_macro_invocation(&node.mac);
+        for (ident, span) in collector.identifiers {
+            if let Some(id) = self.resolve_symbol(&ident) {
+                self.add_occurrence(id, "macro_arg", span);
+            }
+        }
+        visit::visit_expr_macro(self, node);
+    }
     fn visit_path(&mut self, path: &'a syn::Path) {
-        if let Some(symbol) =
-            path_to_symbol(path, self.module_path, self.use_map, self.symbol_table)
-        {
-            if let Some(ident) = path.segments.last() {
-                self.add_occurrence(symbol, "path", ident.ident.span());
+        let segments: Vec<String> = path.segments.iter().map(|seg| seg.ident.to_string()).collect();
+        if segments.is_empty() {
+            return;
+        }
+        let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+        for (idx, seg) in path.segments.iter().enumerate() {
+            let prefix = &segments[..=idx];
+            if let Some(symbol) = resolver.resolve_path_segments(prefix) {
+                self.add_occurrence(symbol, "path", seg.ident.span());
             }
         }
         visit::visit_path(self, path);
@@ -293,9 +284,7 @@ fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<String> {
     if prefix.first().map(|s| s.as_str()) == Some("crate") {
         return prefix.to_vec();
     }
-    if prefix.first().map(|s| s.as_str()) == Some("self")
-        || prefix.first().map(|s| s.as_str()) == Some("super")
-    {
+    if prefix.first().map(|s| s.as_str()) == Some("self") || prefix.first().map(|s| s.as_str()) == Some("super") {
         return resolve_relative_prefix(prefix, module_path);
     }
     let mut out: Vec<String> = module_path.split("::").map(|s| s.to_string()).collect();
@@ -318,77 +307,52 @@ fn resolve_relative_prefix(prefix: &[String], module_path: &str) -> Vec<String> 
     module_parts
 }
 fn path_to_string(path: &syn::Path) -> String {
-    path.segments
-        .iter()
-        .map(|seg| seg.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::")
+    path.segments.iter().map(|seg| seg.ident.to_string()).collect::<Vec<_>>().join("::")
 }
-fn path_to_symbol(
-    path: &syn::Path,
-    module_path: &str,
-    use_map: &HashMap<String, String>,
-    symbol_table: &SymbolIndex,
-) -> Option<String> {
-    let path_str = path_to_string(path);
-
-    // 1. Same-module direct match
-    let full_path = format!("{}::{}", module_path, path_str);
-    if symbol_table.symbols.contains_key(&full_path) {
-        return Some(full_path);
+fn path_to_symbol(path: &syn::Path, module_path: &str, alias_graph: &AliasGraph, symbol_table: &SymbolIndex) -> Option<String> {
+    let segments: Vec<String> = path.segments.iter().map(|seg| seg.ident.to_string()).collect();
+    if segments.is_empty() {
+        return None;
     }
-
-    // 2. Imported via `use`
-    if let Some(resolved) = use_map.get(&path_str) {
-        if symbol_table.symbols.contains_key(resolved.as_str()) {
-            return Some(resolved.clone());
-        }
-    }
-
-    // 3. Already a crate-rooted path
-    if path_str.starts_with("crate::") && symbol_table.symbols.contains_key(&path_str) {
-        return Some(path_str);
-    }
-    None
+    let resolver = Resolver { module_path, alias_graph, symbol_table };
+    resolver.resolve_path_segments(&segments)
 }
 impl<'a> EnhancedOccurrenceVisitor<'a> {
     fn resolve_symbol(&self, symbol: &str) -> Option<String> {
-        let full_path = format!("{}::{}", self.module_path, symbol);
-        if self.symbol_table.symbols.contains_key(&full_path) {
-            return Some(full_path);
-        }
-        if let Some(resolved) = self.use_map.get(symbol) {
-            return Some(resolved.clone());
-        }
-        None
+        let segments: Vec<String> = symbol.split("::").map(|s| s.to_string()).collect();
+        let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+        resolver.resolve_path_segments(&segments)
     }
     fn record_use_tree(&mut self, tree: &syn::UseTree, prefix: &mut Vec<String>) {
         match tree {
             syn::UseTree::Path(p) => {
-                let mut full = normalize_use_prefix(prefix, self.module_path);
-                full.push(p.ident.to_string());
-                let id = full.join("::");
-                if self.symbol_table.symbols.contains_key(&id) {
-                    self.add_occurrence(id, "use_path", p.ident.span());
+                let mut next_prefix = prefix.clone();
+                next_prefix.push(p.ident.to_string());
+                let full = normalize_use_prefix(&next_prefix, self.module_path);
+                let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+                if let Some(resolved) = resolver.resolve_path_segments(&full) {
+                    self.add_occurrence(resolved, "use_path", p.ident.span());
                 }
                 prefix.push(p.ident.to_string());
                 self.record_use_tree(&p.tree, prefix);
                 prefix.pop();
             }
             syn::UseTree::Name(name) => {
-                let mut full = normalize_use_prefix(prefix, self.module_path);
-                full.push(name.ident.to_string());
-                let id = full.join("::");
-                if self.symbol_table.symbols.contains_key(&id) {
-                    self.add_occurrence(id, "use", name.ident.span());
+                let mut next_prefix = prefix.clone();
+                next_prefix.push(name.ident.to_string());
+                let full = normalize_use_prefix(&next_prefix, self.module_path);
+                let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+                if let Some(resolved) = resolver.resolve_path_segments(&full) {
+                    self.add_occurrence(resolved, "use", name.ident.span());
                 }
             }
             syn::UseTree::Rename(rename) => {
-                let mut full = normalize_use_prefix(prefix, self.module_path);
-                full.push(rename.ident.to_string());
-                let id = full.join("::");
-                if self.symbol_table.symbols.contains_key(&id) {
-                    self.add_occurrence(id, "use", rename.rename.span());
+                let mut next_prefix = prefix.clone();
+                next_prefix.push(rename.ident.to_string());
+                let full = normalize_use_prefix(&next_prefix, self.module_path);
+                let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+                if let Some(resolved) = resolver.resolve_path_segments(&full) {
+                    self.add_occurrence(resolved, "use", rename.ident.span());
                 }
             }
             syn::UseTree::Group(group) => {

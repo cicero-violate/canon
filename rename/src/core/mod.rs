@@ -27,7 +27,4 @@ pub(crate) use span::span_to_offsets;
 pub use span::span_to_range;
 pub use structured::StructuredEditTracker;
 pub use symbol_id::normalize_symbol_id;
-pub use types::{
-    AliasGraphReport, LineColumn, SpanRange, SymbolIndex, SymbolIndexReport, SymbolOccurrence,
-    SymbolRecord,
-};
+pub use types::{AliasGraphReport, LineColumn, SpanRange, SymbolIndex, SymbolIndexReport, SymbolOccurrence, SymbolRecord};

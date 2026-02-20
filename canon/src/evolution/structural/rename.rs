@@ -1,8 +1,15 @@
 use super::super::EvolutionError;
-use crate::ir::CanonicalIr;
-
-pub fn rename_module(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError> {
-    let module = ir.modules.iter_mut().find(|m| m.id == *old_id).ok_or_else(|| EvolutionError::UnknownModule(old_id.to_string()))?;
+use crate::ir::SystemState;
+pub fn rename_module(
+    ir: &mut SystemState,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError> {
+    let module = ir
+        .modules
+        .iter_mut()
+        .find(|m| m.id == *old_id)
+        .ok_or_else(|| EvolutionError::UnknownModule(old_id.to_string()))?;
     module.id = new_id.to_owned();
     for structure in &mut ir.structs {
         if structure.module == *old_id {
@@ -34,9 +41,16 @@ pub fn rename_module(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result
     }
     Ok(())
 }
-
-pub fn rename_struct(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError> {
-    let structure = ir.structs.iter_mut().find(|s| s.id == *old_id).ok_or_else(|| EvolutionError::UnknownStruct(old_id.to_string()))?;
+pub fn rename_struct(
+    ir: &mut SystemState,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError> {
+    let structure = ir
+        .structs
+        .iter_mut()
+        .find(|s| s.id == *old_id)
+        .ok_or_else(|| EvolutionError::UnknownStruct(old_id.to_string()))?;
     structure.id = new_id.to_owned();
     for block in &mut ir.impls {
         if block.struct_id == *old_id {
@@ -50,9 +64,16 @@ pub fn rename_struct(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result
     }
     Ok(())
 }
-
-pub fn rename_function(ir: &mut CanonicalIr, old_id: &str, new_id: &str) -> Result<(), EvolutionError> {
-    let function = ir.functions.iter_mut().find(|f| f.id == *old_id).ok_or_else(|| EvolutionError::UnknownFunction(old_id.to_string()))?;
+pub fn rename_function(
+    ir: &mut SystemState,
+    old_id: &str,
+    new_id: &str,
+) -> Result<(), EvolutionError> {
+    let function = ir
+        .functions
+        .iter_mut()
+        .find(|f| f.id == *old_id)
+        .ok_or_else(|| EvolutionError::UnknownFunction(old_id.to_string()))?;
     function.id = new_id.to_owned();
     for block in &mut ir.impls {
         for binding in &mut block.functions {

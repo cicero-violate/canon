@@ -10,17 +10,19 @@
 //!   push_back(x):  walk to tail, tail.next = new_node                  O(N)
 
 struct Node<T> {
-    val:  T,
+    val: T,
     next: Option<Box<Node<T>>>,
 }
 
 pub struct LinkedList<T> {
     head: Option<Box<Node<T>>>,
-    len:  usize,
+    len: usize,
 }
 
 impl<T> LinkedList<T> {
-    pub fn new() -> Self { Self { head: None, len: 0 } }
+    pub fn new() -> Self {
+        Self { head: None, len: 0 }
+    }
 
     pub fn push_front(&mut self, val: T) {
         let node = Box::new(Node { val, next: self.head.take() });
@@ -39,7 +41,9 @@ impl<T> LinkedList<T> {
     pub fn push_back(&mut self, val: T) {
         let new_node = Box::new(Node { val, next: None });
         let mut cur = &mut self.head;
-        while let Some(node) = cur { cur = &mut node.next; }
+        while let Some(node) = cur {
+            cur = &mut node.next;
+        }
         *cur = Some(new_node);
         self.len += 1;
     }
@@ -48,6 +52,10 @@ impl<T> LinkedList<T> {
         self.head.as_ref().map(|n| &n.val)
     }
 
-    pub fn len(&self) -> usize      { self.len }
-    pub fn is_empty(&self) -> bool  { self.len == 0 }
+    pub fn len(&self) -> usize {
+        self.len
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
 }

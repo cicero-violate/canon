@@ -58,7 +58,7 @@ pub struct LineColumn {
     pub column: i64,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SymbolIndex {
     pub symbols: HashMap<String, SymbolRecord>,
 }

@@ -10,19 +10,10 @@ use rustc_span::{symbol::sym, FileName, SourceFile};
 use serde::Serialize;
 use std::path::Path;
 /// Enriches a node payload with common compiler metadata.
-pub(super) fn apply_common_metadata<'tcx>(
-    mut payload: NodePayload,
-    tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-    frontend: &FrontendMetadata,
-) -> NodePayload {
+pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<'tcx>, def_id: DefId, frontend: &FrontendMetadata) -> NodePayload {
     let crate_name = tcx.crate_name(def_id.krate).to_string();
     let def_path = normalize_symbol_id_with_crate(&tcx.def_path_str(def_id), Some(&crate_name));
-    let name = tcx
-        .opt_item_name(def_id)
-        .map(|sym| sym.to_string())
-        .or_else(|| Some(def_path.split("::").last()?.to_string()))
-        .unwrap_or_else(|| format!("{def_id:?}"));
+    let name = tcx.opt_item_name(def_id).map(|sym| sym.to_string()).or_else(|| Some(def_path.split("::").last()?.to_string())).unwrap_or_else(|| format!("{def_id:?}"));
     let module = derive_module_path(&def_path);
     let parent = tcx.opt_parent(def_id);
     let def_kind = tcx.def_kind(def_id);
@@ -35,23 +26,14 @@ pub(super) fn apply_common_metadata<'tcx>(
     let absolute_path = resolve_source_path_abs(&filename);
     let relative_path = resolve_source_path_rel(&absolute_path, frontend.workspace_root.as_deref());
     let file_stats = compute_source_file_metrics(&lo.file);
-    let snippet = source_map
-        .span_to_snippet(span)
-        .unwrap_or_else(|_| String::new());
+    let snippet = source_map.span_to_snippet(span).unwrap_or_else(|_| String::new());
     payload = payload
         .with_metadata("def_path", def_path.clone())
         .with_metadata("def_path_hash", format!("{def_path_hash:?}"))
         .with_metadata("name", name.clone())
         .with_metadata("display", format_symbol_label(&module, &name))
         .with_metadata("module", module.clone())
-        .with_metadata(
-            "module_id",
-            if module.is_empty() {
-                "mod:root".into()
-            } else {
-                format!("mod:{module}")
-            },
-        );
+        .with_metadata("module_id", if module.is_empty() { "mod:root".into() } else { format!("mod:{module}") });
     if let Some(relative) = relative_path {
         payload = payload.with_metadata("source_file_relative", relative);
     }
@@ -84,18 +66,9 @@ pub(super) fn apply_common_metadata<'tcx>(
     }
     if let Some(parent_id) = parent {
         payload = payload.with_metadata("parent", format!("{parent_id:?}"));
-        payload = payload.with_metadata(
-            "parent_kind",
-            format_node_kind_label(tcx.def_kind(parent_id)),
-        );
-        payload = payload.with_metadata(
-            "parent_def_path_hash",
-            format!("{:?}", tcx.def_path_hash(parent_id)),
-        );
-        payload = payload.with_metadata(
-            "container_kind",
-            format_node_kind_label(tcx.def_kind(parent_id)),
-        );
+        payload = payload.with_metadata("parent_kind", format_node_kind_label(tcx.def_kind(parent_id)));
+        payload = payload.with_metadata("parent_def_path_hash", format!("{:?}", tcx.def_path_hash(parent_id)));
+        payload = payload.with_metadata("container_kind", format_node_kind_label(tcx.def_kind(parent_id)));
     }
     payload = payload.with_metadata("crate_edition", frontend.edition.clone());
     if let Some(target_name) = &frontend.target_name {
@@ -154,29 +127,20 @@ fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData> {
                 doc_lines.push(doc.to_string());
             }
             flags.apply(attr);
-            AttributeCapture {
-                path: attribute_path(attr),
-                doc: attr.doc_str().map(|sym| sym.to_string()),
-                args: attribute_args(attr),
-            }
+            AttributeCapture { path: attribute_path(attr), doc: attr.doc_str().map(|sym| sym.to_string()), args: attribute_args(attr) }
         })
         .collect();
     if !doc_lines.is_empty() {
         flags.doc = Some(doc_lines.join("\n"));
     }
-    serde_json::to_string(&captures)
-        .ok()
-        .map(|raw| AttributeData { raw, flags })
+    serde_json::to_string(&captures).ok().map(|raw| AttributeData { raw, flags })
 }
 fn attribute_path(attr: &HirAttribute) -> Vec<String> {
     attr.path().into_iter().map(|sym| sym.to_string()).collect()
 }
 fn attribute_args(attr: &HirAttribute) -> Option<String> {
     if let Some(items) = attr.meta_item_list() {
-        let rendered: Vec<String> = items
-            .iter()
-            .filter_map(|item| item.ident().map(|ident| ident.name.to_string()))
-            .collect();
+        let rendered: Vec<String> = items.iter().filter_map(|item| item.ident().map(|ident| ident.name.to_string())).collect();
         if !rendered.is_empty() {
             return Some(rendered.join(", "));
         }
@@ -199,11 +163,7 @@ fn serialize_generic_param_list(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String
     if params.is_empty() && predicates.is_empty() && generics.parent.is_none() {
         return None;
     }
-    let capture = GenericsCapture {
-        params,
-        parent: generics.parent.map(|parent| tcx.def_path_str(parent)),
-        predicates,
-    };
+    let capture = GenericsCapture { params, parent: generics.parent.map(|parent| tcx.def_path_str(parent)), predicates };
     serde_json::to_string(&capture).ok()
 }
 fn serialize_where_clause_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>> {
@@ -211,13 +171,7 @@ fn serialize_where_clause_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<V
     if predicates.predicates.is_empty() {
         return None;
     }
-    Some(
-        predicates
-            .predicates
-            .iter()
-            .map(|predicate| format!("{predicate:?}"))
-            .collect(),
-    )
+    Some(predicates.predicates.iter().map(|predicate| format!("{predicate:?}")).collect())
 }
 fn format_generic_param_kind_label(kind: &GenericParamDefKind) -> String {
     match kind {
@@ -366,16 +320,8 @@ fn compute_source_file_metrics(file: &SourceFile) -> FileStats {
         Some(format!("{:?}", file.src_hash))
     };
     let line_count = file.count_lines();
-    let byte_len = file
-        .src
-        .as_ref()
-        .map(|src| src.len())
-        .unwrap_or(file.unnormalized_source_len as usize);
-    FileStats {
-        hash: hash_value,
-        line_count,
-        byte_len,
-    }
+    let byte_len = file.src.as_ref().map(|src| src.len()).unwrap_or(file.unnormalized_source_len as usize);
+    FileStats { hash: hash_value, line_count, byte_len }
 }
 fn resolve_source_path_abs(filename: &FileName) -> String {
     if let Some(path) = filename.clone().into_local_path() {
@@ -388,9 +334,7 @@ fn resolve_source_path_rel(path: &str, workspace_root: Option<&str>) -> Option<S
     let root = workspace_root?;
     let abs = Path::new(path);
     let root_path = Path::new(root);
-    abs.strip_prefix(root_path)
-        .ok()
-        .map(|p| p.to_string_lossy().to_string())
+    abs.strip_prefix(root_path).ok().map(|p| p.to_string_lossy().to_string())
 }
 fn format_node_kind_label(def_kind: DefKind) -> String {
     let kind = match def_kind {

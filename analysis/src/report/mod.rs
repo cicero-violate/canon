@@ -137,16 +137,9 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
     let mut r = AnalysisReport::default();
 
     // bookkeeping indices used across domains
-    let id_to_key: HashMap<_, _> =
-        nodes.iter().map(|n| (n.id.clone(), n.key.clone())).collect();
-    let key_to_idx: HashMap<String, usize> =
-        nodes.iter().enumerate().map(|(i, n)| (n.key.clone(), i)).collect();
-    let id_label = |id: &_| {
-        id_to_key
-            .get(id)
-            .cloned()
-            .unwrap_or_else(|| format!("{id:?}"))
-    };
+    let id_to_key: HashMap<_, _> = nodes.iter().map(|n| (n.id.clone(), n.key.clone())).collect();
+    let key_to_idx: HashMap<String, usize> = nodes.iter().enumerate().map(|(i, n)| (n.key.clone(), i)).collect();
+    let id_label = |id: &_| id_to_key.get(id).cloned().unwrap_or_else(|| format!("{id:?}"));
 
     // ── graph basics ──────────────────────────────────────────────────────────
     r.node_count = nodes.len();
@@ -158,15 +151,7 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
     // ── call graph ────────────────────────────────────────────────────────────
     let snapshot = GraphSnapshot::new(nodes.to_vec(), edges.to_vec());
     let mut cg = CallGraph::from_snapshot(snapshot);
-    r.entry_points = nodes
-        .iter()
-        .filter(|n| {
-            n.key.ends_with("::main")
-                || n.key.ends_with("::run")
-                || n.key.ends_with("::execute")
-        })
-        .map(|n| n.key.clone())
-        .collect();
+    r.entry_points = nodes.iter().filter(|n| n.key.ends_with("::main") || n.key.ends_with("::run") || n.key.ends_with("::execute")).map(|n| n.key.clone()).collect();
     for entry in &r.entry_points {
         let reachable = cg.reachable_from(entry);
         let count = reachable.len();
@@ -179,12 +164,7 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
         dc.add_entry(entry.clone());
     }
     for n in nodes {
-        if n.metadata.get("kind").map(|k| k == "fn").unwrap_or(false)
-            && n.metadata
-                .get("visibility")
-                .map(|v| v == "pub")
-                .unwrap_or(false)
-        {
+        if n.metadata.get("kind").map(|k| k == "fn").unwrap_or(false) && n.metadata.get("visibility").map(|v| v == "pub").unwrap_or(false) {
             dc.add_entry(n.key.clone());
         }
     }
@@ -228,39 +208,13 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
             em.add(&n.key, Effect::Allocates);
         }
     }
-    r.unsafe_fns = nodes
-        .iter()
-        .filter(|n| em.get(&n.key).iter().any(|e| **e == Effect::Unsafe))
-        .map(|n| n.key.clone())
-        .collect();
-    r.panic_fns = nodes
-        .iter()
-        .filter(|n| em.get(&n.key).iter().any(|e| **e == Effect::Panics))
-        .map(|n| n.key.clone())
-        .collect();
+    r.unsafe_fns = nodes.iter().filter(|n| em.get(&n.key).iter().any(|e| **e == Effect::Unsafe)).map(|n| n.key.clone()).collect();
+    r.panic_fns = nodes.iter().filter(|n| em.get(&n.key).iter().any(|e| **e == Effect::Panics)).map(|n| n.key.clone()).collect();
 
     // ── taint ─────────────────────────────────────────────────────────────────
     let mut taint = TaintState::new();
-    let sources: Vec<String> = nodes
-        .iter()
-        .filter(|n| {
-            n.key.contains("parse")
-                || n.key.contains("input")
-                || n.key.contains("read")
-                || n.key.contains("recv")
-        })
-        .map(|n| n.key.clone())
-        .collect();
-    let sinks: Vec<String> = nodes
-        .iter()
-        .filter(|n| {
-            n.key.contains("exec")
-                || n.key.contains("write")
-                || n.key.contains("send")
-                || n.key.contains("commit")
-        })
-        .map(|n| n.key.clone())
-        .collect();
+    let sources: Vec<String> = nodes.iter().filter(|n| n.key.contains("parse") || n.key.contains("input") || n.key.contains("read") || n.key.contains("recv")).map(|n| n.key.clone()).collect();
+    let sinks: Vec<String> = nodes.iter().filter(|n| n.key.contains("exec") || n.key.contains("write") || n.key.contains("send") || n.key.contains("commit")).map(|n| n.key.clone()).collect();
     for src in &sources {
         taint.add_source(src.clone(), "external".into());
     }
@@ -274,11 +228,7 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
     let forbidden: HashSet<String> = ["external".to_string()].into();
     r.taint_sources = sources.len();
     r.taint_sinks = sinks.len();
-    r.tainted_sinks = sinks
-        .iter()
-        .filter(|s| !taint.check_sink(s, &forbidden).is_empty())
-        .cloned()
-        .collect();
+    r.tainted_sinks = sinks.iter().filter(|s| !taint.check_sink(s, &forbidden).is_empty()).cloned().collect();
 
     // ── type hierarchy ────────────────────────────────────────────────────────
     let mut th = TypeHierarchy::new();
@@ -295,14 +245,11 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
         .iter()
         .take(3)
         .map(|n| {
-            let supers = th
-                .supertypes
-                .get(&n.key)
-                .map(|set| {
-                    let mut v: Vec<String> = set.iter().cloned().collect();
-                    v.sort();
-                    v
-                });
+            let supers = th.supertypes.get(&n.key).map(|set| {
+                let mut v: Vec<String> = set.iter().cloned().collect();
+                v.sort();
+                v
+            });
             (n.key.clone(), supers)
         })
         .collect();
@@ -322,12 +269,7 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
     let ref_vars: Vec<String> = edges
         .iter()
         .filter(|e| e.kind == "reference")
-        .flat_map(|e| {
-            [
-                id_to_key.get(&e.from).cloned().unwrap_or_default(),
-                id_to_key.get(&e.to).cloned().unwrap_or_default(),
-            ]
-        })
+        .flat_map(|e| [id_to_key.get(&e.from).cloned().unwrap_or_default(), id_to_key.get(&e.to).cloned().unwrap_or_default()])
         .filter(|s| !s.is_empty())
         .collect::<HashSet<_>>()
         .into_iter()
@@ -339,8 +281,7 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
             if ptg.may_alias(ref_vars_v[i], ref_vars_v[j]) {
                 r.alias_pairs += 1;
                 if r.alias_samples.len() < 3 {
-                    r.alias_samples
-                        .push((ref_vars_v[i].clone(), ref_vars_v[j].clone()));
+                    r.alias_samples.push((ref_vars_v[i].clone(), ref_vars_v[j].clone()));
                 }
             }
         }
@@ -355,9 +296,7 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
         if e.kind == "call" {
             let from = id_label(&e.from);
             let to = id_label(&e.to);
-            if let (Some(&fi), Some(&ti)) =
-                (key_to_idx.get(&from), key_to_idx.get(&to))
-            {
+            if let (Some(&fi), Some(&ti)) = (key_to_idx.get(&from), key_to_idx.get(&to)) {
                 cfg.add_edge(fi, ti);
             }
         }
@@ -380,10 +319,7 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
 
     // ── dataflow ──────────────────────────────────────────────────────────────
     let block_ids: Vec<usize> = (0..sccs.len().min(16)).collect();
-    let mut df_facts = DataflowFacts {
-        r#gen: HashMap::new(),
-        kill: HashMap::new(),
-    };
+    let mut df_facts = DataflowFacts { r#gen: HashMap::new(), kill: HashMap::new() };
     let mut df_pred: HashMap<usize, Vec<usize>> = HashMap::new();
     for (i, scc) in sccs.iter().enumerate().take(16) {
         df_facts.r#gen.insert(i, scc.iter().cloned().collect());
@@ -427,11 +363,9 @@ pub fn run_all(nodes: &[WireNode], edges: &[WireEdge]) -> AnalysisReport {
     // ── interproc ─────────────────────────────────────────────────────────────
     let mut store = SummaryStore::new();
     let scc_order = sccs.clone();
-    store.compute_bottom_up(&scc_order, |fn_id: &String, _: &SummaryStore| {
-        FnSummary {
-            pre: HashMap::from([("pre".to_string(), format!("pre({fn_id})"))]),
-            post: HashMap::from([("post".to_string(), format!("post({fn_id})"))]),
-        }
+    store.compute_bottom_up(&scc_order, |fn_id: &String, _: &SummaryStore| FnSummary {
+        pre: HashMap::from([("pre".to_string(), format!("pre({fn_id})"))]),
+        post: HashMap::from([("post".to_string(), format!("post({fn_id})"))]),
     });
     r.summarized_fns = scc_order.iter().flat_map(|s| s.iter()).count();
 
@@ -480,15 +414,21 @@ impl AnalysisReport {
 
         println!("\n--- effects ---");
         println!("  unsafe fns: {}", self.unsafe_fns.len());
-        for s in self.unsafe_fns.iter().take(5) { println!("    {s}"); }
+        for s in self.unsafe_fns.iter().take(5) {
+            println!("    {s}");
+        }
         println!("  panic-capable fns: {}", self.panic_fns.len());
-        for s in self.panic_fns.iter().take(5) { println!("    {s}"); }
+        for s in self.panic_fns.iter().take(5) {
+            println!("    {s}");
+        }
 
         println!("\n--- taint ---");
         println!("  sources: {}", self.taint_sources);
         println!("  sinks:   {}", self.taint_sinks);
         println!("  tainted sinks: {}", self.tainted_sinks.len());
-        for s in self.tainted_sinks.iter().take(5) { println!("    {s}"); }
+        for s in self.tainted_sinks.iter().take(5) {
+            println!("    {s}");
+        }
 
         println!("\n--- type hierarchy ---");
         for (key, supers) in &self.supertype_samples {
@@ -506,7 +446,9 @@ impl AnalysisReport {
 
         println!("\n--- concurrency ---");
         println!("  potential races: {}", self.races.len());
-        for r in self.races.iter().take(5) { println!("    {r}"); }
+        for r in self.races.iter().take(5) {
+            println!("    {r}");
+        }
 
         println!("\n--- dataflow ---");
         println!("  blocks analyzed:      {}", self.df_blocks);
@@ -514,7 +456,9 @@ impl AnalysisReport {
 
         println!("\n--- escape ---");
         println!("  escaped symbols: {}", self.escaped_symbols.len());
-        for s in self.escaped_symbols.iter().take(5) { println!("    {s}"); }
+        for s in self.escaped_symbols.iter().take(5) {
+            println!("    {s}");
+        }
 
         println!("\n--- lifetime ---");
         println!("  regions:          {}", self.lifetime_regions);

@@ -26,7 +26,9 @@ pub struct SummaryStore {
 }
 
 impl SummaryStore {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn insert(&mut self, fn_id: FnId, summary: FnSummary) {
         self.summaries.insert(fn_id, summary);
@@ -38,11 +40,8 @@ impl SummaryStore {
 
     /// Compute summaries bottom-up given a topological order of SCCs.
     /// Each SCC is a vec of fn ids; `compute` is called per function.
-    pub fn compute_bottom_up<F>(
-        &mut self,
-        scc_order: &[Vec<FnId>],
-        mut compute: F,
-    ) where F: FnMut(&FnId, &SummaryStore) -> FnSummary {
+    pub fn compute_bottom_up<F>(&mut self, scc_order: &[Vec<FnId>], mut compute: F)
+    where F: FnMut(&FnId, &SummaryStore) -> FnSummary {
         for scc in scc_order {
             let ordered = merge_sort(scc);
             // Iterate to fixpoint for recursive SCCs

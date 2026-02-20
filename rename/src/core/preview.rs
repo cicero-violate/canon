@@ -5,13 +5,7 @@ use anyhow::Result;
 use std::collections::BTreeMap;
 use std::path::Path;
 /// B2: Write preview with structured edit tracking
-pub(crate) fn write_preview(
-    out: &Path,
-    edits: &[SymbolEdit],
-    renames: &[FileRename],
-    structured_tracker: &StructuredEditTracker,
-    config: &StructuredEditOptions,
-) -> Result<()> {
+pub(crate) fn write_preview(out: &Path, edits: &[SymbolEdit], renames: &[FileRename], structured_tracker: &StructuredEditTracker, config: &StructuredEditOptions) -> Result<()> {
     let mut by_file: BTreeMap<String, Vec<&SymbolEdit>> = BTreeMap::new();
     for edit in edits {
         by_file.entry(edit.file.clone()).or_default().push(edit);

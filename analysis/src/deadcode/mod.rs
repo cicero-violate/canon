@@ -7,9 +7,9 @@
 //!   live(entry) = true
 //!   live(f)     = ∃ g: live(g) ∧ g calls f
 
-use algorithms::graph::dfs::dfs;
 #[cfg(feature = "cuda")]
 use algorithms::graph::csr::Csr;
+use algorithms::graph::dfs::dfs;
 #[cfg(feature = "cuda")]
 use algorithms::graph::gpu::bfs_gpu;
 use std::collections::{HashMap, HashSet};
@@ -22,10 +22,7 @@ pub struct DeadCodeAnalysis {
 
 impl DeadCodeAnalysis {
     pub fn new() -> Self {
-        Self {
-            calls: HashMap::new(),
-            entry_points: HashSet::new(),
-        }
+        Self { calls: HashMap::new(), entry_points: HashSet::new() }
     }
 
     pub fn add_call(&mut self, caller: String, callee: String) {
@@ -49,11 +46,12 @@ impl DeadCodeAnalysis {
         }
         let mut nodes: Vec<String> = all.into_iter().collect();
         nodes.sort();
-        let index: HashMap<String, usize> =
-            nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
+        let index: HashMap<String, usize> = nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
         let mut adj: Vec<Vec<usize>> = vec![Vec::new(); nodes.len()];
         for (from, tos) in &self.calls {
-            let Some(&fi) = index.get(from) else { continue; };
+            let Some(&fi) = index.get(from) else {
+                continue;
+            };
             for to in tos {
                 if let Some(&ti) = index.get(to) {
                     adj[fi].push(ti);
@@ -85,12 +83,7 @@ impl DeadCodeAnalysis {
                 }
             }
         }
-        nodes
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| !live.contains(i))
-            .map(|(_, k)| k)
-            .collect()
+        nodes.into_iter().enumerate().filter(|(i, _)| !live.contains(i)).map(|(_, k)| k).collect()
     }
 }
 
@@ -99,5 +92,7 @@ fn should_use_gpu(nodes: usize, edges: usize) -> bool {
 }
 
 impl Default for DeadCodeAnalysis {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

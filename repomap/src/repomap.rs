@@ -13,11 +13,7 @@ pub struct FileMap {
 pub fn build_repomap(root_dir: &Path) -> Vec<FileMap> {
     let mut result = Vec::new();
 
-    for entry in WalkDir::new(root_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map(|x| x == "rs").unwrap_or(false))
-    {
+    for entry in WalkDir::new(root_dir).into_iter().filter_map(|e| e.ok()).filter(|e| e.path().extension().map(|x| x == "rs").unwrap_or(false)) {
         let path = entry.path().to_path_buf();
         let src = match std::fs::read_to_string(&path) {
             Ok(s) => s,

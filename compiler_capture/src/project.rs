@@ -16,10 +16,7 @@ pub struct CargoProject {
 /// Read the cargo fingerprint JSON for a built library and extract the exact
 /// rlib hash suffixes that cargo chose for each dep crate name.
 /// Returns a map of crate_name -> hex hash suffix.
-fn read_fingerprint_dep_hashes(
-    fingerprint_dir: &std::path::Path,
-    lib_name: &str,
-) -> Option<HashMap<String, String>> {
+fn read_fingerprint_dep_hashes(fingerprint_dir: &std::path::Path, lib_name: &str) -> Option<HashMap<String, String>> {
     let json_path = fingerprint_dir.join(format!("lib-{}.json", lib_name));
     let content = fs::read_to_string(&json_path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&content).ok()?;
@@ -36,10 +33,7 @@ fn read_fingerprint_dep_hashes(
 }
 
 /// Find the fingerprint directory for a given package lib name under target/.fingerprint/
-fn find_fingerprint_dir(
-    target_dir: &std::path::Path,
-    lib_name: &str,
-) -> Option<std::path::PathBuf> {
+fn find_fingerprint_dir(target_dir: &std::path::Path, lib_name: &str) -> Option<std::path::PathBuf> {
     let fp_root = target_dir.join(".fingerprint");
     let entries = fs::read_dir(&fp_root).ok()?;
     let prefix = format!("{}-", lib_name);
@@ -50,12 +44,7 @@ fn find_fingerprint_dir(
         if name.starts_with(&prefix) {
             let json = entry.path().join(format!("lib-{}.json", lib_name));
             if json.exists() {
-                let mtime = fs::metadata(&json)
-                    .and_then(|m| m.modified())
-                    .ok()
-                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|d| d.as_secs())
-                    .unwrap_or(0);
+                let mtime = fs::metadata(&json).and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
                 if best.as_ref().map_or(true, |(m, _)| mtime > *m) {
                     best = Some((mtime, entry.path()));
                 }
@@ -70,10 +59,7 @@ impl CargoProject {
     pub fn from_entry(entry: &Path) -> io::Result<Self> {
         let mut current = entry.canonicalize()?;
         if current.is_file() {
-            current = current
-                .parent()
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "entry has no parent"))?
-                .to_path_buf();
+            current = current.parent().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "entry has no parent"))?.to_path_buf();
         }
         let root = find_cargo_root(&current)?;
         let target_dir = fetch_target_dir(&root).unwrap_or_else(|_| root.join("target"));
@@ -82,17 +68,11 @@ impl CargoProject {
 
     /// Ensures dependencies are built (debug profile).
     pub fn ensure_dependencies_built(&self) -> io::Result<()> {
-        let status = Command::new("cargo")
-            .arg("build")
-            .current_dir(&self.root)
-            .status()?;
+        let status = Command::new("cargo").arg("build").current_dir(&self.root).status()?;
         if status.success() {
             Ok(())
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                "cargo build failed inside project",
-            ))
+            Err(io::Error::new(io::ErrorKind::Other, "cargo build failed inside project"))
         }
     }
 
@@ -115,22 +95,12 @@ impl CargoProject {
         }
 
         let manifest = self.root.join("Cargo.toml");
-        let output = Command::new("cargo")
-            .arg("build")
-            .arg("--lib")
-            .arg("-v")
-            .arg("--manifest-path")
-            .arg(&manifest)
-            .stderr(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::null())
-            .output()
-            .ok()?;
+        let output =
+            Command::new("cargo").arg("build").arg("--lib").arg("-v").arg("--manifest-path").arg(&manifest).stderr(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).output().ok()?;
 
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        let rustc_line = stderr.lines().find(|l| {
-            l.contains("Running") && l.contains("--crate-name") && l.contains(&crate_name)
-        })?;
+        let rustc_line = stderr.lines().find(|l| l.contains("Running") && l.contains("--crate-name") && l.contains(&crate_name))?;
 
         let inner = rustc_line.split('`').nth(1)?;
         let tokens: Vec<&str> = inner.split_whitespace().collect();
@@ -153,20 +123,23 @@ impl CargoProject {
                     args.push(t.to_string());
                     i += 1;
                 }
-                _ => { i += 1; }
+                _ => {
+                    i += 1;
+                }
             }
         }
 
-        if args.is_empty() { None } else { Some(args) }
+        if args.is_empty() {
+            None
+        } else {
+            Some(args)
+        }
     }
 
     fn extern_args_from_deps_dir(&self, profile: &str) -> io::Result<Vec<String>> {
         let deps_dir = self.target_dir.join(profile).join("deps");
         if !deps_dir.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("deps dir missing: {}", deps_dir.display()),
-            ));
+            return Err(io::Error::new(io::ErrorKind::NotFound, format!("deps dir missing: {}", deps_dir.display())));
         }
 
         let mut by_crate: HashMap<String, Vec<Artifact>> = HashMap::new();
@@ -175,10 +148,7 @@ impl CargoProject {
             let path = entry.path();
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                 if let Some((crate_name, kind)) = classify_artifact(name) {
-                    by_crate
-                        .entry(crate_name.to_string())
-                        .or_default()
-                        .push(Artifact { path, kind });
+                    by_crate.entry(crate_name.to_string()).or_default().push(Artifact { path, kind });
                 }
             }
         }
@@ -201,45 +171,22 @@ impl CargoProject {
         let mut meta = load_cargo_metadata(&self.root)?;
         let root_manifest = self.root.join("Cargo.toml");
         let root_manifest = root_manifest.canonicalize().unwrap_or(root_manifest);
-        if let Some(index) = meta.packages.iter().position(|pkg| {
-            pkg.manifest_path
-                .canonicalize()
-                .unwrap_or_else(|_| pkg.manifest_path.clone())
-                == root_manifest
-        }) {
+        if let Some(index) = meta.packages.iter().position(|pkg| pkg.manifest_path.canonicalize().unwrap_or_else(|_| pkg.manifest_path.clone()) == root_manifest) {
             if index != 0 {
                 let pkg = meta.packages.remove(index);
                 meta.packages.insert(0, pkg);
             }
         }
-        let CargoMetadata {
-            target_directory,
-            workspace_root,
-            packages,
-        } = meta;
-        let (edition, rust_version) = packages
-            .get(0)
-            .map(|pkg| (Some(pkg.edition.clone()), pkg.rust_version.clone()))
-            .unwrap_or((None, None));
-        Ok(ProjectMetadata {
-            workspace_root,
-            target_directory,
-            packages,
-            edition,
-            rust_version,
-        })
+        let CargoMetadata { target_directory, workspace_root, packages } = meta;
+        let (edition, rust_version) = packages.get(0).map(|pkg| (Some(pkg.edition.clone()), pkg.rust_version.clone())).unwrap_or((None, None));
+        Ok(ProjectMetadata { workspace_root, target_directory, packages, edition, rust_version })
     }
 
     /// Returns all cargo targets for the primary package.
     pub fn targets(&self) -> io::Result<Vec<CargoTarget>> {
         let meta = self.metadata()?;
         if let Some(pkg) = meta.packages.first() {
-            let targets: Vec<CargoTarget> = pkg
-                .targets
-                .iter()
-                .filter(|t| t.kind.iter().any(|k| k == "lib" || k == "bin"))
-                .cloned()
-                .collect();
+            let targets: Vec<CargoTarget> = pkg.targets.iter().filter(|t| t.kind.iter().any(|k| k == "lib" || k == "bin")).cloned().collect();
             Ok(targets)
         } else {
             Ok(Vec::new())
@@ -260,10 +207,7 @@ fn find_cargo_root(start: &Path) -> io::Result<PathBuf> {
         }
         current = dir.parent().map(|p| p.to_path_buf());
     }
-    Err(io::Error::new(
-        io::ErrorKind::NotFound,
-        "Cargo.toml not found in parent chain",
-    ))
+    Err(io::Error::new(io::ErrorKind::NotFound, "Cargo.toml not found in parent chain"))
 }
 
 fn fetch_target_dir(root: &Path) -> io::Result<PathBuf> {
@@ -272,20 +216,11 @@ fn fetch_target_dir(root: &Path) -> io::Result<PathBuf> {
 }
 
 fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata> {
-    let output = Command::new("cargo")
-        .arg("metadata")
-        .arg("--format-version=1")
-        .arg("--no-deps")
-        .current_dir(root)
-        .output()?;
+    let output = Command::new("cargo").arg("metadata").arg("--format-version=1").arg("--no-deps").current_dir(root).output()?;
     if !output.status.success() {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "cargo metadata failed",
-        ));
+        return Err(io::Error::new(io::ErrorKind::Other, "cargo metadata failed"));
     }
-    let meta: CargoMetadata = serde_json::from_slice(&output.stdout)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let meta: CargoMetadata = serde_json::from_slice(&output.stdout).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     Ok(meta)
 }
 
@@ -329,11 +264,7 @@ fn select_best_artifact(artifacts: &[Artifact]) -> Option<PathBuf> {
             };
             let meta = std::fs::metadata(&artifact.path).ok();
             let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
-            let mtime = meta
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+            let mtime = meta.and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
             // Prefer mtime over size so all externs come from the same cargo invocation
             // and share compatible serde/schemars versions.
             (rank, mtime, size)

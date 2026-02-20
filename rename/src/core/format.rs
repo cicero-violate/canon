@@ -25,18 +25,10 @@ pub(crate) fn format_files(paths: &[PathBuf]) -> Result<Vec<String>> {
                 // Success - continue
             }
             Ok(status) => {
-                errors.push(format!(
-                    "rustfmt failed for {}: exit code {}",
-                    path.display(),
-                    status.code().unwrap_or(-1)
-                ));
+                errors.push(format!("rustfmt failed for {}: exit code {}", path.display(), status.code().unwrap_or(-1)));
             }
             Err(e) => {
-                errors.push(format!(
-                    "failed to run rustfmt on {}: {}",
-                    path.display(),
-                    e
-                ));
+                errors.push(format!("failed to run rustfmt on {}: {}", path.display(), e));
             }
         }
     }

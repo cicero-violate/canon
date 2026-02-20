@@ -2,19 +2,13 @@
 //!
 //! Delegates to algorithms::control_flow::dataflow, with optional GPU offload.
 
-pub use algorithms::control_flow::dataflow::{
-    BlockId, DataflowFacts, DataflowResult, DefId,
-};
+pub use algorithms::control_flow::dataflow::{BlockId, DataflowFacts, DataflowResult, DefId};
 
 use std::collections::HashMap;
 #[cfg(feature = "cuda")]
 use std::collections::HashSet;
 
-pub fn reaching_definitions(
-    blocks: &[BlockId],
-    pred: &HashMap<BlockId, Vec<BlockId>>,
-    facts: &DataflowFacts,
-) -> DataflowResult {
+pub fn reaching_definitions(blocks: &[BlockId], pred: &HashMap<BlockId, Vec<BlockId>>, facts: &DataflowFacts) -> DataflowResult {
     if should_use_gpu(blocks, pred, facts) {
         #[cfg(feature = "cuda")]
         {
@@ -26,22 +20,14 @@ pub fn reaching_definitions(
     algorithms::control_flow::dataflow::reaching_definitions(blocks, pred, facts)
 }
 
-fn should_use_gpu(
-    blocks: &[BlockId],
-    pred: &HashMap<BlockId, Vec<BlockId>>,
-    facts: &DataflowFacts,
-) -> bool {
+fn should_use_gpu(blocks: &[BlockId], pred: &HashMap<BlockId, Vec<BlockId>>, facts: &DataflowFacts) -> bool {
     let edges: usize = pred.values().map(|v| v.len()).sum();
     let defs: usize = facts.r#gen.values().map(|s| s.len()).sum();
     blocks.len().saturating_mul(edges + defs) > 1_000_000
 }
 
 #[cfg(feature = "cuda")]
-fn reaching_definitions_gpu(
-    blocks: &[BlockId],
-    pred: &HashMap<BlockId, Vec<BlockId>>,
-    facts: &DataflowFacts,
-) -> Option<DataflowResult> {
+fn reaching_definitions_gpu(blocks: &[BlockId], pred: &HashMap<BlockId, Vec<BlockId>>, facts: &DataflowFacts) -> Option<DataflowResult> {
     use algorithms::control_flow::gpu::reaching_definitions_gpu as gpu;
     use algorithms::graph::csr::Csr;
 
@@ -61,11 +47,7 @@ fn reaching_definitions_gpu(
     }
 
     // Build def index.
-    let mut all_defs: Vec<String> = facts
-        .r#gen
-        .values()
-        .flat_map(|s| s.iter().cloned())
-        .collect();
+    let mut all_defs: Vec<String> = facts.r#gen.values().flat_map(|s| s.iter().cloned()).collect();
     all_defs.sort();
     all_defs.dedup();
     let def_count = all_defs.len();

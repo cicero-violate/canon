@@ -53,13 +53,7 @@ fn extract_use_tree(tree: &UseTree, deps: &mut Vec<String>, prefix: String, curr
     extract_use_tree_inner(tree, deps, prefix, current_module, false)
 }
 
-fn extract_use_tree_inner(
-    tree: &UseTree,
-    deps: &mut Vec<String>,
-    prefix: String,
-    current_module: &str,
-    rooted: bool,
-) {
+fn extract_use_tree_inner(tree: &UseTree, deps: &mut Vec<String>, prefix: String, current_module: &str, rooted: bool) {
     match tree {
         UseTree::Path(path) => {
             let segment = path.ident.to_string();
@@ -77,22 +71,13 @@ fn extract_use_tree_inner(
                 // to avoid false-positive cycles in the dependency graph.
                 let _ = (path, parent);
             } else if segment == "self" {
-                extract_use_tree_inner(
-                    &path.tree,
-                    deps,
-                    current_module.to_string(),
-                    current_module,
-                    true,
-                );
+                extract_use_tree_inner(&path.tree, deps, current_module.to_string(), current_module, true);
             } else {
                 let new_prefix = if prefix.is_empty() {
                     if rooted {
                         segment
                     } else {
-                        if current_module.is_empty()
-                            || current_module == "lib"
-                            || current_module == "main"
-                        {
+                        if current_module.is_empty() || current_module == "lib" || current_module == "main" {
                             segment
                         } else {
                             format!("{}::{}", current_module, segment)
@@ -105,11 +90,7 @@ fn extract_use_tree_inner(
             }
         }
         UseTree::Name(name) => {
-            let full_path = if prefix.is_empty() {
-                name.ident.to_string()
-            } else {
-                format!("{}::{}", prefix, name.ident)
-            };
+            let full_path = if prefix.is_empty() { name.ident.to_string() } else { format!("{}::{}", prefix, name.ident) };
             deps.push(full_path);
         }
         UseTree::Glob(_) => {
@@ -123,11 +104,7 @@ fn extract_use_tree_inner(
             }
         }
         UseTree::Rename(rename) => {
-            let full_path = if prefix.is_empty() {
-                rename.ident.to_string()
-            } else {
-                format!("{}::{}", prefix, rename.ident)
-            };
+            let full_path = if prefix.is_empty() { rename.ident.to_string() } else { format!("{}::{}", prefix, rename.ident) };
             deps.push(full_path);
         }
     }

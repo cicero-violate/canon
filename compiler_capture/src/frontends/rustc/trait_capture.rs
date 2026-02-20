@@ -9,13 +9,7 @@ use rustc_hir::def_id::DefId;
 use rustc_middle::ty::TyCtxt;
 use serde::Serialize;
 use std::collections::HashMap;
-pub(super) fn capture_trait<'tcx>(
-    builder: &mut DeltaCollector,
-    tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-) -> NodeId {
+pub(super) fn capture_trait<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) -> NodeId {
     if let Some(id) = cache.get(&def_id) {
         return id.clone();
     }
@@ -41,14 +35,7 @@ pub(super) fn capture_trait<'tcx>(
     cache.insert(def_id, node_id.clone());
     node_id
 }
-pub(super) fn capture_impl<'tcx>(
-    builder: &mut DeltaCollector,
-    tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-    of_trait_hint: bool,
-) -> NodeId {
+pub(super) fn capture_impl<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata, of_trait_hint: bool) -> NodeId {
     if let Some(id) = cache.get(&def_id) {
         return id.clone();
     }
@@ -59,23 +46,15 @@ pub(super) fn capture_impl<'tcx>(
     let def_kind = tcx.def_kind(def_id);
     let def_impl_trait = matches!(def_kind, DefKind::Impl { of_trait: true });
     let is_trait_impl = of_trait_hint || def_impl_trait;
-    let mut payload = NodePayload::new(&node_key, def_path.clone())
-        .with_metadata("type", "impl")
-        .with_metadata("of_trait", is_trait_impl.to_string());
+    let mut payload = NodePayload::new(&node_key, def_path.clone()).with_metadata("type", "impl").with_metadata("of_trait", is_trait_impl.to_string());
     if is_trait_impl {
         let trait_ref = tcx.impl_trait_ref(def_id).instantiate_identity();
         payload = payload.with_metadata("impl_trait_ref", format!("{:?}", trait_ref));
-        payload =
-            payload.with_metadata("impl_polarity", format!("{:?}", tcx.impl_polarity(def_id)));
+        payload = payload.with_metadata("impl_polarity", format!("{:?}", tcx.impl_polarity(def_id)));
     }
     let impl_ty = tcx.type_of(def_id).instantiate_identity();
-    payload = payload
-        .with_metadata("impl_target", format!("{impl_ty:?}"))
-        .with_metadata("impl_for", format!("{impl_ty:?}"))
-        .with_metadata(
-            "impl_kind",
-            if is_trait_impl { "trait" } else { "inherent" },
-        );
+    payload =
+        payload.with_metadata("impl_target", format!("{impl_ty:?}")).with_metadata("impl_for", format!("{impl_ty:?}")).with_metadata("impl_kind", if is_trait_impl { "trait" } else { "inherent" });
     if let Some(items) = serialize_impl_items(tcx, def_id) {
         payload = payload.with_metadata("impl_items", items);
     }
@@ -99,10 +78,7 @@ fn serialize_associated_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> 
         .in_definition_order()
         .map(|item| AssocItemCapture {
             name: item.ident(tcx).to_string(),
-            def_path: normalize_symbol_id_with_crate(
-                &tcx.def_path_str(item.def_id),
-                Some(&tcx.crate_name(item.def_id.krate).to_string()),
-            ),
+            def_path: normalize_symbol_id_with_crate(&tcx.def_path_str(item.def_id), Some(&tcx.crate_name(item.def_id.krate).to_string())),
             kind: format!("{:?}", item.kind),
         })
         .collect();
@@ -121,14 +97,7 @@ fn serialize_impl_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
     struct ImplItemCapture {
         def_path: String,
     }
-    let captures: Vec<ImplItemCapture> = item_ids
-        .iter()
-        .map(|item_def| ImplItemCapture {
-            def_path: normalize_symbol_id_with_crate(
-                &tcx.def_path_str(*item_def),
-                Some(&tcx.crate_name(item_def.krate).to_string()),
-            ),
-        })
-        .collect();
+    let captures: Vec<ImplItemCapture> =
+        item_ids.iter().map(|item_def| ImplItemCapture { def_path: normalize_symbol_id_with_crate(&tcx.def_path_str(*item_def), Some(&tcx.crate_name(item_def.krate).to_string())) }).collect();
     serde_json::to_string(&captures).ok()
 }

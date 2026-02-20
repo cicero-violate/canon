@@ -11,9 +11,9 @@
 //!     falling back to CPU BFS otherwise.
 //!   call_depth(f) = level[idx(f)] from BFS level vector
 
-use algorithms::graph::dijkstra::dijkstra;
 #[cfg(feature = "cuda")]
 use algorithms::graph::csr::Csr;
+use algorithms::graph::dijkstra::dijkstra;
 #[cfg(feature = "cuda")]
 use algorithms::graph::gpu::bfs_gpu;
 use database::graph_log::{GraphSnapshot, WireNodeId};
@@ -42,7 +42,9 @@ impl CallGraph {
             idx_to_key.push(node.key.clone());
         }
         let v = idx_to_key.len();
-        if v == 0 { return vec![]; }
+        if v == 0 {
+            return vec![];
+        }
 
         // Find start index by key
         let start_id = WireNodeId::from_key(start);
@@ -54,9 +56,7 @@ impl CallGraph {
         let mut adj: Vec<Vec<(usize, u64)>> = vec![vec![]; v];
         for edge in edges {
             if edge.kind == "call" {
-                if let (Some(&fi), Some(&ti)) =
-                    (id_to_idx.get(&edge.from), id_to_idx.get(&edge.to))
-                {
+                if let (Some(&fi), Some(&ti)) = (id_to_idx.get(&edge.from), id_to_idx.get(&edge.to)) {
                     adj[fi].push((ti, 1));
                 }
             }
@@ -72,20 +72,11 @@ impl CallGraph {
                 }
                 let csr = Csr::from_adj(&adj_u);
                 let levels = bfs_gpu(&csr, start_idx);
-                return levels
-                    .into_iter()
-                    .enumerate()
-                    .filter(|(_, lvl)| *lvl >= 0)
-                    .map(|(i, _)| idx_to_key[i].clone())
-                    .collect();
+                return levels.into_iter().enumerate().filter(|(_, lvl)| *lvl >= 0).map(|(i, _)| idx_to_key[i].clone()).collect();
             }
         }
         let dist = dijkstra(&adj, start_idx);
-        dist.into_iter()
-            .enumerate()
-            .filter(|(_, d)| *d != u64::MAX)
-            .map(|(i, _)| idx_to_key[i].clone())
-            .collect()
+        dist.into_iter().enumerate().filter(|(_, d)| *d != u64::MAX).map(|(i, _)| idx_to_key[i].clone()).collect()
     }
 
     /// Call depth of `target` from `start` (-1 = unreachable).
@@ -99,18 +90,18 @@ impl CallGraph {
             idx_to_key.push(node.key.clone());
         }
         let v = idx_to_key.len();
-        if v == 0 { return -1; }
+        if v == 0 {
+            return -1;
+        }
         let start_id = WireNodeId::from_key(start);
         let target_id = WireNodeId::from_key(target);
-        let (Some(&start_idx), Some(&target_idx)) =
-            (id_to_idx.get(&start_id), id_to_idx.get(&target_id))
-        else { return -1; };
+        let (Some(&start_idx), Some(&target_idx)) = (id_to_idx.get(&start_id), id_to_idx.get(&target_id)) else {
+            return -1;
+        };
         let mut adj: Vec<Vec<(usize, u64)>> = vec![vec![]; v];
         for edge in edges {
             if edge.kind == "call" {
-                if let (Some(&fi), Some(&ti)) =
-                    (id_to_idx.get(&edge.from), id_to_idx.get(&edge.to))
-                {
+                if let (Some(&fi), Some(&ti)) = (id_to_idx.get(&edge.from), id_to_idx.get(&edge.to)) {
                     adj[fi].push((ti, 1));
                 }
             }

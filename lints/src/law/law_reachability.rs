@@ -12,16 +12,8 @@ thread_local! {
     static LIVE_SIGNATURES: RefCell<HashMap<String, FnSignature>> = RefCell::new(HashMap::new());
 }
 
-const NOISE_TYPES: &[&str] =
-    &["String", "&str", "bool", "u64", "usize", "f64", "f32", "i32", "()", "std::string::String"];
-const NOISE_DEF_FRAGMENTS: &[&str] = &[
-    "as std::clone",
-    "as std::fmt",
-    "as std::error",
-    "as std::convert",
-    "as std::default",
-    "as std::ops",
-];
+const NOISE_TYPES: &[&str] = &["String", "&str", "bool", "u64", "usize", "f64", "f32", "i32", "()", "std::string::String"];
+const NOISE_DEF_FRAGMENTS: &[&str] = &["as std::clone", "as std::fmt", "as std::error", "as std::convert", "as std::default", "as std::ops"];
 
 #[derive(Clone)]
 pub struct DeadItem {
@@ -77,11 +69,7 @@ pub fn collect_dead_items<'tcx>(cx: &LateContext<'tcx>) -> Vec<DeadItem> {
         .filter(|&def_id| is_function_like(cx, def_id) && !is_live(def_id))
         .filter_map(|def_id| build_signature(cx, def_id))
         .filter(|(def_path, _)| !is_noise_def(def_path))
-        .map(|(def_path, sig)| DeadItem {
-            def_path,
-            module_path: sig.module_path.clone(),
-            domain_inputs: sig.domain_inputs.clone(),
-        })
+        .map(|(def_path, sig)| DeadItem { def_path, module_path: sig.module_path.clone(), domain_inputs: sig.domain_inputs.clone() })
         .collect()
 }
 
@@ -92,8 +80,7 @@ pub fn best_reconnect_target(dead: &DeadItem) -> (String, f32) {
             return None;
         }
 
-        let first_pass: Vec<_> =
-            map.iter().filter(|(_, sig)| sig.module_path == dead.module_path).collect();
+        let first_pass: Vec<_> = map.iter().filter(|(_, sig)| sig.module_path == dead.module_path).collect();
 
         if let Some(best) = select_best(dead, first_pass) {
             if best.1 > 0.0 {
@@ -102,12 +89,7 @@ pub fn best_reconnect_target(dead: &DeadItem) -> (String, f32) {
         }
 
         if let Some(parent) = parent_module(&dead.module_path) {
-            let second_pass: Vec<_> = map
-                .iter()
-                .filter(|(_, sig)| {
-                    sig.module_path.starts_with(parent) && shares_module_tokens(dead, sig)
-                })
-                .collect();
+            let second_pass: Vec<_> = map.iter().filter(|(_, sig)| sig.module_path.starts_with(parent) && shares_module_tokens(dead, sig)).collect();
 
             if let Some(best) = select_best(dead, second_pass) {
                 if best.1 > 0.0 {
@@ -116,10 +98,7 @@ pub fn best_reconnect_target(dead: &DeadItem) -> (String, f32) {
             }
         }
 
-        let fallback: Vec<_> = map
-            .iter()
-            .filter(|(_, sig)| compatibility(dead, sig) > 0.0)
-            .collect();
+        let fallback: Vec<_> = map.iter().filter(|(_, sig)| compatibility(dead, sig) > 0.0).collect();
         select_best(dead, fallback)
     });
 
@@ -130,10 +109,7 @@ pub fn best_reconnect_target(dead: &DeadItem) -> (String, f32) {
     }
 }
 
-fn select_best<'a>(
-    dead: &DeadItem,
-    candidates: Vec<(&'a String, &'a FnSignature)>,
-) -> Option<(String, f32)> {
+fn select_best<'a>(dead: &DeadItem, candidates: Vec<(&'a String, &'a FnSignature)>) -> Option<(String, f32)> {
     if candidates.is_empty() {
         return None;
     }
@@ -143,12 +119,7 @@ fn select_best<'a>(
             let score = compatibility(dead, sig);
             MatchResult { path: path.clone(), score, module: sig.module_path.clone() }
         })
-        .max_by(|a, b| {
-            a.score
-                .partial_cmp(&b.score)
-                .unwrap_or(Ordering::Equal)
-                .then_with(|| b.module.len().cmp(&a.module.len()))
-        })
+        .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(Ordering::Equal).then_with(|| b.module.len().cmp(&a.module.len())))
         .map(|res| (res.path, res.score))
 }
 
@@ -177,12 +148,7 @@ fn domain_input_types<'tcx>(tcx: TyCtxt<'tcx>, inputs: &[Ty<'tcx>]) -> Vec<Strin
     out
 }
 
-fn collect_domain_types<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    ty: Ty<'tcx>,
-    seen: &mut HashSet<String>,
-    out: &mut Vec<String>,
-) {
+fn collect_domain_types<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, seen: &mut HashSet<String>, out: &mut Vec<String>) {
     let ty = ty.peel_refs();
     match ty.kind() {
         ty::Adt(adt, _) => record_domain_type(tcx, adt.did(), seen, out),
@@ -202,23 +168,13 @@ fn collect_domain_types<'tcx>(
     }
 }
 
-fn record_domain_type<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-    seen: &mut HashSet<String>,
-    out: &mut Vec<String>,
-) {
+fn record_domain_type<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, seen: &mut HashSet<String>, out: &mut Vec<String>) {
     if def_id.is_local() {
         record_path(tcx, def_id, seen, out);
     }
 }
 
-fn record_path(
-    tcx: TyCtxt<'_>,
-    def_id: DefId,
-    seen: &mut HashSet<String>,
-    out: &mut Vec<String>,
-) {
+fn record_path(tcx: TyCtxt<'_>, def_id: DefId, seen: &mut HashSet<String>, out: &mut Vec<String>) {
     let name = tcx.def_path_str(def_id);
     if is_noise_type(&name) {
         return;
@@ -233,19 +189,13 @@ fn compatibility(dead: &DeadItem, live: &FnSignature) -> f32 {
         return 0.0;
     }
     let live_set: HashSet<&str> = live.domain_inputs.iter().map(|t| t.as_str()).collect();
-    let matches = dead
-        .domain_inputs
-        .iter()
-        .filter(|t| live_set.contains(t.as_str()))
-        .count();
+    let matches = dead.domain_inputs.iter().filter(|t| live_set.contains(t.as_str())).count();
     matches as f32 / (dead.domain_inputs.len() as f32 + 1.0)
 }
 
 fn shares_module_tokens(dead: &DeadItem, sig: &FnSignature) -> bool {
     let dead_tokens: Vec<&str> = dead.module_path.split("::").collect();
-    sig.domain_inputs
-        .iter()
-        .any(|ty| dead_tokens.iter().all(|tok| ty.contains(tok)))
+    sig.domain_inputs.iter().any(|ty| dead_tokens.iter().all(|tok| ty.contains(tok)))
 }
 
 fn parent_module(module: &str) -> Option<&str> {

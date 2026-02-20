@@ -14,22 +14,14 @@ pub fn build_file_dependency_map(src_root: &Path) -> Result<HashMap<PathBuf, Has
     let mut module_to_file: HashMap<String, PathBuf> = HashMap::new();
 
     // First pass: build module name to file path mapping
-    for entry in WalkDir::new(src_root)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
-    {
+    for entry in WalkDir::new(src_root).into_iter().filter_map(|e| e.ok()).filter(|e| e.path().extension().map_or(false, |ext| ext == "rs")) {
         let path = entry.path();
         let module_name = file_to_module_name(path, src_root)?;
         module_to_file.insert(module_name, path.to_path_buf());
     }
 
     // Second pass: extract dependencies for each file
-    for entry in WalkDir::new(src_root)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
-    {
+    for entry in WalkDir::new(src_root).into_iter().filter_map(|e| e.ok()).filter(|e| e.path().extension().map_or(false, |ext| ext == "rs")) {
         let path = entry.path();
         let module_name = file_to_module_name(path, src_root)?;
 
@@ -58,15 +50,9 @@ pub fn build_file_dependency_map(src_root: &Path) -> Result<HashMap<PathBuf, Has
 }
 
 fn file_to_module_name(path: &Path, src_root: &Path) -> Result<String> {
-    let rel_path = path
-        .strip_prefix(src_root)
-        .map_err(|_| anyhow::anyhow!("Path not under src root"))?
-        .with_extension("");
+    let rel_path = path.strip_prefix(src_root).map_err(|_| anyhow::anyhow!("Path not under src root"))?.with_extension("");
 
-    let parts: Vec<&str> = rel_path
-        .components()
-        .filter_map(|c| c.as_os_str().to_str())
-        .collect();
+    let parts: Vec<&str> = rel_path.components().filter_map(|c| c.as_os_str().to_str()).collect();
 
     let module_name = if parts.last() == Some(&"mod") {
         parts[..parts.len() - 1].join("::")

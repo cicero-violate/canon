@@ -15,14 +15,18 @@ pub struct LocksetState {
 }
 
 impl LocksetState {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn acquire(&mut self, thread: &str, lock: LockId) {
         self.held.entry(thread.to_string()).or_default().insert(lock);
     }
 
     pub fn release(&mut self, thread: &str, lock: &str) {
-        if let Some(ls) = self.held.get_mut(thread) { ls.remove(lock); }
+        if let Some(ls) = self.held.get_mut(thread) {
+            ls.remove(lock);
+        }
     }
 
     pub fn record_access(&mut self, thread: &str, var: VarId) {
@@ -32,10 +36,11 @@ impl LocksetState {
 
     /// Returns variables with potential data races.
     pub fn races(&self) -> Vec<VarId> {
-        self.accesses.iter()
+        self.accesses
+            .iter()
             .filter(|(_, records)| {
                 for i in 0..records.len() {
-                    for j in (i+1)..records.len() {
+                    for j in (i + 1)..records.len() {
                         let (t1, ls1) = &records[i];
                         let (t2, ls2) = &records[j];
                         if t1 != t2 && ls1.intersection(ls2).next().is_none() {

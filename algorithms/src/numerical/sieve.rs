@@ -13,9 +13,5 @@ pub fn sieve(n: usize) -> Vec<usize> {
         }
     }
 
-    is_prime
-        .iter()
-        .enumerate()
-        .filter_map(|(i, &p)| if p { Some(i) } else { None })
-        .collect()
+    is_prime.iter().enumerate().filter_map(|(i, &p)| if p { Some(i) } else { None }).collect()
 }

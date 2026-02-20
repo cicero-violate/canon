@@ -35,10 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let name = symbol.name.clone();
 
         if module_path.ends_with(&format!("::{}", name)) {
-            module_path = module_path
-                .rsplit_once("::")
-                .map(|(parent, _)| parent.to_string())
-                .unwrap_or(module_path);
+            module_path = module_path.rsplit_once("::").map(|(parent, _)| parent.to_string()).unwrap_or(module_path);
         }
 
         let symbol_path = format!("{}::{}", module_path, name);
@@ -60,44 +57,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut output = String::new();
 
     // Header
-    output.push_str(&format!(
-        "| {:<max_kind$} | {:<max_symbol$} | {:<max_file$} |\n",
-        "Kind",
-        "Symbol",
-        "File",
-        max_kind = max_kind,
-        max_symbol = max_symbol,
-        max_file = max_file
-    ));
+    output.push_str(&format!("| {:<max_kind$} | {:<max_symbol$} | {:<max_file$} |\n", "Kind", "Symbol", "File", max_kind = max_kind, max_symbol = max_symbol, max_file = max_file));
 
     // Separator
-    output.push_str(&format!(
-        "|-{:-<max_kind$}-|-{:-<max_symbol$}-|-{:-<max_file$}-|\n",
-        "",
-        "",
-        "",
-        max_kind = max_kind,
-        max_symbol = max_symbol,
-        max_file = max_file
-    ));
+    output.push_str(&format!("|-{:-<max_kind$}-|-{:-<max_symbol$}-|-{:-<max_file$}-|\n", "", "", "", max_kind = max_kind, max_symbol = max_symbol, max_file = max_file));
 
     // Rows
     for (kind, symbol_path, file) in rows {
-        output.push_str(&format!(
-            "| {:<max_kind$} | {:<max_symbol$} | {:<max_file$} |\n",
-            kind,
-            symbol_path,
-            file,
-            max_kind = max_kind,
-            max_symbol = max_symbol,
-            max_file = max_file
-        ));
+        output.push_str(&format!("| {:<max_kind$} | {:<max_symbol$} | {:<max_file$} |\n", kind, symbol_path, file, max_kind = max_kind, max_symbol = max_symbol, max_file = max_file));
     }
 
-    fs::write(
-        "/workspace/ai_sandbox/canon_workspace/canon/SYMBOLS.md",
-        output,
-    )?;
+    fs::write("/workspace/ai_sandbox/canon_workspace/canon/SYMBOLS.md", output)?;
 
     println!("Emitted SYMBOLS.md");
     Ok(())

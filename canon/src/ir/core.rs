@@ -1,32 +1,23 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
 use super::reward::RewardRecord;
 use super::world_model::WorldModel;
 use super::{
-    admission::{AppliedDeltaRecord, DeltaAdmission},
+    admission::{AppliedDeltaRecord, ChangeAdmission},
     artifacts::{EnumNode, ImplBlock, Module, ModuleEdge, Struct, Trait},
-    delta::Delta,
-    errors::ErrorArtifact,
-    functions::Function,
-    goals::GoalMutation,
-    gpu::GpuFunction,
-    graphs::{CallEdge, SystemGraph, TickGraph},
+    delta::StateChange, errors::ErrorArtifact, functions::Function, goals::GoalMutation,
+    gpu::GpuFunction, graphs::{CallEdge, SystemGraph, ExecutionGraph},
     ids::{PolicyParameterId, ProofId},
-    judgment::{Judgment, JudgmentPredicate},
-    learning::Learning,
-    policy::PolicyParameters,
-    project::{ExternalDependency, Project},
-    proofs::Proof,
-    proposal::Proposal,
-    timeline::{ExecutionRecord, LoopPolicy, Plan, Tick, TickEpoch},
+    judgment::{Decision, Rule},
+    learning::Learning, policy::PolicyParameters, project::{ExternalDependency, Project},
+    proofs::Proof, proposal::Proposal,
+    timeline::{ExecutionRecord, LoopPolicy, Plan, Tick, ExecutionEpoch},
     word::Word,
 };
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct CanonicalIr {
+pub struct SystemState {
     pub meta: CanonicalMeta,
     pub version_contract: VersionContract,
     pub project: Project,
@@ -39,23 +30,23 @@ pub struct CanonicalIr {
     pub impls: Vec<ImplBlock>,
     pub functions: Vec<Function>,
     pub call_edges: Vec<CallEdge>,
-    pub tick_graphs: Vec<TickGraph>,
+    pub tick_graphs: Vec<ExecutionGraph>,
     #[serde(default)]
     pub system_graphs: Vec<SystemGraph>,
     pub loop_policies: Vec<LoopPolicy>,
     pub ticks: Vec<Tick>,
-    pub tick_epochs: Vec<TickEpoch>,
+    pub tick_epochs: Vec<ExecutionEpoch>,
     #[serde(default)]
     pub policy_parameters: Vec<PolicyParameters>,
     pub plans: Vec<Plan>,
     pub executions: Vec<ExecutionRecord>,
-    pub admissions: Vec<DeltaAdmission>,
+    pub admissions: Vec<ChangeAdmission>,
     pub applied_deltas: Vec<AppliedDeltaRecord>,
     pub gpu_functions: Vec<GpuFunction>,
     pub proposals: Vec<Proposal>,
-    pub judgments: Vec<Judgment>,
-    pub judgment_predicates: Vec<JudgmentPredicate>,
-    pub deltas: Vec<Delta>,
+    pub judgments: Vec<Decision>,
+    pub judgment_predicates: Vec<Rule>,
+    pub deltas: Vec<StateChange>,
     pub proofs: Vec<Proof>,
     pub learning: Vec<Learning>,
     pub errors: Vec<ErrorArtifact>,
@@ -71,7 +62,6 @@ pub struct CanonicalIr {
     #[serde(default)]
     pub goal_mutations: Vec<GoalMutation>,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CanonicalMeta {
@@ -79,7 +69,6 @@ pub struct CanonicalMeta {
     pub law_revision: Word,
     pub description: String,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VersionContract {
@@ -87,7 +76,6 @@ pub struct VersionContract {
     pub compatible_with: Vec<String>,
     pub migration_proofs: Vec<ProofId>,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PipelineStage {
@@ -97,7 +85,6 @@ pub enum PipelineStage {
     Plan,
     Act,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Language {

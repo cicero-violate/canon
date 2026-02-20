@@ -1,6 +1,5 @@
-use crate::ir::{CanonicalIr, CanonicalMeta, Language, Project, VersionContract, Word};
-use crate::layout::SemanticGraph;
-
+use crate::ir::{SystemState, CanonicalMeta, Language, Project, VersionContract, Word};
+use crate::layout::ParsedModel;
 /// Builds a `CanonicalIr` from a `SemanticGraph` by populating the metadata
 /// Canon still requires (versioning/project info) while leaving layout data to
 /// the caller.
@@ -8,19 +7,29 @@ pub struct SemanticIrBuilder {
     meta: CanonicalMeta,
     project: Project,
 }
-
 impl SemanticIrBuilder {
     pub fn new(name: &str) -> Self {
         Self {
-            meta: CanonicalMeta { version: env!("CARGO_PKG_VERSION").to_string(), law_revision: Word::new("SemanticOnly").unwrap(), description: format!("Semantic graph for `{name}`") },
-            project: Project { name: Word::new(name).unwrap(), version: "0.0.0".to_owned(), language: Language::Rust },
+            meta: CanonicalMeta {
+                version: env!("CARGO_PKG_VERSION").to_string(),
+                law_revision: Word::new("SemanticOnly").unwrap(),
+                description: format!("Semantic graph for `{name}`"),
+            },
+            project: Project {
+                name: Word::new(name).unwrap(),
+                version: "0.0.0".to_owned(),
+                language: Language::Rust,
+            },
         }
     }
-
-    pub fn build(&self, semantic: SemanticGraph) -> CanonicalIr {
-        CanonicalIr {
+    pub fn build(&self, semantic: ParsedModel) -> SystemState {
+        SystemState {
             meta: self.meta.clone(),
-            version_contract: VersionContract { current: self.meta.version.clone(), compatible_with: vec![], migration_proofs: vec![] },
+            version_contract: VersionContract {
+                current: self.meta.version.clone(),
+                compatible_with: vec![],
+                migration_proofs: vec![],
+            },
             project: self.project.clone(),
             modules: semantic.modules,
             module_edges: semantic.module_edges,

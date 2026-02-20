@@ -3,9 +3,9 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
+use algorithms::graph::csr::Csr;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use algorithms::graph::csr::Csr;
 
 // ── Wire types (serializable, self-contained) ────────────────────────────────
 
@@ -83,12 +83,7 @@ pub struct GraphSnapshot {
 impl GraphSnapshot {
     pub fn new(nodes: Vec<WireNode>, edges: Vec<WireEdge>) -> Self {
         let (csr, index) = build_csr_cache(&nodes, &edges);
-        Self {
-            nodes,
-            edges,
-            csr_cache: Some(csr),
-            node_index: Some(index),
-        }
+        Self { nodes, edges, csr_cache: Some(csr), node_index: Some(index) }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -133,23 +128,13 @@ impl GraphSnapshot {
 
 impl Default for GraphSnapshot {
     fn default() -> Self {
-        Self {
-            nodes: Vec::new(),
-            edges: Vec::new(),
-            csr_cache: None,
-            node_index: None,
-        }
+        Self { nodes: Vec::new(), edges: Vec::new(), csr_cache: None, node_index: None }
     }
 }
 
 impl Clone for GraphSnapshot {
     fn clone(&self) -> Self {
-        Self {
-            nodes: self.nodes.clone(),
-            edges: self.edges.clone(),
-            csr_cache: None,
-            node_index: None,
-        }
+        Self { nodes: self.nodes.clone(), edges: self.edges.clone(), csr_cache: None, node_index: None }
     }
 }
 
@@ -164,10 +149,7 @@ impl std::fmt::Debug for GraphSnapshot {
     }
 }
 
-fn build_csr_cache(
-    nodes: &[WireNode],
-    edges: &[WireEdge],
-) -> (Csr, HashMap<WireNodeId, usize>) {
+fn build_csr_cache(nodes: &[WireNode], edges: &[WireEdge]) -> (Csr, HashMap<WireNodeId, usize>) {
     let mut index = HashMap::with_capacity(nodes.len());
     for (idx, node) in nodes.iter().enumerate() {
         index.insert(node.id.clone(), idx);
@@ -175,8 +157,12 @@ fn build_csr_cache(
 
     let mut adj: Vec<Vec<usize>> = vec![Vec::new(); nodes.len()];
     for edge in edges {
-        let Some(&from) = index.get(&edge.from) else { continue; };
-        let Some(&to) = index.get(&edge.to) else { continue; };
+        let Some(&from) = index.get(&edge.from) else {
+            continue;
+        };
+        let Some(&to) = index.get(&edge.to) else {
+            continue;
+        };
         adj[from].push(to);
     }
 
@@ -211,26 +197,17 @@ impl GraphDeltaLog {
     /// Open or create the log at `path`.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, GraphDeltaError> {
         let path = path.as_ref().to_path_buf();
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .read(false)
-            .open(&path)?;
+        let file = OpenOptions::new().create(true).append(true).read(false).open(&path)?;
 
         // Count existing entries by scanning the read side.
         let entry_count = Self::scan_count(&path)?;
 
-        Ok(Self {
-            path,
-            writer: BufWriter::new(file),
-            entry_count,
-        })
+        Ok(Self { path, writer: BufWriter::new(file), entry_count })
     }
 
     /// Append one delta to the log.
     pub fn append(&mut self, delta: &GraphDelta) -> Result<(), GraphDeltaError> {
-        let bytes = bincode::serialize(delta)
-            .map_err(|e| GraphDeltaError::Encode(e.to_string()))?;
+        let bytes = bincode::serialize(delta).map_err(|e| GraphDeltaError::Encode(e.to_string()))?;
         let len = bytes.len() as u32;
         self.writer.write_all(&len.to_le_bytes())?;
         self.writer.write_all(&bytes)?;
@@ -251,10 +228,7 @@ impl GraphDeltaLog {
     }
 
     /// Replay the first `limit` deltas and return the snapshot at that point.
-    pub fn replay_up_to(
-        path: impl AsRef<Path>,
-        limit: u64,
-    ) -> Result<GraphSnapshot, GraphDeltaError> {
+    pub fn replay_up_to(path: impl AsRef<Path>, limit: u64) -> Result<GraphSnapshot, GraphDeltaError> {
         let path = path.as_ref();
         if !path.exists() {
             return Ok(GraphSnapshot::default());
@@ -283,8 +257,7 @@ impl GraphDeltaLog {
             let mut payload = vec![0u8; len];
             reader.read_exact(&mut payload)?;
 
-            let delta: GraphDelta = bincode::deserialize(&payload)
-                .map_err(|e| GraphDeltaError::Encode(e.to_string()))?;
+            let delta: GraphDelta = bincode::deserialize(&payload).map_err(|e| GraphDeltaError::Encode(e.to_string()))?;
 
             match delta {
                 GraphDelta::AddNode(n) => nodes.push(n),
@@ -295,19 +268,11 @@ impl GraphDeltaLog {
         }
 
         let (csr, index) = build_csr_cache(&nodes, &edges);
-        Ok(GraphSnapshot {
-            nodes,
-            edges,
-            csr_cache: Some(csr),
-            node_index: Some(index),
-        })
+        Ok(GraphSnapshot { nodes, edges, csr_cache: Some(csr), node_index: Some(index) })
     }
 
     /// Iterate over all deltas on disk, calling `f` for each.
-    pub fn scan(
-        path: impl AsRef<Path>,
-        mut f: impl FnMut(u64, &GraphDelta),
-    ) -> Result<(), GraphDeltaError> {
+    pub fn scan(path: impl AsRef<Path>, mut f: impl FnMut(u64, &GraphDelta)) -> Result<(), GraphDeltaError> {
         let path = path.as_ref();
         if !path.exists() {
             return Ok(());
@@ -326,8 +291,7 @@ impl GraphDeltaLog {
             let len = u32::from_le_bytes(len_buf) as usize;
             let mut payload = vec![0u8; len];
             reader.read_exact(&mut payload)?;
-            let delta: GraphDelta = bincode::deserialize(&payload)
-                .map_err(|e| GraphDeltaError::Encode(e.to_string()))?;
+            let delta: GraphDelta = bincode::deserialize(&payload).map_err(|e| GraphDeltaError::Encode(e.to_string()))?;
             f(idx, &delta);
             idx += 1;
         }

@@ -11,7 +11,7 @@
 //!
 //! This is the Φ: G → G' operator made concrete.
 //! No LLM calls. No unsafe. Pure graph arithmetic.
-use super::capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode};
+use super::capability::{CapabilityEdge, AgentGraph, CapabilityKind, AgentNode};
 use super::reward::NodeRewardLedger;
 use crate::ir::PipelineStage;
 /// Minimum number of nodes the capability graph must retain after a meta-tick.
@@ -57,7 +57,10 @@ impl std::fmt::Display for GraphEvolutionError {
                 )
             }
             GraphEvolutionError::TooFewNodes { remaining } => {
-                write!(f, "mutation would leave only {remaining} nodes (minimum {MIN_NODES})")
+                write!(
+                    f,
+                    "mutation would leave only {remaining} nodes (minimum {MIN_NODES})"
+                )
             }
             GraphEvolutionError::UnknownNode(id) => write!(f, "unknown node: {id}"),
             GraphEvolutionError::DisconnectedNode(id) => {
@@ -72,7 +75,7 @@ impl std::error::Error for GraphEvolutionError {}
 #[derive(Debug)]
 pub struct GraphEvolutionResult {
     /// The mutated capability graph.
-    pub graph: CapabilityGraph,
+    pub graph: AgentGraph,
     /// Mutations that were applied.
     pub applied: Vec<GraphMutation>,
     /// Mutations that were rejected by safety checks.
@@ -89,7 +92,10 @@ pub struct GraphEvolutionResult {
 /// and returns the mutated graph.
 ///
 /// Returns Err(GraphEvolutionError::NothingToDo) if no mutations are warranted.
-pub fn evolve_capability_graph(graph: &CapabilityGraph, ledger: &NodeRewardLedger) -> Result<GraphEvolutionResult, GraphEvolutionError> {
+pub fn evolve_capability_graph(
+    graph: &AgentGraph,
+    ledger: &NodeRewardLedger,
+) -> Result<GraphEvolutionResult, GraphEvolutionError> {
     let mutations = propose_mutations(graph, ledger);
     if mutations.is_empty() {
         return Err(GraphEvolutionError::NothingToDo);
@@ -104,11 +110,25 @@ pub fn evolve_capability_graph(graph: &CapabilityGraph, ledger: &NodeRewardLedge
                 let entropy_after = candidate.entropy();
                 let delta = (entropy_after - entropy_before).abs();
                 if delta > MAX_ENTROPY_DELTA {
-                    rejected.push((mutation, GraphEvolutionError::EntropyBoundExceeded { before: entropy_before, after: entropy_after, delta }));
+                    rejected
+                        .push((
+                            mutation,
+                            GraphEvolutionError::EntropyBoundExceeded {
+                                before: entropy_before,
+                                after: entropy_after,
+                                delta,
+                            },
+                        ));
                     continue;
                 }
                 if candidate.nodes.len() < MIN_NODES {
-                    rejected.push((mutation, GraphEvolutionError::TooFewNodes { remaining: candidate.nodes.len() }));
+                    rejected
+                        .push((
+                            mutation,
+                            GraphEvolutionError::TooFewNodes {
+                                remaining: candidate.nodes.len(),
+                            },
+                        ));
                     continue;
                 }
                 if let Some(id) = find_disconnected(&candidate) {
@@ -124,17 +144,29 @@ pub fn evolve_capability_graph(graph: &CapabilityGraph, ledger: &NodeRewardLedge
         }
     }
     let entropy_after = current.entropy();
-    Ok(GraphEvolutionResult { graph: current, applied, rejected, entropy_before, entropy_after })
+    Ok(GraphEvolutionResult {
+        graph: current,
+        applied,
+        rejected,
+        entropy_before,
+        entropy_after,
+    })
 }
 /// Proposes graph mutations based on reward ledger state.
-fn propose_mutations(graph: &CapabilityGraph, ledger: &NodeRewardLedger) -> Vec<GraphMutation> {
+fn propose_mutations(
+    graph: &AgentGraph,
+    ledger: &NodeRewardLedger,
+) -> Vec<GraphMutation> {
     let mut mutations = Vec::new();
     let ranked = ledger.ranked_nodes();
     for entry in &ranked {
         if entry.ema_reward < UNDERPERFORM_THRESHOLD {
             if let Some(node) = graph.node(&entry.node_id) {
                 if node.kind != CapabilityKind::MetaAgent {
-                    mutations.push(GraphMutation::RemoveNode { node_id: entry.node_id.clone() });
+                    mutations
+                        .push(GraphMutation::RemoveNode {
+                            node_id: entry.node_id.clone(),
+                        });
                 }
             }
         }
@@ -145,7 +177,10 @@ fn propose_mutations(graph: &CapabilityGraph, ledger: &NodeRewardLedger) -> Vec<
             if top.ema_reward > 0.0 {
                 if let Some(node) = graph.node(&top.node_id) {
                     if node.kind != CapabilityKind::MetaAgent {
-                        mutations.push(GraphMutation::PromoteToMetaAgent { node_id: top.node_id.clone() });
+                        mutations
+                            .push(GraphMutation::PromoteToMetaAgent {
+                                node_id: top.node_id.clone(),
+                            });
                     }
                 }
             }
@@ -154,7 +189,10 @@ fn propose_mutations(graph: &CapabilityGraph, ledger: &NodeRewardLedger) -> Vec<
     mutations
 }
 /// Applies a single GraphMutation to a cloned graph, returning the candidate.
-fn apply_mutation(graph: &CapabilityGraph, mutation: &GraphMutation) -> Result<CapabilityGraph, GraphEvolutionError> {
+fn apply_mutation(
+    graph: &AgentGraph,
+    mutation: &GraphMutation,
+) -> Result<AgentGraph, GraphEvolutionError> {
     let mut next = graph.clone();
     match mutation {
         GraphMutation::RemoveNode { node_id } => {
@@ -171,13 +209,22 @@ fn apply_mutation(graph: &CapabilityGraph, mutation: &GraphMutation) -> Result<C
             if !next.nodes.iter().any(|n| &n.id == to) {
                 return Err(GraphEvolutionError::UnknownNode(to.clone()));
             }
-            next.edges.push(CapabilityEdge { from: from.clone(), to: to.clone(), proof_confidence: *proof_confidence });
+            next.edges
+                .push(CapabilityEdge {
+                    from: from.clone(),
+                    to: to.clone(),
+                    proof_confidence: *proof_confidence,
+                });
         }
         GraphMutation::RemoveEdge { from, to } => {
             next.edges.retain(|e| !(e.from == *from && e.to == *to));
         }
         GraphMutation::PromoteToMetaAgent { node_id } => {
-            let node = next.nodes.iter_mut().find(|n| n.id == *node_id).ok_or_else(|| GraphEvolutionError::UnknownNode(node_id.clone()))?;
+            let node = next
+                .nodes
+                .iter_mut()
+                .find(|n| n.id == *node_id)
+                .ok_or_else(|| GraphEvolutionError::UnknownNode(node_id.clone()))?;
             node.kind = CapabilityKind::MetaAgent;
             node.stage = PipelineStage::Act;
         }
@@ -185,7 +232,7 @@ fn apply_mutation(graph: &CapabilityGraph, mutation: &GraphMutation) -> Result<C
     Ok(next)
 }
 /// Returns the id of the first node that has no edges at all, or None.
-fn find_disconnected(graph: &CapabilityGraph) -> Option<String> {
+fn find_disconnected(graph: &AgentGraph) -> Option<String> {
     if graph.nodes.len() <= 1 {
         return None;
     }

@@ -12,12 +12,7 @@ pub(crate) fn build_use_map(ast: &syn::File, module_path: &str) -> HashMap<Strin
     map
 }
 
-fn use_tree_to_map(
-    tree: &syn::UseTree,
-    prefix: &mut Vec<String>,
-    module_path: &str,
-    map: &mut HashMap<String, String>,
-) {
+fn use_tree_to_map(tree: &syn::UseTree, prefix: &mut Vec<String>, module_path: &str, map: &mut HashMap<String, String>) {
     match tree {
         syn::UseTree::Path(p) => {
             prefix.push(p.ident.to_string());
@@ -47,9 +42,7 @@ pub(crate) fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<
     if prefix.first().map(|s| s.as_str()) == Some("crate") {
         return prefix.to_vec();
     }
-    if prefix.first().map(|s| s.as_str()) == Some("self")
-        || prefix.first().map(|s| s.as_str()) == Some("super")
-    {
+    if prefix.first().map(|s| s.as_str()) == Some("self") || prefix.first().map(|s| s.as_str()) == Some("super") {
         return resolve_relative_prefix(prefix, module_path);
     }
     let mut out: Vec<String> = module_path.split("::").map(|s| s.to_string()).collect();
@@ -78,9 +71,7 @@ pub(crate) fn path_to_string(path: &syn::Path, module_path: &str) -> String {
     let segments: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
     if segments.first().map(|s| s.as_str()) == Some("crate") {
         segments.join("::")
-    } else if segments.first().map(|s| s.as_str()) == Some("self")
-        || segments.first().map(|s| s.as_str()) == Some("super")
-    {
+    } else if segments.first().map(|s| s.as_str()) == Some("self") || segments.first().map(|s| s.as_str()) == Some("super") {
         let rel = resolve_relative_prefix(&segments, module_path);
         rel.join("::")
     } else {

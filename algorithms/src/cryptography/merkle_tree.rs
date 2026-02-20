@@ -14,12 +14,12 @@
 //!
 //! Complexity: O(L) SHA-256 calls, O(log L) levels
 
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 pub const HASH_SIZE: usize = 32;
 
 pub struct MerkleTree {
-    pub nodes: Vec<[u8; HASH_SIZE]>,  // length 2*L, 1-indexed (node[0] unused)
+    pub nodes: Vec<[u8; HASH_SIZE]>, // length 2*L, 1-indexed (node[0] unused)
     pub leaf_count: usize,
 }
 
@@ -49,7 +49,9 @@ impl MerkleTree {
     }
 
     /// Root hash (tree[1]).
-    pub fn root(&self) -> &[u8; HASH_SIZE] { &self.nodes[1] }
+    pub fn root(&self) -> &[u8; HASH_SIZE] {
+        &self.nodes[1]
+    }
 
     /// Proof path for leaf i: sibling hashes from leaf to root.
     pub fn proof(&self, mut i: usize) -> Vec<[u8; HASH_SIZE]> {
@@ -64,19 +66,18 @@ impl MerkleTree {
     }
 
     /// Verify a leaf against a proof path and expected root.
-    pub fn verify(
-        leaf_data: &[u8],
-        mut index: usize,
-        leaf_count: usize,
-        proof: &[[u8; HASH_SIZE]],
-        root: &[u8; HASH_SIZE],
-    ) -> bool {
+    pub fn verify(leaf_data: &[u8], mut index: usize, leaf_count: usize, proof: &[[u8; HASH_SIZE]], root: &[u8; HASH_SIZE]) -> bool {
         let mut current: [u8; HASH_SIZE] = Sha256::digest(leaf_data).into();
         index += leaf_count;
         for sibling in proof {
             let mut h = Sha256::new();
-            if index % 2 == 0 { h.update(current); h.update(sibling); }
-            else               { h.update(sibling); h.update(current); }
+            if index % 2 == 0 {
+                h.update(current);
+                h.update(sibling);
+            } else {
+                h.update(sibling);
+                h.update(current);
+            }
             current = h.finalize().into();
             index /= 2;
         }

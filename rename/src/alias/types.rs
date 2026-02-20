@@ -78,15 +78,7 @@ impl From<&Visibility> for VisibilityScope {
                 } else if restricted.path.is_ident("self") {
                     VisibilityScope::Private
                 } else {
-                    VisibilityScope::Restricted(
-                        restricted
-                            .path
-                            .segments
-                            .iter()
-                            .map(|s| s.ident.to_string())
-                            .collect::<Vec<_>>()
-                            .join("::"),
-                    )
+                    VisibilityScope::Restricted(restricted.path.segments.iter().map(|s| s.ident.to_string()).collect::<Vec<_>>().join("::"))
                 }
             }
             Visibility::Inherited => VisibilityScope::Private,

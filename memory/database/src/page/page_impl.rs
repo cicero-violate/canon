@@ -5,12 +5,7 @@ use crate::primitives::PageID;
 
 impl std::fmt::Debug for Page {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Page")
-            .field("id", &self.id)
-            .field("epoch", &self.epoch.load())
-            .field("len", &self.data.len())
-            .field("location", &self.location)
-            .finish()
+        f.debug_struct("Page").field("id", &self.id).field("epoch", &self.epoch.load()).field("len", &self.data.len()).field("location", &self.location).finish()
     }
 }
 
@@ -27,12 +22,7 @@ impl Page {
             return Err(PageError::InvalidSize(size));
         }
 
-        Ok(Self {
-            id,
-            epoch: EpochCell::new(0),
-            data: vec![0u8; size],
-            location,
-        })
+        Ok(Self { id, epoch: EpochCell::new(0), data: vec![0u8; size], location })
     }
 }
 

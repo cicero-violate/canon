@@ -104,29 +104,17 @@ pub struct MemoryEngine {
 
 impl MemoryEngine {
     pub fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError> {
-        let wal = Arc::new(Mutex::new(
-            MmapLog::open(&config.tlog_path, 64 * 1024 * 1024)
-                .map_err(MemoryEngineError::TlogOpen)?,
-        ));
+        let wal = Arc::new(Mutex::new(MmapLog::open(&config.tlog_path, 64 * 1024 * 1024).map_err(MemoryEngineError::TlogOpen)?));
 
         // Graph delta log lives alongside the tlog: <tlog_path>.graph.log
         let graph_log_path = config.tlog_path.with_extension("graph.log");
-        let graph_log = Arc::new(Mutex::new(
-            GraphDeltaLog::open(&graph_log_path)
-                .map_err(|e| MemoryEngineError::GraphLogOpen(
-                    std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-                ))?,
-        ));
+        let graph_log = Arc::new(Mutex::new(GraphDeltaLog::open(&graph_log_path).map_err(|e| MemoryEngineError::GraphLogOpen(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?));
 
         let backend = create_gpu_backend();
 
         let mut state = MerkleState::new_empty(backend);
 
-        if let Some(header) = wal
-            .lock()
-            .read_latest_root()
-            .map_err(MemoryEngineError::TlogOpen)?
-        {
+        if let Some(header) = wal.lock().read_latest_root().map_err(MemoryEngineError::TlogOpen)? {
             // Extract records and drop WAL lock before any heavy work
             let records = {
                 let guard = wal.lock();
@@ -134,23 +122,13 @@ impl MemoryEngine {
             };
 
             for rec in records {
-                let (admission, delta): (AdmissionProof, Delta) = bincode::deserialize(&rec)
-                    .map_err(|e| {
-                        MemoryEngineError::TlogOpen(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            e,
-                        ))
-                    })?;
+                let (admission, delta): (AdmissionProof, Delta) = bincode::deserialize(&rec).map_err(|e| MemoryEngineError::TlogOpen(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
                 let _ = admission;
-                state
-                    .apply_delta(&delta)
-                    .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+                state.apply_delta(&delta).map_err(|_| MemoryEngineError::DeltaNotFound)?;
             }
 
             // Single canonical rebuild to compute final root
-            state
-                .apply_deltas_batch(&[])
-                .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+            state.apply_deltas_batch(&[]).map_err(|_| MemoryEngineError::DeltaNotFound)?;
 
             if state.root_hash() != header.root_hash {
                 panic!("WAL replay root mismatch");
@@ -159,14 +137,7 @@ impl MemoryEngine {
 
         let state = Arc::new(RwLock::new(state));
 
-        Ok(Self {
-            wal,
-            epoch: Arc::new(EpochCell::new(0)),
-            admitted: RwLock::new(HashSet::new()),
-            deltas: RwLock::new(HashMap::new()),
-            state,
-            graph_log,
-        })
+        Ok(Self { wal, epoch: Arc::new(EpochCell::new(0)), admitted: RwLock::new(HashSet::new()), deltas: RwLock::new(HashMap::new()), state, graph_log })
     }
 
     pub fn checkpoint<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
@@ -203,10 +174,7 @@ impl MemoryEngine {
     // Admission
     // ===============================
 
-    pub fn admit_execution(
-        &self,
-        judgment_proof: &JudgmentProof,
-    ) -> Result<AdmissionProof, AdmissionError> {
+    pub fn admit_execution(&self, judgment_proof: &JudgmentProof) -> Result<AdmissionProof, AdmissionError> {
         if !self.verify_judgment_proof(judgment_proof) {
             return Err(AdmissionError::InvalidJudgmentProof);
         }
@@ -224,11 +192,7 @@ impl MemoryEngine {
             return Err(AdmissionError::AlreadyAdmitted);
         }
 
-        Ok(AdmissionProof {
-            judgment_proof_hash: judgment_hash,
-            epoch: current_epoch.0 as u64,
-            nonce: admitted.len() as u64,
-        })
+        Ok(AdmissionProof { judgment_proof_hash: judgment_hash, epoch: current_epoch.0 as u64, nonce: admitted.len() as u64 })
     }
 
     // ===============================
@@ -236,10 +200,7 @@ impl MemoryEngine {
     // ===============================
 
     pub fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof {
-        OutcomeProof {
-            commit_proof_hash: commit.hash(),
-            success: true,
-        }
+        OutcomeProof { commit_proof_hash: commit.hash(), success: true }
     }
 
     // ===============================
@@ -260,76 +221,40 @@ impl MemoryEngine {
     // Commit (delegated)
     // ===============================
 
-    pub fn commit_batch(
-        &self,
-        admission: &AdmissionProof,
-        delta_hashes: &[Hash],
-    ) -> Result<Vec<CommitProof>, MemoryEngineError> {
+    pub fn commit_batch(&self, admission: &AdmissionProof, delta_hashes: &[Hash]) -> Result<Vec<CommitProof>, MemoryEngineError> {
         // Resolve deltas
-        let deltas: Vec<Delta> = delta_hashes
-            .iter()
-            .map(|h| {
-                self.fetch_delta_by_hash(h)
-                    .ok_or(MemoryEngineError::DeltaNotFound)
-            })
-            .collect::<Result<_, _>>()?;
+        let deltas: Vec<Delta> = delta_hashes.iter().map(|h| self.fetch_delta_by_hash(h).ok_or(MemoryEngineError::DeltaNotFound)).collect::<Result<_, _>>()?;
 
         // Apply all deltas (device writes only)
         {
             let mut state = self.state.write();
-            state
-                .apply_deltas_batch(&deltas)
-                .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+            state.apply_deltas_batch(&deltas).map_err(|_| MemoryEngineError::DeltaNotFound)?;
         }
 
         self.epoch.increment();
 
         // Persist log
         for delta in &deltas {
-            let encoded = bincode::serialize(&(admission, delta)).map_err(|e| {
-                MemoryEngineError::TlogOpen(std::io::Error::new(std::io::ErrorKind::Other, e))
-            })?;
-            self.wal
-                .lock()
-                .append(&encoded)
-                .map_err(MemoryEngineError::TlogOpen)?;
+            let encoded = bincode::serialize(&(admission, delta)).map_err(|e| MemoryEngineError::TlogOpen(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            self.wal.lock().append(&encoded).map_err(MemoryEngineError::TlogOpen)?;
         }
 
         let root = self.state.read().root_hash();
 
         // Crash-consistent root update
         {
-            let header = RootHeader {
-                generation: self.epoch.load().0 as u64,
-                tree_size: self.state.read().tree_size,
-                root_hash: root,
-            };
-            self.wal
-                .lock()
-                .write_root_header(&header)
-                .map_err(MemoryEngineError::TlogOpen)?;
+            let header = RootHeader { generation: self.epoch.load().0 as u64, tree_size: self.state.read().tree_size, root_hash: root };
+            self.wal.lock().write_root_header(&header).map_err(MemoryEngineError::TlogOpen)?;
         }
 
-        Ok(delta_hashes
-            .iter()
-            .map(|delta_hash| CommitProof {
-                admission_proof_hash: admission.hash(),
-                delta_hash: *delta_hash,
-                state_hash: root,
-            })
-            .collect())
+        Ok(delta_hashes.iter().map(|delta_hash| CommitProof { admission_proof_hash: admission.hash(), delta_hash: *delta_hash, state_hash: root }).collect())
     }
 
     // ===============================
     // Event Hash
     // ===============================
 
-    pub fn compute_event_hash(
-        &self,
-        admission: &AdmissionProof,
-        commit: &CommitProof,
-        outcome: &OutcomeProof,
-    ) -> Hash {
+    pub fn compute_event_hash(&self, admission: &AdmissionProof, commit: &CommitProof, outcome: &OutcomeProof) -> Hash {
         let mut hasher = Sha256::new();
         hasher.update(DOMAIN_EVENT);
         hasher.update(admission.hash());
@@ -344,21 +269,13 @@ impl MemoryEngine {
     // ===============================
 
     pub fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), MemoryEngineError> {
-        self.graph_log
-            .lock()
-            .append(&delta)
-            .map_err(|e| MemoryEngineError::GraphLogIo(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-            ))
+        self.graph_log.lock().append(&delta).map_err(|e| MemoryEngineError::GraphLogIo(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
     }
 
     /// Replay graph state up to delta index `limit` (exclusive).
     pub fn graph_snapshot_at(&self, limit: u64) -> Result<GraphSnapshot, MemoryEngineError> {
         let path = self.graph_log.lock().path().to_path_buf();
-        GraphDeltaLog::replay_up_to(path, limit)
-            .map_err(|e| MemoryEngineError::GraphLogIo(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-            ))
+        GraphDeltaLog::replay_up_to(path, limit).map_err(|e| MemoryEngineError::GraphLogIo(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
     }
 
     /// Total number of graph deltas persisted so far.
@@ -368,10 +285,7 @@ impl MemoryEngine {
 
     pub fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError> {
         let path = self.graph_log.lock().path().to_path_buf();
-        GraphDeltaLog::replay_all(path)
-            .map_err(|e| MemoryEngineError::GraphLogIo(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-            ))
+        GraphDeltaLog::replay_all(path).map_err(|e| MemoryEngineError::GraphLogIo(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
     }
 
     // Internal
@@ -387,11 +301,7 @@ impl MemoryEngine {
         hasher.update(previous_state);
         hasher.update(delta_hash);
 
-        JudgmentProof {
-            approved: true,
-            timestamp: self.epoch.load().0 as u64,
-            hash: hasher.finalize().into(),
-        }
+        JudgmentProof { approved: true, timestamp: self.epoch.load().0 as u64, hash: hasher.finalize().into() }
     }
 
     fn hash_delta(delta: &Delta) -> Hash {
@@ -414,10 +324,7 @@ use crate::{engine::Engine, transition::MemoryTransition};
 impl Engine for MemoryEngine {
     type Error = MemoryEngineError;
 
-    fn admit_execution(
-        &self,
-        judgment_proof: &JudgmentProof,
-    ) -> Result<AdmissionProof, Self::Error> {
+    fn admit_execution(&self, judgment_proof: &JudgmentProof) -> Result<AdmissionProof, Self::Error> {
         MemoryEngine::admit_execution(self, judgment_proof).map_err(MemoryEngineError::Admission)
     }
 
@@ -429,19 +336,11 @@ impl Engine for MemoryEngine {
         MemoryEngine::fetch_delta_by_hash(self, hash)
     }
 
-    fn commit_delta(
-        &self,
-        admission: &AdmissionProof,
-        delta_hash: &Hash,
-    ) -> Result<CommitProof, Self::Error> {
+    fn commit_delta(&self, admission: &AdmissionProof, delta_hash: &Hash) -> Result<CommitProof, Self::Error> {
         MemoryEngine::commit_delta(self, admission, delta_hash)
     }
 
-    fn commit_batch(
-        &self,
-        admission: &AdmissionProof,
-        delta_hashes: &[Hash],
-    ) -> Result<Vec<CommitProof>, Self::Error> {
+    fn commit_batch(&self, admission: &AdmissionProof, delta_hashes: &[Hash]) -> Result<Vec<CommitProof>, Self::Error> {
         MemoryEngine::commit_batch(self, admission, delta_hashes)
     }
 
@@ -449,12 +348,7 @@ impl Engine for MemoryEngine {
         MemoryEngine::record_outcome(self, commit)
     }
 
-    fn compute_event_hash(
-        &self,
-        admission: &AdmissionProof,
-        commit: &CommitProof,
-        outcome: &OutcomeProof,
-    ) -> Hash {
+    fn compute_event_hash(&self, admission: &AdmissionProof, commit: &CommitProof, outcome: &OutcomeProof) -> Hash {
         MemoryEngine::compute_event_hash(self, admission, commit, outcome)
     }
 
@@ -475,10 +369,7 @@ impl MemoryTransition for MemoryEngine {
     fn step(&self, state: Hash, delta: Delta) -> Result<(Hash, CommitProof), MemoryEngineError> {
         let current = self.current_root_hash();
         if current != state {
-            return Err(MemoryEngineError::StateMismatch {
-                expected: current,
-                provided: state,
-            });
+            return Err(MemoryEngineError::StateMismatch { expected: current, provided: state });
         }
 
         let delta_hash = self.register_delta(delta);

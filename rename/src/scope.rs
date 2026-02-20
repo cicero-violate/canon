@@ -12,10 +12,7 @@ pub struct ScopeFrame {
 }
 impl ScopeFrame {
     fn new(parent: Option<usize>) -> Self {
-        Self {
-            bindings: HashMap::new(),
-            parent,
-        }
+        Self { bindings: HashMap::new(), parent }
     }
 }
 /// Scoped binder that tracks variable types through nested scopes
@@ -31,11 +28,7 @@ pub struct ScopeBinder {
 impl ScopeBinder {
     pub fn new(symbol_table: &SymbolIndex) -> Self {
         let root = ScopeFrame::new(None);
-        Self {
-            scopes: vec![root],
-            current_scope: 0,
-            symbol_table_ref: symbol_table as *const SymbolIndex,
-        }
+        Self { scopes: vec![root], current_scope: 0, symbol_table_ref: symbol_table as *const SymbolIndex }
     }
     /// Enter a new scope (for blocks, functions, closures)
     pub fn push_scope(&mut self) {
@@ -52,9 +45,7 @@ impl ScopeBinder {
     }
     /// Bind a variable name to a type in the current scope
     pub fn bind(&mut self, name: String, type_path: String) {
-        self.scopes[self.current_scope]
-            .bindings
-            .insert(name, type_path);
+        self.scopes[self.current_scope].bindings.insert(name, type_path);
     }
     /// Resolve a variable name, searching up the scope chain
     pub fn resolve(&self, name: &str) -> Option<&String> {
@@ -89,11 +80,7 @@ impl ScopeBinder {
         let symbol_table = unsafe { &*self.symbol_table_ref };
         let method_id = self.resolve_method(receiver_type, method_name)?;
         let method_entry = symbol_table.symbols.get(&method_id)?;
-        if let Some(signature) = method_entry
-            .attributes
-            .iter()
-            .find(|attr| attr.starts_with("return_type:"))
-        {
+        if let Some(signature) = method_entry.attributes.iter().find(|attr| attr.starts_with("return_type:")) {
             let return_type = signature.trim_start_matches("return_type:").trim();
             return Some(return_type.to_string());
         }

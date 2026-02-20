@@ -15,10 +15,7 @@ pub trait Engine: Send + Sync {
 
     // ---------------- Admission ----------------
 
-    fn admit_execution(
-        &self,
-        judgment_proof: &JudgmentProof,
-    ) -> Result<AdmissionProof, Self::Error>;
+    fn admit_execution(&self, judgment_proof: &JudgmentProof) -> Result<AdmissionProof, Self::Error>;
 
     // ---------------- Delta registry ----------------
 
@@ -28,17 +25,9 @@ pub trait Engine: Send + Sync {
 
     // ---------------- Commit ----------------
 
-    fn commit_delta(
-        &self,
-        admission: &AdmissionProof,
-        delta_hash: &Hash,
-    ) -> Result<CommitProof, Self::Error>;
+    fn commit_delta(&self, admission: &AdmissionProof, delta_hash: &Hash) -> Result<CommitProof, Self::Error>;
 
-    fn commit_batch(
-        &self,
-        admission: &AdmissionProof,
-        delta_hashes: &[Hash],
-    ) -> Result<Vec<CommitProof>, Self::Error>;
+    fn commit_batch(&self, admission: &AdmissionProof, delta_hashes: &[Hash]) -> Result<Vec<CommitProof>, Self::Error>;
 
     // ---------------- Outcome ----------------
 
@@ -46,12 +35,7 @@ pub trait Engine: Send + Sync {
 
     // ---------------- Event ----------------
 
-    fn compute_event_hash(
-        &self,
-        admission: &AdmissionProof,
-        commit: &CommitProof,
-        outcome: &OutcomeProof,
-    ) -> Hash;
+    fn compute_event_hash(&self, admission: &AdmissionProof, commit: &CommitProof, outcome: &OutcomeProof) -> Hash;
 
     // ---------------- Graph ----------------
 

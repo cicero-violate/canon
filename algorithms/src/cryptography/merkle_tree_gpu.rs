@@ -16,11 +16,7 @@ pub const HASH_SIZE: usize = 32;
 
 #[cfg(feature = "cuda")]
 unsafe extern "C" {
-    fn gpu_merkle_build(
-        tree:       *mut u8,
-        leaf_count: u64,
-        pages:      *const u8,
-    );
+    fn gpu_merkle_build(tree: *mut u8, leaf_count: u64, pages: *const u8);
 }
 
 /// Build a GPU Merkle tree over `pages` (each PAGE_SIZE bytes).
@@ -42,5 +38,5 @@ pub fn merkle_build_gpu(pages: &[u8]) -> Vec<u8> {
 
 /// Extract root hash from a built tree (node index 1).
 pub fn root(tree: &[u8]) -> &[u8] {
-    &tree[HASH_SIZE .. HASH_SIZE * 2]
+    &tree[HASH_SIZE..HASH_SIZE * 2]
 }

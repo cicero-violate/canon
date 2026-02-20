@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, anyhow, bail};
-use hex;
-use host_state_controller::{RunReceipt, StateController};
+use anyhow::{anyhow, bail, Context, Result};
 use database::delta::{Delta, ShellDelta};
 use database::hash::gpu::create_gpu_backend;
 use database::primitives::Hash;
 use database::MerkleState;
+use hex;
+use host_state_controller::{RunReceipt, StateController};
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -26,9 +26,7 @@ pub struct StateSlice {
 
 impl StateSlice {
     fn new(hash: Hash) -> Self {
-        Self {
-            root_hash: hex::encode(hash),
-        }
+        Self { root_hash: hex::encode(hash) }
     }
 }
 
@@ -38,9 +36,7 @@ pub struct CanonicalState {
 
 impl CanonicalState {
     pub fn new_empty() -> Self {
-        Self {
-            inner: MerkleState::new_empty(create_gpu_backend()),
-        }
+        Self { inner: MerkleState::new_empty(create_gpu_backend()) }
     }
 
     pub fn root_hash(&self) -> Hash {
@@ -75,10 +71,7 @@ impl CanonicalState {
 
 pub fn resolve_fixture_path(repo_root: &Path) -> Result<PathBuf> {
     let fixture = env::var("CANON_FIXTURE").unwrap_or_else(|_| "simple_add".to_string());
-    let path = repo_root
-        .join("canon")
-        .join("fixtures")
-        .join(format!("{fixture}.json"));
+    let path = repo_root.join("canon").join("fixtures").join(format!("{fixture}.json"));
     Ok(path)
 }
 
@@ -91,9 +84,7 @@ pub fn tlog_path(repo_root: &Path) -> PathBuf {
 }
 
 fn snapshot_path(repo_root: &Path) -> PathBuf {
-    state_dir(repo_root)
-        .join("snapshots")
-        .join("canonical_state.bin")
+    state_dir(repo_root).join("snapshots").join("canonical_state.bin")
 }
 
 pub fn shell_state_dir(repo_root: &Path) -> PathBuf {
@@ -105,9 +96,7 @@ pub fn load_state(repo_root: &Path) -> Result<CanonicalState> {
     let manager = TlogManager::new(tlog_path(repo_root)).context("open canon.tlog")?;
     let entries = manager.read_entries().context("read canon.tlog")?;
     if entries.is_empty() {
-        if let Some(snapshot) =
-            CanonicalState::load_from_disk(repo_root).with_context(|| "read snapshot")?
-        {
+        if let Some(snapshot) = CanonicalState::load_from_disk(repo_root).with_context(|| "read snapshot")? {
             return Ok(snapshot);
         }
     }
@@ -116,15 +105,11 @@ pub fn load_state(repo_root: &Path) -> Result<CanonicalState> {
     let mut shell_events = Vec::new();
     for entry in &entries {
         verify_proof_hash(repo_root, entry)?;
-        state
-            .apply_delta(&entry.delta)
-            .map_err(|err| anyhow!("replay apply failed: {err}"))?;
+        state.apply_delta(&entry.delta).map_err(|err| anyhow!("replay apply failed: {err}"))?;
         if state.root_hash() != entry.root_hash {
             bail!("replay hash mismatch");
         }
-        if let Some(shell_delta) =
-            ShellDelta::try_from_delta(&entry.delta).map_err(|err| anyhow!(err.to_string()))?
-        {
+        if let Some(shell_delta) = ShellDelta::try_from_delta(&entry.delta).map_err(|err| anyhow!(err.to_string()))? {
             shell_events.push(shell_delta);
         }
     }
@@ -132,49 +117,27 @@ pub fn load_state(repo_root: &Path) -> Result<CanonicalState> {
     Ok(state)
 }
 
-pub fn gate_and_commit(
-    repo_root: &Path,
-    state: &mut CanonicalState,
-    graph_id: &str,
-    deltas: &[Delta],
-    shell: Option<ShellMetadata>,
-) -> Result<()> {
+pub fn gate_and_commit(repo_root: &Path, state: &mut CanonicalState, graph_id: &str, deltas: &[Delta], shell: Option<ShellMetadata>) -> Result<()> {
     let state_slice = state.to_slice();
     let proposal = lean_gate::Proposal {
         graph_id: graph_id.to_string(),
-        deltas: deltas
-            .iter()
-            .map(|delta| lean_gate::ProposalDelta {
-                delta_id: delta.delta_id.0,
-                payload_hash: hex::encode(&delta.payload),
-                bytes: delta.payload.len(),
-            })
-            .collect(),
+        deltas: deltas.iter().map(|delta| lean_gate::ProposalDelta { delta_id: delta.delta_id.0, payload_hash: hex::encode(&delta.payload), bytes: delta.payload.len() }).collect(),
         shell,
     };
     let gate_dir = repo_root.join("canon").join("proof_gate");
-    let decision = lean_gate::verify_proposal(&gate_dir, &state_slice, &proposal)
-        .context("Lean gate invocation failed")?;
+    let decision = lean_gate::verify_proposal(&gate_dir, &state_slice, &proposal).context("Lean gate invocation failed")?;
     if !decision.accepted {
-        let reason = decision
-            .rejection_reason
-            .unwrap_or_else(|| "proposal rejected".into());
+        let reason = decision.rejection_reason.unwrap_or_else(|| "proposal rejected".into());
         bail!("ProofGate rejected proposal: {reason}");
     }
     let proof_hash = persist_certificate(repo_root, &decision)?;
 
     let manager = TlogManager::new(tlog_path(repo_root)).context("open canon.tlog")?;
     for delta in deltas {
-        state
-            .apply_delta(delta)
-            .map_err(|err| anyhow!("state apply failed: {err}"))?;
-        manager
-            .append(delta, state.root_hash(), proof_hash)
-            .context("append delta to canon.tlog")?;
+        state.apply_delta(delta).map_err(|err| anyhow!("state apply failed: {err}"))?;
+        manager.append(delta, state.root_hash(), proof_hash).context("append delta to canon.tlog")?;
     }
-    state
-        .flush_to_disk(repo_root)
-        .context("flush canonical state to disk")?;
+    state.flush_to_disk(repo_root).context("flush canonical state to disk")?;
     Ok(())
 }
 
@@ -186,12 +149,7 @@ fn rebuild_shell_ledgers(repo_root: &Path, shell_deltas: &[ShellDelta]) -> Resul
     if shell_dir.exists() {
         for entry in std::fs::read_dir(&shell_dir)? {
             let path = entry?.path();
-            if path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(|name| name.starts_with("shell_") && name.ends_with(".ledger"))
-                .unwrap_or(false)
-            {
+            if path.file_name().and_then(|name| name.to_str()).map(|name| name.starts_with("shell_") && name.ends_with(".ledger")).unwrap_or(false) {
                 std::fs::remove_file(path)?;
             }
         }
@@ -199,38 +157,24 @@ fn rebuild_shell_ledgers(repo_root: &Path, shell_deltas: &[ShellDelta]) -> Resul
         std::fs::create_dir_all(&shell_dir)?;
     }
 
-    let mut controller =
-        StateController::new(shell_dir).context("initialize controller for shell replay")?;
+    let mut controller = StateController::new(shell_dir).context("initialize controller for shell replay")?;
     let mut per_shell: BTreeMap<u64, Vec<RunReceipt>> = BTreeMap::new();
     for delta in shell_deltas {
-        per_shell
-            .entry(delta.shell_id)
-            .or_default()
-            .push(RunReceipt {
-                epoch: delta.epoch,
-                state_hash: delta.state_hash.clone(),
-                shell_id: delta.shell_id,
-                command: delta.command.clone(),
-            });
+        per_shell.entry(delta.shell_id).or_default().push(RunReceipt { epoch: delta.epoch, state_hash: delta.state_hash.clone(), shell_id: delta.shell_id, command: delta.command.clone() });
     }
     for receipts in per_shell.values_mut() {
         receipts.sort_by_key(|receipt| receipt.epoch);
     }
     for receipts in per_shell.values() {
         for receipt in receipts {
-            controller
-                .persist_receipt(receipt)
-                .context("replay shell ledger entry")?;
+            controller.persist_receipt(receipt).context("replay shell ledger entry")?;
         }
     }
     Ok(())
 }
 
 fn persist_certificate(repo_root: &Path, decision: &lean_gate::ProofResult) -> Result<[u8; 32]> {
-    let cert = decision
-        .certificate
-        .as_ref()
-        .ok_or_else(|| anyhow!("ProofGate accepted but omitted certificate"))?;
+    let cert = decision.certificate.as_ref().ok_or_else(|| anyhow!("ProofGate accepted but omitted certificate"))?;
     let record = json!({
         "certificate": cert,
         "proofs": decision.proofs.clone(),
@@ -253,8 +197,7 @@ pub fn verify_proof_hash(repo_root: &Path, entry: &TlogEntry) -> Result<()> {
     let proofs_dir = state_dir(repo_root).join("proofs");
     let filename = format!("{}.json", hex::encode(entry.proof_hash));
     let path = proofs_dir.join(filename);
-    let data = std::fs::read(&path)
-        .with_context(|| format!("missing proof artifact {}", path.display()))?;
+    let data = std::fs::read(&path).with_context(|| format!("missing proof artifact {}", path.display()))?;
     let mut hasher = Sha256::new();
     hasher.update(&data);
     let computed: [u8; 32] = hasher.finalize().into();
@@ -267,25 +210,17 @@ pub fn verify_proof_hash(repo_root: &Path, entry: &TlogEntry) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use host_state_controller::StateController;
     use database::delta::delta_types::Source;
     use database::epoch::Epoch;
     use database::primitives::{DeltaID, PageID};
+    use host_state_controller::StateController;
     use serde::Deserialize;
     use tempfile::TempDir;
 
     fn sample_delta(id: u64) -> Delta {
         let payload = vec![id as u8];
         let mask = vec![true];
-        Delta::new_dense(
-            DeltaID(id),
-            PageID(id),
-            Epoch(0),
-            payload,
-            mask,
-            Source(format!("test::{id}")),
-        )
-        .expect("delta")
+        Delta::new_dense(DeltaID(id), PageID(id), Epoch(0), payload, mask, Source(format!("test::{id}"))).expect("delta")
     }
 
     #[test]
@@ -296,10 +231,7 @@ mod tests {
         let deltas = vec![sample_delta(1), sample_delta(2)];
         persist_deltas_for_test(repo_root, &mut state, &deltas)?;
         let loaded = load_state(repo_root)?;
-        assert_eq!(
-            hex::encode(state.root_hash()),
-            hex::encode(loaded.root_hash())
-        );
+        assert_eq!(hex::encode(state.root_hash()), hex::encode(loaded.root_hash()));
         Ok(())
     }
 
@@ -325,20 +257,8 @@ mod tests {
         let dir = TempDir::new().expect("tempdir");
         let repo_root = dir.path();
         let mut state = CanonicalState::new_empty();
-        let receipt = RunReceipt {
-            epoch: 1,
-            state_hash: "hash-1".into(),
-            shell_id: 7,
-            command: "echo hi".into(),
-        };
-        let delta = ShellDelta::new(
-            receipt.shell_id,
-            receipt.epoch,
-            receipt.command.clone(),
-            receipt.state_hash.clone(),
-        )
-        .into_delta(DeltaID(1), PageID(1), Epoch(0))
-        .unwrap();
+        let receipt = RunReceipt { epoch: 1, state_hash: "hash-1".into(), shell_id: 7, command: "echo hi".into() };
+        let delta = ShellDelta::new(receipt.shell_id, receipt.epoch, receipt.command.clone(), receipt.state_hash.clone()).into_delta(DeltaID(1), PageID(1), Epoch(0)).unwrap();
         persist_deltas_for_test(repo_root, &mut state, &[delta])?;
         if shell_state_dir(repo_root).exists() {
             std::fs::remove_dir_all(shell_state_dir(repo_root))?;
@@ -363,23 +283,13 @@ mod tests {
         Ok(())
     }
 
-    fn persist_deltas_for_test(
-        repo_root: &Path,
-        state: &mut CanonicalState,
-        deltas: &[Delta],
-    ) -> Result<()> {
+    fn persist_deltas_for_test(repo_root: &Path, state: &mut CanonicalState, deltas: &[Delta]) -> Result<()> {
         let manager = TlogManager::new(tlog_path(repo_root)).context("open canon.tlog")?;
         for delta in deltas {
-            state
-                .apply_delta(delta)
-                .map_err(|err| anyhow!("state apply failed: {err}"))?;
-            manager
-                .append(delta, state.root_hash(), ZERO_PROOF_HASH)
-                .context("append delta to canon.tlog")?;
+            state.apply_delta(delta).map_err(|err| anyhow!("state apply failed: {err}"))?;
+            manager.append(delta, state.root_hash(), ZERO_PROOF_HASH).context("append delta to canon.tlog")?;
         }
-        state
-            .flush_to_disk(repo_root)
-            .context("flush canonical state to disk")?;
+        state.flush_to_disk(repo_root).context("flush canonical state to disk")?;
         Ok(())
     }
 }

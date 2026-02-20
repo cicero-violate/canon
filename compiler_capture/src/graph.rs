@@ -42,11 +42,7 @@ pub struct NodePayload {
 
 impl NodePayload {
     pub fn new(key: impl Into<String>, label: impl Into<String>) -> Self {
-        Self {
-            key: key.into(),
-            label: label.into(),
-            metadata: BTreeMap::new(),
-        }
+        Self { key: key.into(), label: label.into(), metadata: BTreeMap::new() }
     }
 
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
@@ -65,12 +61,7 @@ pub struct EdgePayload {
 
 impl EdgePayload {
     pub fn new(from: NodeId, to: NodeId, kind: EdgeKind) -> Self {
-        Self {
-            from,
-            to,
-            kind,
-            metadata: BTreeMap::new(),
-        }
+        Self { from, to, kind, metadata: BTreeMap::new() }
     }
 
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
@@ -92,34 +83,20 @@ impl DeltaCollector {
 
     pub fn add_node(&mut self, payload: NodePayload) -> NodeId {
         let node_id = WireNodeId::from_key(&payload.key);
-        let node = WireNode {
-            id: node_id.clone(),
-            key: payload.key,
-            label: payload.label,
-            metadata: payload.metadata,
-        };
+        let node = WireNode { id: node_id.clone(), key: payload.key, label: payload.label, metadata: payload.metadata };
         self.nodes.entry(node_id.clone()).or_insert(node);
         node_id
     }
 
     pub fn add_edge(&mut self, payload: EdgePayload) -> EdgeId {
-        let edge_id =
-            WireEdgeId::from_components(&payload.from, &payload.to, payload.kind.as_str());
-        let edge = WireEdge {
-            id: edge_id.clone(),
-            from: payload.from,
-            to: payload.to,
-            kind: payload.kind.as_str().to_string(),
-            metadata: payload.metadata,
-        };
+        let edge_id = WireEdgeId::from_components(&payload.from, &payload.to, payload.kind.as_str());
+        let edge = WireEdge { id: edge_id.clone(), from: payload.from, to: payload.to, kind: payload.kind.as_str().to_string(), metadata: payload.metadata };
         self.edges.entry(edge_id.clone()).or_insert(edge);
         edge_id
     }
 
     pub fn merge_node_metadata<I>(&mut self, node_id: &NodeId, updates: I)
-    where
-        I: IntoIterator<Item = (String, String)>,
-    {
+    where I: IntoIterator<Item = (String, String)> {
         if let Some(node) = self.nodes.get_mut(node_id) {
             for (k, v) in updates {
                 node.metadata.insert(k, v);

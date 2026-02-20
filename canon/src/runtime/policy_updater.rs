@@ -1,18 +1,18 @@
-use crate::ir::{CanonicalIr, PolicyParameters};
-
+use crate::ir::{SystemState, PolicyParameters};
 /// Mutable handle that can update policy parameters over epochs.
 pub struct PolicyUpdater {
-    ir: *mut CanonicalIr,
+    ir: *mut SystemState,
 }
-
 impl PolicyUpdater {
-    pub fn new(ir: *mut CanonicalIr) -> Self {
+    pub fn new(ir: *mut SystemState) -> Self {
         Self { ir }
     }
 }
-
 /// Rule-based proxy for a gradient step.
-pub fn update_policy(current: &PolicyParameters, reward: f64) -> Result<PolicyParameters, PolicyUpdateError> {
+pub fn update_policy(
+    current: &PolicyParameters,
+    reward: f64,
+) -> Result<PolicyParameters, PolicyUpdateError> {
     if current.learning_rate <= 0.0 {
         return Err(PolicyUpdateError::InvalidLearningRate);
     }
@@ -29,7 +29,6 @@ pub fn update_policy(current: &PolicyParameters, reward: f64) -> Result<PolicyPa
         proof_id: current.proof_id.clone(),
     })
 }
-
 #[derive(Debug)]
 pub enum PolicyUpdateError {
     EpochNotFound,

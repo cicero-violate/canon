@@ -55,10 +55,5 @@ pub fn run_rename(args: &[String]) -> Result<()> {
     }
     let project = project.context("--project required")?;
     let map_path = map_path.context("--map required")?;
-    apply_rename(
-        Path::new(project),
-        Path::new(map_path),
-        dry_run,
-        out_path.map(Path::new),
-    )
+    apply_rename(Path::new(project), Path::new(map_path), dry_run, out_path.map(Path::new))
 }

@@ -4,8 +4,8 @@ mod law_reachability;
 
 use rustc_lint::LintStore;
 
-pub use law_dead_integration::{DEAD_INTEGRATION, enforce_dead_integration};
-pub use law_file_length_limit::{FILE_TOO_LONG, enforce_file_length, reset_cache};
+pub use law_dead_integration::{enforce_dead_integration, DEAD_INTEGRATION};
+pub use law_file_length_limit::{enforce_file_length, reset_cache, FILE_TOO_LONG};
 pub use law_reachability::{best_reconnect_target, collect_dead_items, reset_reachability};
 
 pub fn register_laws(store: &mut LintStore) {

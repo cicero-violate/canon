@@ -8,14 +8,8 @@ pub fn parse_expression(tokens: &[&str]) -> Option<Expr> {
         let left = tokens[0].parse::<i64>().ok()?;
         let right = tokens[2].parse::<i64>().ok()?;
         return match tokens[1] {
-            "+" => Some(Expr::Add(
-                Box::new(Expr::Number(left)),
-                Box::new(Expr::Number(right)),
-            )),
-            "-" => Some(Expr::Sub(
-                Box::new(Expr::Number(left)),
-                Box::new(Expr::Number(right)),
-            )),
+            "+" => Some(Expr::Add(Box::new(Expr::Number(left)), Box::new(Expr::Number(right)))),
+            "-" => Some(Expr::Sub(Box::new(Expr::Number(left)), Box::new(Expr::Number(right)))),
             _ => None,
         };
     }

@@ -17,22 +17,16 @@ use super::adj_list::AdjList;
 
 #[cfg(feature = "cuda")]
 unsafe extern "C" {
-    fn gpu_csr_build(
-        adj_flat:    *const i32,
-        v:           i32,
-        e:           i32,
-        row_ptr_out: *mut *mut i32,
-        col_idx_out: *mut *mut i32,
-    );
+    fn gpu_csr_build(adj_flat: *const i32, v: i32, e: i32, row_ptr_out: *mut *mut i32, col_idx_out: *mut *mut i32);
     fn gpu_csr_free(row_ptr: *mut i32, col_idx: *mut i32);
 }
 
 #[cfg(feature = "cuda")]
 pub struct CsrUnified {
-    pub row_ptr: *mut i32,   // unified, length V+1
-    pub col_idx: *mut i32,   // unified, length E
-    pub v:       usize,
-    pub e:       usize,
+    pub row_ptr: *mut i32, // unified, length V+1
+    pub col_idx: *mut i32, // unified, length E
+    pub v: usize,
+    pub e: usize,
 }
 
 #[cfg(feature = "cuda")]
@@ -52,18 +46,17 @@ impl CsrUnified {
         let mut row_ptr: *mut i32 = std::ptr::null_mut();
         let mut col_idx: *mut i32 = std::ptr::null_mut();
         unsafe {
-            gpu_csr_build(
-                flat.as_ptr(),
-                v as i32, e as i32,
-                &mut row_ptr,
-                &mut col_idx,
-            );
+            gpu_csr_build(flat.as_ptr(), v as i32, e as i32, &mut row_ptr, &mut col_idx);
         }
         Self { row_ptr, col_idx, v, e }
     }
 
-    pub fn vertex_count(&self) -> usize { self.v }
-    pub fn edge_count(&self)   -> usize { self.e }
+    pub fn vertex_count(&self) -> usize {
+        self.v
+    }
+    pub fn edge_count(&self) -> usize {
+        self.e
+    }
 
     /// Safe slice view of row_ptr (host-accessible via unified memory).
     pub fn row_ptr_slice(&self) -> &[i32] {
@@ -79,7 +72,9 @@ impl CsrUnified {
 #[cfg(feature = "cuda")]
 impl Drop for CsrUnified {
     fn drop(&mut self) {
-        unsafe { gpu_csr_free(self.row_ptr, self.col_idx); }
+        unsafe {
+            gpu_csr_free(self.row_ptr, self.col_idx);
+        }
     }
 }
 

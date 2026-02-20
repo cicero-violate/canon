@@ -25,10 +25,7 @@ pub struct Arena {
 impl Arena {
     /// Allocate a new arena with `capacity` bytes.
     pub fn new(capacity: usize) -> Self {
-        Self {
-            buf: vec![0u8; capacity],
-            len: 0,
-        }
+        Self { buf: vec![0u8; capacity], len: 0 }
     }
 
     /// Bump-allocate `count` values of type T (alignment respected).
@@ -36,11 +33,11 @@ impl Arena {
     /// Panics if remaining capacity is insufficient.
     pub fn alloc_slice<T: Copy>(&mut self, count: usize) -> &mut [T] {
         let align = std::mem::align_of::<T>();
-        let size  = std::mem::size_of::<T>();
+        let size = std::mem::size_of::<T>();
 
-        let pad   = (align - self.len % align) % align;
+        let pad = (align - self.len % align) % align;
         let start = self.len + pad;
-        let end   = start + size * count;
+        let end = start + size * count;
 
         assert!(end <= self.buf.len(), "arena out of capacity");
 

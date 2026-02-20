@@ -19,7 +19,9 @@ pub struct MinHeap<T: Ord> {
 }
 
 impl<T: Ord> MinHeap<T> {
-    pub fn new() -> Self { Self { data: Vec::new() } }
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
+    }
 
     pub fn push(&mut self, val: T) {
         self.data.push(val);
@@ -27,22 +29,34 @@ impl<T: Ord> MinHeap<T> {
     }
 
     pub fn pop_min(&mut self) -> Option<T> {
-        if self.data.is_empty() { return None; }
+        if self.data.is_empty() {
+            return None;
+        }
         let n = self.data.len() - 1;
         self.data.swap(0, n);
         let min = self.data.pop();
-        if !self.data.is_empty() { self.sift_down(0); }
+        if !self.data.is_empty() {
+            self.sift_down(0);
+        }
         min
     }
 
-    pub fn peek_min(&self) -> Option<&T> { self.data.first() }
-    pub fn len(&self) -> usize           { self.data.len() }
-    pub fn is_empty(&self) -> bool       { self.data.is_empty() }
+    pub fn peek_min(&self) -> Option<&T> {
+        self.data.first()
+    }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 
     fn sift_up(&mut self, mut i: usize) {
         while i > 0 {
             let p = (i - 1) / 2;
-            if self.data[p] <= self.data[i] { break; }
+            if self.data[p] <= self.data[i] {
+                break;
+            }
             self.data.swap(p, i);
             i = p;
         }
@@ -54,9 +68,15 @@ impl<T: Ord> MinHeap<T> {
             let mut smallest = i;
             let l = 2 * i + 1;
             let r = 2 * i + 2;
-            if l < n && self.data[l] < self.data[smallest] { smallest = l; }
-            if r < n && self.data[r] < self.data[smallest] { smallest = r; }
-            if smallest == i { break; }
+            if l < n && self.data[l] < self.data[smallest] {
+                smallest = l;
+            }
+            if r < n && self.data[r] < self.data[smallest] {
+                smallest = r;
+            }
+            if smallest == i {
+                break;
+            }
             self.data.swap(i, smallest);
             i = smallest;
         }

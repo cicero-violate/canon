@@ -1,10 +1,10 @@
-use anyhow::Result;
 use algorithms::graph::csr::Csr;
+use anyhow::Result;
 use colored::*;
 use serde_json::Value as JsonValue;
+use std::collections::VecDeque;
 use std::collections::{HashMap, HashSet};
 use std::env;
-use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -23,10 +23,7 @@ fn is_workspace_root(path: &Path) -> bool {
 }
 
 fn cargo_metadata(root: &Path) -> Result<JsonValue> {
-    let out = Command::new("cargo")
-        .args(["metadata", "--no-deps", "--format-version=1"])
-        .current_dir(root)
-        .output()?;
+    let out = Command::new("cargo").args(["metadata", "--no-deps", "--format-version=1"]).current_dir(root).output()?;
     if !out.status.success() {
         anyhow::bail!("cargo metadata failed");
     }
@@ -36,16 +33,9 @@ fn cargo_metadata(root: &Path) -> Result<JsonValue> {
 fn collect_workspace_crates(root: &Path) -> Result<Vec<CrateMeta>> {
     let meta = cargo_metadata(root)?;
 
-    let member_ids: HashSet<String> = meta["workspace_members"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("invalid workspace_members"))?
-        .iter()
-        .filter_map(|v| v.as_str().map(str::to_string))
-        .collect();
+    let member_ids: HashSet<String> = meta["workspace_members"].as_array().ok_or_else(|| anyhow::anyhow!("invalid workspace_members"))?.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
 
-    let packages = meta["packages"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("invalid packages"))?;
+    let packages = meta["packages"].as_array().ok_or_else(|| anyhow::anyhow!("invalid packages"))?;
 
     let mut crates = Vec::new();
 
@@ -55,16 +45,9 @@ fn collect_workspace_crates(root: &Path) -> Result<Vec<CrateMeta>> {
             continue;
         }
 
-        let pkg_name = pkg["name"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("missing name"))?
-            .to_string();
+        let pkg_name = pkg["name"].as_str().ok_or_else(|| anyhow::anyhow!("missing name"))?.to_string();
 
-        let manifest = PathBuf::from(
-            pkg["manifest_path"]
-                .as_str()
-                .ok_or_else(|| anyhow::anyhow!("missing manifest_path"))?,
-        );
+        let manifest = PathBuf::from(pkg["manifest_path"].as_str().ok_or_else(|| anyhow::anyhow!("missing manifest_path"))?);
 
         let src_root = manifest.parent().unwrap().join("src");
         if !src_root.exists() {
@@ -77,10 +60,7 @@ fn collect_workspace_crates(root: &Path) -> Result<Vec<CrateMeta>> {
                 deps.iter()
                     .filter_map(|d| {
                         let dep_name = d["name"].as_str()?;
-                        if packages.iter().any(|p| {
-                            p["name"].as_str() == Some(dep_name)
-                                && member_ids.contains(p["id"].as_str().unwrap_or(""))
-                        }) {
+                        if packages.iter().any(|p| p["name"].as_str() == Some(dep_name) && member_ids.contains(p["id"].as_str().unwrap_or(""))) {
                             Some(dep_name.to_string())
                         } else {
                             None
@@ -90,11 +70,7 @@ fn collect_workspace_crates(root: &Path) -> Result<Vec<CrateMeta>> {
             })
             .unwrap_or_default();
 
-        crates.push(CrateMeta {
-            pkg_name,
-            src_root,
-            workspace_deps,
-        });
+        crates.push(CrateMeta { pkg_name, src_root, workspace_deps });
     }
 
     Ok(crates)
@@ -110,9 +86,7 @@ fn run_workspace(root: &Path, dot: bool, cfg_style: bool) -> Result<()> {
         let g = build_module_graph(&c.src_root, &c.pkg_name)?;
         for node in 0..g.modules.len() {
             let n = g.modules[node].name.clone();
-            name_to_node.entry(n.clone()).or_insert_with(|| {
-                unified.add_node(Module { name: n })
-            });
+            name_to_node.entry(n.clone()).or_insert_with(|| unified.add_node(Module { name: n }));
         }
         for (src, dst) in g.edges() {
             let src_name = &g.modules[src].name;
@@ -127,19 +101,13 @@ fn run_workspace(root: &Path, dot: bool, cfg_style: bool) -> Result<()> {
         let self_lib = format!("{}::lib", c.pkg_name);
         let self_main = format!("{}::main", c.pkg_name);
 
-        let from = name_to_node
-            .get(&self_lib)
-            .or_else(|| name_to_node.get(&self_main))
-            .copied();
+        let from = name_to_node.get(&self_lib).or_else(|| name_to_node.get(&self_main)).copied();
 
         for dep in &c.workspace_deps {
             let dep_lib = format!("{}::lib", dep);
             let dep_main = format!("{}::main", dep);
 
-            let to = name_to_node
-                .get(&dep_lib)
-                .or_else(|| name_to_node.get(&dep_main))
-                .copied();
+            let to = name_to_node.get(&dep_lib).or_else(|| name_to_node.get(&dep_main)).copied();
 
             if let (Some(f), Some(t)) = (from, to) {
                 unified.add_edge(f, t);
@@ -193,19 +161,10 @@ fn main() -> Result<()> {
         return run_workspace(dir_path, dot, cfg_style);
     }
 
-    let project_meta = get_project_metadata(
-        dir_path
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("invalid path"))?,
-    )?;
+    let project_meta = get_project_metadata(dir_path.to_str().ok_or_else(|| anyhow::anyhow!("invalid path"))?)?;
 
     // Metadata is intentionally observed to keep it semantically live
-    eprintln!(
-        "package={} root={} src={}",
-        project_meta.package_name,
-        project_meta.root.display(),
-        project_meta.src_root.display()
-    );
+    eprintln!("package={} root={} src={}", project_meta.package_name, project_meta.root.display(), project_meta.src_root.display());
 
     let module_graph = build_module_graph(&project_meta.src_root, "")?;
 
@@ -242,9 +201,7 @@ fn build_module_graph(src_root: &Path, prefix: &str) -> Result<Graph> {
         if !prefix.is_empty() {
             module = format!("{}::{}", prefix, module);
         }
-        module_to_node.entry(module.clone()).or_insert_with(|| {
-            graph.add_node(Module { name: module.clone() })
-        });
+        module_to_node.entry(module.clone()).or_insert_with(|| graph.add_node(Module { name: module.clone() }));
         file_to_module.insert(file.clone(), module);
     }
 
@@ -278,10 +235,7 @@ fn build_module_graph(src_root: &Path, prefix: &str) -> Result<Graph> {
 
 fn file_to_module_name(path: &Path, src_root: &Path) -> Result<String> {
     let rel = path.strip_prefix(src_root)?.with_extension("");
-    let parts: Vec<&str> = rel
-        .components()
-        .filter_map(|c| c.as_os_str().to_str())
-        .collect();
+    let parts: Vec<&str> = rel.components().filter_map(|c| c.as_os_str().to_str()).collect();
 
     let name = if parts.last() == Some(&"mod") {
         parts[..parts.len() - 1].join("::")
@@ -323,16 +277,9 @@ fn print_flat_dependencies(graph: &Graph, src_root: Option<&Path>) -> Result<()>
     for node in modules {
         let module = &graph.modules[node];
         let name = colorize(&module.name);
-        let filename = if let Some(root) = src_root {
-            module_to_filename(&module.name, root)?
-        } else {
-            String::new()
-        };
+        let filename = if let Some(root) = src_root { module_to_filename(&module.name, root)? } else { String::new() };
 
-        let mut deps: Vec<_> = graph.adj[node]
-            .iter()
-            .map(|&n| &graph.modules[n].name)
-            .collect();
+        let mut deps: Vec<_> = graph.adj[node].iter().map(|&n| &graph.modules[n].name).collect();
         deps.sort();
 
         if deps.is_empty() {
@@ -349,11 +296,7 @@ fn print_flat_dependencies(graph: &Graph, src_root: Option<&Path>) -> Result<()>
             }
             for (i, dep) in deps.iter().enumerate() {
                 let is_last = i + 1 == deps.len();
-                let connector = if is_last {
-                    "  └── "
-                } else {
-                    "  ├── "
-                };
+                let connector = if is_last { "  └── " } else { "  ├── " };
                 println!("{}{}", connector, colorize(dep));
             }
         }
@@ -380,11 +323,7 @@ fn module_to_filename(module_name: &str, src_root: &Path) -> Result<String> {
         candidate
     };
 
-    Ok(path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("unknown")
-        .to_string())
+    Ok(path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string())
 }
 
 fn collapse_cycles(graph: &Graph) -> Result<Graph> {
@@ -399,9 +338,7 @@ fn collapse_cycles(graph: &Graph) -> Result<Graph> {
             old_to_new.insert(old, idx);
         } else {
             let names: Vec<String> = scc.iter().map(|&i| graph.modules[i].name.clone()).collect();
-            let idx = new_graph.add_node(Module {
-                name: format!("[cycle: {}]", names.join(", ")),
-            });
+            let idx = new_graph.add_node(Module { name: format!("[cycle: {}]", names.join(", ")) });
             for &old in &scc {
                 old_to_new.insert(old, idx);
             }
@@ -428,8 +365,7 @@ fn module_dir(name: &str) -> &str {
 }
 
 fn print_cfg_dot(graph: &Graph) -> Result<()> {
-    let mut dir_to_nodes: std::collections::BTreeMap<String, Vec<usize>> =
-        std::collections::BTreeMap::new();
+    let mut dir_to_nodes: std::collections::BTreeMap<String, Vec<usize>> = std::collections::BTreeMap::new();
     for node in 0..graph.modules.len() {
         let dir = module_dir(&graph.modules[node].name).to_string();
         dir_to_nodes.entry(dir).or_default().push(node);
@@ -442,11 +378,7 @@ fn print_cfg_dot(graph: &Graph) -> Result<()> {
     println!();
 
     for (cluster_idx, (dir, nodes)) in dir_to_nodes.iter().enumerate() {
-        let cluster_label = if dir.is_empty() {
-            "(root)".to_string()
-        } else {
-            dir.replace('"', "\\\"")
-        };
+        let cluster_label = if dir.is_empty() { "(root)".to_string() } else { dir.replace('"', "\\\"") };
 
         println!("  subgraph cluster_{cluster_idx} {{");
         println!("    label=\"{cluster_label}\";");
@@ -504,9 +436,7 @@ impl Graph {
     }
 
     fn edges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
-        self.adj.iter().enumerate().flat_map(|(src, dsts)| {
-            dsts.iter().copied().map(move |dst| (src, dst))
-        })
+        self.adj.iter().enumerate().flat_map(|(src, dsts)| dsts.iter().copied().map(move |dst| (src, dst)))
     }
 }
 

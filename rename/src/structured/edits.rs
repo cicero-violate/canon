@@ -16,27 +16,12 @@ pub struct AstEdit {
 }
 
 impl AstEdit {
-    pub fn replace<T: quote::ToTokens>(
-        file: impl Into<PathBuf>,
-        start: usize,
-        end: usize,
-        node: &T,
-    ) -> Self {
-        Self {
-            file: file.into(),
-            start,
-            end,
-            replacement: ast_render::render_node(node),
-        }
+    pub fn replace<T: quote::ToTokens>(file: impl Into<PathBuf>, start: usize, end: usize, node: &T) -> Self {
+        Self { file: file.into(), start, end, replacement: ast_render::render_node(node) }
     }
 
     pub fn insert<T: quote::ToTokens>(file: impl Into<PathBuf>, offset: usize, node: &T) -> Self {
-        Self {
-            file: file.into(),
-            start: offset,
-            end: offset,
-            replacement: ast_render::render_node(node),
-        }
+        Self { file: file.into(), start: offset, end: offset, replacement: ast_render::render_node(node) }
     }
 }
 
@@ -53,10 +38,7 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
 
     let mut edits_by_file: HashMap<PathBuf, Vec<&AstEdit>> = HashMap::new();
     for edit in edits {
-        edits_by_file
-            .entry(edit.file.clone())
-            .or_default()
-            .push(edit);
+        edits_by_file.entry(edit.file.clone()).or_default().push(edit);
     }
 
     for (file, file_edits) in edits_by_file {
@@ -65,8 +47,7 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
         let mut changed = false;
 
         for edit in file_edits {
-            let replacement_file = syn::parse_file(&edit.replacement)
-                .or_else(|_| syn::parse_file(&format!("{}\n", edit.replacement)))?;
+            let replacement_file = syn::parse_file(&edit.replacement).or_else(|_| syn::parse_file(&format!("{}\n", edit.replacement)))?;
             let replacement_items = replacement_file.items;
 
             if edit.start == edit.end {
@@ -74,13 +55,7 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
                     changed = true;
                 }
             } else {
-                if replace_items_in_range(
-                    &mut ast,
-                    content,
-                    edit.start,
-                    edit.end,
-                    replacement_items,
-                )? {
+                if replace_items_in_range(&mut ast, content, edit.start, edit.end, replacement_items)? {
                     changed = true;
                 }
             }
@@ -98,11 +73,7 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
     if format && !touched.is_empty() {
         for file in &touched {
             if file.exists() {
-                let _ = std::process::Command::new("rustfmt")
-                    .arg("--edition")
-                    .arg("2021")
-                    .arg(file)
-                    .status();
+                let _ = std::process::Command::new("rustfmt").arg("--edition").arg("2021").arg(file).status();
             }
         }
     }
@@ -110,12 +81,7 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
     Ok(touched)
 }
 
-fn insert_items_at_offset(
-    ast: &mut syn::File,
-    content: &str,
-    offset: usize,
-    mut items: Vec<syn::Item>,
-) -> Result<bool> {
+fn insert_items_at_offset(ast: &mut syn::File, content: &str, offset: usize, mut items: Vec<syn::Item>) -> Result<bool> {
     if items.is_empty() {
         return Ok(false);
     }
@@ -127,28 +93,14 @@ fn insert_items_at_offset(
     Ok(true)
 }
 
-fn replace_items_in_range(
-    ast: &mut syn::File,
-    content: &str,
-    start: usize,
-    end: usize,
-    items: Vec<syn::Item>,
-) -> Result<bool> {
+fn replace_items_in_range(ast: &mut syn::File, content: &str, start: usize, end: usize, items: Vec<syn::Item>) -> Result<bool> {
     let mut ranges = Vec::new();
     for (index, item) in ast.items.iter().enumerate() {
-        let span = span_to_offsets(
-            content,
-            &span_to_line_column(item.span().start()),
-            &span_to_line_column(item.span().end()),
-        );
+        let span = span_to_offsets(content, &span_to_line_column(item.span().start()), &span_to_line_column(item.span().end()));
         ranges.push((index, span.0, span.1));
     }
 
-    let mut target_indices: Vec<usize> = ranges
-        .iter()
-        .filter(|(_, item_start, item_end)| *item_start <= end && *item_end >= start)
-        .map(|(index, _, _)| *index)
-        .collect();
+    let mut target_indices: Vec<usize> = ranges.iter().filter(|(_, item_start, item_end)| *item_start <= end && *item_end >= start).map(|(index, _, _)| *index).collect();
 
     if target_indices.is_empty() {
         bail!("no AST items overlap edit range {start}..{end}");
@@ -163,12 +115,7 @@ fn replace_items_in_range(
 
 fn find_insert_index(ast: &syn::File, content: &str, offset: usize) -> usize {
     for (index, item) in ast.items.iter().enumerate() {
-        let start = span_to_offsets(
-            content,
-            &span_to_line_column(item.span().start()),
-            &span_to_line_column(item.span().end()),
-        )
-        .0;
+        let start = span_to_offsets(content, &span_to_line_column(item.span().start()), &span_to_line_column(item.span().end())).0;
         if start >= offset {
             return index;
         }
@@ -177,8 +124,5 @@ fn find_insert_index(ast: &syn::File, content: &str, offset: usize) -> usize {
 }
 
 fn span_to_line_column(point: proc_macro2::LineColumn) -> LineColumn {
-    LineColumn {
-        line: point.line as i64,
-        column: point.column as i64 + 1,
-    }
+    LineColumn { line: point.line as i64, column: point.column as i64 + 1 }
 }

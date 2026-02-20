@@ -11,14 +11,7 @@ pub(super) fn encode_hir_body_json<'tcx>(tcx: TyCtxt<'tcx>, def_id: LocalDefId) 
         params: Vec<String>,
         body: String,
     }
-    let params = body
-        .params
-        .iter()
-        .map(|param| format!("{:?}", param.pat))
-        .collect();
-    let capture = HirBodyCapture {
-        params,
-        body: format!("{:?}", body.value),
-    };
+    let params = body.params.iter().map(|param| format!("{:?}", param.pat)).collect();
+    let capture = HirBodyCapture { params, body: format!("{:?}", body.value) };
     serde_json::to_string(&capture).ok()
 }

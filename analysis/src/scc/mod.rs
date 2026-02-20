@@ -22,11 +22,12 @@ pub fn tarjan_scc(adj: &HashMap<String, Vec<String>>) -> Vec<Vec<String>> {
     }
     let mut nodes: Vec<String> = all.into_iter().collect();
     nodes.sort();
-    let index: HashMap<String, usize> =
-        nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
+    let index: HashMap<String, usize> = nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
     let mut graph = vec![Vec::new(); nodes.len()];
     for (from, tos) in adj {
-        let Some(&fi) = index.get(from) else { continue; };
+        let Some(&fi) = index.get(from) else {
+            continue;
+        };
         for to in tos {
             if let Some(&ti) = index.get(to) {
                 graph[fi].push(ti);
@@ -34,8 +35,5 @@ pub fn tarjan_scc(adj: &HashMap<String, Vec<String>>) -> Vec<Vec<String>> {
         }
     }
     let comps = kosaraju_scc(&graph);
-    comps
-        .into_iter()
-        .map(|comp| comp.into_iter().map(|i| nodes[i].clone()).collect())
-        .collect()
+    comps.into_iter().map(|comp| comp.into_iter().map(|i| nodes[i].clone()).collect()).collect()
 }

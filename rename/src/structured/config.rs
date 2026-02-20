@@ -6,11 +6,7 @@ pub struct StructuredEditOptions {
 }
 impl StructuredEditOptions {
     pub fn new(doc_literals: bool, attr_literals: bool, use_statements: bool) -> Self {
-        Self {
-            doc_literals,
-            attr_literals,
-            use_statements,
-        }
+        Self { doc_literals, attr_literals, use_statements }
     }
     pub fn disabled() -> Self {
         Self::new(false, false, false)
@@ -62,11 +58,7 @@ pub fn structured_edit_config() -> StructuredEditOptions {
     let doc_literals = env_flag("SEMANTIC_LINT_STRUCTURED_DOCS", true);
     let attr_literals = env_flag("SEMANTIC_LINT_STRUCTURED_ATTRS", true);
     let use_statements = env_flag("SEMANTIC_LINT_STRUCTURED_USES", true);
-    StructuredEditOptions::new(
-        base_enabled && doc_literals,
-        base_enabled && attr_literals,
-        base_enabled && use_statements,
-    )
+    StructuredEditOptions::new(base_enabled && doc_literals, base_enabled && attr_literals, base_enabled && use_statements)
 }
 fn env_flag(key: &str, default: bool) -> bool {
     match std::env::var(key) {

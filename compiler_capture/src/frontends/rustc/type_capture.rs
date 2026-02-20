@@ -8,13 +8,7 @@ use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_middle::ty::{self, TyCtxt, TyKind};
 use std::collections::{HashMap, HashSet};
-pub(super) fn capture_function_types<'tcx>(
-    builder: &mut DeltaCollector,
-    tcx: TyCtxt<'tcx>,
-    local_def: LocalDefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-) {
+pub(super) fn capture_function_types<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, local_def: LocalDefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) {
     let body = tcx.optimized_mir(local_def);
     let mut seen: HashSet<DefId> = HashSet::new();
     for local_decl in &body.local_decls {

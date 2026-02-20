@@ -13,8 +13,8 @@
 //! No LLM calls inside this file — delegated entirely to llm_provider::call_llm().
 //! Async — requires a tokio runtime. WsBridge is passed in from main.
 use super::call::AgentCallOutput;
-use super::capability::CapabilityGraph;
-use super::dispatcher::CapabilityNodeDispatcher;
+use super::capability::AgentGraph;
+use super::dispatcher::AgentScheduler;
 use super::llm_provider::{call_llm, LlmProviderError};
 use super::meta::evolve_capability_graph;
 use super::pipeline::{record_refactor_reward, run_refactor_pipeline, RefactorError};
@@ -22,8 +22,8 @@ use super::refactor::{RefactorKind, RefactorProposal, RefactorTarget};
 use super::reward::NodeRewardLedger;
 use super::ws_server::WsBridge;
 use crate::agent::io::{load_capability_graph, save_capability_graph};
-use crate::ir::CanonicalIr;
-use crate::layout::LayoutGraph;
+use crate::ir::SystemState;
+use crate::layout::FileTopology;
 use std::fs;
 use std::path::{Path, PathBuf};
 /// Configuration for one agent run session.
@@ -48,7 +48,16 @@ pub struct RunnerConfig {
 }
 impl RunnerConfig {
     pub fn new(graph_out: PathBuf, ledger_out: PathBuf, ir_out: PathBuf) -> Self {
-        Self { max_ticks: 0, meta_tick_interval: 10, policy_update_interval: 5, ledger_alpha: 0.1, base_trust_threshold: 0.5, graph_out, ledger_out, ir_out }
+        Self {
+            max_ticks: 0,
+            meta_tick_interval: 10,
+            policy_update_interval: 5,
+            ledger_alpha: 0.1,
+            base_trust_threshold: 0.5,
+            graph_out,
+            ledger_out,
+            ir_out,
+        }
     }
 }
 /// Errors from the agent runner.
@@ -97,9 +106,17 @@ pub struct TickStats {
 /// `proposal_seed` is used to construct the RefactorProposal for each tick;
 /// the runner increments the id each tick.
 pub async fn run_agent(
-    ir: &mut CanonicalIr, layout: &mut LayoutGraph, graph: &mut CapabilityGraph, proposal_seed: RefactorProposal, config: &RunnerConfig, bridge: &WsBridge,
+    ir: &mut SystemState,
+    layout: &mut FileTopology,
+    graph: &mut AgentGraph,
+    proposal_seed: RefactorProposal,
+    config: &RunnerConfig,
+    bridge: &WsBridge,
 ) -> Result<Vec<TickStats>, RunnerError> {
-    let mut ledger = NodeRewardLedger::new(config.ledger_alpha, config.base_trust_threshold);
+    let mut ledger = NodeRewardLedger::new(
+        config.ledger_alpha,
+        config.base_trust_threshold,
+    );
     let mut stats: Vec<TickStats> = Vec::new();
     let mut tick_number: u64 = 0;
     eprintln!("[runner] waiting for extension to connect...");
@@ -110,9 +127,20 @@ pub async fn run_agent(
         if config.max_ticks > 0 && tick_number > config.max_ticks {
             break;
         }
-        eprintln!("[runner] tick {tick_number} — dispatching {} nodes", graph.nodes.len());
-        let mut tick_stats = TickStats { tick_number, nodes_called: 0, llm_errors: 0, pipeline_reward: None, pipeline_error: None, meta_tick_fired: false, policy_updated: false };
-        let mut dispatcher = CapabilityNodeDispatcher::new(graph, ir).with_trust_threshold(config.base_trust_threshold);
+        eprintln!(
+            "[runner] tick {tick_number} — dispatching {} nodes", graph.nodes.len()
+        );
+        let mut tick_stats = TickStats {
+            tick_number,
+            nodes_called: 0,
+            llm_errors: 0,
+            pipeline_reward: None,
+            pipeline_error: None,
+            meta_tick_fired: false,
+            policy_updated: false,
+        };
+        let mut dispatcher = AgentScheduler::new(graph, ir)
+            .with_trust_threshold(config.base_trust_threshold);
         let order = dispatcher.topological_call_order().map_err(RunnerError::Dispatch)?;
         let mut stage_outputs: Vec<AgentCallOutput> = Vec::new();
         for node_id in &order {
@@ -144,32 +172,52 @@ pub async fn run_agent(
         }
         let mut proposal = proposal_seed.clone();
         proposal.id = format!("{}-tick-{}", proposal_seed.id, tick_number);
-        let pipeline_result = run_refactor_pipeline(ir, layout, proposal, &stage_outputs);
+        let pipeline_result = run_refactor_pipeline(
+            ir,
+            layout,
+            proposal,
+            &stage_outputs,
+        );
         let primary_node = order.first().map(|s| s.as_str()).unwrap_or("unknown");
-        let _threshold = record_refactor_reward(&mut ledger, primary_node, pipeline_result.as_ref());
+        let _threshold = record_refactor_reward(
+            &mut ledger,
+            primary_node,
+            pipeline_result.as_ref(),
+        );
         match &pipeline_result {
             Ok(result) => {
-                eprintln!("[runner] tick {tick_number} — pipeline OK reward={:.4} admission={}", result.reward, result.admission_id);
+                eprintln!(
+                    "[runner] tick {tick_number} — pipeline OK reward={:.4} admission={}",
+                    result.reward, result.admission_id
+                );
                 tick_stats.pipeline_reward = Some(result.reward);
                 *ir = result.ir.clone();
                 *layout = result.layout.clone();
                 write_ir_to_disk(ir, &config.ir_out)?;
             }
             Err(super::pipeline::RefactorError::StageSkipped { stage }) => {
-                eprintln!("[runner] tick {tick_number} — pipeline incomplete: stage {stage} skipped (trust building)");
+                eprintln!(
+                    "[runner] tick {tick_number} — pipeline incomplete: stage {stage} skipped (trust building)"
+                );
             }
             Err(e) => {
                 eprintln!("[runner] tick {tick_number} — pipeline error: {e}");
                 tick_stats.pipeline_error = Some(e.to_string());
             }
         }
-        if config.meta_tick_interval > 0 && tick_number % config.meta_tick_interval == 0 {
+        if config.meta_tick_interval > 0 && tick_number % config.meta_tick_interval == 0
+        {
             tick_stats.meta_tick_fired = true;
             match evolve_capability_graph(graph, &ledger) {
                 Ok(result) => {
-                    eprintln!("[runner] meta-tick fired — applied={} rejected={} H={:.4}→{:.4}", result.applied.len(), result.rejected.len(), result.entropy_before, result.entropy_after,);
+                    eprintln!(
+                        "[runner] meta-tick fired — applied={} rejected={} H={:.4}→{:.4}",
+                        result.applied.len(), result.rejected.len(), result
+                        .entropy_before, result.entropy_after,
+                    );
                     *graph = result.graph;
-                    save_capability_graph(graph, &config.graph_out).map_err(|e| RunnerError::Io(e.to_string()))?;
+                    save_capability_graph(graph, &config.graph_out)
+                        .map_err(|e| RunnerError::Io(e.to_string()))?;
                 }
                 Err(crate::agent::meta::GraphEvolutionError::NothingToDo) => {
                     eprintln!("[runner] meta-tick — nothing to do");
@@ -179,11 +227,16 @@ pub async fn run_agent(
                 }
             }
         }
-        if config.policy_update_interval > 0 && tick_number % config.policy_update_interval == 0 {
+        if config.policy_update_interval > 0
+            && tick_number % config.policy_update_interval == 0
+        {
             if let Some(current_policy) = ir.policy_parameters.last() {
                 match ledger.update_policy(current_policy) {
                     Ok(new_policy) => {
-                        eprintln!("[runner] policy updated — lr={:.4} baseline={:.4}", new_policy.learning_rate, new_policy.reward_baseline);
+                        eprintln!(
+                            "[runner] policy updated — lr={:.4} baseline={:.4}",
+                            new_policy.learning_rate, new_policy.reward_baseline
+                        );
                         ir.policy_parameters.push(new_policy);
                         tick_stats.policy_updated = true;
                     }
@@ -198,11 +251,16 @@ pub async fn run_agent(
     }
     Ok(stats)
 }
-fn write_ir_to_disk(ir: &CanonicalIr, path: &Path) -> Result<(), RunnerError> {
-    let json = serde_json::to_string_pretty(ir).map_err(|e| RunnerError::Io(e.to_string()))?;
+fn write_ir_to_disk(ir: &SystemState, path: &Path) -> Result<(), RunnerError> {
+    let json = serde_json::to_string_pretty(ir)
+        .map_err(|e| RunnerError::Io(e.to_string()))?;
     fs::write(path, json).map_err(|e| RunnerError::Io(e.to_string()))
 }
-fn write_ledger_to_disk(ledger: &NodeRewardLedger, path: &Path) -> Result<(), RunnerError> {
-    let json = serde_json::to_string_pretty(ledger).map_err(|e| RunnerError::Io(e.to_string()))?;
+fn write_ledger_to_disk(
+    ledger: &NodeRewardLedger,
+    path: &Path,
+) -> Result<(), RunnerError> {
+    let json = serde_json::to_string_pretty(ledger)
+        .map_err(|e| RunnerError::Io(e.to_string()))?;
     fs::write(path, json).map_err(|e| RunnerError::Io(e.to_string()))
 }

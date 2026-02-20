@@ -23,76 +23,30 @@ pub struct Delta {
 }
 
 impl Delta {
-    pub fn new_dense(
-        delta_id: DeltaID,
-        page_id: PageID,
-        epoch: Epoch,
-        data: Vec<u8>,
-        mask: Vec<bool>,
-        source: Source,
-    ) -> Result<Self, DeltaError> {
+    pub fn new_dense(delta_id: DeltaID, page_id: PageID, epoch: Epoch, data: Vec<u8>, mask: Vec<bool>, source: Source) -> Result<Self, DeltaError> {
         if data.len() != mask.len() {
-            return Err(DeltaError::SizeMismatch {
-                mask_len: mask.len(),
-                payload_len: data.len(),
-            });
+            return Err(DeltaError::SizeMismatch { mask_len: mask.len(), payload_len: data.len() });
         }
 
-        Ok(Self {
-            delta_id,
-            page_id,
-            epoch,
-            mask,
-            payload: data,
-            is_sparse: false,
-            timestamp: now_ns(),
-            source,
-            intent_metadata: None,
-        })
+        Ok(Self { delta_id, page_id, epoch, mask, payload: data, is_sparse: false, timestamp: now_ns(), source, intent_metadata: None })
     }
 
-    pub fn new_sparse(
-        delta_id: DeltaID,
-        page_id: PageID,
-        epoch: Epoch,
-        mask: Vec<bool>,
-        payload: Vec<u8>,
-        source: Source,
-    ) -> Result<Self, DeltaError> {
+    pub fn new_sparse(delta_id: DeltaID, page_id: PageID, epoch: Epoch, mask: Vec<bool>, payload: Vec<u8>, source: Source) -> Result<Self, DeltaError> {
         let changed = mask.iter().filter(|&&m| m).count();
         if changed != payload.len() {
-            return Err(DeltaError::SizeMismatch {
-                mask_len: mask.len(),
-                payload_len: payload.len(),
-            });
+            return Err(DeltaError::SizeMismatch { mask_len: mask.len(), payload_len: payload.len() });
         }
 
-        Ok(Self {
-            delta_id,
-            page_id,
-            epoch,
-            mask,
-            payload,
-            is_sparse: true,
-            timestamp: now_ns(),
-            source,
-            intent_metadata: None,
-        })
+        Ok(Self { delta_id, page_id, epoch, mask, payload, is_sparse: true, timestamp: now_ns(), source, intent_metadata: None })
     }
 
     pub fn merge(&self, other: &Delta) -> Result<Delta, DeltaError> {
         if self.page_id != other.page_id {
-            return Err(DeltaError::PageIDMismatch {
-                expected: self.page_id,
-                found: other.page_id,
-            });
+            return Err(DeltaError::PageIDMismatch { expected: self.page_id, found: other.page_id });
         }
 
         if self.mask.len() != other.mask.len() {
-            return Err(DeltaError::MaskSizeMismatch {
-                expected: self.mask.len(),
-                found: other.mask.len(),
-            });
+            return Err(DeltaError::MaskSizeMismatch { expected: self.mask.len(), found: other.mask.len() });
         }
 
         let mut merged_mask = self.mask.clone();
@@ -115,10 +69,7 @@ impl Delta {
             is_sparse: false,
             timestamp: other.timestamp.max(self.timestamp),
             source: other.source.clone(),
-            intent_metadata: other
-                .intent_metadata
-                .clone()
-                .or_else(|| self.intent_metadata.clone()),
+            intent_metadata: other.intent_metadata.clone().or_else(|| self.intent_metadata.clone()),
         })
     }
 
@@ -159,8 +110,5 @@ impl Delta {
 }
 
 fn now_ns() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos() as u64
 }

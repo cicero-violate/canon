@@ -9,13 +9,7 @@ use rustc_middle::{mir, ty::TyCtxt};
 use rustc_span::def_id::{DefId, LocalDefId};
 use serde::Serialize;
 use std::collections::HashMap;
-pub(super) fn ensure_node<'tcx>(
-    builder: &mut DeltaCollector,
-    tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-) -> NodeId {
+pub(super) fn ensure_node<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) -> NodeId {
     if let Some(id) = cache.get(&def_id) {
         return id.clone();
     }
@@ -28,8 +22,7 @@ pub(super) fn ensure_node<'tcx>(
     let source_map = tcx.sess.source_map();
     let loc = source_map.lookup_char_pos(span.lo());
     let source_file = loc.file.name.prefer_local_unconditionally().to_string();
-    let signature = matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn)
-        .then(|| tcx.fn_sig(def_id).skip_binder().to_string());
+    let signature = matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn).then(|| tcx.fn_sig(def_id).skip_binder().to_string());
     let mut payload = NodePayload::new(&node_key, def_path.clone())
         .with_metadata("crate", crate_name)
         .with_metadata("def_kind", def_kind)
@@ -82,15 +75,8 @@ fn serialize_locals<'tcx>(tcx: TyCtxt<'tcx>, local_def: LocalDefId) -> Option<St
         debug_name: Option<String>,
         ty: String,
     }
-    let locals: Vec<LocalMetadata> = body
-        .local_decls
-        .iter_enumerated()
-        .map(|(local, decl)| LocalMetadata {
-            index: local.as_usize(),
-            debug_name: debug_names.get(&local).cloned(),
-            ty: format!("{:?}", decl.ty),
-        })
-        .collect();
+    let locals: Vec<LocalMetadata> =
+        body.local_decls.iter_enumerated().map(|(local, decl)| LocalMetadata { index: local.as_usize(), debug_name: debug_names.get(&local).cloned(), ty: format!("{:?}", decl.ty) }).collect();
     serde_json::to_string(&locals).ok()
 }
 fn serialize_fn_signature<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId) -> Option<String> {
@@ -107,11 +93,6 @@ fn serialize_fn_signature<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId) -> Option<Stri
     let sig = tcx.fn_sig(def_id);
     let sig = sig.skip_binder();
     let inputs = sig.inputs().iter().map(|ty| format!("{:?}", ty)).collect();
-    let capture = FnSigCapture {
-        inputs,
-        output: format!("{:?}", sig.output()),
-        abi: format!("{:?}", sig.abi()),
-        safety: format!("{:?}", sig.safety()),
-    };
+    let capture = FnSigCapture { inputs, output: format!("{:?}", sig.output()), abi: format!("{:?}", sig.abi()), safety: format!("{:?}", sig.safety()) };
     serde_json::to_string(&capture).ok()
 }

@@ -39,24 +39,13 @@ enum DaemonEvent {
 }
 
 impl ChromeConnection {
-    fn connect(
-        chrome_port: u16,
-        conversation_id: Option<&str>,
-        new_tab: bool,
-    ) -> Result<(Self, Option<String>), Box<dyn std::error::Error>> {
+    fn connect(chrome_port: u16, conversation_id: Option<&str>, new_tab: bool) -> Result<(Self, Option<String>), Box<dyn std::error::Error>> {
         let json_url = format!("http://localhost:{}/json", chrome_port);
-        let response: Vec<TargetDescriptor> = ureq::get(&json_url)
-            .timeout(Duration::from_secs(2))
-            .call()?
-            .into_json()?;
+        let response: Vec<TargetDescriptor> = ureq::get(&json_url).timeout(Duration::from_secs(2)).call()?.into_json()?;
 
         let chatgpt_tab = if let Some(conv_id) = conversation_id {
             let conversation_path = format!("/c/{}", conv_id);
-            if let Some(tab) = response
-                .iter()
-                .find(|target| target.kind == "page" && target.url.contains(&conversation_path))
-                .cloned()
-            {
+            if let Some(tab) = response.iter().find(|target| target.kind == "page" && target.url.contains(&conversation_path)).cloned() {
                 tab
             } else {
                 outgoing::open_conversation_tab(chrome_port, conv_id)?
@@ -66,25 +55,14 @@ impl ChromeConnection {
         } else {
             response
                 .iter()
-                .find(|target| {
-                    target.kind == "page"
-                        && (target.url.contains("chatgpt.com")
-                            || target.url.contains("chat.openai.com"))
-                })
+                .find(|target| target.kind == "page" && (target.url.contains("chatgpt.com") || target.url.contains("chat.openai.com")))
                 .cloned()
-                .ok_or(
-                    "No matching ChatGPT tab found. Please open https://chatgpt.com in Chrome.",
-                )?
+                .ok_or("No matching ChatGPT tab found. Please open https://chatgpt.com in Chrome.")?
         };
 
-        let ws_url = chatgpt_tab
-            .web_socket_debugger_url
-            .ok_or("ChatGPT tab has no WebSocket debugger URL")?;
+        let ws_url = chatgpt_tab.web_socket_debugger_url.ok_or("ChatGPT tab has no WebSocket debugger URL")?;
 
-        println!(
-            "Found ChatGPT tab: {:?}",
-            chatgpt_tab.title.as_deref().unwrap_or("(untitled)")
-        );
+        println!("Found ChatGPT tab: {:?}", chatgpt_tab.title.as_deref().unwrap_or("(untitled)"));
         println!("URL: {}", chatgpt_tab.url);
 
         let url = Url::parse(&ws_url)?;
@@ -102,11 +80,7 @@ impl ChromeConnection {
         Ok((Self { socket, next_id: 1 }, chatgpt_tab.id.clone()))
     }
 
-    pub fn send_command(
-        &mut self,
-        method: &str,
-        params: Value,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn send_command(&mut self, method: &str, params: Value) -> Result<(), Box<dyn std::error::Error>> {
         let id = self.next_id;
         self.next_id += 1;
         let payload = json!({
@@ -144,9 +118,7 @@ impl ChromeConnection {
     pub fn read_event(&mut self) -> Result<Option<Value>, Box<dyn std::error::Error>> {
         match self.socket.read() {
             Ok(Message::Text(text)) => Ok(Some(serde_json::from_str(&text)?)),
-            Err(tungstenite::Error::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                Ok(None)
-            }
+            Err(tungstenite::Error::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(Box::new(e)),
             _ => Ok(None),
         }
@@ -157,10 +129,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.get(1).map(|s| s.as_str()) == Some("--daemon") {
-        let chrome_port = args
-            .get(2)
-            .and_then(|s| s.parse::<u16>().ok())
-            .unwrap_or(9222);
+        let chrome_port = args.get(2).and_then(|s| s.parse::<u16>().ok()).unwrap_or(9222);
 
         if let Err(e) = run_daemon(chrome_port) {
             eprintln!("Daemon error: {}", e);
@@ -170,15 +139,9 @@ fn main() {
     }
 
     if args.len() < 2 {
-        eprintln!(
-            "Usage: {} <message_text> [chrome_port] [conversation_id]",
-            args[0]
-        );
+        eprintln!("Usage: {} <message_text> [chrome_port] [conversation_id]", args[0]);
         eprintln!("       {} --stdin [chrome_port] [conversation_id]", args[0]);
-        eprintln!(
-            "       {} --no-wait --stdin [chrome_port] [conversation_id]",
-            args[0]
-        );
+        eprintln!("       {} --no-wait --stdin [chrome_port] [conversation_id]", args[0]);
         eprintln!("       {} --new-tab <message_text> [chrome_port]", args[0]);
         eprintln!("       {} --daemon [chrome_port]", args[0]);
         eprintln!("  chrome_port defaults to 9222");
@@ -215,36 +178,20 @@ fn main() {
     };
 
     let mut positional_idx = if use_stdin { 0 } else { 1 };
-    let chrome_port = positionals
-        .get(positional_idx)
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(9222);
-    if positionals
-        .get(positional_idx)
-        .and_then(|s| s.parse::<u16>().ok())
-        .is_some()
-    {
+    let chrome_port = positionals.get(positional_idx).and_then(|s| s.parse::<u16>().ok()).unwrap_or(9222);
+    if positionals.get(positional_idx).and_then(|s| s.parse::<u16>().ok()).is_some() {
         positional_idx += 1;
     }
     let conversation_id = positionals.get(positional_idx).map(|s| s.as_str());
 
-    if let Err(e) = run_messenger(
-        &message_text,
-        chrome_port,
-        conversation_id,
-        no_wait,
-        new_tab,
-    ) {
+    if let Err(e) = run_messenger(&message_text, chrome_port, conversation_id, no_wait, new_tab) {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
 }
 
 fn run_daemon(chrome_port: u16) -> Result<(), Box<dyn std::error::Error>> {
-    println!(
-        "Starting chromium_messenger daemon on port {}...",
-        chrome_port
-    );
+    println!("Starting chromium_messenger daemon on port {}...", chrome_port);
 
     let (mut conn, _) = ChromeConnection::connect(chrome_port, None, false)?;
 
@@ -286,13 +233,7 @@ fn run_daemon(chrome_port: u16) -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn run_messenger(
-    message_text: &str,
-    chrome_port: u16,
-    conversation_id: Option<&str>,
-    no_wait: bool,
-    new_tab: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn run_messenger(message_text: &str, chrome_port: u16, conversation_id: Option<&str>, no_wait: bool, new_tab: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("Connecting to Chrome on port {}...", chrome_port);
     let (mut conn, target_id) = ChromeConnection::connect(chrome_port, conversation_id, new_tab)?;
 

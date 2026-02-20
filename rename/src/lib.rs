@@ -21,17 +21,23 @@ pub mod macros;
 pub mod module_path;
 pub mod occurrence;
 pub mod pattern;
+pub mod resolve;
 pub mod scope;
 pub mod state;
 pub mod structured;
 
+// Re-export compiler_capture for examples/tools that expect it under rename::compiler_capture
+pub mod compiler_capture {
+    pub use ::compiler_capture::*;
+}
+
 // Compatibility shim for external crates expecting `crate::rename::*`
 pub mod rename {
-    pub use crate::core;
-    pub use crate::structured;
     pub use crate::alias;
+    pub use crate::core;
     pub use crate::scope;
     pub use crate::state;
+    pub use crate::structured;
 }
 
 pub use crate::core::{apply_rename, apply_rename_with_map, collect_names, emit_names};

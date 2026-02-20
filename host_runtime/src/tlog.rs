@@ -36,20 +36,12 @@ impl TlogManager {
         } else {
             validate_manager_header(&path)?;
         }
-        Ok(Self {
-            path,
-            writer: Mutex::new(BufWriter::new(file)),
-        })
+        Ok(Self { path, writer: Mutex::new(BufWriter::new(file)) })
     }
 
     pub fn append(&self, delta: &Delta, root_hash: Hash, proof_hash: Hash) -> io::Result<()> {
-        let entry = TlogEntry {
-            delta: delta.clone(),
-            root_hash,
-            proof_hash,
-        };
-        let blob = bincode::serialize(&entry)
-            .map_err(|err| io::Error::new(ErrorKind::Other, err.to_string()))?;
+        let entry = TlogEntry { delta: delta.clone(), root_hash, proof_hash };
+        let blob = bincode::serialize(&entry).map_err(|err| io::Error::new(ErrorKind::Other, err.to_string()))?;
         let mut guard = self.writer.lock().expect("tlog writer poisoned");
         guard.write_all(&(blob.len() as u32).to_le_bytes())?;
         guard.write_all(&blob)?;
@@ -67,19 +59,13 @@ fn validate_manager_header(path: &Path) -> io::Result<()> {
     let mut magic = [0u8; CANON_TLOG_MAGIC.len()];
     reader.read_exact(&mut magic)?;
     if magic != CANON_TLOG_MAGIC {
-        return Err(io::Error::new(
-            ErrorKind::InvalidData,
-            "invalid canon tlog magic",
-        ));
+        return Err(io::Error::new(ErrorKind::InvalidData, "invalid canon tlog magic"));
     }
     let mut version_bytes = [0u8; 4];
     reader.read_exact(&mut version_bytes)?;
     let version = u32::from_le_bytes(version_bytes);
     if version != CANON_TLOG_VERSION {
-        return Err(io::Error::new(
-            ErrorKind::InvalidData,
-            format!("unsupported canon tlog version {version}"),
-        ));
+        return Err(io::Error::new(ErrorKind::InvalidData, format!("unsupported canon tlog version {version}")));
     }
     Ok(())
 }
@@ -92,19 +78,13 @@ fn read_entries_from_path(path: &Path) -> io::Result<Vec<TlogEntry>> {
     let mut magic = [0u8; CANON_TLOG_MAGIC.len()];
     reader.read_exact(&mut magic)?;
     if magic != CANON_TLOG_MAGIC {
-        return Err(io::Error::new(
-            ErrorKind::InvalidData,
-            "invalid canon tlog magic",
-        ));
+        return Err(io::Error::new(ErrorKind::InvalidData, "invalid canon tlog magic"));
     }
     let mut version_bytes = [0u8; 4];
     reader.read_exact(&mut version_bytes)?;
     let version = u32::from_le_bytes(version_bytes);
     if version != CANON_TLOG_VERSION {
-        return Err(io::Error::new(
-            ErrorKind::InvalidData,
-            format!("unsupported canon tlog version {version}"),
-        ));
+        return Err(io::Error::new(ErrorKind::InvalidData, format!("unsupported canon tlog version {version}")));
     }
     let mut entries = Vec::new();
     loop {
@@ -117,8 +97,7 @@ fn read_entries_from_path(path: &Path) -> io::Result<Vec<TlogEntry>> {
         let len = u32::from_le_bytes(len_buf) as usize;
         let mut buf = vec![0u8; len];
         reader.read_exact(&mut buf)?;
-        let entry: TlogEntry = bincode::deserialize(&buf)
-            .map_err(|err| io::Error::new(ErrorKind::InvalidData, err.to_string()))?;
+        let entry: TlogEntry = bincode::deserialize(&buf).map_err(|err| io::Error::new(ErrorKind::InvalidData, err.to_string()))?;
         entries.push(entry);
     }
     Ok(entries)

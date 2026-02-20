@@ -24,21 +24,19 @@ pub struct EffectMap {
 }
 
 impl EffectMap {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add(&mut self, fn_id: &str, effect: Effect) {
         self.effects.entry(fn_id.to_string()).or_default().insert(effect);
     }
 
     pub fn get(&self, fn_id: &str) -> HashSet<&Effect> {
-        hash_lookup(&self.effects, &fn_id.to_string())
-            .map(|s| s.iter().collect())
-            .unwrap_or_default()
+        hash_lookup(&self.effects, &fn_id.to_string()).map(|s| s.iter().collect()).unwrap_or_default()
     }
 
     pub fn is_pure(&self, fn_id: &str) -> bool {
-        self.effects.get(fn_id)
-            .map(|s| s.is_empty())
-            .unwrap_or(true)
+        self.effects.get(fn_id).map(|s| s.is_empty()).unwrap_or(true)
     }
 }

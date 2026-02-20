@@ -10,19 +10,11 @@ use rustc_span::Span;
 use serde::Serialize;
 use std::collections::HashMap;
 /// Captures MIR-derived information for a single function (CFG + calls).
-pub(super) fn capture_function<'tcx>(
-    builder: &mut DeltaCollector,
-    tcx: TyCtxt<'tcx>,
-    local_def: LocalDefId,
-    function_node: NodeId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
-) {
+pub(super) fn capture_function<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, local_def: LocalDefId, function_node: NodeId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) {
     let body = tcx.optimized_mir(local_def);
     let mut bb_nodes: HashMap<BasicBlock, NodeId> = HashMap::new();
     let crate_name = tcx.crate_name(local_def.to_def_id().krate).to_string();
-    let function_name =
-        normalize_symbol_id_with_crate(&tcx.def_path_str(local_def.to_def_id()), Some(&crate_name));
+    let function_name = normalize_symbol_id_with_crate(&tcx.def_path_str(local_def.to_def_id()), Some(&crate_name));
     let function_key = format!("{:?}", local_def.to_def_id());
     for (bb_idx, bb_data) in body.basic_blocks.iter_enumerated() {
         let bb_label = format!("{function_name}::bb{}", bb_idx.index());
@@ -48,23 +40,14 @@ pub(super) fn capture_function<'tcx>(
         };
         for successor in bb_data.terminator().successors() {
             if let Some(to_bb) = bb_nodes.get(&successor) {
-                let mut edge =
-                    EdgePayload::new(from_bb.clone(), to_bb.clone(), EdgeKind::ControlFlow);
+                let mut edge = EdgePayload::new(from_bb.clone(), to_bb.clone(), EdgeKind::ControlFlow);
                 edge = edge.with_metadata("from_bb", bb_idx.index().to_string());
                 edge = edge.with_metadata("to_bb", successor.index().to_string());
                 let _ = builder.add_edge(edge);
             }
         }
     }
-    collect_calls(
-        builder,
-        tcx,
-        &body,
-        function_node.clone(),
-        local_def,
-        cache,
-        metadata,
-    );
+    collect_calls(builder, tcx, &body, function_node.clone(), local_def, cache, metadata);
     if let Some(cfg_json) = serialize_control_flow_graph(tcx, &body) {
         let _ = builder.merge_node_metadata(&function_node, [("cfg".to_string(), cfg_json)]);
     }
@@ -75,22 +58,14 @@ pub(super) fn capture_function<'tcx>(
         let _ = builder.merge_node_metadata(&function_node, [("mir".to_string(), mir_dump)]);
     }
     if let Some(metrics_json) = compute_mir_metrics(tcx, local_def, &body) {
-        let _ =
-            builder.merge_node_metadata(&function_node, [("metrics".to_string(), metrics_json)]);
+        let _ = builder.merge_node_metadata(&function_node, [("metrics".to_string(), metrics_json)]);
     }
     if let Some(effects_json) = compute_effects(tcx, &body) {
-        let _ =
-            builder.merge_node_metadata(&function_node, [("effects".to_string(), effects_json)]);
+        let _ = builder.merge_node_metadata(&function_node, [("effects".to_string(), effects_json)]);
     }
 }
 fn collect_calls<'tcx>(
-    builder: &mut DeltaCollector,
-    tcx: TyCtxt<'tcx>,
-    body: &mir::Body<'tcx>,
-    caller_node: NodeId,
-    local_def: LocalDefId,
-    cache: &mut HashMap<DefId, NodeId>,
-    metadata: &FrontendMetadata,
+    builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>, caller_node: NodeId, local_def: LocalDefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata,
 ) {
     let source_map = tcx.sess.source_map();
     for (bb_idx, bb) in body.basic_blocks.iter_enumerated() {
@@ -107,11 +82,7 @@ fn collect_calls<'tcx>(
                 edge = edge.with_metadata("call_site_line", loc.line.to_string());
                 edge = edge.with_metadata("call_site_column", loc.col.0.to_string());
                 edge = edge.with_metadata("call_site_bb", bb_idx.index().to_string());
-                let dispatch = if target.is_some() {
-                    "static"
-                } else {
-                    "unknown"
-                };
+                let dispatch = if target.is_some() { "static" } else { "unknown" };
                 edge = edge.with_metadata("dispatch", dispatch);
                 let hi = source_map.lookup_char_pos(span.hi());
                 edge = edge.with_metadata("call_site_end_line", hi.line.to_string());
@@ -131,15 +102,7 @@ fn serialize_statement_kinds<'tcx>(bb_data: &mir::BasicBlockData<'tcx>) -> Optio
         index: usize,
         kind: String,
     }
-    let statements: Vec<StatementMetadata> = bb_data
-        .statements
-        .iter()
-        .enumerate()
-        .map(|(idx, stmt)| StatementMetadata {
-            index: idx,
-            kind: format!("{:?}", stmt.kind),
-        })
-        .collect();
+    let statements: Vec<StatementMetadata> = bb_data.statements.iter().enumerate().map(|(idx, stmt)| StatementMetadata { index: idx, kind: format!("{:?}", stmt.kind) }).collect();
     serde_json::to_string(&statements).ok()
 }
 fn serialize_control_flow_graph<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String> {
@@ -169,38 +132,17 @@ fn serialize_control_flow_graph<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>)
     let source_map = tcx.sess.source_map();
     let mut blocks = Vec::new();
     for (bb_idx, bb_data) in body.basic_blocks.iter_enumerated() {
-        let statements = bb_data
-            .statements
-            .iter()
-            .map(|stmt| format!("{:?}", stmt.kind))
-            .collect();
+        let statements = bb_data.statements.iter().map(|stmt| format!("{:?}", stmt.kind)).collect();
         let span = bb_data.terminator().source_info.span;
         let pos = source_map.lookup_char_pos(span.lo());
         let terminator = TerminatorCapture {
             kind: format!("{:?}", bb_data.terminator().kind),
-            span: Some(SpanCapture {
-                file: pos.file.name.prefer_local_unconditionally().to_string(),
-                line: pos.line,
-                column: pos.col.0,
-            }),
+            span: Some(SpanCapture { file: pos.file.name.prefer_local_unconditionally().to_string(), line: pos.line, column: pos.col.0 }),
         };
-        let successors = bb_data
-            .terminator()
-            .successors()
-            .map(|succ| format!("bb{}", succ.index()))
-            .collect();
-        blocks.push(BasicBlockCapture {
-            id: format!("bb{}", bb_idx.index()),
-            statements,
-            terminator,
-            successors,
-        });
+        let successors = bb_data.terminator().successors().map(|succ| format!("bb{}", succ.index())).collect();
+        blocks.push(BasicBlockCapture { id: format!("bb{}", bb_idx.index()), statements, terminator, successors });
     }
-    serde_json::to_string(&CfgCapture {
-        blocks,
-        entry: "bb0".into(),
-    })
-    .ok()
+    serde_json::to_string(&CfgCapture { blocks, entry: "bb0".into() }).ok()
 }
 fn serialize_dataflow_graph<'tcx>(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String> {
     #[derive(Serialize)]
@@ -218,27 +160,14 @@ fn serialize_dataflow_graph<'tcx>(_tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) ->
     let locals = body
         .local_decls
         .iter_enumerated()
-        .map(|(local, decl)| LocalCapture {
-            local: format!("{local:?}"),
-            name: None,
-            ty: format!("{:?}", decl.ty),
-            kind: format!("{:?}", decl.mutability),
-        })
+        .map(|(local, decl)| LocalCapture { local: format!("{local:?}"), name: None, ty: format!("{:?}", decl.ty), kind: format!("{:?}", decl.mutability) })
         .collect();
-    serde_json::to_string(&DfgCapture {
-        locals,
-        def_use_chains: Vec::new(),
-    })
-    .ok()
+    serde_json::to_string(&DfgCapture { locals, def_use_chains: Vec::new() }).ok()
 }
 fn serialize_mir_body<'tcx>(body: &mir::Body<'tcx>) -> Option<String> {
     Some(format!("{body:?}"))
 }
-fn compute_mir_metrics<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    local_def: LocalDefId,
-    body: &mir::Body<'tcx>,
-) -> Option<String> {
+fn compute_mir_metrics<'tcx>(tcx: TyCtxt<'tcx>, local_def: LocalDefId, body: &mir::Body<'tcx>) -> Option<String> {
     #[derive(Serialize)]
     struct MetricsCapture {
         cyclomatic_complexity: usize,
@@ -258,12 +187,7 @@ fn compute_mir_metrics<'tcx>(
         if matches!(bb.terminator().kind, TerminatorKind::Call { .. }) {
             call_count += 1;
         }
-        if matches!(
-            bb.terminator().kind,
-            TerminatorKind::SwitchInt { .. }
-                | TerminatorKind::Goto { .. }
-                | TerminatorKind::Assert { .. }
-        ) {
+        if matches!(bb.terminator().kind, TerminatorKind::SwitchInt { .. } | TerminatorKind::Goto { .. } | TerminatorKind::Assert { .. }) {
             branch_count += 1;
         }
     }
@@ -274,15 +198,7 @@ fn compute_mir_metrics<'tcx>(
     let lo = source_map.lookup_char_pos(span.lo());
     let hi = source_map.lookup_char_pos(span.hi());
     let loc = hi.line.saturating_sub(lo.line) + 1;
-    serde_json::to_string(&MetricsCapture {
-        cyclomatic_complexity: cyclomatic,
-        lines_of_code: loc,
-        statement_count,
-        basic_block_count: bb_count,
-        call_count,
-        branch_count,
-    })
-    .ok()
+    serde_json::to_string(&MetricsCapture { cyclomatic_complexity: cyclomatic, lines_of_code: loc, statement_count, basic_block_count: bb_count, call_count, branch_count }).ok()
 }
 fn compute_effects<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<String> {
     #[derive(Serialize)]
@@ -302,10 +218,7 @@ fn compute_effects<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<St
             TerminatorKind::Call { func, .. } => {
                 has_side_effects = true;
                 if let ty::FnDef(def_id, _) = *func.ty(&body.local_decls, tcx).kind() {
-                    let path = normalize_symbol_id_with_crate(
-                        &tcx.def_path_str(def_id),
-                        Some(&tcx.crate_name(def_id.krate).to_string()),
-                    );
+                    let path = normalize_symbol_id_with_crate(&tcx.def_path_str(def_id), Some(&tcx.crate_name(def_id.krate).to_string()));
                     if path.contains("::io::") {
                         performs_io = true;
                     }
@@ -328,12 +241,5 @@ fn compute_effects<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<St
             }
         }
     }
-    serde_json::to_string(&EffectsCapture {
-        pure: !(has_side_effects || performs_io || panics),
-        has_side_effects,
-        performs_io,
-        panics,
-        unsafe_operations: unsafe_ops,
-    })
-    .ok()
+    serde_json::to_string(&EffectsCapture { pure: !(has_side_effects || performs_io || panics), has_side_effects, performs_io, panics, unsafe_operations: unsafe_ops }).ok()
 }

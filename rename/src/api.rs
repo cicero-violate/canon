@@ -27,11 +27,7 @@ pub struct QueryRequest {
 }
 impl Default for QueryRequest {
     fn default() -> Self {
-        Self {
-            kinds: Vec::new(),
-            module_prefix: None,
-            name_contains: None,
-        }
+        Self { kinds: Vec::new(), module_prefix: None, name_contains: None }
     }
 }
 /// Result of executing a `QueryRequest`.
@@ -65,12 +61,7 @@ impl QueryRequest {
     /// Execute the query against a project root.
     pub fn execute(&self, project: &Path) -> Result<QueryResult> {
         let report = collect_names(project)?;
-        let matches = report
-            .symbols
-            .iter()
-            .filter(|sym| self.matches_symbol(sym))
-            .cloned()
-            .collect();
+        let matches = report.symbols.iter().filter(|sym| self.matches_symbol(sym)).cloned().collect();
         Ok(QueryResult { report, matches })
     }
     fn matches_symbol(&self, symbol: &SymbolRecord) -> bool {
@@ -150,15 +141,11 @@ impl MutationRequest {
         }
         let out_path = self.preview_path.as_deref();
         apply_rename_with_map(project, &self.renames, self.dry_run, out_path)?;
-        Ok(MutationResult {
-            renamed: self.renames.len(),
-            dry_run: self.dry_run,
-            preview_path: self.preview_path,
-        })
+        Ok(MutationResult { renamed: self.renames.len(), dry_run: self.dry_run, preview_path: self.preview_path })
     }
 }
 /// Serializable upsert request (AST edits).
-#[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct UpsertRequest {
     /// Concrete AST edits to apply.
     #[serde(default)]
@@ -169,6 +156,11 @@ pub struct UpsertRequest {
     /// Whether to run rustfmt on touched files.
     #[serde(default = "default_true")]
     pub format: bool,
+}
+impl Default for UpsertRequest {
+    fn default() -> Self {
+        Self { edits: Vec::new(), node_ops: Vec::new(), format: true }
+    }
 }
 /// Serializable result describing applied edits.
 #[derive(serde::Serialize)]
@@ -200,14 +192,8 @@ impl UpsertRequest {
         if self.edits.is_empty() && self.node_ops.is_empty() {
             bail!("no edits were queued for upsert");
         }
-        let touched = if self.edits.is_empty() {
-            Vec::new()
-        } else {
-            apply_ast_rewrites(&self.edits, self.format)?
-        };
-        Ok(UpsertResult {
-            touched_files: touched,
-        })
+        let touched = if self.edits.is_empty() { Vec::new() } else { apply_ast_rewrites(&self.edits, self.format)? };
+        Ok(UpsertResult { touched_files: touched })
     }
 }
 fn default_true() -> bool {
@@ -260,27 +246,17 @@ mod tests {
             fn added() {}
         };
         let edit = AstEdit::insert(&file, 0, &helper);
-        let request = UpsertRequest {
-            edits: vec![edit],
-            node_ops: Vec::new(),
-            format: false,
-        };
+        let request = UpsertRequest { edits: vec![edit], node_ops: Vec::new(), format: false };
         let payload = serde_json::to_string(&request).unwrap();
         let response_raw = execute_upsert_json(&payload).unwrap();
         let response: serde_json::Value = serde_json::from_str(&response_raw).unwrap();
-        assert_eq!(
-            response["touched_files"].as_array().map(|a| a.len()),
-            Some(1)
-        );
+        assert_eq!(response["touched_files"].as_array().map(|a| a.len()), Some(1));
         let contents = fs::read_to_string(&file).unwrap();
         assert!(contents.contains("added"));
     }
     #[test]
     fn query_request_serializes() {
-        let request = QueryRequest::new()
-            .kind("struct")
-            .module_prefix("crate::rename")
-            .name_contains("Buffer");
+        let request = QueryRequest::new().kind("struct").module_prefix("crate::rename").name_contains("Buffer");
         let json = serde_json::to_string(&request).unwrap();
         let parsed: QueryRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kinds, vec!["struct"]);

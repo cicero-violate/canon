@@ -21,7 +21,9 @@ pub struct TypeHierarchy {
 }
 
 impl TypeHierarchy {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add_subtype(&mut self, child: TypeId, parent: TypeId) {
         self.supertypes.entry(child).or_default().insert(parent);
@@ -40,14 +42,15 @@ impl TypeHierarchy {
         }
         let mut nodes: Vec<String> = all.into_iter().collect();
         nodes.sort();
-        let index: HashMap<String, usize> =
-            nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
+        let index: HashMap<String, usize> = nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
         let (Some(&start), Some(&target)) = (index.get(child), index.get(parent)) else {
             return false;
         };
         let mut adj: Vec<Vec<usize>> = vec![Vec::new(); nodes.len()];
         for (from, tos) in &self.supertypes {
-            let Some(&fi) = index.get(from) else { continue; };
+            let Some(&fi) = index.get(from) else {
+                continue;
+            };
             for to in tos {
                 if let Some(&ti) = index.get(to) {
                     adj[fi].push(ti);

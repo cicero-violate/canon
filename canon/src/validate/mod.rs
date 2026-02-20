@@ -1,4 +1,4 @@
-use crate::ir::CanonicalIr;
+use crate::ir::SystemState;
 mod check_artifacts;
 mod check_deltas;
 mod check_execution;
@@ -10,7 +10,7 @@ pub mod helpers;
 pub mod rules;
 pub use error::{ValidationErrors, Violation};
 pub use rules::CanonRule;
-pub fn validate_ir(ir: &CanonicalIr) -> Result<(), ValidationErrors> {
+pub fn validate_ir(ir: &SystemState) -> Result<(), ValidationErrors> {
     let mut violations = Vec::new();
     check_project::check(&ir, &mut violations);
     let indexes = helpers::build_indexes(ir, &mut violations);
@@ -19,9 +19,5 @@ pub fn validate_ir(ir: &CanonicalIr) -> Result<(), ValidationErrors> {
     check_graphs::check_graphs(ir, &indexes, &mut violations);
     check_proposals::check(ir, &indexes, &mut violations);
     check_execution::check(ir, &indexes, &mut violations);
-    if violations.is_empty() {
-        Ok(())
-    } else {
-        Err(ValidationErrors::new(violations))
-    }
+    if violations.is_empty() { Ok(()) } else { Err(ValidationErrors::new(violations)) }
 }

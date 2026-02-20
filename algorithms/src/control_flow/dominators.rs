@@ -2,11 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-pub fn dominators(
-    node_count: usize,
-    preds: &HashMap<usize, Vec<usize>>,
-    entry: usize,
-) -> Vec<HashSet<usize>> {
+pub fn dominators(node_count: usize, preds: &HashMap<usize, Vec<usize>>, entry: usize) -> Vec<HashSet<usize>> {
     let all: HashSet<usize> = (0..node_count).collect();
     let mut dom: Vec<HashSet<usize>> = vec![all.clone(); node_count];
     if entry < node_count {

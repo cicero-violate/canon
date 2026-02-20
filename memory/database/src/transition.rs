@@ -2,12 +2,7 @@
 //!
 //! This trait intentionally hides all snapshot, checkpoint, and WAL plumbing.
 
-use crate::{
-    delta::Delta,
-    memory_engine::MemoryEngineError,
-    primitives::Hash,
-    proofs::CommitProof,
-};
+use crate::{delta::Delta, memory_engine::MemoryEngineError, primitives::Hash, proofs::CommitProof};
 
 /// Minimal surface that exposes the canonical `(Hash, Delta) -> (Hash, CommitProof)` transition.
 pub trait MemoryTransition {

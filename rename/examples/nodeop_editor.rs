@@ -14,10 +14,7 @@ fn main() -> Result<()> {
     let mut editor = ProjectEditor::load_with_rustc(project_root)?;
 
     let symbol_id = "crate::rename::core::project_editor::ProjectEditor";
-    editor.queue_by_id(
-        symbol_id,
-        FieldMutation::RenameIdent("ProjectAstEditor".to_string()),
-    )?;
+    editor.queue_by_id(symbol_id, FieldMutation::RenameIdent("ProjectAstEditor".to_string()))?;
 
     let conflicts = editor.validate()?;
     if !conflicts.is_empty() {

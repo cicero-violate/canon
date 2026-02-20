@@ -116,15 +116,7 @@ impl GraphSnapshot {
         let mut nodes_by_id: HashMap<NodeId, NodeRecord> = HashMap::new();
         for node in snapshot.nodes {
             let id = NodeId::from_bytes(node.id.0);
-            nodes_by_id.insert(
-                id,
-                NodeRecord {
-                    id,
-                    key: Arc::<str>::from(node.key),
-                    label: Arc::<str>::from(node.label),
-                    metadata: node.metadata,
-                },
-            );
+            nodes_by_id.insert(id, NodeRecord { id, key: Arc::<str>::from(node.key), label: Arc::<str>::from(node.label), metadata: node.metadata });
         }
 
         let mut edges_by_id: HashMap<EdgeId, EdgeRecord> = HashMap::new();
@@ -132,22 +124,10 @@ impl GraphSnapshot {
             let id = EdgeId::from_bytes(edge.id.0);
             let from = NodeId::from_bytes(edge.from.0);
             let to = NodeId::from_bytes(edge.to.0);
-            edges_by_id.insert(
-                id,
-                EdgeRecord {
-                    id,
-                    from,
-                    to,
-                    kind: EdgeKind::from_str(edge.kind.as_str()),
-                    metadata: edge.metadata,
-                },
-            );
+            edges_by_id.insert(id, EdgeRecord { id, from, to, kind: EdgeKind::from_str(edge.kind.as_str()), metadata: edge.metadata });
         }
 
-        GraphSnapshot::new(
-            nodes_by_id.into_values().collect(),
-            edges_by_id.into_values().collect(),
-        )
+        GraphSnapshot::new(nodes_by_id.into_values().collect(), edges_by_id.into_values().collect())
     }
 
     pub fn diff_nodes(&self, other: &GraphSnapshot) -> Vec<NodeId> {
@@ -171,8 +151,7 @@ impl GraphSnapshot {
             }
             let left = left.unwrap();
             let right = right.unwrap();
-            if left.key != right.key || left.label != right.label || left.metadata != right.metadata
-            {
+            if left.key != right.key || left.label != right.label || left.metadata != right.metadata {
                 changed.insert(*id);
             }
         }
@@ -198,11 +177,7 @@ impl GraphSnapshot {
             }
             let left = left.unwrap();
             let right = right.unwrap();
-            if left.from != right.from
-                || left.to != right.to
-                || left.kind != right.kind
-                || left.metadata != right.metadata
-            {
+            if left.from != right.from || left.to != right.to || left.kind != right.kind || left.metadata != right.metadata {
                 changed.insert(left.from);
                 changed.insert(left.to);
             }
@@ -212,51 +187,40 @@ impl GraphSnapshot {
     }
 
     pub fn to_wire_snapshot(&self) -> wire::GraphSnapshot {
-
-    /// Return all NodeIds reachable from `start` via directed edges, using GPU BFS.
-    /// Builds a CSR from current edges, runs bfs_gpu, returns nodes with level >= 0.
-    /// Falls back to empty vec if `start` is not found.
-    #[cfg(feature = "cuda")]
-    pub fn reachable_from(&self, start: NodeId) -> Vec<NodeId> {
-        // Assign a dense integer index to each node
-        let mut node_to_idx: HashMap<NodeId, usize> = HashMap::new();
-        let mut idx_to_node: Vec<NodeId> = Vec::new();
-        for node in &self.nodes {
-            node_to_idx.insert(node.id, idx_to_node.len());
-            idx_to_node.push(node.id);
-        }
-        let v = idx_to_node.len();
-        if v == 0 {
-            return vec![];
-        }
-        let Some(&start_idx) = node_to_idx.get(&start) else {
-            return vec![];
-        };
-        // Build adjacency list from edges
-        let mut adj: Vec<Vec<usize>> = vec![vec![]; v];
-        for edge in &self.edges {
-            if let (Some(&fi), Some(&ti)) = (node_to_idx.get(&edge.from), node_to_idx.get(&edge.to)) {
-                adj[fi].push(ti);
+        /// Return all NodeIds reachable from `start` via directed edges, using GPU BFS.
+        /// Builds a CSR from current edges, runs bfs_gpu, returns nodes with level >= 0.
+        /// Falls back to empty vec if `start` is not found.
+        #[cfg(feature = "cuda")]
+        pub fn reachable_from(&self, start: NodeId) -> Vec<NodeId> {
+            // Assign a dense integer index to each node
+            let mut node_to_idx: HashMap<NodeId, usize> = HashMap::new();
+            let mut idx_to_node: Vec<NodeId> = Vec::new();
+            for node in &self.nodes {
+                node_to_idx.insert(node.id, idx_to_node.len());
+                idx_to_node.push(node.id);
             }
+            let v = idx_to_node.len();
+            if v == 0 {
+                return vec![];
+            }
+            let Some(&start_idx) = node_to_idx.get(&start) else {
+                return vec![];
+            };
+            // Build adjacency list from edges
+            let mut adj: Vec<Vec<usize>> = vec![vec![]; v];
+            for edge in &self.edges {
+                if let (Some(&fi), Some(&ti)) = (node_to_idx.get(&edge.from), node_to_idx.get(&edge.to)) {
+                    adj[fi].push(ti);
+                }
+            }
+            let csr = Csr::from_adj(&adj);
+            let levels = bfs_gpu(&csr, start_idx);
+            levels.into_iter().enumerate().filter(|(_, lvl)| *lvl >= 0).map(|(i, _)| idx_to_node[i]).collect()
         }
-        let csr = Csr::from_adj(&adj);
-        let levels = bfs_gpu(&csr, start_idx);
-        levels
-            .into_iter()
-            .enumerate()
-            .filter(|(_, lvl)| *lvl >= 0)
-            .map(|(i, _)| idx_to_node[i])
-            .collect()
-    }
         let nodes: Vec<wire::WireNode> = self
             .nodes
             .iter()
-            .map(|node| wire::WireNode {
-                id: wire::WireNodeId(node.id.as_bytes()),
-                key: node.key.to_string(),
-                label: node.label.to_string(),
-                metadata: node.metadata.clone(),
-            })
+            .map(|node| wire::WireNode { id: wire::WireNodeId(node.id.as_bytes()), key: node.key.to_string(), label: node.label.to_string(), metadata: node.metadata.clone() })
             .collect();
 
         let edges: Vec<wire::WireEdge> = self
@@ -278,12 +242,9 @@ impl GraphSnapshot {
 impl GraphDelta {
     pub fn to_wire(&self) -> wire::GraphDelta {
         match self {
-            GraphDelta::AddNode(node) => wire::GraphDelta::AddNode(wire::WireNode {
-                id: wire::WireNodeId(node.id.as_bytes()),
-                key: node.key.to_string(),
-                label: node.label.to_string(),
-                metadata: node.metadata.clone(),
-            }),
+            GraphDelta::AddNode(node) => {
+                wire::GraphDelta::AddNode(wire::WireNode { id: wire::WireNodeId(node.id.as_bytes()), key: node.key.to_string(), label: node.label.to_string(), metadata: node.metadata.clone() })
+            }
             GraphDelta::AddEdge(edge) => wire::GraphDelta::AddEdge(wire::WireEdge {
                 id: wire::WireEdgeId(edge.id.as_bytes()),
                 from: wire::WireNodeId(edge.from.as_bytes()),

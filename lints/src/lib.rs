@@ -3,10 +3,10 @@
 extern crate rustc_driver;
 extern crate rustc_hir;
 extern crate rustc_lint;
+extern crate rustc_middle;
 extern crate rustc_session;
 extern crate rustc_span;
 extern crate serde;
-extern crate rustc_middle;
 
 mod classify;
 mod law;
@@ -20,7 +20,7 @@ use rustc_lint::LintStore;
 
 pub use pass::ApiTraitsOnly;
 pub use policy::API_TRAITS_ONLY;
-pub use signal::{LINT_SIGNALS, LintSignal};
+pub use signal::{LintSignal, LINT_SIGNALS};
 
 // ---- Registration entry point ----
 

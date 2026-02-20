@@ -7,10 +7,7 @@ pub struct Semaphore {
 
 impl Semaphore {
     pub fn new(count: usize) -> Arc<Self> {
-        Arc::new(Self {
-            count: Mutex::new(count),
-            cvar: Condvar::new(),
-        })
+        Arc::new(Self { count: Mutex::new(count), cvar: Condvar::new() })
     }
 
     pub fn acquire(self: &Arc<Self>) {

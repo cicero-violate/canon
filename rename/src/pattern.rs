@@ -11,9 +11,7 @@ pub struct PatternBindingCollector {
 
 impl PatternBindingCollector {
     pub fn new() -> Self {
-        Self {
-            bindings: Vec::new(),
-        }
+        Self { bindings: Vec::new() }
     }
 
     /// Collect bindings from a pattern
@@ -103,9 +101,5 @@ fn type_to_string(ty: &syn::Type) -> String {
 
 /// Convert a syn::Path to a string
 fn path_to_string(path: &syn::Path) -> String {
-    path.segments
-        .iter()
-        .map(|seg| seg.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::")
+    path.segments.iter().map(|seg| seg.ident.to_string()).collect::<Vec<_>>().join("::")
 }

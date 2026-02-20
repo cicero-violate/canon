@@ -6,11 +6,7 @@ use rustc_middle::ty::TyCtxt;
 use rustc_span::def_id::LOCAL_CRATE;
 use serde::Serialize;
 use serde_json;
-pub(super) fn capture_crate_metadata<'tcx>(
-    builder: &mut DeltaCollector,
-    tcx: TyCtxt<'tcx>,
-    metadata: &FrontendMetadata,
-) {
+pub(super) fn capture_crate_metadata<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) {
     let crate_name = tcx.crate_name(LOCAL_CRATE).to_string();
     let crate_hash = tcx.crate_hash(LOCAL_CRATE);
     let dependencies = serialize_crate_dependencies(tcx);

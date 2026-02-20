@@ -18,13 +18,25 @@ impl<T: Clone + Default> Array<T> {
         Self { data: vec![T::default(); len] }
     }
 
-    pub fn from_vec(v: Vec<T>) -> Self { Self { data: v } }
+    pub fn from_vec(v: Vec<T>) -> Self {
+        Self { data: v }
+    }
 
-    pub fn get(&self, i: usize) -> Option<&T>    { self.data.get(i) }
-    pub fn get_mut(&mut self, i: usize) -> Option<&mut T> { self.data.get_mut(i) }
-    pub fn set(&mut self, i: usize, val: T)      { self.data[i] = val; }
-    pub fn len(&self) -> usize                   { self.data.len() }
-    pub fn as_slice(&self) -> &[T]               { &self.data }
+    pub fn get(&self, i: usize) -> Option<&T> {
+        self.data.get(i)
+    }
+    pub fn get_mut(&mut self, i: usize) -> Option<&mut T> {
+        self.data.get_mut(i)
+    }
+    pub fn set(&mut self, i: usize, val: T) {
+        self.data[i] = val;
+    }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+    pub fn as_slice(&self) -> &[T] {
+        &self.data
+    }
 
     /// Rotate elements left by k positions: data[i] <- data[(i+k) % N]
     pub fn rotate_left(&mut self, k: usize) {

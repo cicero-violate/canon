@@ -58,20 +58,14 @@ impl From<MemoryEngineError> for CaptureError {
 }
 
 /// Capture all targets (lib + bins) of a cargo project and merge into one delta stream.
-pub fn capture_project(
-    frontend: &RustcFrontend,
-    project: &CargoProject,
-    extra_args: &[String],
-) -> Result<CaptureArtifacts, CaptureError> {
+pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_args: &[String]) -> Result<CaptureArtifacts, CaptureError> {
     let mut graph_deltas = Vec::new();
     let project_meta = project.metadata()?;
     let workspace_root = project_meta.workspace_root.clone();
     let primary_package = project_meta.packages.first().cloned();
     let engine = open_engine(&workspace_root)?;
 
-    let mut externs = project
-        .extern_args("debug")
-        .map_err(|e| CaptureError::Generic(format!("failed to gather extern args: {e}")))?;
+    let mut externs = project.extern_args("debug").map_err(|e| CaptureError::Generic(format!("failed to gather extern args: {e}")))?;
 
     let mut args = extra_args.to_vec();
     args.append(&mut externs);
@@ -90,10 +84,7 @@ pub fn capture_project(
         let mut target_frontend = frontend.clone().with_target_name(&target.name);
         target_frontend = target_frontend.with_workspace_root(workspace_root.clone());
         if let Some(pkg) = &primary_package {
-            target_frontend = target_frontend
-                .with_package_info(pkg.name.clone(), pkg.version.clone())
-                .with_edition(pkg.edition.clone())
-                .with_package_features(pkg.features.keys().cloned());
+            target_frontend = target_frontend.with_package_info(pkg.name.clone(), pkg.version.clone()).with_edition(pkg.edition.clone()).with_package_features(pkg.features.keys().cloned());
             if let Some(rust_version) = &pkg.rust_version {
                 target_frontend = target_frontend.with_rust_version(rust_version.clone());
             }
@@ -129,34 +120,26 @@ pub fn capture_project(
                     id_map.insert(new_id.clone(), new_id.clone());
                     node.id = new_id;
                     node.key = norm_key;
-                    node.metadata
-                        .insert("target_name".into(), target.name.clone());
+                    node.metadata.insert("target_name".into(), target.name.clone());
                     node.metadata.insert("target_kind".into(), target_kind);
                     graph_deltas.push(GraphDelta::AddNode(node.clone()));
-                    engine
-                        .commit_graph_delta(graph_deltas.last().unwrap().clone())
-                        .map_err(CaptureError::Engine)?;
+                    engine.commit_graph_delta(graph_deltas.last().unwrap().clone()).map_err(CaptureError::Engine)?;
                 }
                 GraphDelta::AddEdge(mut edge) => {
                     let from = id_map.get(&edge.from).cloned().unwrap_or_else(|| edge.from.clone());
-                    let to   = id_map.get(&edge.to  ).cloned().unwrap_or_else(|| edge.to.clone());
+                    let to = id_map.get(&edge.to).cloned().unwrap_or_else(|| edge.to.clone());
                     edge.from = from.clone();
                     edge.to = to.clone();
                     edge.id = WireEdgeId::from_components(&from, &to, edge.kind.as_str());
                     graph_deltas.push(GraphDelta::AddEdge(edge.clone()));
-                    engine
-                        .commit_graph_delta(graph_deltas.last().unwrap().clone())
-                        .map_err(CaptureError::Engine)?;
+                    engine.commit_graph_delta(graph_deltas.last().unwrap().clone()).map_err(CaptureError::Engine)?;
                 }
             }
         }
     }
 
     let workspace = WorkspaceBuilder::new(engine.graph_delta_count()).finalize();
-    Ok(CaptureArtifacts {
-        workspace,
-        graph_deltas,
-    })
+    Ok(CaptureArtifacts { workspace, graph_deltas })
 }
 
 fn open_engine(root: &std::path::Path) -> Result<MemoryEngine, CaptureError> {
@@ -183,10 +166,7 @@ fn find_build_out_dir(project: &CargoProject) -> Option<std::path::PathBuf> {
 
             // Skip if this is clearly not the right package
             // (e.g., proc-macro2, serde, etc.)
-            if dir_name.starts_with("proc-macro")
-                || dir_name.starts_with("serde")
-                || dir_name.starts_with("tokio")
-            {
+            if dir_name.starts_with("proc-macro") || dir_name.starts_with("serde") || dir_name.starts_with("tokio") {
                 continue;
             }
 

@@ -1,9 +1,8 @@
 use super::super::error::{Violation, ViolationDetail};
 use super::super::rules::CanonRule;
-use crate::ir::CanonicalIr;
+use crate::ir::SystemState;
 use serde_json::Value as JsonValue;
 use std::collections::HashSet;
-
 const ALLOWED_KINDS: &[&str] = &[
     "block",
     "let",
@@ -40,8 +39,7 @@ const ALLOWED_KINDS: &[&str] = &[
     "match_expr",
     "input",
 ];
-
-pub fn check_ast_node_kinds(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
+pub fn check_ast_node_kinds(ir: &SystemState, violations: &mut Vec<Violation>) {
     let allowed: HashSet<&str> = ALLOWED_KINDS.iter().copied().collect();
     for function in &ir.functions {
         let Some(ast) = &function.metadata.ast else {
@@ -50,8 +48,12 @@ pub fn check_ast_node_kinds(ir: &CanonicalIr, violations: &mut Vec<Violation>) {
         validate_ast_node(ast, function.id.as_str(), &allowed, violations);
     }
 }
-
-fn validate_ast_node(value: &JsonValue, function_id: &str, allowed: &HashSet<&str>, violations: &mut Vec<Violation>) {
+fn validate_ast_node(
+    value: &JsonValue,
+    function_id: &str,
+    allowed: &HashSet<&str>,
+    violations: &mut Vec<Violation>,
+) {
     match value {
         JsonValue::Array(items) => {
             for item in items {
@@ -61,11 +63,17 @@ fn validate_ast_node(value: &JsonValue, function_id: &str, allowed: &HashSet<&st
         JsonValue::Object(map) => {
             if let Some(kind) = map.get("kind").and_then(|k| k.as_str()) {
                 if !allowed.contains(kind) {
-                    violations.push(Violation::structured(
-                        CanonRule::FunctionAst,
-                        function_id.to_string(),
-                        ViolationDetail::UnknownAstNodeKind { function_id: function_id.to_string(), kind: kind.to_string() },
-                    ));
+                    violations
+                        .push(
+                            Violation::structured(
+                                CanonRule::FunctionAst,
+                                function_id.to_string(),
+                                ViolationDetail::UnknownAstNodeKind {
+                                    function_id: function_id.to_string(),
+                                    kind: kind.to_string(),
+                                },
+                            ),
+                        );
                 }
             }
             for val in map.values() {

@@ -6,11 +6,11 @@ use crate::primitives::Hash;
 #[cfg(feature = "cuda")]
 use crate::hash::cuda_ffi::*;
 #[cfg(feature = "cuda")]
+use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, HASH_SIZE, PAGE_SIZE};
+#[cfg(feature = "cuda")]
 use core::ffi::c_void;
 #[cfg(feature = "cuda")]
 use std::sync::Once;
-#[cfg(feature = "cuda")]
-use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, HASH_SIZE, PAGE_SIZE};
 
 // ── GpuBackend ───────────────────────────────────────────────────────────────
 
@@ -112,10 +112,7 @@ fn detect_cuda() -> bool {
     unsafe {
         let mut count = 0i32;
         let status = cudaGetDeviceCount(&mut count as *mut i32);
-        debug_cuda(&format!(
-            "cudaGetDeviceCount -> status={} count={}",
-            status, count
-        ));
+        debug_cuda(&format!("cudaGetDeviceCount -> status={} count={}", status, count));
         status == 0 && count > 0
     }
 }

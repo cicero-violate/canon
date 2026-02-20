@@ -18,7 +18,9 @@ pub struct EscapeSet {
 }
 
 impl EscapeSet {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn mark_escaped(&mut self, var: VarId) {
         if linear_search(&self.escaped, &var).is_none() {

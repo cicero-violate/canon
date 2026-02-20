@@ -30,11 +30,7 @@ pub struct Cfg {
 
 impl Cfg {
     pub fn new() -> Self {
-        Self {
-            nodes: Vec::new(),
-            succ: HashMap::new(),
-            pred: HashMap::new(),
-        }
+        Self { nodes: Vec::new(), succ: HashMap::new(), pred: HashMap::new() }
     }
 
     pub fn add_edge(&mut self, from: usize, to: usize) {
@@ -48,13 +44,7 @@ impl Cfg {
         let node_count = if !self.nodes.is_empty() {
             self.nodes.len()
         } else {
-            let max_id = self
-                .succ
-                .keys()
-                .chain(self.pred.keys())
-                .copied()
-                .max()
-                .unwrap_or(0);
+            let max_id = self.succ.keys().chain(self.pred.keys()).copied().max().unwrap_or(0);
             max_id + 1
         };
         let entry = self.nodes.first().map(|n| n.id).unwrap_or(0);
@@ -77,11 +67,7 @@ fn should_use_gpu(node_count: usize, pred: &HashMap<usize, Vec<usize>>) -> bool 
 }
 
 #[cfg(feature = "cuda")]
-fn dominators_gpu_path(
-    node_count: usize,
-    entry: usize,
-    pred: &HashMap<usize, Vec<usize>>,
-) -> Option<HashMap<usize, std::collections::HashSet<usize>>> {
+fn dominators_gpu_path(node_count: usize, entry: usize, pred: &HashMap<usize, Vec<usize>>) -> Option<HashMap<usize, std::collections::HashSet<usize>>> {
     // Require dense ids 0..node_count-1
     for id in 0..node_count {
         if !pred.contains_key(&id) && id != entry {
@@ -115,5 +101,7 @@ fn dominators_gpu_path(
 }
 
 impl Default for Cfg {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

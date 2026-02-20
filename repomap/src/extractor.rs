@@ -17,16 +17,10 @@ fn fn_signature(node: Node, src: &[u8]) -> String {
     let name = field_text(node, "name", src).unwrap_or("?");
 
     // parameters node
-    let params = node
-        .child_by_field_name("parameters")
-        .map(|n| node_text(n, src))
-        .unwrap_or("()");
+    let params = node.child_by_field_name("parameters").map(|n| node_text(n, src)).unwrap_or("()");
 
     // optional return type
-    let ret = node
-        .child_by_field_name("return_type")
-        .map(|n| format!(" -> {}", node_text(n, src)))
-        .unwrap_or_default();
+    let ret = node.child_by_field_name("return_type").map(|n| format!(" -> {}", node_text(n, src))).unwrap_or_default();
 
     format!("fn {}{}{}", name, params, ret)
 }
@@ -82,63 +76,34 @@ fn extract_top_level(root: Node, src: &[u8]) -> Vec<Symbol> {
         match node.kind() {
             "struct_item" => {
                 let name = field_text(node, "name", src).unwrap_or("?").to_string();
-                let fields = node
-                    .child_by_field_name("body")
-                    .map(|b| collect_struct_fields(b, src))
-                    .unwrap_or_default();
+                let fields = node.child_by_field_name("body").map(|b| collect_struct_fields(b, src)).unwrap_or_default();
                 symbols.push(Symbol::Struct { name, fields, line });
             }
 
             "enum_item" => {
                 let name = field_text(node, "name", src).unwrap_or("?").to_string();
-                let variants = node
-                    .child_by_field_name("body")
-                    .map(|b| collect_enum_variants(b, src))
-                    .unwrap_or_default();
-                symbols.push(Symbol::Enum {
-                    name,
-                    variants,
-                    line,
-                });
+                let variants = node.child_by_field_name("body").map(|b| collect_enum_variants(b, src)).unwrap_or_default();
+                symbols.push(Symbol::Enum { name, variants, line });
             }
 
             "trait_item" => {
                 let name = field_text(node, "name", src).unwrap_or("?").to_string();
-                let methods = node
-                    .child_by_field_name("body")
-                    .map(|b| collect_methods(b, src))
-                    .unwrap_or_default();
-                symbols.push(Symbol::Trait {
-                    name,
-                    methods,
-                    line,
-                });
+                let methods = node.child_by_field_name("body").map(|b| collect_methods(b, src)).unwrap_or_default();
+                symbols.push(Symbol::Trait { name, methods, line });
             }
 
             "function_item" => {
                 let name = field_text(node, "name", src).unwrap_or("?").to_string();
                 let signature = fn_signature(node, src);
-                symbols.push(Symbol::Function {
-                    name,
-                    signature,
-                    line,
-                });
+                symbols.push(Symbol::Function { name, signature, line });
             }
 
             "impl_item" => {
                 // `impl Trait for Type` or plain `impl Type`
                 let type_name = field_text(node, "type", src).unwrap_or("?").to_string();
                 let trait_name = field_text(node, "trait", src).map(|s| s.to_string());
-                let methods = node
-                    .child_by_field_name("body")
-                    .map(|b| collect_methods(b, src))
-                    .unwrap_or_default();
-                symbols.push(Symbol::Impl {
-                    type_name,
-                    trait_name,
-                    methods,
-                    line,
-                });
+                let methods = node.child_by_field_name("body").map(|b| collect_methods(b, src)).unwrap_or_default();
+                symbols.push(Symbol::Impl { type_name, trait_name, methods, line });
             }
 
             "type_item" => {
@@ -156,9 +121,7 @@ fn extract_top_level(root: Node, src: &[u8]) -> Vec<Symbol> {
 /// Parse a single Rust source string and return its symbols.
 pub fn extract_symbols(src: &str) -> Vec<Symbol> {
     let mut parser = Parser::new();
-    parser
-        .set_language(&tree_sitter_rust::LANGUAGE.into())
-        .expect("failed to load Rust grammar");
+    parser.set_language(&tree_sitter_rust::LANGUAGE.into()).expect("failed to load Rust grammar");
 
     let tree = parser.parse(src, None).expect("parse failed");
     extract_top_level(tree.root_node(), src.as_bytes())

@@ -3,38 +3,22 @@ use std::collections::HashMap;
 use anyhow::Result;
 use quote::ToTokens;
 
-use crate::structured::{FieldMutation, NodeOp};
 use crate::state::{NodeHandle, NodeKind};
+use crate::structured::{FieldMutation, NodeOp};
 
-pub(super) fn apply_node_op(
-    ast: &mut syn::File,
-    handles: &HashMap<String, NodeHandle>,
-    symbol_id: &str,
-    op: &NodeOp,
-) -> Result<bool> {
+pub(super) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeHandle>, symbol_id: &str, op: &NodeOp) -> Result<bool> {
     match op {
         NodeOp::ReplaceNode { handle, new_node } => replace_node(ast, handle, new_node.clone()),
-        NodeOp::InsertBefore { handle, new_node } => {
-            insert_node(ast, handle, new_node.clone(), true)
-        }
-        NodeOp::InsertAfter { handle, new_node } => {
-            insert_node(ast, handle, new_node.clone(), false)
-        }
+        NodeOp::InsertBefore { handle, new_node } => insert_node(ast, handle, new_node.clone(), true),
+        NodeOp::InsertAfter { handle, new_node } => insert_node(ast, handle, new_node.clone(), false),
         NodeOp::DeleteNode { handle } => delete_node(ast, handle),
         NodeOp::ReorderItems { file: _, new_order } => reorder_items(ast, handles, new_order),
-        NodeOp::MutateField { handle, mutation } => {
-            apply_field_mutation(ast, handle, symbol_id, mutation)
-        }
+        NodeOp::MutateField { handle, mutation } => apply_field_mutation(ast, handle, symbol_id, mutation),
         NodeOp::MoveSymbol { .. } => Ok(false),
     }
 }
 
-fn apply_field_mutation(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    symbol_id: &str,
-    mutation: &FieldMutation,
-) -> Result<bool> {
+fn apply_field_mutation(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, mutation: &FieldMutation) -> Result<bool> {
     match mutation {
         FieldMutation::RenameIdent(new_name) => {
             if rename_ident(ast, handle, symbol_id, new_name) {
@@ -123,20 +107,12 @@ fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -
     if !handle.nested_path.is_empty() {
         anyhow::bail!("replace node not supported for nested items");
     }
-    let item = ast
-        .items
-        .get_mut(handle.item_index)
-        .ok_or_else(|| anyhow::anyhow!("item index out of bounds"))?;
+    let item = ast.items.get_mut(handle.item_index).ok_or_else(|| anyhow::anyhow!("item index out of bounds"))?;
     *item = new_node;
     Ok(true)
 }
 
-fn insert_node(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    new_node: syn::Item,
-    before: bool,
-) -> Result<bool> {
+fn insert_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item, before: bool) -> Result<bool> {
     if !handle.nested_path.is_empty() {
         anyhow::bail!("insert node not supported for nested items");
     }
@@ -162,16 +138,10 @@ fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<bool> {
     Ok(true)
 }
 
-fn reorder_items(
-    ast: &mut syn::File,
-    handles: &HashMap<String, NodeHandle>,
-    new_order: &[String],
-) -> Result<bool> {
+fn reorder_items(ast: &mut syn::File, handles: &HashMap<String, NodeHandle>, new_order: &[String]) -> Result<bool> {
     let mut container_path: Option<Vec<usize>> = None;
     for symbol_id in new_order {
-        let handle = handles
-            .get(symbol_id)
-            .ok_or_else(|| anyhow::anyhow!("missing handle for {}", symbol_id))?;
+        let handle = handles.get(symbol_id).ok_or_else(|| anyhow::anyhow!("missing handle for {}", symbol_id))?;
         if handle.kind == NodeKind::ImplFn {
             anyhow::bail!("reorder not supported for impl items");
         }
@@ -185,16 +155,13 @@ fn reorder_items(
     }
 
     let container_path = container_path.unwrap_or_default();
-    let items = resolve_items_container_mut(ast, &container_path)
-        .ok_or_else(|| anyhow::anyhow!("failed to resolve container for reorder"))?;
+    let items = resolve_items_container_mut(ast, &container_path).ok_or_else(|| anyhow::anyhow!("failed to resolve container for reorder"))?;
 
     let mut taken = vec![false; items.len()];
     let mut reordered = Vec::with_capacity(items.len());
 
     for symbol_id in new_order {
-        let handle = handles
-            .get(symbol_id)
-            .ok_or_else(|| anyhow::anyhow!("missing handle for {}", symbol_id))?;
+        let handle = handles.get(symbol_id).ok_or_else(|| anyhow::anyhow!("missing handle for {}", symbol_id))?;
         if handle.item_index >= items.len() || taken[handle.item_index] {
             continue;
         }
@@ -212,12 +179,7 @@ fn reorder_items(
     Ok(true)
 }
 
-fn change_visibility(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    symbol_id: &str,
-    new_vis: &syn::Visibility,
-) -> bool {
+fn change_visibility(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_vis: &syn::Visibility) -> bool {
     if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
         match target {
             TargetItemMut::Top(item) => match item {
@@ -263,12 +225,7 @@ fn change_visibility(
     false
 }
 
-fn add_attribute(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    symbol_id: &str,
-    attr: syn::Attribute,
-) -> bool {
+fn add_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, attr: syn::Attribute) -> bool {
     if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
         match target {
             TargetItemMut::Top(item) => match item {
@@ -292,9 +249,7 @@ fn add_attribute(
 fn remove_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, name: &str) -> bool {
     let mut removed = false;
     if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
-        let matcher = |attr: &syn::Attribute| {
-            attr.path().is_ident(name) || attr.path().to_token_stream().to_string() == name
-        };
+        let matcher = |attr: &syn::Attribute| attr.path().is_ident(name) || attr.path().to_token_stream().to_string() == name;
         match target {
             TargetItemMut::Top(item) => match item {
                 syn::Item::Fn(item_fn) => item_fn.attrs.retain(|a| {
@@ -349,12 +304,7 @@ fn remove_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, n
     removed
 }
 
-fn replace_signature(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    symbol_id: &str,
-    sig: syn::Signature,
-) -> bool {
+fn replace_signature(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, sig: syn::Signature) -> bool {
     if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
         match target {
             TargetItemMut::Top(item) => {
@@ -372,12 +322,7 @@ fn replace_signature(
     false
 }
 
-fn add_struct_field(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    _symbol_id: &str,
-    field: syn::Field,
-) -> bool {
+fn add_struct_field(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, field: syn::Field) -> bool {
     if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
         if let syn::Item::Struct(item_struct) = item {
             match &mut item_struct.fields {
@@ -396,24 +341,13 @@ fn add_struct_field(
     false
 }
 
-fn remove_struct_field(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    _symbol_id: &str,
-    name: &str,
-) -> bool {
+fn remove_struct_field(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, name: &str) -> bool {
     if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
         if let syn::Item::Struct(item_struct) = item {
             match &mut item_struct.fields {
                 syn::Fields::Named(named) => {
                     let before = named.named.len();
-                    let filtered: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> =
-                        named
-                            .named
-                            .iter()
-                            .cloned()
-                            .filter(|f| f.ident.as_ref().map(|i| i != name).unwrap_or(true))
-                            .collect();
+                    let filtered: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = named.named.iter().cloned().filter(|f| f.ident.as_ref().map(|i| i != name).unwrap_or(true)).collect();
                     named.named = filtered;
                     return named.named.len() != before;
                 }
@@ -425,12 +359,7 @@ fn remove_struct_field(
     false
 }
 
-fn add_variant(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    _symbol_id: &str,
-    variant: syn::Variant,
-) -> bool {
+fn add_variant(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, variant: syn::Variant) -> bool {
     if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
         if let syn::Item::Enum(item_enum) = item {
             item_enum.variants.push(variant);
@@ -444,12 +373,7 @@ fn remove_variant(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, na
     if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
         if let syn::Item::Enum(item_enum) = item {
             let before = item_enum.variants.len();
-            item_enum.variants = item_enum
-                .variants
-                .iter()
-                .cloned()
-                .filter(|v| v.ident != name)
-                .collect();
+            item_enum.variants = item_enum.variants.iter().cloned().filter(|v| v.ident != name).collect();
             return item_enum.variants.len() != before;
         }
     }
@@ -461,11 +385,7 @@ enum TargetItemMut<'a> {
     ImplFn(&'a mut syn::ImplItemFn),
 }
 
-fn resolve_target_mut<'a>(
-    ast: &'a mut syn::File,
-    handle: &NodeHandle,
-    symbol_id: &str,
-) -> Option<TargetItemMut<'a>> {
+fn resolve_target_mut<'a>(ast: &'a mut syn::File, handle: &NodeHandle, symbol_id: &str) -> Option<TargetItemMut<'a>> {
     let target = symbol_id.rsplit("::").next().unwrap_or(symbol_id);
     if handle.kind == NodeKind::ImplFn {
         let (module_path, impl_index) = split_impl_path(handle)?;
@@ -546,11 +466,7 @@ fn split_impl_path(handle: &NodeHandle) -> Option<(&[usize], usize)> {
     Some((path, impl_index))
 }
 
-fn get_item_mut<'a>(
-    items: &'a mut Vec<syn::Item>,
-    module_path: &[usize],
-    item_index: usize,
-) -> Option<&'a mut syn::Item> {
+fn get_item_mut<'a>(items: &'a mut Vec<syn::Item>, module_path: &[usize], item_index: usize) -> Option<&'a mut syn::Item> {
     if let Some((first, rest)) = module_path.split_first() {
         let item = items.get_mut(*first)?;
         let item_mod = match item {
@@ -563,17 +479,11 @@ fn get_item_mut<'a>(
     items.get_mut(item_index)
 }
 
-fn resolve_items_container_mut<'a>(
-    ast: &'a mut syn::File,
-    module_path: &[usize],
-) -> Option<&'a mut Vec<syn::Item>> {
+fn resolve_items_container_mut<'a>(ast: &'a mut syn::File, module_path: &[usize]) -> Option<&'a mut Vec<syn::Item>> {
     resolve_items_container_from(&mut ast.items, module_path)
 }
 
-fn resolve_items_container_from<'a>(
-    items: &'a mut Vec<syn::Item>,
-    module_path: &[usize],
-) -> Option<&'a mut Vec<syn::Item>> {
+fn resolve_items_container_from<'a>(items: &'a mut Vec<syn::Item>, module_path: &[usize]) -> Option<&'a mut Vec<syn::Item>> {
     if let Some((first, rest)) = module_path.split_first() {
         let item = items.get_mut(*first)?;
         let item_mod = match item {

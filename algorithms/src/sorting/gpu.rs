@@ -20,6 +20,8 @@ pub fn bitonic_sort_gpu(arr: &mut Vec<i64>) {
     let orig_len = arr.len();
     let padded = orig_len.next_power_of_two();
     arr.resize(padded, i64::MAX);
-    unsafe { gpu_bitonic_sort(arr.as_mut_ptr(), padded as i32); }
+    unsafe {
+        gpu_bitonic_sort(arr.as_mut_ptr(), padded as i32);
+    }
     arr.truncate(orig_len);
 }

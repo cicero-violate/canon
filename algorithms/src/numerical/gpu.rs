@@ -17,9 +17,7 @@
 
 #[cfg(feature = "cuda")]
 unsafe extern "C" {
-    pub fn gpu_matrix_multiply(
-        a: *const i64, b: *const i64, c: *mut i64, n: i32,
-    );
+    pub fn gpu_matrix_multiply(a: *const i64, b: *const i64, c: *mut i64, n: i32);
     pub fn gpu_sieve(n: i32, primes_out: *mut i32, count_out: *mut i32);
 }
 
@@ -38,8 +36,10 @@ pub fn matrix_multiply_gpu(a: &[i64], b: &[i64], n: usize) -> Vec<i64> {
 #[cfg(feature = "cuda")]
 pub fn sieve_gpu(n: usize) -> Vec<i32> {
     let mut primes = vec![0i32; n];
-    let mut count  = 0i32;
-    unsafe { gpu_sieve(n as i32, primes.as_mut_ptr(), &mut count); }
+    let mut count = 0i32;
+    unsafe {
+        gpu_sieve(n as i32, primes.as_mut_ptr(), &mut count);
+    }
     primes.truncate(count as usize);
     primes
 }

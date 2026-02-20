@@ -1,7 +1,5 @@
 pub fn genetic_optimize<F>(mut population: Vec<u64>, fitness: F, generations: usize) -> u64
-where
-    F: Fn(u64) -> u64,
-{
+where F: Fn(u64) -> u64 {
     fn lcg(seed: &mut u64) -> u64 {
         *seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
         *seed

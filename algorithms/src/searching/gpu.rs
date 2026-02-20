@@ -18,8 +18,10 @@ unsafe extern "C" {
 /// Safe wrapper: returns Some(index) of first match, or None.
 #[cfg(feature = "cuda")]
 pub fn linear_search_gpu(arr: &[i64], target: i64) -> Option<usize> {
-    let result = unsafe {
-        gpu_linear_search(arr.as_ptr(), arr.len() as i32, target)
-    };
-    if result < 0 { None } else { Some(result as usize) }
+    let result = unsafe { gpu_linear_search(arr.as_ptr(), arr.len() as i32, target) };
+    if result < 0 {
+        None
+    } else {
+        Some(result as usize)
+    }
 }

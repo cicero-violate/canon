@@ -19,20 +19,12 @@ impl PartialOrd for Node {
     }
 }
 
-pub fn a_star(
-    adj: &[Vec<(usize, u64)>],
-    start: usize,
-    goal: usize,
-    heuristic: fn(usize) -> u64,
-) -> Option<u64> {
+pub fn a_star(adj: &[Vec<(usize, u64)>], start: usize, goal: usize, heuristic: fn(usize) -> u64) -> Option<u64> {
     let mut dist = vec![u64::MAX; adj.len()];
     let mut heap = BinaryHeap::new();
 
     dist[start] = 0;
-    heap.push(Node {
-        cost: heuristic(start),
-        pos: start,
-    });
+    heap.push(Node { cost: heuristic(start), pos: start });
 
     while let Some(Node { pos, .. }) = heap.pop() {
         if pos == goal {
@@ -42,10 +34,7 @@ pub fn a_star(
             let next_cost = dist[pos] + weight;
             if next_cost < dist[next] {
                 dist[next] = next_cost;
-                heap.push(Node {
-                    cost: next_cost + heuristic(next),
-                    pos: next,
-                });
+                heap.push(Node { cost: next_cost + heuristic(next), pos: next });
             }
         }
     }

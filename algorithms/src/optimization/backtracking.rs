@@ -1,10 +1,5 @@
 pub fn subsets<T: Clone>(set: &[T]) -> Vec<Vec<T>> {
-    fn backtrack<T: Clone>(
-        set: &[T],
-        index: usize,
-        current: &mut Vec<T>,
-        result: &mut Vec<Vec<T>>,
-    ) {
+    fn backtrack<T: Clone>(set: &[T], index: usize, current: &mut Vec<T>, result: &mut Vec<Vec<T>>) {
         if index == set.len() {
             result.push(current.clone());
             return;

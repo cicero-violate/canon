@@ -13,21 +13,25 @@
 //!   empty iff len == 0
 
 pub struct Queue<T> {
-    buf:  Vec<Option<T>>,
+    buf: Vec<Option<T>>,
     head: usize,
     tail: usize,
-    len:  usize,
+    len: usize,
 }
 
 impl<T> Queue<T> {
     pub fn new(capacity: usize) -> Self {
         let mut buf = Vec::with_capacity(capacity);
-        for _ in 0..capacity { buf.push(None); }
+        for _ in 0..capacity {
+            buf.push(None);
+        }
         Self { buf, head: 0, tail: 0, len: 0 }
     }
 
     pub fn enqueue(&mut self, val: T) -> bool {
-        if self.len == self.buf.len() { return false; }
+        if self.len == self.buf.len() {
+            return false;
+        }
         self.buf[self.tail] = Some(val);
         self.tail = (self.tail + 1) % self.buf.len();
         self.len += 1;
@@ -35,15 +39,25 @@ impl<T> Queue<T> {
     }
 
     pub fn dequeue(&mut self) -> Option<T> {
-        if self.len == 0 { return None; }
+        if self.len == 0 {
+            return None;
+        }
         let val = self.buf[self.head].take();
         self.head = (self.head + 1) % self.buf.len();
         self.len -= 1;
         val
     }
 
-    pub fn peek(&self) -> Option<&T>  { self.buf[self.head].as_ref() }
-    pub fn is_empty(&self) -> bool    { self.len == 0 }
-    pub fn is_full(&self)  -> bool    { self.len == self.buf.len() }
-    pub fn len(&self) -> usize        { self.len }
+    pub fn peek(&self) -> Option<&T> {
+        self.buf[self.head].as_ref()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+    pub fn is_full(&self) -> bool {
+        self.len == self.buf.len()
+    }
+    pub fn len(&self) -> usize {
+        self.len
+    }
 }

@@ -15,9 +15,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = std::env::temp_dir().join("database_minimal_api");
     std::fs::create_dir_all(&dir)?;
     let tlog_path = dir.join("state.tlog");
-    if tlog_path.exists() { std::fs::remove_file(&tlog_path)?; }
+    if tlog_path.exists() {
+        std::fs::remove_file(&tlog_path)?;
+    }
     let graph_log_path = tlog_path.with_extension("graph.log");
-    if graph_log_path.exists() { std::fs::remove_file(&graph_log_path)?; }
+    if graph_log_path.exists() {
+        std::fs::remove_file(&graph_log_path)?;
+    }
 
     let engine = MemoryEngine::new(MemoryEngineConfig { tlog_path })?;
 
@@ -27,12 +31,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ── 2. Commit a page delta ────────────────────────────────────────────────
     let payload = vec![1u8; 4096];
-    let mask    = vec![true; 4096];
-    let delta   = Delta::new_dense(
-        DeltaID(1), PageID(0), Epoch(0),
-        payload, mask,
-        Source("minimal_api".into()),
-    )?;
+    let mask = vec![true; 4096];
+    let delta = Delta::new_dense(DeltaID(1), PageID(0), Epoch(0), payload, mask, Source("minimal_api".into()))?;
     let (root1, proof) = engine.step(root0, delta)?;
     println!("[2] after page delta:  {:?}", &root1[..4]);
     println!("    commit proof hash: {:?}", &proof.state_hash[..4]);
@@ -42,30 +42,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("[3] root stable:       ok");
 
     // ── 4. Persist graph nodes ────────────────────────────────────────────────
-    let node_a = WireNode {
-        id:       WireNodeId([1u8; 16]),
-        key:      "crate::foo::bar".into(),
-        label:    "bar".into(),
-        metadata: BTreeMap::new(),
-    };
-    let node_b = WireNode {
-        id:       WireNodeId([2u8; 16]),
-        key:      "crate::foo::baz".into(),
-        label:    "baz".into(),
-        metadata: BTreeMap::new(),
-    };
+    let node_a = WireNode { id: WireNodeId([1u8; 16]), key: "crate::foo::bar".into(), label: "bar".into(), metadata: BTreeMap::new() };
+    let node_b = WireNode { id: WireNodeId([2u8; 16]), key: "crate::foo::baz".into(), label: "baz".into(), metadata: BTreeMap::new() };
     engine.commit_graph_delta(GraphDelta::AddNode(node_a))?;
     engine.commit_graph_delta(GraphDelta::AddNode(node_b))?;
     println!("[4] graph nodes committed");
 
     // ── 5. Persist a graph edge ───────────────────────────────────────────────
-    let edge = WireEdge {
-        id:       WireEdgeId([3u8; 16]),
-        from:     WireNodeId([1u8; 16]),
-        to:       WireNodeId([2u8; 16]),
-        kind:     "call".into(),
-        metadata: BTreeMap::new(),
-    };
+    let edge = WireEdge { id: WireEdgeId([3u8; 16]), from: WireNodeId([1u8; 16]), to: WireNodeId([2u8; 16]), kind: "call".into(), metadata: BTreeMap::new() };
     engine.commit_graph_delta(GraphDelta::AddEdge(edge))?;
     println!("[5] graph edge committed");
 
@@ -84,8 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ── 8. Point-in-time replay — only first 2 deltas (nodes only) ────────────
     let snapshot_at_2 = engine.graph_snapshot_at(2)?;
-    println!("[8] snapshot@2 nodes: {}  edges: {}",
-        snapshot_at_2.nodes.len(), snapshot_at_2.edges.len());
+    println!("[8] snapshot@2 nodes: {}  edges: {}", snapshot_at_2.nodes.len(), snapshot_at_2.edges.len());
     assert_eq!(snapshot_at_2.nodes.len(), 2);
     assert_eq!(snapshot_at_2.edges.len(), 0);
 

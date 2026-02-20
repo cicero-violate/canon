@@ -41,15 +41,7 @@ impl MerkleState {
 
         let root_hash = [0u8; 32];
 
-        Self {
-            root_hash,
-            page_store: PageStore::in_memory(),
-            device_tree_ptr,
-            device_tree_bytes: total_bytes,
-            max_leaves: tree_size,
-            tree_size,
-            backend,
-        }
+        Self { root_hash, page_store: PageStore::in_memory(), device_tree_ptr, device_tree_bytes: total_bytes, max_leaves: tree_size, tree_size, backend }
     }
 
     pub fn apply_delta(&mut self, delta: &crate::delta::Delta) -> Result<(), DeltaError> {
@@ -65,15 +57,9 @@ impl MerkleState {
         self.page_store.write_page(delta.page_id.0, &dense);
 
         // Full GPU rebuild
-        let nodes = unsafe {
-            std::slice::from_raw_parts_mut(
-                self.device_tree_ptr as *mut Hash,
-                (self.tree_size * 2) as usize,
-            )
-        };
+        let nodes = unsafe { std::slice::from_raw_parts_mut(self.device_tree_ptr as *mut Hash, (self.tree_size * 2) as usize) };
 
-        self.backend
-            .rebuild_merkle_tree(nodes, self.tree_size, self.page_store.as_device_ptr());
+        self.backend.rebuild_merkle_tree(nodes, self.tree_size, self.page_store.as_device_ptr());
 
         // Root is at index 1 in flat tree
         self.root_hash = nodes[1];
@@ -103,15 +89,9 @@ impl MerkleState {
         }
 
         // single GPU rebuild
-        let nodes = unsafe {
-            std::slice::from_raw_parts_mut(
-                self.device_tree_ptr as *mut Hash,
-                (self.tree_size * 2) as usize,
-            )
-        };
+        let nodes = unsafe { std::slice::from_raw_parts_mut(self.device_tree_ptr as *mut Hash, (self.tree_size * 2) as usize) };
 
-        self.backend
-            .rebuild_merkle_tree(nodes, self.tree_size, self.page_store.as_device_ptr());
+        self.backend.rebuild_merkle_tree(nodes, self.tree_size, self.page_store.as_device_ptr());
 
         // Root at index 1
         self.root_hash = nodes[1];
@@ -139,10 +119,7 @@ impl MerkleState {
         Ok(())
     }
 
-    pub fn restore_from_checkpoint<P: AsRef<Path>>(
-        path: P,
-        backend: Box<dyn HashBackend>,
-    ) -> std::io::Result<Self> {
+    pub fn restore_from_checkpoint<P: AsRef<Path>>(path: P, backend: Box<dyn HashBackend>) -> std::io::Result<Self> {
         let mut file = std::fs::File::open(path)?;
 
         let mut size_buf = [0u8; 8];
@@ -155,18 +132,11 @@ impl MerkleState {
         let mut state = Self::with_capacity(tree_size, backend);
 
         let total = state.page_store.capacity_bytes();
-        let slice = unsafe {
-            std::slice::from_raw_parts_mut(state.page_store.as_device_ptr() as *mut u8, total)
-        };
+        let slice = unsafe { std::slice::from_raw_parts_mut(state.page_store.as_device_ptr() as *mut u8, total) };
         file.read_exact(slice)?;
 
         state.backend.rebuild_merkle_tree(
-            unsafe {
-                std::slice::from_raw_parts_mut(
-                    state.device_tree_ptr as *mut Hash,
-                    (state.tree_size * 2) as usize,
-                )
-            },
+            unsafe { std::slice::from_raw_parts_mut(state.device_tree_ptr as *mut Hash, (state.tree_size * 2) as usize) },
             state.tree_size,
             state.page_store.as_device_ptr(),
         );
@@ -182,11 +152,7 @@ impl MerkleState {
         let total_nodes = (self.tree_size * 2) as usize;
         let mut nodes = vec![[0u8; 32]; total_nodes];
 
-        self.backend.rebuild_merkle_tree(
-            &mut nodes,
-            self.tree_size,
-            self.page_store.as_device_ptr(),
-        );
+        self.backend.rebuild_merkle_tree(&mut nodes, self.tree_size, self.page_store.as_device_ptr());
 
         nodes[1]
     }
@@ -205,12 +171,9 @@ impl MerkleState {
 
         // No incremental page hash restore — full GPU rebuild only
 
-        let nodes = unsafe {
-            std::slice::from_raw_parts_mut(self.device_tree_ptr as *mut Hash, total_nodes as usize)
-        };
+        let nodes = unsafe { std::slice::from_raw_parts_mut(self.device_tree_ptr as *mut Hash, total_nodes as usize) };
 
-        self.backend
-            .rebuild_merkle_tree(nodes, self.tree_size, self.page_store.as_device_ptr());
+        self.backend.rebuild_merkle_tree(nodes, self.tree_size, self.page_store.as_device_ptr());
 
         unsafe {
             let root_ptr = self.device_tree_ptr.add(32);

@@ -94,14 +94,7 @@ pub struct ExtractionResult {
 impl ExtractionResult {
     /// Creates an empty result for the provided crate name.
     pub fn empty(crate_name: impl Into<String>) -> Self {
-        Self {
-            crate_name: crate_name.into(),
-            items: Vec::new(),
-            errors: Vec::new(),
-            warnings: Vec::new(),
-            stats: ExtractionStats::default(),
-            graph_deltas: None,
-        }
+        Self { crate_name: crate_name.into(), items: Vec::new(), errors: Vec::new(), warnings: Vec::new(), stats: ExtractionStats::default(), graph_deltas: None }
     }
 }
 
@@ -285,11 +278,7 @@ pub struct ExtractionError {
 impl ExtractionError {
     /// Creates a new error with the provided code and message.
     pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            code: code.into(),
-            message: message.into(),
-            location: None,
-        }
+        Self { code: code.into(), message: message.into(), location: None }
     }
 }
 

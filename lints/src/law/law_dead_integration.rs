@@ -15,21 +15,7 @@ pub fn register_law(store: &mut LintStore) {
 pub fn enforce_dead_integration(cx: &LateContext<'_>, item: &rustc_hir::Item<'_>) {
     let attrs = cx.tcx.hir_attrs(item.hir_id());
     let has_allow_dead_code = attrs.iter().any(|attr| {
-        attr.meta_item_list()
-            .map(|list| {
-                list.iter().any(|nested| {
-                    nested
-                        .meta_item()
-                        .map(|m| {
-                            m.path
-                                .segments
-                                .iter()
-                                .any(|s| s.ident.name.as_str() == "dead_code")
-                        })
-                        .unwrap_or(false)
-                })
-            })
-            .unwrap_or(false)
+        attr.meta_item_list().map(|list| list.iter().any(|nested| nested.meta_item().map(|m| m.path.segments.iter().any(|s| s.ident.name.as_str() == "dead_code")).unwrap_or(false))).unwrap_or(false)
     });
 
     if !has_allow_dead_code {
@@ -45,9 +31,7 @@ pub fn enforce_dead_integration(cx: &LateContext<'_>, item: &rustc_hir::Item<'_>
     };
 
     cx.span_lint(DEAD_INTEGRATION, item.span, |diag| {
-        diag.note(format!(
-            "dead integration point: `{name}` is suppressed with #[allow(dead_code)] — reconnect it",
-        ));
+        diag.note(format!("dead integration point: `{name}` is suppressed with #[allow(dead_code)] — reconnect it",));
     });
 
     let _def_path = cx.tcx.def_path_str(item.owner_id.def_id.to_def_id());

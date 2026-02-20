@@ -2,8 +2,8 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use anyhow::{Context, Result, anyhow};
 use crate::state_io::StateSlice;
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 
 /// Deterministic proposal payload shared with Lean.
@@ -83,11 +83,7 @@ struct RawRejection {
 }
 
 /// Invoke the ProofGate CLI with the canonical schema.
-pub fn verify_proposal(
-    gate_dir: &Path,
-    state: &StateSlice,
-    proposal: &Proposal,
-) -> Result<ProofResult> {
+pub fn verify_proposal(gate_dir: &Path, state: &StateSlice, proposal: &Proposal) -> Result<ProofResult> {
     let payload = serde_json::to_vec(&LeanRequest { state, proposal })?;
 
     let mut child = Command::new("lake")
@@ -101,47 +97,25 @@ pub fn verify_proposal(
         .with_context(|| format!("failed to invoke ProofGate at {}", gate_dir.display()))?;
 
     if let Some(stdin) = child.stdin.as_mut() {
-        stdin
-            .write_all(&payload)
-            .context("unable to send request to ProofGate")?;
+        stdin.write_all(&payload).context("unable to send request to ProofGate")?;
     } else {
         return Err(anyhow!("failed to open ProofGate stdin"));
     }
 
-    let output = child
-        .wait_with_output()
-        .context("failed to await ProofGate result")?;
+    let output = child.wait_with_output().context("failed to await ProofGate result")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow!(
-            "ProofGate verification failed: {}",
-            stderr.trim().to_string()
-        ));
+        return Err(anyhow!("ProofGate verification failed: {}", stderr.trim().to_string()));
     }
 
-    let response: RawProofResponse =
-        serde_json::from_slice(&output.stdout).context("ProofGate returned invalid JSON")?;
+    let response: RawProofResponse = serde_json::from_slice(&output.stdout).context("ProofGate returned invalid JSON")?;
 
     match response.status.as_str() {
-        "accepted" => Ok(ProofResult {
-            accepted: true,
-            certificate: response.certificate,
-            rejection_reason: None,
-            proofs: response.proofs,
-        }),
+        "accepted" => Ok(ProofResult { accepted: true, certificate: response.certificate, rejection_reason: None, proofs: response.proofs }),
         "rejected" | "error" => {
-            let reason = response
-                .rejection
-                .and_then(|rej| rej.reason.or(rej.detail))
-                .or(response.error)
-                .unwrap_or_else(|| "proposal rejected".to_string());
-            Ok(ProofResult {
-                accepted: false,
-                certificate: None,
-                rejection_reason: Some(reason),
-                proofs: response.proofs,
-            })
+            let reason = response.rejection.and_then(|rej| rej.reason.or(rej.detail)).or(response.error).unwrap_or_else(|| "proposal rejected".to_string());
+            Ok(ProofResult { accepted: false, certificate: None, rejection_reason: Some(reason), proofs: response.proofs })
         }
         other => Err(anyhow!("unknown ProofGate status `{other}`")),
     }

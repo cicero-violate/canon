@@ -12,17 +12,10 @@ pub struct CaptureCoordinator {
 impl CaptureCoordinator {
     /// Creates a new coordinator with fresh session/dedup state.
     pub fn new() -> Self {
-        Self {
-            dedup: Deduplicator::new(),
-            session: CaptureSession::default(),
-        }
+        Self { dedup: Deduplicator::new(), session: CaptureSession::default() }
     }
     /// Walks the workspace, invoking the provided frontend on every discovered crate.
-    pub fn capture_project_workspace<F>(
-        &mut self,
-        workspace_root: &Path,
-        frontend: &mut F,
-    ) -> Result<Vec<ExtractionResult>, Box<dyn Error>>
+    pub fn capture_project_workspace<F>(&mut self, workspace_root: &Path, frontend: &mut F) -> Result<Vec<ExtractionResult>, Box<dyn Error>>
     where
         F: FrontendExtractor<Config = PathBuf>,
         F::Error: Error + 'static,

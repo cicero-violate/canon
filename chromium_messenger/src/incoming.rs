@@ -37,9 +37,7 @@ struct SseMessage {
     event: Value,
 }
 
-pub fn setup_response_listener(
-    conn: &mut ChromeConnection,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn setup_response_listener(conn: &mut ChromeConnection) -> Result<(), Box<dyn std::error::Error>> {
     println!("Injecting response capture script...");
 
     // Register a CDP binding so JS can push messages directly to Rust
@@ -78,12 +76,7 @@ pub fn setup_response_listener(
     Ok(())
 }
 
-pub fn wait_for_response(
-    conn: &mut ChromeConnection,
-    send_timestamp: u64,
-    persist: bool,
-    tx: &std::sync::mpsc::Sender<serde_json::Value>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn wait_for_response(conn: &mut ChromeConnection, send_timestamp: u64, persist: bool, tx: &std::sync::mpsc::Sender<serde_json::Value>) -> Result<(), Box<dyn std::error::Error>> {
     println!("Waiting for response...");
     let start = std::time::Instant::now();
     let timeout = Duration::from_secs(60);
@@ -92,9 +85,7 @@ pub fn wait_for_response(
     while start.elapsed() < timeout {
         if let Some(event) = conn.read_event()? {
             if event.get("method").and_then(|m| m.as_str()) == Some("Runtime.bindingCalled") {
-                let payload = event["params"]["payload"]
-                    .as_str()
-                    .ok_or("missing binding payload")?;
+                let payload = event["params"]["payload"].as_str().ok_or("missing binding payload")?;
 
                 let value: Value = serde_json::from_str(payload)?;
 
@@ -103,10 +94,7 @@ pub fn wait_for_response(
                 let msg_id = value["messageId"].as_str().unwrap_or("");
                 let timestamp = value["timestamp"].as_u64().unwrap_or(0);
 
-                if !msg_id.is_empty()
-                    && timestamp >= send_timestamp
-                    && last_message_id.as_deref() != Some(msg_id)
-                {
+                if !msg_id.is_empty() && timestamp >= send_timestamp && last_message_id.as_deref() != Some(msg_id) {
                     let captured = CapturedMessage {
                         conversation_id: value["conversationId"].as_str().unwrap_or("").to_string(),
                         message_id: msg_id.to_string(),
@@ -131,14 +119,9 @@ pub fn wait_for_response(
 fn save_message(msg: &CapturedMessage) -> Result<(), Box<dyn std::error::Error>> {
     save_sse_messages(msg)?;
 
-    let path = PathBuf::from(BASE_DIR)
-        .join(&msg.conversation_id)
-        .join(&msg.message_id);
+    let path = PathBuf::from(BASE_DIR).join(&msg.conversation_id).join(&msg.message_id);
 
-    println!(
-        "[chromium_messenger] Saving message: conv={}, msg={}",
-        msg.conversation_id, msg.message_id
-    );
+    println!("[chromium_messenger] Saving message: conv={}, msg={}", msg.conversation_id, msg.message_id);
 
     fs::create_dir_all(&path)?;
 
@@ -169,9 +152,7 @@ fn save_sse_messages(msg: &CapturedMessage) -> Result<(), Box<dyn std::error::Er
             continue;
         }
 
-        let path = PathBuf::from(BASE_DIR)
-            .join(&entry.conversation_id)
-            .join(&entry.message_id);
+        let path = PathBuf::from(BASE_DIR).join(&entry.conversation_id).join(&entry.message_id);
         let file_path = path.join(format!("{}.json", entry.message_id));
         if file_path.is_file() {
             continue;
@@ -207,9 +188,7 @@ fn extract_sse_messages(events: &[Value], fallback_conversation_id: &str) -> Vec
         if let Some(content) = message.get("content") {
             if let Some(content_type) = content.get("content_type").and_then(Value::as_str) {
                 // Skip user/model editable context messages
-                if content_type == "user_editable_context"
-                    || content_type == "model_editable_context"
-                {
+                if content_type == "user_editable_context" || content_type == "model_editable_context" {
                     continue;
                 }
             }
@@ -217,13 +196,9 @@ fn extract_sse_messages(events: &[Value], fallback_conversation_id: &str) -> Vec
             // Skip system messages with empty text content
             if let Some(author) = message.get("author") {
                 if let Some(role) = author.get("role").and_then(Value::as_str) {
-                    if role == "system"
-                        && content.get("content_type").and_then(Value::as_str) == Some("text")
-                    {
+                    if role == "system" && content.get("content_type").and_then(Value::as_str) == Some("text") {
                         if let Some(parts) = content.get("parts").and_then(Value::as_array) {
-                            let is_empty = parts
-                                .iter()
-                                .all(|p| p.as_str().map(|s| s.trim().is_empty()).unwrap_or(true));
+                            let is_empty = parts.iter().all(|p| p.as_str().map(|s| s.trim().is_empty()).unwrap_or(true));
                             if is_empty {
                                 continue;
                             }
@@ -233,17 +208,9 @@ fn extract_sse_messages(events: &[Value], fallback_conversation_id: &str) -> Vec
             }
         }
 
-        let conversation_id = message
-            .get("conversation_id")
-            .and_then(Value::as_str)
-            .unwrap_or(fallback_conversation_id)
-            .to_string();
+        let conversation_id = message.get("conversation_id").and_then(Value::as_str).unwrap_or(fallback_conversation_id).to_string();
 
-        messages.push(SseMessage {
-            conversation_id,
-            message_id,
-            event: event.clone(),
-        });
+        messages.push(SseMessage { conversation_id, message_id, event: event.clone() });
     }
 
     messages
@@ -273,10 +240,7 @@ fn write_json_atomic(path: &PathBuf, value: &Value) -> Result<(), Box<dyn std::e
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let filename = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or("invalid json file name")?;
+    let filename = path.file_name().and_then(|name| name.to_str()).ok_or("invalid json file name")?;
     let tmp_name = format!("{}.tmp.{}", filename, std::process::id());
     let tmp_path = path.with_file_name(tmp_name);
     let contents = serde_json::to_string_pretty(value)?;
@@ -292,17 +256,11 @@ fn notify_watch_service(conversation_id: &str, message_id: &str) {
             if let Err(e) = writeln!(stream, "{}", message_id) {
                 eprintln!("[chromium_messenger] Failed to write to socket: {}", e);
             } else {
-                println!(
-                    "[chromium_messenger] Notified watch_service: {}",
-                    message_id
-                );
+                println!("[chromium_messenger] Notified watch_service: {}", message_id);
             }
         }
         Err(e) => {
-            eprintln!(
-                "[chromium_messenger] Socket connection failed ({}): {}",
-                socket_path, e
-            );
+            eprintln!("[chromium_messenger] Socket connection failed ({}): {}", socket_path, e);
             eprintln!("[chromium_messenger] watch_service may not be running");
         }
     }

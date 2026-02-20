@@ -16,9 +16,11 @@ use super::refactor::RefactorProposal;
 use super::reward::{NodeRewardLedger, PipelineNodeOutcome};
 use crate::runtime::reward::compute_pipeline_reward;
 use crate::{
-    evolution::{apply_admitted_deltas, enforce_lyapunov_bound, EvolutionError, DEFAULT_TOPOLOGY_THETA},
-    ir::CanonicalIr,
-    layout::LayoutGraph,
+    evolution::{
+        apply_admitted_deltas, enforce_lyapunov_bound, EvolutionError,
+        DEFAULT_TOPOLOGY_THETA,
+    },
+    ir::SystemState, layout::FileTopology,
 };
 use serde_json::Value;
 /// Which stage the pipeline is currently at.
@@ -53,7 +55,7 @@ pub enum RefactorError {
     /// The Judge stage rejected the proposal.
     Rejected { rationale: String },
     /// The Lyapunov gate blocked the mutation.
-    TopologyDrift(crate::evolution::LyapunovError),
+    TopologyDrift(crate::evolution::StructureDriftError),
     /// apply_deltas failed.
     Evolution(EvolutionError),
     /// No admission_id was found in the Judge output payload.
@@ -90,9 +92,9 @@ impl std::error::Error for RefactorError {}
 #[derive(Debug)]
 pub struct RefactorResult {
     /// The mutated IR after all stages completed successfully.
-    pub ir: CanonicalIr,
+    pub ir: SystemState,
     /// The layout after mutation.
-    pub layout: LayoutGraph,
+    pub layout: FileTopology,
     /// The refactor proposal that was applied.
     pub proposal: RefactorProposal,
     /// Admission id recorded in the IR.
@@ -112,39 +114,98 @@ pub struct RefactorResult {
 /// payload error. The runner should log it and continue to the next tick.
 ///
 /// Returns PipelineResult on success, PipelineError on first failure.
-pub fn run_refactor_pipeline(ir: &CanonicalIr, layout: &LayoutGraph, mut proposal: RefactorProposal, stage_outputs: &[AgentCallOutput]) -> Result<RefactorResult, RefactorError> {
+pub fn run_refactor_pipeline(
+    ir: &SystemState,
+    layout: &FileTopology,
+    mut proposal: RefactorProposal,
+    stage_outputs: &[AgentCallOutput],
+) -> Result<RefactorResult, RefactorError> {
     let observer_out = require_stage(stage_outputs, 0, RefactorStage::Observe)?;
     extract_str_field(&observer_out.payload, "observation", RefactorStage::Observe)?;
     let reasoner_out = require_stage(stage_outputs, 1, RefactorStage::Reason)?;
-    let rationale = extract_str_field(&reasoner_out.payload, "rationale", RefactorStage::Reason)?;
+    let rationale = extract_str_field(
+        &reasoner_out.payload,
+        "rationale",
+        RefactorStage::Reason,
+    )?;
     proposal.rationale = rationale;
     let prover_out = require_stage(stage_outputs, 2, RefactorStage::Prove)?;
-    let proof_id = prover_out.proof_id.clone().or_else(|| prover_out.payload.get("proof_id").and_then(|v| v.as_str()).map(|s| s.to_string())).ok_or(RefactorError::MissingProof)?;
+    let proof_id = prover_out
+        .proof_id
+        .clone()
+        .or_else(|| {
+            prover_out
+                .payload
+                .get("proof_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
+        .ok_or(RefactorError::MissingProof)?;
     proposal.proof_id = Some(proof_id);
     let judge_out = require_stage(stage_outputs, 3, RefactorStage::Judge)?;
-    let decision = extract_str_field(&judge_out.payload, "decision", RefactorStage::Judge)?;
+    let decision = extract_str_field(
+        &judge_out.payload,
+        "decision",
+        RefactorStage::Judge,
+    )?;
     if decision.to_lowercase() != "accept" {
-        let rationale = judge_out.payload.get("rationale").and_then(|v| v.as_str()).unwrap_or("no rationale provided").to_string();
-        return Err(RefactorError::Rejected { rationale });
+        let rationale = judge_out
+            .payload
+            .get("rationale")
+            .and_then(|v| v.as_str())
+            .unwrap_or("no rationale provided")
+            .to_string();
+        return Err(RefactorError::Rejected {
+            rationale,
+        });
     }
-    let admission_id = judge_out.payload.get("admission_id").and_then(|v| v.as_str()).ok_or(RefactorError::MissingAdmission)?.to_string();
+    let admission_id = judge_out
+        .payload
+        .get("admission_id")
+        .and_then(|v| v.as_str())
+        .ok_or(RefactorError::MissingAdmission)?
+        .to_string();
     let proof_ids: Vec<String> = ir.proofs.iter().map(|p| p.id.clone()).collect();
-    let candidate = apply_admitted_deltas(ir, &[admission_id.clone()]).map_err(RefactorError::Evolution)?;
-    enforce_lyapunov_bound(ir, &candidate, &proof_ids, DEFAULT_TOPOLOGY_THETA).map_err(RefactorError::TopologyDrift)?;
+    let candidate = apply_admitted_deltas(ir, &[admission_id.clone()])
+        .map_err(RefactorError::Evolution)?;
+    enforce_lyapunov_bound(ir, &candidate, &proof_ids, DEFAULT_TOPOLOGY_THETA)
+        .map_err(RefactorError::TopologyDrift)?;
     let next_layout = layout.clone();
     let reward = compute_pipeline_reward(ir, &candidate, 0.0, 0.0);
-    Ok(RefactorResult { ir: candidate, layout: next_layout, proposal, admission_id, reward })
+    Ok(RefactorResult {
+        ir: candidate,
+        layout: next_layout,
+        proposal,
+        admission_id,
+        reward,
+    })
 }
 /// Records a pipeline result into the ledger and returns the updated
 /// trust threshold for the primary node that drove this pipeline.
-pub fn record_refactor_reward(ledger: &mut NodeRewardLedger, node_id: &str, result: Result<&RefactorResult, &RefactorError>) -> f64 {
+pub fn record_refactor_reward(
+    ledger: &mut NodeRewardLedger,
+    node_id: &str,
+    result: Result<&RefactorResult, &RefactorError>,
+) -> f64 {
     let outcome = match result {
-        Ok(r) => PipelineNodeOutcome::Accepted { reward: r.reward },
-        Err(RefactorError::Rejected { .. }) => PipelineNodeOutcome::Rejected { penalty: 1.0 },
+        Ok(r) => {
+            PipelineNodeOutcome::Accepted {
+                reward: r.reward,
+            }
+        }
+        Err(RefactorError::Rejected { .. }) => {
+            PipelineNodeOutcome::Rejected {
+                penalty: 1.0,
+            }
+        }
         Err(RefactorError::StageSkipped { .. }) => {
             return ledger.trust_threshold_for(node_id);
         }
-        Err(_) => PipelineNodeOutcome::Halted { penalty: 0.5 },
+        Err(_) => {
+            PipelineNodeOutcome::Halted {
+                penalty: 0.5,
+            }
+        }
     };
     ledger.record(node_id, outcome);
     ledger.trust_threshold_for(node_id)
@@ -152,9 +213,28 @@ pub fn record_refactor_reward(ledger: &mut NodeRewardLedger, node_id: &str, resu
 /// Returns the output at `idx` if present, or `StageSkipped` if the node
 /// was not dispatched this tick (trust gate). Distinct from `MissingPayloadField`
 /// which signals a structural problem in an output that *was* returned.
-fn require_stage(outputs: &[AgentCallOutput], idx: usize, stage: RefactorStage) -> Result<&AgentCallOutput, RefactorError> {
-    outputs.get(idx).ok_or_else(|| RefactorError::StageSkipped { stage })
+fn require_stage(
+    outputs: &[AgentCallOutput],
+    idx: usize,
+    stage: RefactorStage,
+) -> Result<&AgentCallOutput, RefactorError> {
+    outputs
+        .get(idx)
+        .ok_or_else(|| RefactorError::StageSkipped {
+            stage,
+        })
 }
-fn extract_str_field<'a>(payload: &'a Value, field: &str, stage: RefactorStage) -> Result<String, RefactorError> {
-    payload.get(field).and_then(|v| v.as_str()).map(|s| s.to_string()).ok_or_else(|| RefactorError::MissingPayloadField { stage, field: field.to_string() })
+fn extract_str_field<'a>(
+    payload: &'a Value,
+    field: &str,
+    stage: RefactorStage,
+) -> Result<String, RefactorError> {
+    payload
+        .get(field)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| RefactorError::MissingPayloadField {
+            stage,
+            field: field.to_string(),
+        })
 }

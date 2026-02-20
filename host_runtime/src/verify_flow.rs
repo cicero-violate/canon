@@ -2,14 +2,14 @@ use std::collections::BTreeMap;
 use std::env;
 use std::path::Path;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use canon::ir::{CanonicalIr, SystemGraph};
 use canon::runtime::value::ScalarValue;
 use canon::runtime::{SystemExecutionEvent, SystemExecutionResult, SystemInterpreter, Value};
-use hex;
 use database::primitives::PageID;
+use hex;
 
-use crate::shell_flow::{ShellOptions, parse_shell_mode};
+use crate::shell_flow::{parse_shell_mode, ShellOptions};
 use crate::state_io::{gate_and_commit, load_state, resolve_fixture_path};
 
 #[derive(Debug)]
@@ -41,10 +41,7 @@ pub fn parse_cli_mode() -> Result<CliMode> {
     };
     let lhs = args.get(0).and_then(|a| a.parse().ok()).unwrap_or(2);
     let rhs = args.get(1).and_then(|a| a.parse().ok()).unwrap_or(3);
-    Ok(CliMode::Execute {
-        verify_only: verify,
-        intent: Intent { lhs, rhs },
-    })
+    Ok(CliMode::Execute { verify_only: verify, intent: Intent { lhs, rhs } })
 }
 
 pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> Result<()> {
@@ -61,9 +58,7 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
 
     println!("Intent: lhs={}, rhs={}", intent.lhs, intent.rhs);
 
-    let config = database::MemoryEngineConfig {
-        tlog_path: repo_root.join("canon_store").join("engine.wal"),
-    };
+    let config = database::MemoryEngineConfig { tlog_path: repo_root.join("canon_store").join("engine.wal") };
     let engine = database::MemoryEngine::new(config)?;
     let interpreter = SystemInterpreter::new(&ir, &engine);
     let inputs = build_initial_inputs(&intent);
@@ -75,9 +70,7 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
         .iter()
         .map(|dv| {
             database::delta::Delta::new_dense(
-                database::primitives::DeltaID(
-                    dv.delta_id.parse().expect("delta_id must be a valid u64"),
-                ),
+                database::primitives::DeltaID(dv.delta_id.parse().expect("delta_id must be a valid u64")),
                 PageID(0),
                 database::epoch::Epoch(0),
                 dv.payload_hash.clone().into(),
@@ -98,9 +91,7 @@ fn load_ir(path: &Path) -> Result<CanonicalIr> {
 }
 
 fn select_system_graph<'a>(ir: &'a CanonicalIr) -> Result<&'a SystemGraph> {
-    ir.system_graphs
-        .first()
-        .ok_or_else(|| anyhow!("no system graphs defined in Canonical IR"))
+    ir.system_graphs.first().ok_or_else(|| anyhow!("no system graphs defined in Canonical IR"))
 }
 
 fn build_initial_inputs(intent: &Intent) -> BTreeMap<String, Value> {
@@ -111,12 +102,7 @@ fn build_initial_inputs(intent: &Intent) -> BTreeMap<String, Value> {
 }
 
 fn report_execution(result: &SystemExecutionResult) -> Result<()> {
-    println!(
-        "Executed system graph `{}` across {} nodes ({} deltas).",
-        result.graph_id,
-        result.execution_order.len(),
-        result.emitted_deltas.len()
-    );
+    println!("Executed system graph `{}` across {} nodes ({} deltas).", result.graph_id, result.execution_order.len(), result.emitted_deltas.len());
 
     for event in &result.events {
         match event {
@@ -139,10 +125,7 @@ fn report_execution(result: &SystemExecutionResult) -> Result<()> {
         println!("No proofs recorded.");
     } else {
         for proof in &result.proof_artifacts {
-            println!(
-                "[proof] node={} proof_id={} accepted={}",
-                proof.node_id, proof.proof_id, proof.accepted
-            );
+            println!("[proof] node={} proof_id={} accepted={}", proof.node_id, proof.proof_id, proof.accepted);
         }
     }
 
@@ -150,11 +133,7 @@ fn report_execution(result: &SystemExecutionResult) -> Result<()> {
         println!("No deltas recorded.");
     } else {
         for delta in &result.delta_provenance {
-            let summary: Vec<String> = delta
-                .deltas
-                .iter()
-                .map(|d| format!("delta_id={} hash={}", d.delta_id, d.payload_hash))
-                .collect();
+            let summary: Vec<String> = delta.deltas.iter().map(|d| format!("delta_id={} hash={}", d.delta_id, d.payload_hash)).collect();
             println!("[delta] node={} {}", delta.node_id, summary.join(", "));
         }
     }
@@ -172,35 +151,17 @@ fn report_execution(result: &SystemExecutionResult) -> Result<()> {
     }
 
     if let Some(judgment) = &result.judgment_proof {
-        println!(
-            "[engine] judgment proof hash={} approved={} ts={}",
-            hex::encode(judgment.hash),
-            judgment.approved,
-            judgment.timestamp
-        );
+        println!("[engine] judgment proof hash={} approved={} ts={}", hex::encode(judgment.hash), judgment.approved, judgment.timestamp);
     }
 
     if let Some(admission) = &result.admission_proof {
-        println!(
-            "[engine] admission hash={} epoch={} nonce={}",
-            hex::encode(admission.judgment_proof_hash),
-            admission.epoch,
-            admission.nonce
-        );
+        println!("[engine] admission hash={} epoch={} nonce={}", hex::encode(admission.judgment_proof_hash), admission.epoch, admission.nonce);
     }
 
     for (idx, commit) in result.commit_proofs.iter().enumerate() {
-        println!(
-            "[engine] commit[{idx}] delta_hash={} state_hash={}",
-            hex::encode(commit.delta_hash),
-            hex::encode(commit.state_hash)
-        );
+        println!("[engine] commit[{idx}] delta_hash={} state_hash={}", hex::encode(commit.delta_hash), hex::encode(commit.state_hash));
         if let Some(outcome) = result.outcome_proofs.get(idx) {
-            println!(
-                "           outcome success={} hash={}",
-                outcome.success,
-                hex::encode(outcome.commit_proof_hash)
-            );
+            println!("           outcome success={} hash={}", outcome.success, hex::encode(outcome.commit_proof_hash));
         }
         if let Some(event_hash) = result.event_hashes.get(idx) {
             println!("           event hash={}", hex::encode(event_hash));

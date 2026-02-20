@@ -1,13 +1,13 @@
 #![cfg(feature = "rustc_frontend")]
+use super::frontend_context::FrontendMetadata;
 use super::RustcFrontendError;
 use crate::compiler_capture::graph::GraphDelta;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::Stdio;
-use std::io::Write;
-use super::frontend_context::FrontendMetadata;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct CaptureRequest {
@@ -75,11 +75,7 @@ impl RustcFrontend {
         self
     }
     /// Declares the Cargo package metadata.
-    pub fn with_package_info(
-        mut self,
-        name: impl Into<String>,
-        version: impl Into<String>,
-    ) -> Self {
+    pub fn with_package_info(mut self, name: impl Into<String>, version: impl Into<String>) -> Self {
         self.package_name = Some(name.into());
         self.package_version = Some(version.into());
         self
@@ -103,19 +99,9 @@ impl RustcFrontend {
         self
     }
     /// Captures graph deltas from the provided Rust source file.
-    pub fn capture_deltas<P: AsRef<Path>>(
-        &self,
-        entry: P,
-        extra_args: &[String],
-        env_vars: &[(String, String)],
-    ) -> Result<Vec<GraphDelta>, RustcFrontendError> {
+    pub fn capture_deltas<P: AsRef<Path>>(&self, entry: P, extra_args: &[String], env_vars: &[(String, String)]) -> Result<Vec<GraphDelta>, RustcFrontendError> {
         let entry = fs::canonicalize(entry)?;
-        let mut args = vec![
-            "rustc".to_string(),
-            entry.display().to_string(),
-            format!("--crate-type={}", self.crate_type),
-            format!("--edition={}", self.edition),
-        ];
+        let mut args = vec!["rustc".to_string(), entry.display().to_string(), format!("--crate-type={}", self.crate_type), format!("--edition={}", self.edition)];
         if let Some(name) = entry.file_stem().and_then(|s| s.to_str()) {
             args.push(format!("--crate-name={}", name.replace('-', "_")));
         }
@@ -129,10 +115,7 @@ impl RustcFrontend {
             crate_type: self.crate_type.clone(),
             target_triple: std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string()),
             target_name: self.target_name.clone(),
-            workspace_root: self
-                .workspace_root
-                .as_ref()
-                .map(|p| p.display().to_string()),
+            workspace_root: self.workspace_root.as_ref().map(|p| p.display().to_string()),
             package_name: self.package_name.clone(),
             package_version: self.package_version.clone(),
             package_features: self.package_features.clone(),
@@ -144,38 +127,21 @@ impl RustcFrontend {
                 cfgs
             },
         };
-        let request = CaptureRequest {
-            entry: entry.display().to_string(),
-            args,
-            env_vars: env_vars.to_vec(),
-            metadata,
-        };
-        let request_json = serde_json::to_string(&request).map_err(|e| {
-            RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-        })?;
+        let request = CaptureRequest { entry: entry.display().to_string(), args, env_vars: env_vars.to_vec(), metadata };
+        let request_json = serde_json::to_string(&request).map_err(|e| RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
         let driver = resolve_capture_driver()?;
         let lib_path = sysroot.join("lib").display().to_string();
         let ld_path = match std::env::var("LD_LIBRARY_PATH") {
             Ok(existing) if !existing.is_empty() => format!("{lib_path}:{existing}"),
             _ => lib_path,
         };
-        let mut child = Command::new(&driver)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .env("LD_LIBRARY_PATH", &ld_path)
-            .spawn()?;
+        let mut child = Command::new(&driver).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).env("LD_LIBRARY_PATH", &ld_path).spawn()?;
         child.stdin.take().unwrap().write_all(request_json.as_bytes())?;
         let output = child.wait_with_output()?;
         if !output.status.success() {
-            return Err(RustcFrontendError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("capture_driver exited with {:?}", output.status.code()),
-            )));
+            return Err(RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("capture_driver exited with {:?}", output.status.code()))));
         }
-        serde_json::from_slice(&output.stdout).map_err(|e| {
-            RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-        })
+        serde_json::from_slice(&output.stdout).map_err(|e| RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
     }
 }
 fn extract_cfg_flags(extra_args: &[String]) -> Vec<String> {
@@ -201,26 +167,27 @@ fn resolve_rustc_sysroot() -> Result<PathBuf, std::io::Error> {
     }
     let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
     let output = Command::new(rustc).args(["--print", "sysroot"]).output()?;
-    Ok(PathBuf::from(
-        String::from_utf8_lossy(&output.stdout).trim(),
-    ))
+    Ok(PathBuf::from(String::from_utf8_lossy(&output.stdout).trim()))
 }
 
 fn resolve_capture_driver() -> Result<PathBuf, RustcFrontendError> {
     if let Ok(mut exe) = std::env::current_exe() {
         exe.pop();
         let c = exe.join("capture_driver");
-        if c.exists() { return Ok(c); }
+        if c.exists() {
+            return Ok(c);
+        }
     }
     if let Ok(mut cwd) = std::env::current_dir() {
         loop {
             let c = cwd.join("target/debug/capture_driver");
-            if c.exists() { return Ok(c); }
-            if !cwd.pop() { break; }
+            if c.exists() {
+                return Ok(c);
+            }
+            if !cwd.pop() {
+                break;
+            }
         }
     }
-    Err(RustcFrontendError::Io(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "capture_driver not found; run `cargo build -p compiler_capture --bin capture_driver`",
-    )))
+    Err(RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "capture_driver not found; run `cargo build -p compiler_capture --bin capture_driver`")))
 }

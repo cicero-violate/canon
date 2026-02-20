@@ -25,43 +25,23 @@ fn fact_to_node(fact: &LinuxFact) -> (String, String, BTreeMap<String, String>) 
     match fact {
         LinuxFact::Exists(path) => {
             metadata.insert("path".into(), path.display().to_string());
-            (
-                format!("linux::exists::{}", path.display()),
-                "exists".into(),
-                metadata,
-            )
+            (format!("linux::exists::{}", path.display()), "exists".into(), metadata)
         }
         LinuxFact::File(path) => {
             metadata.insert("path".into(), path.display().to_string());
-            (
-                format!("linux::file::{}", path.display()),
-                "file".into(),
-                metadata,
-            )
+            (format!("linux::file::{}", path.display()), "file".into(), metadata)
         }
         LinuxFact::Dir(path) => {
             metadata.insert("path".into(), path.display().to_string());
-            (
-                format!("linux::dir::{}", path.display()),
-                "dir".into(),
-                metadata,
-            )
+            (format!("linux::dir::{}", path.display()), "dir".into(), metadata)
         }
         LinuxFact::ProcessRunning(name) => {
             metadata.insert("process".into(), name.clone());
-            (
-                format!("linux::proc::{name}"),
-                "process_running".into(),
-                metadata,
-            )
+            (format!("linux::proc::{name}"), "process_running".into(), metadata)
         }
         LinuxFact::BinaryInstalled(name) => {
             metadata.insert("binary".into(), name.clone());
-            (
-                format!("linux::bin::{name}"),
-                "binary_installed".into(),
-                metadata,
-            )
+            (format!("linux::bin::{name}"), "binary_installed".into(), metadata)
         }
     }
 }

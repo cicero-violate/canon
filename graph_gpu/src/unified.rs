@@ -57,17 +57,10 @@ impl<T: Copy + Default> UnifiedVec<T> {
         if byte_size > 0 && cuda_available() {
             unsafe {
                 let mut raw: *mut c_void = null_mut();
-                if cudaMallocManaged(&mut raw as *mut *mut c_void, byte_size, 1) == 0
-                    && !raw.is_null()
-                {
+                if cudaMallocManaged(&mut raw as *mut *mut c_void, byte_size, 1) == 0 && !raw.is_null() {
                     let ptr = raw as *mut T;
                     std::ptr::write_bytes(ptr, 0, cap);
-                    return Self {
-                        ptr,
-                        len: 0,
-                        cap,
-                        on_gpu: true,
-                    };
+                    return Self { ptr, len: 0, cap, on_gpu: true };
                 }
             }
         }
@@ -75,12 +68,7 @@ impl<T: Copy + Default> UnifiedVec<T> {
         let mut v = vec![T::default(); cap];
         let ptr = v.as_mut_ptr();
         std::mem::forget(v);
-        Self {
-            ptr,
-            len: 0,
-            cap,
-            on_gpu: false,
-        }
+        Self { ptr, len: 0, cap, on_gpu: false }
     }
 
     pub fn push(&mut self, val: T) {

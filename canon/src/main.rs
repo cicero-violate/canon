@@ -22,13 +22,10 @@ mod semantic_builder;
 mod storage;
 mod validate;
 mod version_gate;
-
-pub use ir::CanonicalIr;
-
+pub use ir::SystemState;
 use clap::Parser;
 use cli::Cli;
 use commands::execute_command;
-
 #[tokio::main]
 async fn main() {
     if let Err(err) = run().await {
@@ -36,7 +33,6 @@ async fn main() {
         std::process::exit(1);
     }
 }
-
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     execute_command(cli.command).await

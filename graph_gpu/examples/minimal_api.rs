@@ -32,19 +32,18 @@ fn main() {
 
     // ── 3. Build CSR in unified memory ────────────────────────────────────────
     let csr = CsrGraph::build(&node_ids, &edges);
-    println!("[1] CSR built: {} nodes, {} edges, on_gpu: {}",
-        csr.n_nodes, csr.n_edges, csr.row_offsets.on_gpu());
+    println!("[1] CSR built: {} nodes, {} edges, on_gpu: {}", csr.n_nodes, csr.n_edges, csr.row_offsets.on_gpu());
 
     // ── 4. Neighbor inspection (CPU) ──────────────────────────────────────────
     let foo_idx = csr.node_index(0x02).unwrap();
     let neighbors = csr.neighbors(foo_idx);
-    let kinds     = csr.neighbor_kinds(foo_idx);
+    let kinds = csr.neighbor_kinds(foo_idx);
     println!("[2] foo neighbors: {:?}  kinds: {:?}", neighbors, kinds);
     assert_eq!(neighbors.len(), 2);
 
     // ── 5. BFS from main — all Call edges ─────────────────────────────────────
     let main_idx = csr.node_index(0x01).unwrap();
-    let result   = bfs(&csr, main_idx, Some(EdgeKind::Call));
+    let result = bfs(&csr, main_idx, Some(EdgeKind::Call));
     println!("[3] BFS from main (Call only):");
     println!("    max_dist:  {}", result.max_dist);
     println!("    reachable: {:?}", result.reachable());

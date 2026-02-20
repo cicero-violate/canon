@@ -2,9 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::compiler_capture::graph::{
-    DeltaCollector, EdgeKind, EdgePayload, GraphDelta, NodeId, NodePayload,
-};
+use crate::compiler_capture::graph::{DeltaCollector, EdgeKind, EdgePayload, GraphDelta, NodeId, NodePayload};
 use crate::compiler_capture::CapturedItem;
 use database::graph_log::{WireEdge, WireEdgeId, WireNode, WireNodeId};
 
@@ -44,11 +42,7 @@ impl GraphNormalizer {
                         materializer.merge_node_metadata(&id, node.metadata.into_iter());
                     }
                     GraphDelta::AddEdge(edge) => {
-                        let mut payload = EdgePayload::new(
-                            edge.from.clone(),
-                            edge.to.clone(),
-                            EdgeKind::from_str(edge.kind.as_str()),
-                        );
+                        let mut payload = EdgePayload::new(edge.from.clone(), edge.to.clone(), EdgeKind::from_str(edge.kind.as_str()));
                         for (k, v) in edge.metadata.clone() {
                             payload = payload.with_metadata(k, v);
                         }
@@ -61,21 +55,13 @@ impl GraphNormalizer {
         for (parent_key, child_id) in pending_edges {
             if let Some(parent_id) = node_lookup.get(&parent_key) {
                 let edge = WireEdge {
-                    id: WireEdgeId::from_components(
-                        parent_id,
-                        &child_id,
-                        EdgeKind::Contains.as_str(),
-                    ),
+                    id: WireEdgeId::from_components(parent_id, &child_id, EdgeKind::Contains.as_str()),
                     from: parent_id.clone(),
                     to: child_id.clone(),
                     kind: EdgeKind::Contains.as_str().to_string(),
                     metadata: BTreeMap::new(),
                 };
-                let mut payload = EdgePayload::new(
-                    edge.from.clone(),
-                    edge.to.clone(),
-                    EdgeKind::from_str(edge.kind.as_str()),
-                );
+                let mut payload = EdgePayload::new(edge.from.clone(), edge.to.clone(), EdgeKind::from_str(edge.kind.as_str()));
                 for (k, v) in edge.metadata.clone() {
                     payload = payload.with_metadata(k, v);
                 }
@@ -89,81 +75,21 @@ impl GraphNormalizer {
     fn emit_deltas(&self, item: &CapturedItem) -> Vec<GraphDelta> {
         match item {
             CapturedItem::Function(func) => {
-                vec![GraphDelta::AddNode(make_node_record(
-                    &func.path,
-                    &func.name,
-                    "function",
-                    func.metadata.clone(),
-                    func.signature.clone(),
-                ))]
+                vec![GraphDelta::AddNode(make_node_record(&func.path, &func.name, "function", func.metadata.clone(), func.signature.clone()))]
             }
-            CapturedItem::Struct(strct) => vec![GraphDelta::AddNode(make_node_record(
-                &strct.path,
-                &strct.name,
-                "struct",
-                strct.metadata.clone(),
-                None,
-            ))],
-            CapturedItem::Enum(enm) => vec![GraphDelta::AddNode(make_node_record(
-                &enm.path,
-                &enm.name,
-                "enum",
-                enm.metadata.clone(),
-                None,
-            ))],
-            CapturedItem::Trait(trt) => vec![GraphDelta::AddNode(make_node_record(
-                &trt.path,
-                &trt.name,
-                "trait",
-                trt.metadata.clone(),
-                None,
-            ))],
-            CapturedItem::Impl(imp) => vec![GraphDelta::AddNode(make_node_record(
-                &imp.path,
-                &imp.name,
-                "impl",
-                imp.metadata.clone(),
-                None,
-            ))],
-            CapturedItem::Module(module) => vec![GraphDelta::AddNode(make_node_record(
-                &module.path,
-                &module.name,
-                "module",
-                module.metadata.clone(),
-                None,
-            ))],
-            CapturedItem::TypeAlias(alias) => vec![GraphDelta::AddNode(make_node_record(
-                &alias.path,
-                &alias.name,
-                "type_alias",
-                alias.metadata.clone(),
-                None,
-            ))],
-            CapturedItem::Const(konst) => vec![GraphDelta::AddNode(make_node_record(
-                &konst.path,
-                &konst.name,
-                "const",
-                konst.metadata.clone(),
-                None,
-            ))],
-            CapturedItem::Static(stat) => vec![GraphDelta::AddNode(make_node_record(
-                &stat.path,
-                &stat.name,
-                "static",
-                stat.metadata.clone(),
-                None,
-            ))],
+            CapturedItem::Struct(strct) => vec![GraphDelta::AddNode(make_node_record(&strct.path, &strct.name, "struct", strct.metadata.clone(), None))],
+            CapturedItem::Enum(enm) => vec![GraphDelta::AddNode(make_node_record(&enm.path, &enm.name, "enum", enm.metadata.clone(), None))],
+            CapturedItem::Trait(trt) => vec![GraphDelta::AddNode(make_node_record(&trt.path, &trt.name, "trait", trt.metadata.clone(), None))],
+            CapturedItem::Impl(imp) => vec![GraphDelta::AddNode(make_node_record(&imp.path, &imp.name, "impl", imp.metadata.clone(), None))],
+            CapturedItem::Module(module) => vec![GraphDelta::AddNode(make_node_record(&module.path, &module.name, "module", module.metadata.clone(), None))],
+            CapturedItem::TypeAlias(alias) => vec![GraphDelta::AddNode(make_node_record(&alias.path, &alias.name, "type_alias", alias.metadata.clone(), None))],
+            CapturedItem::Const(konst) => vec![GraphDelta::AddNode(make_node_record(&konst.path, &konst.name, "const", konst.metadata.clone(), None))],
+            CapturedItem::Static(stat) => vec![GraphDelta::AddNode(make_node_record(&stat.path, &stat.name, "static", stat.metadata.clone(), None))],
         }
     }
 }
 
-fn make_node_record(
-    path: &str,
-    label: &str,
-    kind: &str,
-    metadata: std::collections::HashMap<String, String>,
-    signature: Option<String>,
-) -> WireNode {
+fn make_node_record(path: &str, label: &str, kind: &str, metadata: std::collections::HashMap<String, String>, signature: Option<String>) -> WireNode {
     let mut meta = BTreeMap::new();
     meta.insert("kind".into(), kind.into());
     if let Some(sig) = signature {
@@ -173,12 +99,7 @@ fn make_node_record(
         meta.insert(k, v);
     }
     let id = WireNodeId::from_key(path);
-    WireNode {
-        id,
-        key: path.to_string(),
-        label: label.to_string(),
-        metadata: meta,
-    }
+    WireNode { id, key: path.to_string(), label: label.to_string(), metadata: meta }
 }
 
 fn parent_key(path: &str) -> Option<String> {

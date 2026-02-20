@@ -24,9 +24,7 @@ pub struct AdjList {
 impl AdjList {
     /// Create an empty graph with `v` vertices and no edges.
     pub fn new(v: usize) -> Self {
-        Self {
-            adj: vec![Vec::new(); v],
-        }
+        Self { adj: vec![Vec::new(); v] }
     }
 
     pub fn vertex_count(&self) -> usize {

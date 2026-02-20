@@ -11,32 +11,19 @@ use super::types::{SymbolEdit, SymbolIndex};
 use super::use_map::normalize_use_prefix;
 
 /// Track and rename use statement aliases
-pub(crate) fn collect_and_rename_aliases(
-    project: &Path,
-    symbol_table: &SymbolIndex,
-    mapping: &HashMap<String, String>,
-) -> Result<Vec<SymbolEdit>> {
+pub(crate) fn collect_and_rename_aliases(project: &Path, symbol_table: &SymbolIndex, mapping: &HashMap<String, String>) -> Result<Vec<SymbolEdit>> {
     let mut alias_edits = Vec::new();
     let files = fs::collect_rs_files(project)?;
 
     for file in &files {
         let module_path = module_path_for_file(project, file);
         let content = std::fs::read_to_string(file)?;
-        let ast = syn::parse_file(&content)
-            .with_context(|| format!("Failed to parse {}", file.display()))?;
+        let ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", file.display()))?;
 
         // Process use statements to find aliases
         for item in &ast.items {
             if let syn::Item::Use(use_item) = item {
-                collect_alias_edits(
-                    &use_item.tree,
-                    use_item.leading_colon.is_some(),
-                    &module_path,
-                    file,
-                    symbol_table,
-                    mapping,
-                    &mut alias_edits,
-                );
+                collect_alias_edits(&use_item.tree, use_item.leading_colon.is_some(), &module_path, file, symbol_table, mapping, &mut alias_edits);
             }
         }
     }
@@ -44,52 +31,22 @@ pub(crate) fn collect_and_rename_aliases(
     Ok(alias_edits)
 }
 
-fn collect_alias_edits(
-    tree: &syn::UseTree,
-    has_leading_colon: bool,
-    module_path: &str,
-    file: &Path,
-    symbol_table: &SymbolIndex,
-    mapping: &HashMap<String, String>,
-    edits: &mut Vec<SymbolEdit>,
-) {
+fn collect_alias_edits(tree: &syn::UseTree, has_leading_colon: bool, module_path: &str, file: &Path, symbol_table: &SymbolIndex, mapping: &HashMap<String, String>, edits: &mut Vec<SymbolEdit>) {
     let mut prefix = Vec::new();
     if has_leading_colon {
         prefix.push("crate".to_string());
     }
 
-    collect_alias_edits_recursive(
-        tree,
-        &mut prefix,
-        module_path,
-        file,
-        symbol_table,
-        mapping,
-        edits,
-    );
+    collect_alias_edits_recursive(tree, &mut prefix, module_path, file, symbol_table, mapping, edits);
 }
 
 fn collect_alias_edits_recursive(
-    tree: &syn::UseTree,
-    prefix: &mut Vec<String>,
-    module_path: &str,
-    file: &Path,
-    symbol_table: &SymbolIndex,
-    mapping: &HashMap<String, String>,
-    edits: &mut Vec<SymbolEdit>,
+    tree: &syn::UseTree, prefix: &mut Vec<String>, module_path: &str, file: &Path, symbol_table: &SymbolIndex, mapping: &HashMap<String, String>, edits: &mut Vec<SymbolEdit>,
 ) {
     match tree {
         syn::UseTree::Path(path) => {
             prefix.push(path.ident.to_string());
-            collect_alias_edits_recursive(
-                &path.tree,
-                prefix,
-                module_path,
-                file,
-                symbol_table,
-                mapping,
-                edits,
-            );
+            collect_alias_edits_recursive(&path.tree, prefix, module_path, file, symbol_table, mapping, edits);
             prefix.pop();
         }
         syn::UseTree::Rename(rename) => {
@@ -106,6 +63,15 @@ fn collect_alias_edits_recursive(
                     kind: "use_alias_target".to_string(),
                     start: span_to_range(rename.ident.span()).start,
                     end: span_to_range(rename.ident.span()).end,
+                    new_name: new_name.clone(),
+                });
+                // Keep alias in sync with target rename.
+                edits.push(SymbolEdit {
+                    id: format!("{}@alias_sync", target_id),
+                    file: file.to_string_lossy().to_string(),
+                    kind: "use_alias_name".to_string(),
+                    start: span_to_range(rename.rename.span()).start,
+                    end: span_to_range(rename.rename.span()).end,
                     new_name: new_name.clone(),
                 });
             }
@@ -132,38 +98,18 @@ fn collect_alias_edits_recursive(
         }
         syn::UseTree::Group(group) => {
             for item in &group.items {
-                collect_alias_edits_recursive(
-                    item,
-                    prefix,
-                    module_path,
-                    file,
-                    symbol_table,
-                    mapping,
-                    edits,
-                );
+                collect_alias_edits_recursive(item, prefix, module_path, file, symbol_table, mapping, edits);
             }
         }
         _ => {}
     }
 }
 
-fn collect_alias_usage_edits(
-    file: &Path,
-    alias_name: &str,
-    new_alias: &str,
-    target_id: &str,
-    edits: &mut Vec<SymbolEdit>,
-) {
+fn collect_alias_usage_edits(file: &Path, alias_name: &str, new_alias: &str, target_id: &str, edits: &mut Vec<SymbolEdit>) {
     // Re-parse file to find alias usages
     if let Ok(content) = std::fs::read_to_string(file) {
         if let Ok(ast) = syn::parse_file(&content) {
-            let mut visitor = AliasUsageVisitor {
-                alias_name: alias_name.to_string(),
-                new_alias: new_alias.to_string(),
-                target_id: target_id.to_string(),
-                file,
-                edits,
-            };
+            let mut visitor = AliasUsageVisitor { alias_name: alias_name.to_string(), new_alias: new_alias.to_string(), target_id: target_id.to_string(), file, edits };
             visitor.visit_file(&ast);
         }
     }

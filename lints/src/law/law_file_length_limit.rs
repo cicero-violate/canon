@@ -54,11 +54,7 @@ pub fn enforce_file_length(cx: &LateContext<'_>, span: Span) {
     let workspace_root = Path::new(WORKSPACE_PREFIX.as_str());
     let raw_name = file.name.prefer_local_unconditionally().to_string();
     let raw_path = Path::new(&raw_name);
-    let absolute_path = if raw_path.is_absolute() {
-        raw_path.to_path_buf()
-    } else {
-        workspace_root.join(raw_path)
-    };
+    let absolute_path = if raw_path.is_absolute() { raw_path.to_path_buf() } else { workspace_root.join(raw_path) };
     let canonical_path = match absolute_path.canonicalize() {
         Ok(path) => path,
         Err(_) => return,
@@ -68,10 +64,7 @@ pub fn enforce_file_length(cx: &LateContext<'_>, span: Span) {
         return;
     }
 
-    let display_path = canonical_path
-        .strip_prefix(workspace_root)
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| canonical_path.to_string_lossy().into_owned());
+    let display_path = canonical_path.strip_prefix(workspace_root).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| canonical_path.to_string_lossy().into_owned());
 
     let line_count = file.count_lines();
     if line_count <= MAX_LINES_PER_FILE {
@@ -80,10 +73,7 @@ pub fn enforce_file_length(cx: &LateContext<'_>, span: Span) {
 
     let span = Span::with_root_ctxt(file.start_pos, file.end_position());
     cx.span_lint(FILE_TOO_LONG, span, |diag| {
-        diag.note(format!(
-            "file `{}` has {line_count} lines which exceeds the limit of {MAX_LINES_PER_FILE}",
-            display_path
-        ));
+        diag.note(format!("file `{}` has {line_count} lines which exceeds the limit of {MAX_LINES_PER_FILE}", display_path));
     });
 }
 
@@ -94,18 +84,9 @@ pub fn reset_cache() {
 fn resolve_workspace_prefix() -> String {
     let candidate = env::var("CANON_WORKSPACE_ROOT")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .parent()
-                .expect("lints crate must have parent workspace directory")
-                .to_path_buf()
-        });
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().expect("lints crate must have parent workspace directory").to_path_buf());
 
-    let canonical = candidate
-        .canonicalize()
-        .unwrap_or(candidate)
-        .to_string_lossy()
-        .into_owned();
+    let canonical = candidate.canonicalize().unwrap_or(candidate).to_string_lossy().into_owned();
     eprintln!("LAW using workspace prefix: {}", canonical);
     canonical
 }

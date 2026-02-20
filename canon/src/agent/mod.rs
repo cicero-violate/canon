@@ -22,12 +22,17 @@ pub mod slice;
 pub mod sse;
 pub mod ws_server;
 pub use bootstrap::{seed_capability_graph, seed_refactor_proposal};
-pub use call::{AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult};
-pub use capability::{CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField};
-pub use dispatcher::{CapabilityNodeDispatcher, DEFAULT_TRUST_THRESHOLD};
+pub use call::{
+    AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
+};
+pub use capability::{CapabilityEdge, AgentGraph, CapabilityKind, AgentNode, IrField};
+pub use dispatcher::{AgentScheduler, DEFAULT_TRUST_THRESHOLD};
 pub use io::{load_capability_graph, save_capability_graph};
 pub use llm_provider::{call_llm, LlmProviderError};
-pub use meta::{evolve_capability_graph, GraphEvolutionError, GraphEvolutionResult, GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, UNDERPERFORM_THRESHOLD};
+pub use meta::{
+    evolve_capability_graph, GraphEvolutionError, GraphEvolutionResult, GraphMutation,
+    MAX_ENTROPY_DELTA, MIN_NODES, UNDERPERFORM_THRESHOLD,
+};
 pub use observe::{analyze_ir, ir_observation_to_json, IrAnalysisReport, IrTotals};
 pub use pipeline::record_refactor_reward;
 pub use pipeline::{run_refactor_pipeline, RefactorError, RefactorResult, RefactorStage};

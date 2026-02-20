@@ -31,26 +31,18 @@ pub fn extract_symbols_from_attributes(attrs: &[Attribute]) -> Vec<(String, Span
                 // Parse tokens inside the list
                 // This is simplified - full implementation would parse nested tokens
                 let tokens_str = meta_list.tokens.to_string();
-                extract_identifiers_from_token_string(
-                    &tokens_str,
-                    &mut symbols,
-                    meta_list.tokens.span(),
-                );
+                extract_identifiers_from_token_string(&tokens_str, &mut symbols, meta_list.tokens.span());
             }
             Meta::NameValue(meta_name_value) => {
                 // Name-value attribute: #[doc = "..."]
+                // We intentionally skip extracting symbols from doc strings because
+                // they do not carry precise spans for each reference, which can
+                // produce conflicting span edits during rename.
+                if meta_name_value.path.is_ident("doc") {
+                    continue;
+                }
                 if let Some(ident) = meta_name_value.path.get_ident() {
                     symbols.push((ident.to_string(), ident.span()));
-                }
-
-                // Extract references from doc comments
-                if meta_name_value.path.is_ident("doc") {
-                    if let syn::Expr::Lit(expr_lit) = &meta_name_value.value {
-                        if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                            let doc_text = lit_str.value();
-                            extract_doc_references(&doc_text, &mut symbols, lit_str.span());
-                        }
-                    }
                 }
             }
         }
@@ -60,11 +52,7 @@ pub fn extract_symbols_from_attributes(attrs: &[Attribute]) -> Vec<(String, Span
 }
 
 /// Extract identifiers from a token string (simplified heuristic)
-fn extract_identifiers_from_token_string(
-    tokens: &str,
-    symbols: &mut Vec<(String, Span)>,
-    span: Span,
-) {
+fn extract_identifiers_from_token_string(tokens: &str, symbols: &mut Vec<(String, Span)>, span: Span) {
     // Split by common delimiters and extract valid identifiers
     for word in tokens.split(&[' ', ',', '(', ')', '[', ']', '{', '}', '<', '>', ':', ';']) {
         let trimmed = word.trim();
@@ -85,8 +73,7 @@ fn is_valid_ident_char(s: &str) -> bool {
         return false;
     }
 
-    s.chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == ':')
+    s.chars().all(|c| c.is_alphanumeric() || c == '_' || c == ':')
 }
 
 /// Extract symbol references from doc comment text

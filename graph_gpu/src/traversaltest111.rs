@@ -17,12 +17,7 @@ pub struct BfsResult {
 impl BfsResult {
     /// Reachable nodes as internal indices.
     pub fn reachable(&self) -> Vec<u32> {
-        self.dist
-            .iter()
-            .enumerate()
-            .filter(|(_, &d)| d >= 0)
-            .map(|(i, _)| i as u32)
-            .collect()
+        self.dist.iter().enumerate().filter(|(_, &d)| d >= 0).map(|(i, _)| i as u32).collect()
     }
 }
 
@@ -53,9 +48,7 @@ impl EdgeMask {
 /// BFS from `source` (internal index), optionally filtering by edge kind.
 /// Uses GPU kernel when CUDA is available, CPU otherwise.
 pub fn bfs(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> BfsResult {
-    let mask = edge_filter
-        .map(EdgeMask::from_kind)
-        .unwrap_or(EdgeMask::ALL);
+    let mask = edge_filter.map(EdgeMask::from_kind).unwrap_or(EdgeMask::ALL);
     bfs_mask(graph, source, mask)
 }
 
@@ -78,9 +71,7 @@ pub struct DfsResult {
 
 /// DFS from `source` (internal index), optionally filtering by edge kind.
 pub fn dfs(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> DfsResult {
-    let mask = edge_filter
-        .map(EdgeMask::from_kind)
-        .unwrap_or(EdgeMask::ALL);
+    let mask = edge_filter.map(EdgeMask::from_kind).unwrap_or(EdgeMask::ALL);
     let n = graph.n_nodes;
     let mut visited = vec![false; n];
     let mut parent = vec![-1i32; n];
@@ -118,9 +109,7 @@ pub fn dfs(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> DfsR
 /// Compute immediate dominators for all reachable nodes from `start`.
 /// Returns a Vec of `i32` where -1 indicates no dominator (unreachable or root).
 pub fn dominator_tree(graph: &CsrGraph, start: u32, edge_filter: Option<EdgeKind>) -> Vec<i32> {
-    let mask = edge_filter
-        .map(EdgeMask::from_kind)
-        .unwrap_or(EdgeMask::ALL);
+    let mask = edge_filter.map(EdgeMask::from_kind).unwrap_or(EdgeMask::ALL);
     let n = graph.n_nodes;
     let reach = bfs_mask(graph, start, mask);
     let reachable: Vec<bool> = reach.dist.iter().map(|&d| d >= 0).collect();
@@ -187,12 +176,7 @@ pub fn dominator_tree(graph: &CsrGraph, start: u32, edge_filter: Option<EdgeKind
         if v == start as usize || !reachable[v] {
             continue;
         }
-        let candidates: Vec<usize> = dom[v]
-            .iter()
-            .enumerate()
-            .filter(|(i, &d)| d && *i != v)
-            .map(|(i, _)| i)
-            .collect();
+        let candidates: Vec<usize> = dom[v].iter().enumerate().filter(|(i, &d)| d && *i != v).map(|(i, _)| i).collect();
         let mut chosen = None;
         'outer: for d in &candidates {
             for other in &candidates {
@@ -302,25 +286,13 @@ fn bfs_gpu_mask(graph: &CsrGraph, source: u32, mask: EdgeMask) -> BfsResult {
         }
     }
 
-    BfsResult {
-        dist: dist_buf.as_slice().to_vec(),
-        max_dist,
-    }
+    BfsResult { dist: dist_buf.as_slice().to_vec(), max_dist }
 }
 
 #[cfg(feature = "cuda")]
 extern "C" {
     fn launch_bfs_kernel(
-        row_offsets: *const u32,
-        col_indices: *const u32,
-        edge_kinds: *const u8,
-        dist: *mut i32,
-        frontier: *const u32,
-        frontier_size: u32,
-        next_frontier: *mut u32,
-        next_size: *mut u32,
-        current_dist: i32,
-        edge_filter: u8,
-        n_nodes: u32,
+        row_offsets: *const u32, col_indices: *const u32, edge_kinds: *const u8, dist: *mut i32, frontier: *const u32, frontier_size: u32, next_frontier: *mut u32, next_size: *mut u32,
+        current_dist: i32, edge_filter: u8, n_nodes: u32,
     );
 }

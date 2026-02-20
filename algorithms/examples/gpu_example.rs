@@ -4,27 +4,27 @@
 //!   cargo run --example gpu_example --features cuda
 
 #[cfg(feature = "cuda")]
-use algorithms::graph::{adj_list::AdjList, gpu::bfs_gpu};
+use algorithms::control_flow::gpu::{dominators_gpu, reaching_definitions_gpu};
+#[cfg(feature = "cuda")]
+use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, root, PAGE_SIZE};
+#[cfg(feature = "cuda")]
+use algorithms::graph::bellman_ford_gpu::bellman_ford_gpu;
 #[cfg(feature = "cuda")]
 use algorithms::graph::csr_unified::CsrUnified;
 #[cfg(feature = "cuda")]
 use algorithms::graph::gpu::bfs_gpu as bfs_gpu_csr;
 #[cfg(feature = "cuda")]
-use algorithms::graph::bellman_ford_gpu::bellman_ford_gpu;
-#[cfg(feature = "cuda")]
-use algorithms::sorting::gpu::bitonic_sort_gpu;
-#[cfg(feature = "cuda")]
-use algorithms::searching::gpu::linear_search_gpu;
+use algorithms::graph::{adj_list::AdjList, gpu::bfs_gpu};
 #[cfg(feature = "cuda")]
 use algorithms::numerical::gpu::{matrix_multiply_gpu, sieve_gpu};
 #[cfg(feature = "cuda")]
-use algorithms::string_algorithms::gpu::rabin_karp_gpu;
-#[cfg(feature = "cuda")]
 use algorithms::optimization::gpu::genetic_optimize_gpu;
 #[cfg(feature = "cuda")]
-use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, root, PAGE_SIZE};
+use algorithms::searching::gpu::linear_search_gpu;
 #[cfg(feature = "cuda")]
-use algorithms::control_flow::gpu::{dominators_gpu, reaching_definitions_gpu};
+use algorithms::sorting::gpu::bitonic_sort_gpu;
+#[cfg(feature = "cuda")]
+use algorithms::string_algorithms::gpu::rabin_karp_gpu;
 
 fn main() {
     #[cfg(not(feature = "cuda"))]
@@ -45,24 +45,25 @@ fn main() {
         let mut g = AdjList::new(v);
         if chain {
             // linear chain: 0->1->2->...->v-1, stays busy on GPU
-            for i in 0..v-1 { g.add_edge(i, i+1); }
+            for i in 0..v - 1 {
+                g.add_edge(i, i + 1);
+            }
             println!("(stress) {} vertices, linear chain", v);
         } else {
-            g.add_edge(0, 1); g.add_edge(0, 2);
-            g.add_edge(1, 3); g.add_edge(2, 3);
+            g.add_edge(0, 1);
+            g.add_edge(0, 2);
+            g.add_edge(1, 3);
+            g.add_edge(2, 3);
         }
-        let csr    = g.to_csr();
+        let csr = g.to_csr();
         let levels = bfs_gpu(&csr, 0);
 
         // Same graph via unified memory CSR — no cudaMemcpy in the kernel
-        let ucsr   = CsrUnified::from_adj(&g);
+        let ucsr = CsrUnified::from_adj(&g);
         println!("row_ptr (unified, host-readable): {:?}", ucsr.row_ptr_slice());
         println!("col_idx (unified, host-readable): {:?}", ucsr.col_idx_slice());
         // Pass unified pointers directly to bfs kernel via Csr wrapper
-        let csr2   = algorithms::graph::csr::Csr {
-            row_ptr: ucsr.row_ptr_slice().to_vec(),
-            col_idx: ucsr.col_idx_slice().to_vec(),
-        };
+        let csr2 = algorithms::graph::csr::Csr { row_ptr: ucsr.row_ptr_slice().to_vec(), col_idx: ucsr.col_idx_slice().to_vec() };
         let levels2 = bfs_gpu_csr(&csr2, 0);
         println!("BFS via unified CSR: {:?}", levels2);
         if stress {
@@ -76,16 +77,18 @@ fn main() {
         // O(log^2 N) passes, all comparisons parallel within each pass.
         println!("\n=== GPU Bitonic Sort ===");
         let mut arr: Vec<i64> = if stress {
-            let n = 1 << 24;  // 16M elements
+            let n = 1 << 24; // 16M elements
             println!("(stress) sorting {} elements", n);
             (0..n as i64).rev().collect()
         } else {
             vec![9, 3, 7, 1, 5, 8, 2, 6, 4, 0]
         };
-        if !stress { println!("before: {:?}", arr); }
+        if !stress {
+            println!("before: {:?}", arr);
+        }
         bitonic_sort_gpu(&mut arr);
         if stress {
-            println!("sorted: first={} last={}", arr[0], arr[arr.len()-1]);
+            println!("sorted: first={} last={}", arr[0], arr[arr.len() - 1]);
         } else {
             println!("after:  {:?}", arr);
         }
@@ -94,7 +97,7 @@ fn main() {
         // N threads each check one element; atomicMin picks first match.
         println!("\n=== GPU Linear Search ===");
         let haystack: Vec<i64> = if stress {
-            let n = 1 << 26;  // 64M elements
+            let n = 1 << 26; // 64M elements
             println!("(stress) searching {} elements", n);
             (0..n as i64).collect()
         } else {
@@ -103,7 +106,7 @@ fn main() {
         let target = if stress { (1 << 25) as i64 } else { 13i64 };
         match linear_search_gpu(&haystack, target) {
             Some(idx) => println!("found {} at index {}", target, idx),
-            None      => println!("{} not found", target),
+            None => println!("{} not found", target),
         }
 
         // ── 4. Matrix multiply ───────────────────────────────────────────────
@@ -118,7 +121,7 @@ fn main() {
         ];
         let c = matrix_multiply_gpu(&identity, &identity, 3);
         for row in 0..3 {
-            println!("  {:?}", &c[row*3 .. row*3+3]);
+            println!("  {:?}", &c[row * 3..row * 3 + 3]);
         }
 
         // ── 5. Dominators (GPU) ──────────────────────────────────────────────
@@ -167,7 +170,9 @@ fn main() {
         // Each kernel launch marks all multiples of one prime in parallel.
         println!("\n=== GPU Sieve (primes up to 50) ===");
         let limit = if stress { 100_000_000 } else { 50 };
-        if stress { println!("(stress) sieve up to {}", limit); }
+        if stress {
+            println!("(stress) sieve up to {}", limit);
+        }
         let primes = sieve_gpu(limit);
         if stress {
             println!("prime count: {}  largest: {}", primes.len(), primes.last().unwrap());
@@ -178,11 +183,10 @@ fn main() {
         // ── 6. Rabin-Karp string search ──────────────────────────────────────
         // One thread per window; rolling hash match then char verify.
         println!("\n=== GPU Rabin-Karp ===");
-        let text    = b"abracadabra";
+        let text = b"abracadabra";
         let pattern = b"abra";
         let matches = rabin_karp_gpu(text, pattern);
-        println!("pattern \"{}\" found at positions: {:?}",
-            std::str::from_utf8(pattern).unwrap(), matches);
+        println!("pattern \"{}\" found at positions: {:?}", std::str::from_utf8(pattern).unwrap(), matches);
 
         // ── 7. Genetic algorithm ─────────────────────────────────────────────
         // Each thread: tournament select two parents, arithmetic crossover.
@@ -200,10 +204,9 @@ fn main() {
         println!("\n=== GPU Merkle Tree ===");
         let leaf_count = if stress { 1024 } else { 4 };
         let pages = vec![0xabu8; leaf_count * PAGE_SIZE];
-        let tree  = merkle_build_gpu(&pages);
-        let r     = root(&tree);
-        println!("leaves: {}  root: {}", leaf_count,
-            r.iter().map(|b| format!("{:02x}", b)).collect::<String>());
+        let tree = merkle_build_gpu(&pages);
+        let r = root(&tree);
+        println!("leaves: {}  root: {}", leaf_count, r.iter().map(|b| format!("{:02x}", b)).collect::<String>());
 
         // ── 8. Bellman-Ford ──────────────────────────────────────────────────
         // One thread per edge per pass; V-1 passes total.
@@ -211,17 +214,14 @@ fn main() {
         // Graph: 0->1(4), 0->2(1), 2->1(2), 1->3(1)
         // dist from 0: [0, 3, 1, 4]
         println!("\n=== GPU Bellman-Ford ===");
-        let edges: Vec<(usize, usize, u64)> = vec![
-            (0, 1, 4), (0, 2, 1), (2, 1, 2), (1, 3, 1),
-        ];
+        let edges: Vec<(usize, usize, u64)> = vec![(0, 1, 4), (0, 2, 1), (2, 1, 2), (1, 3, 1)];
         match bellman_ford_gpu(4, &edges, 0) {
-            Ok(dist)  => println!("dist from 0: {:?}", dist),
-            Err(msg)  => println!("error: {}", msg),
+            Ok(dist) => println!("dist from 0: {:?}", dist),
+            Err(msg) => println!("error: {}", msg),
         }
 
         if stress {
-            println!("\n(stress) Bellman-Ford on {} vertices {} edges",
-                1024, 1024 * 8);
+            println!("\n(stress) Bellman-Ford on {} vertices {} edges", 1024, 1024 * 8);
             let mut stress_edges: Vec<(usize, usize, u64)> = Vec::new();
             for i in 0usize..1024 {
                 for j in 1..=8usize {
@@ -229,7 +229,7 @@ fn main() {
                 }
             }
             match bellman_ford_gpu(1024, &stress_edges, 0) {
-                Ok(dist) => println!("max dist: {}", dist.iter().filter(|&&d| d < u64::MAX/2).max().unwrap()),
+                Ok(dist) => println!("max dist: {}", dist.iter().filter(|&&d| d < u64::MAX / 2).max().unwrap()),
                 Err(msg) => println!("error: {}", msg),
             }
         }

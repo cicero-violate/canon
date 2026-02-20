@@ -8,9 +8,9 @@
 //!   v = f(w)         => taint(w) ⊆ taint(v)   (propagation)
 //!   sink(v, policy)  => assert taint(v) ∩ policy.forbidden = ∅
 
-use algorithms::graph::dfs::dfs;
 #[cfg(feature = "cuda")]
 use algorithms::graph::csr::Csr;
+use algorithms::graph::dfs::dfs;
 #[cfg(feature = "cuda")]
 use algorithms::graph::gpu::bfs_gpu;
 use std::collections::{HashMap, HashSet};
@@ -25,7 +25,9 @@ pub struct TaintState {
 }
 
 impl TaintState {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add_source(&mut self, var: VarId, label: Label) {
         self.taint.entry(var).or_default().insert(label);
@@ -51,8 +53,7 @@ impl TaintState {
         }
         let mut nodes: Vec<String> = nodes.into_iter().collect();
         nodes.sort();
-        let index: HashMap<String, usize> =
-            nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
+        let index: HashMap<String, usize> = nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
         let Some(&sink_idx) = index.get(var) else {
             return HashSet::new();
         };
@@ -68,7 +69,9 @@ impl TaintState {
             {
                 let csr = Csr::from_adj(&adj);
                 for (src, labels) in &self.taint {
-                    let Some(&src_idx) = index.get(src) else { continue; };
+                    let Some(&src_idx) = index.get(src) else {
+                        continue;
+                    };
                     let levels = bfs_gpu(&csr, src_idx);
                     if levels[sink_idx] >= 0 {
                         for l in labels {
@@ -82,7 +85,9 @@ impl TaintState {
             #[cfg(not(feature = "cuda"))]
             {
                 for (src, labels) in &self.taint {
-                    let Some(&src_idx) = index.get(src) else { continue; };
+                    let Some(&src_idx) = index.get(src) else {
+                        continue;
+                    };
                     let reachable: HashSet<usize> = dfs(&adj, src_idx).into_iter().collect();
                     if reachable.contains(&sink_idx) {
                         for l in labels {
@@ -95,7 +100,9 @@ impl TaintState {
             }
         } else {
             for (src, labels) in &self.taint {
-                let Some(&src_idx) = index.get(src) else { continue; };
+                let Some(&src_idx) = index.get(src) else {
+                    continue;
+                };
                 let reachable: HashSet<usize> = dfs(&adj, src_idx).into_iter().collect();
                 if reachable.contains(&sink_idx) {
                     for l in labels {

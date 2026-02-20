@@ -59,15 +59,9 @@ pub fn discover_all_files(root: &Path) -> Result<DiscoveredFiles> {
         // Collect auxiliary files
         if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
             if file_name == "Cargo.toml" {
-                auxiliary_files.push(AuxiliaryFile {
-                    path: path.to_path_buf(),
-                    kind: AuxiliaryKind::CargoToml,
-                });
+                auxiliary_files.push(AuxiliaryFile { path: path.to_path_buf(), kind: AuxiliaryKind::CargoToml });
             } else if file_name == "build.rs" {
-                auxiliary_files.push(AuxiliaryFile {
-                    path: path.to_path_buf(),
-                    kind: AuxiliaryKind::BuildScript,
-                });
+                auxiliary_files.push(AuxiliaryFile { path: path.to_path_buf(), kind: AuxiliaryKind::BuildScript });
             }
         }
     }
@@ -80,10 +74,7 @@ pub fn discover_all_files(root: &Path) -> Result<DiscoveredFiles> {
     files.sort();
     files.dedup();
 
-    Ok(DiscoveredFiles {
-        rust_files: files,
-        auxiliary_files,
-    })
+    Ok(DiscoveredFiles { rust_files: files, auxiliary_files })
 }
 
 /// Parse Rust files to find include! macro invocations
@@ -101,10 +92,7 @@ fn discover_include_targets(files: &[PathBuf]) -> Result<Vec<PathBuf>> {
             Err(_) => continue, // Skip files we can't parse
         };
 
-        let mut visitor = IncludeVisitor {
-            base_path: file.parent().unwrap_or_else(|| Path::new(".")),
-            targets: &mut targets,
-        };
+        let mut visitor = IncludeVisitor { base_path: file.parent().unwrap_or_else(|| Path::new(".")), targets: &mut targets };
         visitor.visit_file(&ast);
     }
 
@@ -144,10 +132,7 @@ impl<'ast> Visit<'ast> for IncludeVisitor<'_> {
 
 fn is_ignored_dir(path: &Path) -> bool {
     if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-        matches!(
-            name,
-            "target" | ".git" | ".semantic-lint" | "dogfood-output"
-        )
+        matches!(name, "target" | ".git" | ".semantic-lint" | "dogfood-output")
     } else {
         false
     }

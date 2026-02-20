@@ -32,9 +32,7 @@ pub struct EpochCell {
 
 impl EpochCell {
     pub fn new(value: u32) -> Self {
-        Self {
-            inner: AtomicU32::new(value),
-        }
+        Self { inner: AtomicU32::new(value) }
     }
 
     #[inline]

@@ -37,38 +37,15 @@ impl From<serde_json::Error> for ShellDeltaError {
 }
 
 impl ShellDelta {
-    pub fn new(
-        shell_id: u64,
-        epoch: u64,
-        command: impl Into<String>,
-        state_hash: impl Into<String>,
-    ) -> Self {
-        Self {
-            shell_id,
-            epoch,
-            command: command.into(),
-            state_hash: state_hash.into(),
-        }
+    pub fn new(shell_id: u64, epoch: u64, command: impl Into<String>, state_hash: impl Into<String>) -> Self {
+        Self { shell_id, epoch, command: command.into(), state_hash: state_hash.into() }
     }
 
     /// Convert this shell delta into a canonical [`Delta`] payload.
-    pub fn into_delta(
-        &self,
-        delta_id: DeltaID,
-        page_id: PageID,
-        epoch: Epoch,
-    ) -> Result<Delta, ShellDeltaError> {
+    pub fn into_delta(&self, delta_id: DeltaID, page_id: PageID, epoch: Epoch) -> Result<Delta, ShellDeltaError> {
         let payload = self.encode_payload()?;
         let mask = vec![true; payload.len()];
-        Delta::new_dense(
-            delta_id,
-            page_id,
-            epoch,
-            payload,
-            mask,
-            Source(format!("canon.shell/{}", self.shell_id)),
-        )
-        .map_err(ShellDeltaError::from)
+        Delta::new_dense(delta_id, page_id, epoch, payload, mask, Source(format!("canon.shell/{}", self.shell_id))).map_err(ShellDeltaError::from)
     }
 
     /// Attempt to decode a [`ShellDelta`] from a canonical [`Delta`].
@@ -112,12 +89,8 @@ mod tests {
     #[test]
     fn round_trip_shell_delta() {
         let shell = ShellDelta::new(42, 7, "echo hello", "abc123");
-        let delta = shell
-            .into_delta(DeltaID(1), PageID(1), Epoch(0))
-            .expect("encode");
-        let decoded = ShellDelta::try_from_delta(&delta)
-            .expect("decode")
-            .expect("shell payload");
+        let delta = shell.into_delta(DeltaID(1), PageID(1), Epoch(0)).expect("encode");
+        let decoded = ShellDelta::try_from_delta(&delta).expect("decode").expect("shell payload");
         assert_eq!(decoded.shell_id, 42);
         assert_eq!(decoded.epoch, 7);
         assert_eq!(decoded.command, "echo hello");
@@ -128,17 +101,7 @@ mod tests {
     fn non_shell_delta_returns_none() {
         let payload = vec![1, 2, 3];
         let mask = vec![true; payload.len()];
-        let delta = Delta::new_dense(
-            DeltaID(99),
-            PageID(1),
-            Epoch(0),
-            payload,
-            mask,
-            Source("test".into()),
-        )
-        .expect("delta");
-        assert!(ShellDelta::try_from_delta(&delta)
-            .expect("decode")
-            .is_none());
+        let delta = Delta::new_dense(DeltaID(99), PageID(1), Epoch(0), payload, mask, Source("test".into())).expect("delta");
+        assert!(ShellDelta::try_from_delta(&delta).expect("decode").is_none());
     }
 }

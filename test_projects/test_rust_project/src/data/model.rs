@@ -6,9 +6,6 @@ pub struct User {
 
 impl User {
     pub fn new(name: &str, score: u32) -> Self {
-        Self {
-            name: name.to_string(),
-            score,
-        }
+        Self { name: name.to_string(), score }
     }
 }

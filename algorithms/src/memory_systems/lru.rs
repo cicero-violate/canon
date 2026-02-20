@@ -8,11 +8,7 @@ pub struct LruCache<K: Eq + std::hash::Hash + Clone, V> {
 
 impl<K: Eq + std::hash::Hash + Clone, V> LruCache<K, V> {
     pub fn new(capacity: usize) -> Self {
-        Self {
-            capacity,
-            map: HashMap::new(),
-            order: VecDeque::new(),
-        }
+        Self { capacity, map: HashMap::new(), order: VecDeque::new() }
     }
 
     pub fn put(&mut self, key: K, value: V) {

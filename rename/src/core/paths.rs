@@ -4,10 +4,7 @@ use std::path::{Path, PathBuf};
 
 use super::types::{FileRename, SymbolIndex};
 
-pub(crate) fn plan_file_renames(
-    table: &SymbolIndex,
-    mapping: &HashMap<String, String>,
-) -> Result<Vec<FileRename>> {
+pub(crate) fn plan_file_renames(table: &SymbolIndex, mapping: &HashMap<String, String>) -> Result<Vec<FileRename>> {
     let mut renames = Vec::new();
     for (id, new_name) in mapping {
         let Some(sym) = table.symbols.get(id) else {
@@ -41,13 +38,7 @@ pub(crate) fn plan_file_renames(
                         format!("crate::{}", new_name)
                     }
                 };
-                renames.push(FileRename {
-                    from: def_path_string.clone(),
-                    to: new_path,
-                    is_directory_move: true,
-                    old_module_id: sym.id.clone(),
-                    new_module_id,
-                });
+                renames.push(FileRename { from: def_path_string.clone(), to: new_path, is_directory_move: true, old_module_id: sym.id.clone(), new_module_id });
             }
         } else {
             // Handle simple renames within same directory
@@ -59,11 +50,7 @@ pub(crate) fn plan_file_renames(
             // For mod.rs files, the module name is the parent directory name
             let matches_module = if stem == "mod" {
                 // For src/refactor/mod.rs, check if parent dir name matches
-                path.parent()
-                    .and_then(|p| p.file_name())
-                    .and_then(|n| n.to_str())
-                    .map(|dir_name| dir_name == sym.name)
-                    .unwrap_or(false)
+                path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).map(|dir_name| dir_name == sym.name).unwrap_or(false)
             } else {
                 stem == sym.name
             };
@@ -101,25 +88,13 @@ pub(crate) fn plan_file_renames(
                 // Rename the directory
                 let old_dir = path.parent().unwrap();
                 let new_dir = old_dir.parent().unwrap().join(new_name);
-                (
-                    old_dir.to_string_lossy().to_string(),
-                    new_dir.to_string_lossy().to_string(),
-                )
+                (old_dir.to_string_lossy().to_string(), new_dir.to_string_lossy().to_string())
             } else {
                 // Rename the file
-                (
-                    def_path_string.clone(),
-                    new_path.to_string_lossy().to_string(),
-                )
+                (def_path_string.clone(), new_path.to_string_lossy().to_string())
             };
 
-            renames.push(FileRename {
-                from,
-                to,
-                is_directory_move: false,
-                old_module_id: sym.id.clone(),
-                new_module_id,
-            });
+            renames.push(FileRename { from, to, is_directory_move: false, old_module_id: sym.id.clone(), new_module_id });
         }
     }
     Ok(renames)
@@ -129,11 +104,7 @@ pub(crate) fn plan_file_renames(
 /// new_module_path can be either:
 ///   - A module path like "crate::new::location::module"
 ///   - A file path like "src/new/location/module.rs"
-fn compute_new_file_path(
-    old_file: &str,
-    _old_module_id: &str,
-    new_module_path: &str,
-) -> Result<Option<String>> {
+fn compute_new_file_path(old_file: &str, _old_module_id: &str, new_module_path: &str) -> Result<Option<String>> {
     let old_path = Path::new(old_file);
 
     // Determine project root by finding 'src' directory
@@ -162,9 +133,7 @@ fn compute_new_file_path(
         new_module_path
     } else if new_module_path.contains('/') {
         // File path format: "src/foo/bar.rs" or "foo/bar"
-        new_module_path
-            .trim_start_matches("src/")
-            .trim_end_matches(".rs")
+        new_module_path.trim_start_matches("src/").trim_end_matches(".rs")
     } else {
         // Simple name
         new_module_path
@@ -205,10 +174,7 @@ pub(crate) fn module_path_for_file(project: &Path, file: &Path) -> String {
     if rel.components().next().map(|c| c.as_os_str()) == Some("src".as_ref()) {
         rel = rel.strip_prefix("src").unwrap_or(&rel).to_path_buf();
     }
-    let mut parts: Vec<String> = rel
-        .components()
-        .filter_map(|c| c.as_os_str().to_str().map(|s| s.to_string()))
-        .collect();
+    let mut parts: Vec<String> = rel.components().filter_map(|c| c.as_os_str().to_str().map(|s| s.to_string())).collect();
     if parts.is_empty() {
         return "crate".to_string();
     }

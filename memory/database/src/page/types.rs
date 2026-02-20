@@ -52,10 +52,7 @@ pub struct PageAllocatorConfig {
 
 impl Default for PageAllocatorConfig {
     fn default() -> Self {
-        Self {
-            default_location: PageLocation::Cpu,
-            initial_capacity: 1024,
-        }
+        Self { default_location: PageLocation::Cpu, initial_capacity: 1024 }
     }
 }
 

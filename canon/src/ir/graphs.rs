@@ -1,11 +1,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
 use super::{
     ids::{CallEdgeId, FunctionId, SystemGraphId, SystemNodeId, TickGraphId},
     word::Word,
 };
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CallEdge {
@@ -14,23 +12,20 @@ pub struct CallEdge {
     pub callee: FunctionId,
     pub rationale: String,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct TickGraph {
+pub struct ExecutionGraph {
     pub id: TickGraphId,
     pub name: Word,
     pub nodes: Vec<FunctionId>,
     pub edges: Vec<TickEdge>,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TickEdge {
     pub from: FunctionId,
     pub to: FunctionId,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct SystemGraph {
@@ -39,7 +34,6 @@ pub struct SystemGraph {
     pub nodes: Vec<SystemNode>,
     pub edges: Vec<SystemEdge>,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct SystemNode {
@@ -47,7 +41,6 @@ pub struct SystemNode {
     pub function: FunctionId,
     pub kind: SystemNodeKind,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum SystemNodeKind {
@@ -56,7 +49,6 @@ pub enum SystemNodeKind {
     Persist,
     Materialize,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct SystemEdge {
@@ -64,7 +56,6 @@ pub struct SystemEdge {
     pub to: SystemNodeId,
     pub kind: SystemEdgeKind,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum SystemEdgeKind {

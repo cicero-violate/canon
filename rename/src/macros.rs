@@ -30,21 +30,7 @@ fn extract_identifiers_from_tokens(tokens: &TokenStream, identifiers: &mut Vec<(
 }
 /// Check if an identifier is a macro-related keyword
 fn is_macro_keyword(ident: &str) -> bool {
-    matches!(
-        ident,
-        "tt" | "ident"
-            | "path"
-            | "expr"
-            | "ty"
-            | "pat"
-            | "stmt"
-            | "block"
-            | "item"
-            | "meta"
-            | "vis"
-            | "lifetime"
-            | "literal"
-    )
+    matches!(ident, "tt" | "ident" | "path" | "expr" | "ty" | "pat" | "stmt" | "block" | "item" | "meta" | "vis" | "lifetime" | "literal")
 }
 /// Check if an identifier is a metavariable (starts with $)
 fn is_metavariable(ident: &str) -> bool {
@@ -94,18 +80,7 @@ impl MacroInvocationAnalyzer {
 pub fn is_unsupported_macro(macro_path: &syn::Path) -> bool {
     if let Some(ident) = macro_path.get_ident() {
         let name = ident.to_string();
-        matches!(
-            name.as_str(),
-            "include"
-                | "include_str"
-                | "include_bytes"
-                | "concat"
-                | "stringify"
-                | "file"
-                | "line"
-                | "column"
-                | "module_path"
-        )
+        matches!(name.as_str(), "include" | "include_str" | "include_bytes" | "concat" | "stringify" | "file" | "line" | "column" | "module_path")
     } else {
         false
     }
@@ -120,12 +95,7 @@ pub struct MacroHandlingReport {
 }
 impl MacroHandlingReport {
     pub fn new() -> Self {
-        Self {
-            supported_macros: 0,
-            unsupported_macros: Vec::new(),
-            extracted_identifiers: 0,
-            flagged_for_review: Vec::new(),
-        }
+        Self { supported_macros: 0, unsupported_macros: Vec::new(), extracted_identifiers: 0, flagged_for_review: Vec::new() }
     }
     pub fn add_unsupported(&mut self, macro_name: String) {
         self.unsupported_macros.push(macro_name);
@@ -141,10 +111,7 @@ pub struct MacroIdentifierCollector {
 }
 impl MacroIdentifierCollector {
     pub fn new() -> Self {
-        Self {
-            identifiers: Vec::new(),
-            report: MacroHandlingReport::new(),
-        }
+        Self { identifiers: Vec::new(), report: MacroHandlingReport::new() }
     }
     /// Process a macro_rules! definition
     pub fn process_macro_rules_def(&mut self, item_macro: &ItemMacro) {

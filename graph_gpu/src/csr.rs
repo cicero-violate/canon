@@ -61,11 +61,7 @@ impl CsrGraph {
         let e = edges.len();
 
         // Map external id -> internal index
-        let id_map: HashMap<u64, u32> = node_ids
-            .iter()
-            .enumerate()
-            .map(|(i, &id)| (id, i as u32))
-            .collect();
+        let id_map: HashMap<u64, u32> = node_ids.iter().enumerate().map(|(i, &id)| (id, i as u32)).collect();
 
         // Count out-degree per node
         let mut degree = vec![0u32; n];
@@ -111,23 +107,12 @@ impl CsrGraph {
             nid_buf.push(id);
         }
 
-        Self {
-            row_offsets,
-            col_indices,
-            edge_kinds,
-            node_ids: nid_buf,
-            n_nodes: n,
-            n_edges: e_valid,
-        }
+        Self { row_offsets, col_indices, edge_kinds, node_ids: nid_buf, n_nodes: n, n_edges: e_valid }
     }
 
     /// Internal index for an external node id, if present.
     pub fn node_index(&self, external_id: u64) -> Option<u32> {
-        self.node_ids
-            .as_slice()
-            .iter()
-            .position(|&id| id == external_id)
-            .map(|i| i as u32)
+        self.node_ids.as_slice().iter().position(|&id| id == external_id).map(|i| i as u32)
     }
 
     /// Neighbors of internal node index `i` (as internal indices).

@@ -24,32 +24,54 @@ pub mod validate;
 pub mod version_gate;
 pub use agent::record_refactor_reward;
 pub use agent::slice_ir_fields;
-pub use agent::{evolve_capability_graph, GraphEvolutionError, GraphEvolutionResult, GraphMutation, MAX_ENTROPY_DELTA, MIN_NODES, UNDERPERFORM_THRESHOLD};
+pub use agent::{
+    evolve_capability_graph, GraphEvolutionError, GraphEvolutionResult, GraphMutation,
+    MAX_ENTROPY_DELTA, MIN_NODES, UNDERPERFORM_THRESHOLD,
+};
 pub use agent::{load_capability_graph, save_capability_graph};
 pub use agent::{run_refactor_pipeline, RefactorError, RefactorResult, RefactorStage};
-pub use agent::{AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult, CapabilityEdge, CapabilityGraph, CapabilityKind, CapabilityNode, IrField};
-pub use agent::{CapabilityNodeDispatcher, DEFAULT_TRUST_THRESHOLD};
+pub use agent::{
+    AgentCallError, AgentCallId, AgentCallInput, AgentCallOutput, AgentCallResult,
+    CapabilityEdge, AgentGraph, CapabilityKind, AgentNode, IrField,
+};
+pub use agent::{AgentScheduler, DEFAULT_TRUST_THRESHOLD};
 pub use agent::{NodeRewardEntry, NodeRewardLedger, PipelineNodeOutcome};
 pub use agent::{RefactorKind, RefactorProposal, RefactorTarget};
 pub use cli::Command;
 pub use commands::execute_command;
-pub use decision::{accept_proposal, apply_dsl_proposal, AcceptProposalError, AutoAcceptDslError, ProposalAcceptance, ProposalAcceptanceInput};
+pub use decision::{
+    accept_proposal, apply_dsl_proposal, AcceptProposalError, AutoAcceptDslError,
+    ProposalAcceptance, ProposalAcceptanceInput,
+};
 pub use decision::{auto_accept_dot_proposal, AutoAcceptDotError};
 pub use decision::{auto_accept_fn_ast, AutoAcceptFnAstError};
 pub use dot_export::verify_dot;
 pub use evolution::{apply_admitted_deltas, EvolutionError};
-pub use evolution::{enforce_lyapunov_bound, LyapunovError, TopologyFingerprint, DEFAULT_TOPOLOGY_THETA};
+pub use evolution::{
+    enforce_lyapunov_bound, StructureDriftError, StructureMetrics, DEFAULT_TOPOLOGY_THETA,
+};
 pub use gpu::{
     codegen::{flatten_ports, generate_shader, GpuProgram},
     dispatch::{GpuExecutor, GpuExecutorError},
 };
 pub use ir::proposal::{create_proposal_from_dsl, DslProposalArtifacts, DslProposalError};
-pub use ir::{CanonicalIr, PipelineStage};
-pub use layout::{LayoutAssignment, LayoutGraph, LayoutMap, LayoutModule, LayoutNode, LayoutStrategy, OriginalLayoutStrategy, PerTypeLayoutStrategy, SemanticGraph, SingleFileLayoutStrategy};
-pub use materialize::{materialize, render_impl_function, write_file_tree, FileEntry, FileTree, MaterializeResult};
+pub use ir::{SystemState, PipelineStage};
+pub use layout::{
+    FileBinding, FileTopology, LayoutMap, LayoutModule, LayoutNode, LayoutStrategy,
+    OriginalLayoutStrategy, PerTypeLayoutStrategy, ParsedModel, SingleFileLayoutStrategy,
+};
+pub use materialize::{
+    materialize, render_impl_function, write_file_tree, FileEntry, FileTree,
+    MaterializeResult,
+};
 pub use observe::wrap_execution_events_as_deltas;
-pub use patch_protocol::{ApprovedPatchRegistry, PatchApplier, PatchDecision, PatchError, PatchGate, PatchMetadata, PatchProposal, PatchQueue, VerifiedPatch};
-pub use proof::smt_bridge::{attach_function_proofs, verify_function_postconditions, SmtCertificate, SmtError};
+pub use patch_protocol::{
+    ApprovedPatchRegistry, PatchApplier, PatchDecision, PatchError, PatchGate,
+    PatchMetadata, PatchProposal, PatchQueue, VerifiedPatch,
+};
+pub use proof::smt_bridge::{
+    attach_function_proofs, verify_function_postconditions, SmtCertificate, SmtError,
+};
 pub use schema::generate_schema;
 pub use semantic_builder::SemanticIrBuilder;
 pub use validate::{validate_ir, CanonRule, ValidationErrors, Violation};

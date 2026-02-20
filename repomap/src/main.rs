@@ -25,10 +25,5 @@ fn main() {
 
     println!("{}", rendered);
     eprintln!("---");
-    eprintln!(
-        "{} files  |  {} symbols  |  ~{} tokens",
-        maps.len(),
-        maps.iter().map(|m| m.symbols.len()).sum::<usize>(),
-        tokens
-    );
+    eprintln!("{} files  |  {} symbols  |  ~{} tokens", maps.len(), maps.iter().map(|m| m.symbols.len()).sum::<usize>(), tokens);
 }

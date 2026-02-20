@@ -15,10 +15,7 @@ pub struct StructuredAttributeResult {
 
 impl StructuredAttributeResult {
     pub fn new() -> Self {
-        Self {
-            literal_spans: Vec::new(),
-            changed: false,
-        }
+        Self { literal_spans: Vec::new(), changed: false }
     }
 
     pub fn should_skip(&self, span: &SpanRange) -> bool {
@@ -43,8 +40,7 @@ impl StructuredPass for DocAttrPass {
     }
 
     fn execute(&mut self, file: &Path, content: &str, ast: &mut syn::File) -> Result<bool> {
-        let result =
-            rewrite_doc_and_attr_literals(file, content, ast, &self.mapping, &self.config)?;
+        let result = rewrite_doc_and_attr_literals(file, content, ast, &self.mapping, &self.config)?;
         Ok(result.changed)
     }
 
@@ -53,13 +49,7 @@ impl StructuredPass for DocAttrPass {
     }
 }
 
-pub fn rewrite_doc_and_attr_literals(
-    _file: &Path,
-    _content: &str,
-    ast: &mut syn::File,
-    mapping: &HashMap<String, String>,
-    config: &StructuredEditOptions,
-) -> Result<StructuredAttributeResult> {
+pub fn rewrite_doc_and_attr_literals(_file: &Path, _content: &str, ast: &mut syn::File, mapping: &HashMap<String, String>, config: &StructuredEditOptions) -> Result<StructuredAttributeResult> {
     let mut visitor = AttributeRewriteVisitor::new(mapping, config);
     visitor.visit_file_mut(ast);
     Ok(visitor.finish())
@@ -74,12 +64,7 @@ struct AttributeRewriteVisitor {
 
 impl AttributeRewriteVisitor {
     fn new(mapping: &HashMap<String, String>, config: &StructuredEditOptions) -> Self {
-        Self {
-            replacements: build_replacements(mapping),
-            rewrite_docs: config.doc_literals_enabled(),
-            rewrite_attrs: config.attr_literals_enabled(),
-            result: StructuredAttributeResult::new(),
-        }
+        Self { replacements: build_replacements(mapping), rewrite_docs: config.doc_literals_enabled(), rewrite_attrs: config.attr_literals_enabled(), result: StructuredAttributeResult::new() }
     }
 
     fn finish(self) -> StructuredAttributeResult {

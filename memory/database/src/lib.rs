@@ -27,9 +27,7 @@ pub mod proofs;
 pub use engine::Engine;
 pub use transition::MemoryTransition;
 
-pub use memory_engine::{
-    AdmissionError, CommitError, MemoryEngine, MemoryEngineConfig, MemoryEngineError,
-};
+pub use memory_engine::{AdmissionError, CommitError, MemoryEngine, MemoryEngineConfig, MemoryEngineError};
 
 // Re-export CanonicalState for integration tests
 pub use canonical_state::MerkleState;

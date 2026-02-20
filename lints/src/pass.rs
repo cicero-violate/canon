@@ -4,12 +4,9 @@ use rustc_lint::{LateContext, LateLintPass};
 use serde_json;
 
 use crate::classify::classify_item;
-use crate::law::{
-    best_reconnect_target, collect_dead_items, reset_reachability, DEAD_INTEGRATION, FILE_TOO_LONG,
-    enforce_dead_integration, enforce_file_length, reset_cache,
-};
+use crate::law::{best_reconnect_target, collect_dead_items, enforce_dead_integration, enforce_file_length, reset_cache, reset_reachability, DEAD_INTEGRATION, FILE_TOO_LONG};
 use crate::policy::API_TRAITS_ONLY;
-use crate::signal::{LINT_SIGNALS, LintSignal};
+use crate::signal::{LintSignal, LINT_SIGNALS};
 
 use rustc_session::declare_lint_pass;
 
@@ -56,23 +53,13 @@ impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
 
         // Classify item
         let (kind, severity) = classify_item(&item.kind);
-        let signal = LintSignal {
-            policy: "API_TRAITS_ONLY".into(),
-            def_path: cx.tcx.def_path_str(item.owner_id.def_id.to_def_id()),
-            kind: kind.to_string(),
-            module: "api".into(),
-            severity,
-        };
+        let signal = LintSignal { policy: "API_TRAITS_ONLY".into(), def_path: cx.tcx.def_path_str(item.owner_id.def_id.to_def_id()), kind: kind.to_string(), module: "api".into(), severity };
 
-        let signal_json = serde_json::to_string_pretty(&signal)
-            .unwrap_or_else(|err| format!(r#"{{"serialization_error":"{err}"}}"#));
+        let signal_json = serde_json::to_string_pretty(&signal).unwrap_or_else(|err| format!(r#"{{"serialization_error":"{err}"}}"#));
 
         // ---- Human-facing lint emission (PROOF) ----
         cx.span_lint(API_TRAITS_ONLY, item.span, |diag| {
-            diag.note(format!(
-                "Canon lint signal (also stored under canon_store/lint_signals):\n{}",
-                signal_json
-            ));
+            diag.note(format!("Canon lint signal (also stored under canon_store/lint_signals):\n{}", signal_json));
         });
 
         // Emit judgment signal
@@ -95,13 +82,7 @@ impl<'tcx> LateLintPass<'tcx> for ApiTraitsOnly {
 
         for item in dead_items.iter() {
             let (reconnect, score) = best_reconnect_target(item);
-            let signal = crate::signal::LintSignal {
-                policy: "DEAD_INTEGRATION".into(),
-                def_path: item.def_path.clone(),
-                kind: "fn".into(),
-                module: reconnect,
-                severity: score,
-            };
+            let signal = crate::signal::LintSignal { policy: "DEAD_INTEGRATION".into(), def_path: item.def_path.clone(), kind: "fn".into(), module: reconnect, severity: score };
             crate::signal::LINT_SIGNALS.lock().unwrap().push(signal);
         }
     }

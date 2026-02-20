@@ -9,11 +9,7 @@ use std::path::Path;
 const SNAPSHOT_MAGIC: &[u8] = b"MMSBSNAP";
 const SNAPSHOT_VERSION: u32 = 2;
 
-pub fn write_checkpoint(
-    allocator: &PageAllocator,
-    _tlog: &(),
-    path: impl AsRef<Path>,
-) -> std::io::Result<()> {
+pub fn write_checkpoint(allocator: &PageAllocator, _tlog: &(), path: impl AsRef<Path>) -> std::io::Result<()> {
     let pages = allocator.snapshot_pages();
     let log_offset: u64 = 0;
     let mut writer = BufWriter::new(File::create(path)?);
@@ -36,11 +32,7 @@ pub fn write_checkpoint(
 }
 
 // src/02_runtime/checkpoint.rs
-pub fn load_checkpoint(
-    allocator: &PageAllocator,
-    _tlog: &(),
-    path: impl AsRef<Path>,
-) -> std::io::Result<()> {
+pub fn load_checkpoint(allocator: &PageAllocator, _tlog: &(), path: impl AsRef<Path>) -> std::io::Result<()> {
     println!("\nCHECKPOINT LOAD STARTED: {}", path.as_ref().display());
 
     let mut reader = BufReader::new(File::open(path)?);
@@ -49,10 +41,7 @@ pub fn load_checkpoint(
     let mut magic = [0u8; 8];
     reader.read_exact(&mut magic)?;
     if &magic != SNAPSHOT_MAGIC {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("invalid magic: expected {SNAPSHOT_MAGIC:?}, got {magic:?}"),
-        ));
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("invalid magic: expected {SNAPSHOT_MAGIC:?}, got {magic:?}")));
     }
     println!("   Magic OK");
 
@@ -61,10 +50,7 @@ pub fn load_checkpoint(
     reader.read_exact(&mut version_bytes)?;
     let version = u32::from_le_bytes(version_bytes);
     if version != SNAPSHOT_VERSION {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("unsupported version: got {version}, expected {SNAPSHOT_VERSION}"),
-        ));
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("unsupported version: got {version}, expected {SNAPSHOT_VERSION}")));
     }
     println!("   Version OK: {version}");
 
@@ -97,12 +83,7 @@ pub fn load_checkpoint(
         let mut loc_bytes = [0u8; 4];
         reader.read_exact(&mut loc_bytes)?;
         let location_tag = i32::from_le_bytes(loc_bytes);
-        let location = PageLocation::from_tag(location_tag).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("bad location tag {location_tag} for page {id:?}"),
-            )
-        })?;
+        let location = PageLocation::from_tag(location_tag).map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("bad location tag {location_tag} for page {id:?}")))?;
 
         let mut metadata_len_bytes = [0u8; 4];
         reader.read_exact(&mut metadata_len_bytes)?;
@@ -116,26 +97,14 @@ pub fn load_checkpoint(
         let mut data = vec![0u8; data_len];
         reader.read_exact(&mut data)?;
 
-        println!(
-            "   Page {i}: ID={id:?} size={size} epoch={epoch} loc={location:?} data_len={data_len}"
-        );
+        println!("   Page {i}: ID={id:?} size={size} epoch={epoch} loc={location:?} data_len={data_len}");
 
-        snapshots.push(PageSnapshotData {
-            page_id: id,
-            epoch: Epoch(epoch),
-            location,
-            data,
-        });
+        snapshots.push(PageSnapshotData { page_id: id, epoch: Epoch(epoch), location, data });
     }
 
-    println!(
-        "CALLING allocator.restore_from_snapshot() with {} pages...",
-        snapshots.len()
-    );
+    println!("CALLING allocator.restore_from_snapshot() with {} pages...", snapshots.len());
     for snapshot in snapshots {
-        allocator.restore(&snapshot).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::Other, format!("restore failed: {e:?}"))
-        })?;
+        allocator.restore(&snapshot).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("restore failed: {e:?}")))?;
     }
     println!("restore_from_snapshot() → SUCCESS");
     Ok(())

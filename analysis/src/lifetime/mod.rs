@@ -7,9 +7,9 @@
 //!   region(r) ⊇ { p | r is used at p }
 //!   region(r) ⊇ region(r') if r: r' (outlives constraint)
 
-use algorithms::graph::dfs::dfs;
 #[cfg(feature = "cuda")]
 use algorithms::graph::csr::Csr;
+use algorithms::graph::dfs::dfs;
 #[cfg(feature = "cuda")]
 use algorithms::graph::gpu::bfs_gpu;
 use std::collections::{HashMap, HashSet};
@@ -24,7 +24,9 @@ pub struct LifetimeRegions {
 }
 
 impl LifetimeRegions {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add_live_point(&mut self, region: Region, point: ProgramPoint) {
         self.regions.entry(region).or_default().insert(point);
@@ -43,8 +45,7 @@ impl LifetimeRegions {
         }
         let mut nodes: Vec<String> = all.into_iter().collect();
         nodes.sort();
-        let index: HashMap<String, usize> =
-            nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
+        let index: HashMap<String, usize> = nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
         let mut adj: Vec<Vec<usize>> = vec![Vec::new(); nodes.len()];
         for (r, r_prime) in &self.outlives {
             if let (Some(&ri), Some(&rpi)) = (index.get(r), index.get(r_prime)) {
@@ -56,7 +57,9 @@ impl LifetimeRegions {
             {
                 let csr = Csr::from_adj(&adj);
                 for (region, points) in self.regions.clone().into_iter() {
-                    let Some(&start) = index.get(&region) else { continue; };
+                    let Some(&start) = index.get(&region) else {
+                        continue;
+                    };
                     let levels = bfs_gpu(&csr, start);
                     for (r_idx, lvl) in levels.iter().enumerate() {
                         if *lvl >= 0 {
@@ -70,7 +73,9 @@ impl LifetimeRegions {
             #[cfg(not(feature = "cuda"))]
             {
                 for (region, points) in self.regions.clone().into_iter() {
-                    let Some(&start) = index.get(&region) else { continue; };
+                    let Some(&start) = index.get(&region) else {
+                        continue;
+                    };
                     for r_idx in dfs(&adj, start) {
                         let r_name = &nodes[r_idx];
                         let entry = self.regions.entry(r_name.clone()).or_default();
@@ -80,7 +85,9 @@ impl LifetimeRegions {
             }
         } else {
             for (region, points) in self.regions.clone().into_iter() {
-                let Some(&start) = index.get(&region) else { continue; };
+                let Some(&start) = index.get(&region) else {
+                    continue;
+                };
                 for r_idx in dfs(&adj, start) {
                     let r_name = &nodes[r_idx];
                     let entry = self.regions.entry(r_name.clone()).or_default();

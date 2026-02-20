@@ -71,11 +71,7 @@ impl StructuredEditTracker {
         if parts.is_empty() {
             format!("{} files via structured edits", self.files.len())
         } else {
-            format!(
-                "{} files via structured edits ({})",
-                self.files.len(),
-                parts.join(", ")
-            )
+            format!("{} files via structured edits ({})", self.files.len(), parts.join(", "))
         }
     }
 }

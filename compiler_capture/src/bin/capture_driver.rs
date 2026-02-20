@@ -45,14 +45,18 @@ fn main() {
     let req: CaptureRequest = serde_json::from_str(&stdin).expect("parse request");
 
     for (k, v) in &req.env_vars {
-        unsafe { std::env::set_var(k, v); }
+        unsafe {
+            std::env::set_var(k, v);
+        }
     }
 
     let mut cb = DriverCb { deltas: None, meta: req.metadata.clone() };
     let exit = catch_with_exit_code(|| run_compiler(&req.args, &mut cb));
 
     for (k, _) in &req.env_vars {
-        unsafe { std::env::remove_var(k); }
+        unsafe {
+            std::env::remove_var(k);
+        }
     }
 
     if exit != ExitCode::SUCCESS {
@@ -91,8 +95,12 @@ fn collect<'tcx>(tcx: TyCtxt<'tcx>, meta: &Metadata) -> Vec<GraphDelta> {
         metadata: {
             let mut m = BTreeMap::new();
             m.insert("kind".into(), "crate".into());
-            if let Some(p) = &meta.package_name { m.insert("package".into(), p.clone()); }
-            if let Some(v) = &meta.package_version { m.insert("version".into(), v.clone()); }
+            if let Some(p) = &meta.package_name {
+                m.insert("package".into(), p.clone());
+            }
+            if let Some(v) = &meta.package_version {
+                m.insert("version".into(), v.clone());
+            }
             m
         },
     }));
@@ -117,12 +125,7 @@ fn collect<'tcx>(tcx: TyCtxt<'tcx>, meta: &Metadata) -> Vec<GraphDelta> {
             metadata.insert("visibility".into(), format!("{:?}", vis).to_lowercase());
         }
 
-        out.push(GraphDelta::AddNode(database::graph_log::WireNode {
-            id: node_id.clone(),
-            key: path.clone(),
-            label,
-            metadata,
-        }));
+        out.push(GraphDelta::AddNode(database::graph_log::WireNode { id: node_id.clone(), key: path.clone(), label, metadata }));
         out.push(GraphDelta::AddEdge(database::graph_log::WireEdge {
             id: WireEdgeId::from_components(&crate_id, &node_id, "contains"),
             from: crate_id.clone(),
@@ -135,17 +138,17 @@ fn collect<'tcx>(tcx: TyCtxt<'tcx>, meta: &Metadata) -> Vec<GraphDelta> {
     // Call edges from MIR
     for &local_def in tcx.mir_keys(()).iter() {
         let caller_def_id = local_def.to_def_id();
-        if !matches!(tcx.def_kind(caller_def_id), DefKind::Fn | DefKind::AssocFn) { continue; }
-        if !tcx.is_mir_available(caller_def_id) { continue; }
+        if !matches!(tcx.def_kind(caller_def_id), DefKind::Fn | DefKind::AssocFn) {
+            continue;
+        }
+        if !tcx.is_mir_available(caller_def_id) {
+            continue;
+        }
         let body = tcx.optimized_mir(local_def);
         let caller_path = tcx.def_path_str(caller_def_id);
         let caller_id = WireNodeId::from_key(&caller_path);
 
-        let is_unsafe = body.basic_blocks.iter().any(|bb| {
-            bb.statements.iter().any(|s| {
-                matches!(s.kind, rustc_middle::mir::StatementKind::Intrinsic(_))
-            })
-        });
+        let is_unsafe = body.basic_blocks.iter().any(|bb| bb.statements.iter().any(|s| matches!(s.kind, rustc_middle::mir::StatementKind::Intrinsic(_))));
         {
             let mut metadata = BTreeMap::new();
             metadata.insert("kind".into(), "fn".into());
@@ -154,21 +157,14 @@ fn collect<'tcx>(tcx: TyCtxt<'tcx>, meta: &Metadata) -> Vec<GraphDelta> {
             if let Some(tn) = &meta.target_name {
                 metadata.insert("target_name".into(), tn.clone());
             }
-            out.push(GraphDelta::AddNode(database::graph_log::WireNode {
-                id: caller_id.clone(),
-                key: caller_path.clone(),
-                label: "fn".into(),
-                metadata,
-            }));
+            out.push(GraphDelta::AddNode(database::graph_log::WireNode { id: caller_id.clone(), key: caller_path.clone(), label: "fn".into(), metadata }));
         }
 
         for bb in body.basic_blocks.iter() {
             if let Some(term) = &bb.terminator {
                 if let rustc_middle::mir::TerminatorKind::Call { func, .. } = &term.kind {
                     if let rustc_middle::mir::Operand::Constant(box_const) = func {
-                        if let rustc_middle::ty::TyKind::FnDef(callee_def_id, _) =
-                            box_const.const_.ty().kind()
-                        {
+                        if let rustc_middle::ty::TyKind::FnDef(callee_def_id, _) = box_const.const_.ty().kind() {
                             let callee_path = tcx.def_path_str(*callee_def_id);
                             let callee_id = WireNodeId::from_key(&callee_path);
                             out.push(GraphDelta::AddEdge(database::graph_log::WireEdge {

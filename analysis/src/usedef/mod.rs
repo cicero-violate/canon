@@ -23,7 +23,9 @@ pub struct UseDefChains {
 }
 
 impl UseDefChains {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add_chain(&mut self, def_site: SiteId, use_site: SiteId) {
         self.def_use.entry(def_site.clone()).or_default().push(use_site.clone());
@@ -32,11 +34,7 @@ impl UseDefChains {
 
     /// Variables used before any reaching definition (potential UB).
     pub fn used_before_defined(&self) -> Vec<SiteId> {
-        let items: Vec<SiteId> = self.use_def
-            .iter()
-            .filter(|(_, defs)| defs.is_empty())
-            .map(|(u, _)| u.clone())
-            .collect();
+        let items: Vec<SiteId> = self.use_def.iter().filter(|(_, defs)| defs.is_empty()).map(|(u, _)| u.clone()).collect();
         merge_sort(&items)
     }
 }

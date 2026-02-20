@@ -20,22 +20,14 @@ pub struct MmapLog {
 
 impl MmapLog {
     pub fn open(path: &Path, size: usize) -> std::io::Result<Self> {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(path)?;
+        let file = OpenOptions::new().read(true).write(true).create(true).open(path)?;
 
         let initial = size.max(HEADER_REGION);
         file.set_len(initial as u64)?;
 
         let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
 
-        Ok(Self {
-            file,
-            mmap,
-            write_offset: HEADER_REGION,
-        })
+        Ok(Self { file, mmap, write_offset: HEADER_REGION })
     }
 
     pub fn append(&mut self, data: &[u8]) -> std::io::Result<()> {
@@ -43,10 +35,7 @@ impl MmapLog {
         let framed_len = 8 + data.len() + 4;
         let end = self.write_offset + framed_len;
         if end > self.mmap.len() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "WAL full; compaction required",
-            ));
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "WAL full; compaction required"));
         }
 
         let len_bytes = (data.len() as u64).to_le_bytes();
@@ -73,10 +62,7 @@ impl MmapLog {
         // Enforce strict monotonic generation fencing
         if let Some(current) = self.read_latest_root()? {
             if header.generation <= current.generation {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "non-monotonic root header generation",
-                ));
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "non-monotonic root header generation"));
             }
         }
 
@@ -98,10 +84,7 @@ impl MmapLog {
             let bytes = &self.mmap[offset..offset + HEADER_SIZE];
             let header: RootHeader = *bytemuck::from_bytes(bytes);
             if header.is_valid() {
-                if best
-                    .map(|b| header.generation > b.generation)
-                    .unwrap_or(true)
-                {
+                if best.map(|b| header.generation > b.generation).unwrap_or(true) {
                     best = Some(header);
                 }
             }
@@ -114,8 +97,7 @@ impl MmapLog {
         let mut offset = HEADER_REGION;
 
         while offset + 8 <= self.mmap.len() {
-            let len =
-                u64::from_le_bytes(self.mmap[offset..offset + 8].try_into().unwrap()) as usize;
+            let len = u64::from_le_bytes(self.mmap[offset..offset + 8].try_into().unwrap()) as usize;
 
             let record_total = 8 + len + 4;
 
@@ -130,8 +112,7 @@ impl MmapLog {
 
             // Verify CRC
             let crc_offset = end;
-            let stored_crc =
-                u32::from_le_bytes(self.mmap[crc_offset..crc_offset + 4].try_into().unwrap());
+            let stored_crc = u32::from_le_bytes(self.mmap[crc_offset..crc_offset + 4].try_into().unwrap());
 
             let mut hasher = Hasher::new();
             hasher.update(payload);
