@@ -4,8 +4,8 @@ use std::path::Path;
 use syn::visit::Visit;
 
 use crate::fs;
-use crate::rename::alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
-use crate::rename::occurrence::EnhancedOccurrenceVisitor;
+use crate::alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
+use crate::occurrence::EnhancedOccurrenceVisitor;
 
 use super::paths::module_path_for_file;
 use super::symbol_id::normalize_symbol_id;

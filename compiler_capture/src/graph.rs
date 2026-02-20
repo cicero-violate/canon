@@ -103,7 +103,8 @@ impl DeltaCollector {
     }
 
     pub fn add_edge(&mut self, payload: EdgePayload) -> EdgeId {
-        let edge_id = WireEdgeId::from_components(&payload.from, &payload.to, payload.kind.as_str());
+        let edge_id =
+            WireEdgeId::from_components(&payload.from, &payload.to, payload.kind.as_str());
         let edge = WireEdge {
             id: edge_id.clone(),
             from: payload.from,

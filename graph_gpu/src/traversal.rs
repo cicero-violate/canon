@@ -1,9 +1,9 @@
 //! Graph traversal — BFS with GPU acceleration when available,
 //! CPU fallback otherwise. Same API either way.
 use crate::csr::{CsrGraph, EdgeKind};
-use crate::unified::{cuda_available, device_sync};
 #[cfg(feature = "cuda")]
 use crate::unified::UnifiedVec;
+use crate::unified::{cuda_available, device_sync};
 
 /// Result of a BFS traversal.
 pub struct BfsResult {
@@ -53,7 +53,9 @@ impl EdgeMask {
 /// BFS from `source` (internal index), optionally filtering by edge kind.
 /// Uses GPU kernel when CUDA is available, CPU otherwise.
 pub fn bfs(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> BfsResult {
-    let mask = edge_filter.map(EdgeMask::from_kind).unwrap_or(EdgeMask::ALL);
+    let mask = edge_filter
+        .map(EdgeMask::from_kind)
+        .unwrap_or(EdgeMask::ALL);
     bfs_mask(graph, source, mask)
 }
 
@@ -76,7 +78,9 @@ pub struct DfsResult {
 
 /// DFS from `source` (internal index), optionally filtering by edge kind.
 pub fn dfs(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> DfsResult {
-    let mask = edge_filter.map(EdgeMask::from_kind).unwrap_or(EdgeMask::ALL);
+    let mask = edge_filter
+        .map(EdgeMask::from_kind)
+        .unwrap_or(EdgeMask::ALL);
     let n = graph.n_nodes;
     let mut visited = vec![false; n];
     let mut parent = vec![-1i32; n];
@@ -113,12 +117,10 @@ pub fn dfs(graph: &CsrGraph, source: u32, edge_filter: Option<EdgeKind>) -> DfsR
 
 /// Compute immediate dominators for all reachable nodes from `start`.
 /// Returns a Vec of `i32` where -1 indicates no dominator (unreachable or root).
-pub fn dominator_tree(
-    graph: &CsrGraph,
-    start: u32,
-    edge_filter: Option<EdgeKind>,
-) -> Vec<i32> {
-    let mask = edge_filter.map(EdgeMask::from_kind).unwrap_or(EdgeMask::ALL);
+pub fn dominator_tree(graph: &CsrGraph, start: u32, edge_filter: Option<EdgeKind>) -> Vec<i32> {
+    let mask = edge_filter
+        .map(EdgeMask::from_kind)
+        .unwrap_or(EdgeMask::ALL);
     let n = graph.n_nodes;
     let reach = bfs_mask(graph, start, mask);
     let reachable: Vec<bool> = reach.dist.iter().map(|&d| d >= 0).collect();
@@ -224,12 +226,16 @@ fn bfs_cpu_mask(graph: &CsrGraph, source: u32, mask: EdgeMask) -> BfsResult {
     while let Some(u) = queue.pop_front() {
         let d = dist[u as usize];
         let neighbors = graph.neighbors(u);
-        let kinds     = graph.neighbor_kinds(u);
+        let kinds = graph.neighbor_kinds(u);
         for (&v, &k) in neighbors.iter().zip(kinds.iter()) {
-            if !mask.allows(k) { continue; }
+            if !mask.allows(k) {
+                continue;
+            }
             if dist[v as usize] == -1 {
                 dist[v as usize] = d + 1;
-                if d + 1 > max_dist { max_dist = d + 1; }
+                if d + 1 > max_dist {
+                    max_dist = d + 1;
+                }
                 queue.push_back(v);
             }
         }
@@ -244,10 +250,10 @@ fn bfs_gpu_mask(graph: &CsrGraph, source: u32, mask: EdgeMask) -> BfsResult {
     let n = graph.n_nodes;
 
     // All in unified memory — GPU kernel reads row_offsets/col_indices directly.
-    let mut dist_buf     = UnifiedVec::<i32>::with_capacity(n);
+    let mut dist_buf = UnifiedVec::<i32>::with_capacity(n);
     let mut frontier_buf = UnifiedVec::<u32>::with_capacity(n);
-    let mut next_buf     = UnifiedVec::<u32>::with_capacity(n);
-    let mut next_size    = UnifiedVec::<u32>::with_capacity(1);
+    let mut next_buf = UnifiedVec::<u32>::with_capacity(n);
+    let mut next_size = UnifiedVec::<u32>::with_capacity(1);
 
     dist_buf.fill(-1i32);
     frontier_buf.fill(0u32);
@@ -259,8 +265,8 @@ fn bfs_gpu_mask(graph: &CsrGraph, source: u32, mask: EdgeMask) -> BfsResult {
     frontier_buf.as_mut_slice()[0] = source;
 
     let mut frontier_size = 1u32;
-    let mut current_dist  = 0i32;
-    let mut max_dist      = 0i32;
+    let mut current_dist = 0i32;
+    let mut max_dist = 0i32;
 
     while frontier_size > 0 {
         next_size.as_mut_slice()[0] = 0;
@@ -286,11 +292,13 @@ fn bfs_gpu_mask(graph: &CsrGraph, source: u32, mask: EdgeMask) -> BfsResult {
         frontier_size = next_size.as_slice()[0];
         if frontier_size > 0 {
             // Swap frontier and next buffers by copying next -> frontier
-            let next_sl     = next_buf.as_slice()[..frontier_size as usize].to_vec();
+            let next_sl = next_buf.as_slice()[..frontier_size as usize].to_vec();
             let frontier_sl = frontier_buf.as_mut_slice();
             frontier_sl[..frontier_size as usize].copy_from_slice(&next_sl);
             current_dist += 1;
-            if current_dist > max_dist { max_dist = current_dist; }
+            if current_dist > max_dist {
+                max_dist = current_dist;
+            }
         }
     }
 
@@ -303,16 +311,16 @@ fn bfs_gpu_mask(graph: &CsrGraph, source: u32, mask: EdgeMask) -> BfsResult {
 #[cfg(feature = "cuda")]
 extern "C" {
     fn launch_bfs_kernel(
-        row_offsets:   *const u32,
-        col_indices:   *const u32,
-        edge_kinds:    *const u8,
-        dist:          *mut i32,
-        frontier:      *const u32,
+        row_offsets: *const u32,
+        col_indices: *const u32,
+        edge_kinds: *const u8,
+        dist: *mut i32,
+        frontier: *const u32,
         frontier_size: u32,
         next_frontier: *mut u32,
-        next_size:     *mut u32,
-        current_dist:  i32,
-        edge_filter:   u8,
-        n_nodes:       u32,
+        next_size: *mut u32,
+        current_dist: i32,
+        edge_filter: u8,
+        n_nodes: u32,
     );
 }

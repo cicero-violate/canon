@@ -1,11 +1,11 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use syn::spanned::Spanned;
 
 use super::ast_render;
-use crate::rename::core::{LineColumn, span_to_offsets};
+use crate::core::{span_to_offsets, LineColumn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AstEdit {
@@ -53,7 +53,10 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
 
     let mut edits_by_file: HashMap<PathBuf, Vec<&AstEdit>> = HashMap::new();
     for edit in edits {
-        edits_by_file.entry(edit.file.clone()).or_default().push(edit);
+        edits_by_file
+            .entry(edit.file.clone())
+            .or_default()
+            .push(edit);
     }
 
     for (file, file_edits) in edits_by_file {
@@ -62,8 +65,8 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
         let mut changed = false;
 
         for edit in file_edits {
-            let replacement_file =
-                syn::parse_file(&edit.replacement).or_else(|_| syn::parse_file(&format!("{}\n", edit.replacement)))?;
+            let replacement_file = syn::parse_file(&edit.replacement)
+                .or_else(|_| syn::parse_file(&format!("{}\n", edit.replacement)))?;
             let replacement_items = replacement_file.items;
 
             if edit.start == edit.end {
@@ -71,7 +74,13 @@ pub fn apply_ast_rewrites(edits: &[AstEdit], format: bool) -> Result<Vec<PathBuf
                     changed = true;
                 }
             } else {
-                if replace_items_in_range(&mut ast, content, edit.start, edit.end, replacement_items)? {
+                if replace_items_in_range(
+                    &mut ast,
+                    content,
+                    edit.start,
+                    edit.end,
+                    replacement_items,
+                )? {
                     changed = true;
                 }
             }

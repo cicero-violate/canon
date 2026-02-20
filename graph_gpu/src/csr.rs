@@ -12,10 +12,10 @@ use std::collections::HashMap;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EdgeKind {
-    Contains     = 0,
-    Call         = 1,
-    ControlFlow  = 2,
-    Reference    = 3,
+    Contains = 0,
+    Call = 1,
+    ControlFlow = 2,
+    Reference = 3,
 }
 
 impl EdgeKind {
@@ -32,8 +32,8 @@ impl EdgeKind {
 /// Input edge for the CSR builder.
 #[derive(Debug, Clone)]
 pub struct InputEdge {
-    pub from: u64,   // external node id
-    pub to:   u64,
+    pub from: u64, // external node id
+    pub to: u64,
     pub kind: EdgeKind,
 }
 
@@ -44,9 +44,9 @@ pub struct CsrGraph {
     /// Neighbor node indices (column indices)
     pub col_indices: UnifiedVec<u32>,
     /// Edge kind per col_index
-    pub edge_kinds:  UnifiedVec<u8>,
+    pub edge_kinds: UnifiedVec<u8>,
     /// External node IDs indexed by internal index
-    pub node_ids:    UnifiedVec<u64>,
+    pub node_ids: UnifiedVec<u64>,
     /// Number of nodes
     pub n_nodes: usize,
     /// Number of edges
@@ -88,7 +88,7 @@ impl CsrGraph {
 
         let e_valid = valid_edges.len();
         let mut col_indices = UnifiedVec::<u32>::with_capacity(e_valid);
-        let mut edge_kinds  = UnifiedVec::<u8>::with_capacity(e_valid);
+        let mut edge_kinds = UnifiedVec::<u8>::with_capacity(e_valid);
 
         // Temporary write cursors
         let mut cursor = row_offsets.as_slice()[..n].to_vec();
@@ -101,7 +101,7 @@ impl CsrGraph {
         for (from, to, kind) in &valid_edges {
             let pos = cursor[*from as usize] as usize;
             col_indices.as_mut_slice()[pos] = *to;
-            edge_kinds.as_mut_slice()[pos]  = *kind;
+            edge_kinds.as_mut_slice()[pos] = *kind;
             cursor[*from as usize] += 1;
         }
 
@@ -134,7 +134,7 @@ impl CsrGraph {
     pub fn neighbors(&self, i: u32) -> &[u32] {
         let offsets = self.row_offsets.as_slice();
         let start = offsets[i as usize] as usize;
-        let end   = offsets[i as usize + 1] as usize;
+        let end = offsets[i as usize + 1] as usize;
         &self.col_indices.as_slice()[start..end]
     }
 
@@ -142,7 +142,7 @@ impl CsrGraph {
     pub fn neighbor_kinds(&self, i: u32) -> &[u8] {
         let offsets = self.row_offsets.as_slice();
         let start = offsets[i as usize] as usize;
-        let end   = offsets[i as usize + 1] as usize;
+        let end = offsets[i as usize + 1] as usize;
         &self.edge_kinds.as_slice()[start..end]
     }
 }

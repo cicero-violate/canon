@@ -161,7 +161,10 @@ fn load_cargo_metadata(root: &Path) -> io::Result<CargoMetadata> {
         .current_dir(root)
         .output()?;
     if !output.status.success() {
-        return Err(io::Error::new(io::ErrorKind::Other, "cargo metadata failed"));
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "cargo metadata failed",
+        ));
     }
     let meta: CargoMetadata = serde_json::from_slice(&output.stdout)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;

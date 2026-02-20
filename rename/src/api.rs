@@ -7,11 +7,11 @@
 //!
 //! The goal is to let callers script transformations without touching the lower-level
 //! rename pipeline directly.
-use anyhow::{Result, bail};
+use super::core::{apply_rename_with_map, collect_names, SymbolIndexReport, SymbolRecord};
+use super::structured::{apply_ast_rewrites, AstEdit, NodeOp};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use super::core::{SymbolIndexReport, SymbolRecord, apply_rename_with_map, collect_names};
-use super::structured::{AstEdit, NodeOp, apply_ast_rewrites};
 /// Serializable request for querying symbol metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryRequest {
@@ -244,7 +244,7 @@ mod tests {
         assert!(query.name_contains.is_none());
         let mutation = MutationRequest::default();
         assert!(mutation.renames.is_empty());
-        assert!(! mutation.dry_run);
+        assert!(!mutation.dry_run);
         assert!(mutation.preview_path.is_none());
         let upsert = UpsertRequest::default();
         assert!(upsert.edits.is_empty());
@@ -268,7 +268,10 @@ mod tests {
         let payload = serde_json::to_string(&request).unwrap();
         let response_raw = execute_upsert_json(&payload).unwrap();
         let response: serde_json::Value = serde_json::from_str(&response_raw).unwrap();
-        assert_eq!(response["touched_files"].as_array().map(| a | a.len()), Some(1));
+        assert_eq!(
+            response["touched_files"].as_array().map(|a| a.len()),
+            Some(1)
+        );
         let contents = fs::read_to_string(&file).unwrap();
         assert!(contents.contains("added"));
     }

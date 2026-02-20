@@ -1,18 +1,13 @@
-use anyhow::Result;
-use std::collections::HashMap;
-use std::path::Path;
 use super::config::StructuredEditOptions;
 use super::doc_attr::DocAttrPass;
 use super::use_tree::UsePathRewritePass;
-use crate::rename::alias::ImportNode;
+use crate::alias::ImportNode;
+use anyhow::Result;
+use std::collections::HashMap;
+use std::path::Path;
 pub trait StructuredPass {
     fn name(&self) -> &'static str;
-    fn execute(
-        &mut self,
-        file: &Path,
-        content: &str,
-        ast: &mut syn::File,
-    ) -> Result<bool>;
+    fn execute(&mut self, file: &Path, content: &str, ast: &mut syn::File) -> Result<bool>;
     fn is_enabled(&self) -> bool {
         true
     }
@@ -61,9 +56,10 @@ pub fn create_rename_orchestrator(
 ) -> StructuredPassRunner {
     let mut orchestrator = StructuredPassRunner::new();
     orchestrator.add_pass(Box::new(DocAttrPass::new(mapping.clone(), config.clone())));
-    orchestrator
-        .add_pass(
-            Box::new(UsePathRewritePass::new(path_updates.clone(), alias_nodes, config)),
-        );
+    orchestrator.add_pass(Box::new(UsePathRewritePass::new(
+        path_updates.clone(),
+        alias_nodes,
+        config,
+    )));
     orchestrator
 }

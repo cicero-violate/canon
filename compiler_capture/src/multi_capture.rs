@@ -1,11 +1,11 @@
 //! Capture helpers that merge multiple cargo targets into a single delta stream.
 
 use crate::compiler_capture::frontends::rustc::{RustcFrontend, RustcFrontendError};
-use crate::compiler_capture::project::CargoProject;
 use crate::compiler_capture::graph::{GraphDelta, NodeId};
+use crate::compiler_capture::project::CargoProject;
 use crate::compiler_capture::workspace::{GraphWorkspace, WorkspaceBuilder};
-use database::{MemoryEngine, MemoryEngineConfig, MemoryEngineError};
 use database::graph_log::WireEdgeId;
+use database::{MemoryEngine, MemoryEngineConfig, MemoryEngineError};
 
 /// Captured artifacts from a workspace build (delta stream + workspace overlay).
 pub struct CaptureArtifacts {
@@ -95,8 +95,7 @@ pub fn capture_project(
                 target_frontend = target_frontend.with_rust_version(rust_version.clone());
             }
         }
-        let deltas = target_frontend
-            .capture_deltas(&target.src_path, &args, &env_vars)?;
+        let deltas = target_frontend.capture_deltas(&target.src_path, &args, &env_vars)?;
 
         use std::collections::HashMap;
         let mut id_map = HashMap::new();
@@ -125,7 +124,8 @@ pub fn capture_project(
                     id_map.insert(node.id.clone(), new_id.clone());
                     node.id = new_id;
                     node.key = norm_key;
-                    node.metadata.insert("target_name".into(), target.name.clone());
+                    node.metadata
+                        .insert("target_name".into(), target.name.clone());
                     node.metadata.insert("target_kind".into(), target_kind);
                     graph_deltas.push(GraphDelta::AddNode(node.clone()));
                     engine
@@ -133,9 +133,9 @@ pub fn capture_project(
                         .map_err(CaptureError::Engine)?;
                 }
                 GraphDelta::AddEdge(mut edge) => {
-                    let from = id_map
-                        .get(&edge.from)
-                        .ok_or_else(|| CaptureError::Generic("edge.from missing in id_map".into()))?;
+                    let from = id_map.get(&edge.from).ok_or_else(|| {
+                        CaptureError::Generic("edge.from missing in id_map".into())
+                    })?;
                     let to = id_map
                         .get(&edge.to)
                         .ok_or_else(|| CaptureError::Generic("edge.to missing in id_map".into()))?;

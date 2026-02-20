@@ -4,9 +4,9 @@ use std::path::Path;
 
 use syn::visit_mut::VisitMut;
 
-use crate::rename::alias::ImportNode;
 use super::config::StructuredEditOptions;
 use super::orchestrator::StructuredPass;
+use crate::alias::ImportNode;
 
 pub struct UsePathRewritePass {
     path_updates: HashMap<String, String>,
@@ -33,12 +33,7 @@ impl StructuredPass for UsePathRewritePass {
         "use_tree"
     }
 
-    fn execute(
-        &mut self,
-        _file: &Path,
-        _content: &str,
-        ast: &mut syn::File,
-    ) -> Result<bool> {
+    fn execute(&mut self, _file: &Path, _content: &str, ast: &mut syn::File) -> Result<bool> {
         if !self.config.use_statements_enabled() {
             return Ok(false);
         }
@@ -77,7 +72,12 @@ impl<'a> VisitMut for UseAstRewriter<'a> {
         if node.leading_colon.is_some() {
             current_path.push("crate".to_string());
         }
-        rewrite_use_tree_mut(&mut node.tree, self.updates, &mut self.changed, &mut current_path);
+        rewrite_use_tree_mut(
+            &mut node.tree,
+            self.updates,
+            &mut self.changed,
+            &mut current_path,
+        );
         syn::visit_mut::visit_item_use_mut(self, node);
     }
 }
@@ -95,11 +95,8 @@ fn rewrite_use_tree_mut(
 
             let path_str = current_path.join("::");
             if let Some(new_path) = find_replacement_path(&path_str, updates) {
-                let replacement = extract_segment_replacement(
-                    &path_str,
-                    &new_path,
-                    current_path.len() - 1,
-                );
+                let replacement =
+                    extract_segment_replacement(&path_str, &new_path, current_path.len() - 1);
                 if replacement != segment {
                     p.ident = syn::Ident::new(&replacement, p.ident.span());
                     *changed = true;
@@ -117,11 +114,8 @@ fn rewrite_use_tree_mut(
 
             let path_str = current_path.join("::");
             if let Some(new_path) = find_replacement_path(&path_str, updates) {
-                let replacement = extract_segment_replacement(
-                    &path_str,
-                    &new_path,
-                    current_path.len() - 1,
-                );
+                let replacement =
+                    extract_segment_replacement(&path_str, &new_path, current_path.len() - 1);
                 if replacement != segment {
                     n.ident = syn::Ident::new(&replacement, n.ident.span());
                     *changed = true;
@@ -135,11 +129,8 @@ fn rewrite_use_tree_mut(
 
             let path_str = current_path.join("::");
             if let Some(new_path) = find_replacement_path(&path_str, updates) {
-                let replacement = extract_segment_replacement(
-                    &path_str,
-                    &new_path,
-                    current_path.len() - 1,
-                );
+                let replacement =
+                    extract_segment_replacement(&path_str, &new_path, current_path.len() - 1);
                 if replacement != segment {
                     r.ident = syn::Ident::new(&replacement, r.ident.span());
                     *changed = true;

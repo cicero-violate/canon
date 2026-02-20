@@ -15,7 +15,6 @@ pub mod alias;
 pub mod api;
 pub mod attributes;
 // #[path = "../../compiler_capture/src/mod.rs"]
-pub mod compiler_capture;
 pub mod core;
 pub mod fs;
 pub mod macros;

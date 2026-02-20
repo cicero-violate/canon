@@ -1,10 +1,14 @@
 #![cfg(feature = "rustc_frontend")]
+use super::crate_metadata;
 use super::frontend_context::FrontendMetadata;
+use super::item_capture::{capture_adt, capture_const_static, capture_type_alias};
+use super::mir_capture::capture_function;
 use super::node_builder::ensure_node;
+use super::trait_capture::{capture_impl, capture_trait};
+use super::type_capture::capture_function_types;
 use super::RustcFrontendError;
 use crate::compiler_capture::graph::{DeltaCollector, GraphDelta, NodeId};
 use rustc_driver::{catch_with_exit_code, run_compiler, Callbacks, Compilation};
-use std::process::ExitCode;
 use rustc_hir::def::DefKind;
 use rustc_interface::interface::Compiler;
 use rustc_middle::ty::TyCtxt;
@@ -13,11 +17,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use super::crate_metadata;
-use super::item_capture::{capture_adt, capture_const_static, capture_type_alias};
-use super::mir_capture::capture_function;
-use super::trait_capture::{capture_impl, capture_trait};
-use super::type_capture::capture_function_types;
+use std::process::ExitCode;
 /// Real rustc frontend that runs `rustc_driver` to capture MIR call graphs.
 #[derive(Debug, Clone)]
 pub struct RustcFrontend {
@@ -113,8 +113,10 @@ impl RustcFrontend {
     ) -> Result<Vec<GraphDelta>, RustcFrontendError> {
         let entry = fs::canonicalize(entry)?;
         let mut args = vec![
-            "rustc".to_string(), entry.display().to_string(), format!("--crate-type={}",
-            self.crate_type), format!("--edition={}", self.edition),
+            "rustc".to_string(),
+            entry.display().to_string(),
+            format!("--crate-type={}", self.crate_type),
+            format!("--edition={}", self.edition),
         ];
         if let Some(name) = entry.file_stem().and_then(|s| s.to_str()) {
             args.push(format!("--crate-name={}", name.replace('-', "_")));
@@ -127,8 +129,7 @@ impl RustcFrontend {
             edition: self.edition.clone(),
             rust_version: self.rust_version.clone(),
             crate_type: self.crate_type.clone(),
-            target_triple: std::env::var("TARGET")
-                .unwrap_or_else(|_| "unknown".to_string()),
+            target_triple: std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string()),
             target_name: self.target_name.clone(),
             workspace_root: self
                 .workspace_root
@@ -158,16 +159,14 @@ impl RustcFrontend {
             }
         }
         if exit_code != ExitCode::SUCCESS {
-            return Err(
-                RustcFrontendError::Io(
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("rustc exited with code {:?}", exit_code),
-                    ),
-                ),
-            );
+            return Err(RustcFrontendError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("rustc exited with code {:?}", exit_code),
+            )));
         }
-        callbacks.into_deltas().ok_or(RustcFrontendError::MissingSnapshot)
+        callbacks
+            .into_deltas()
+            .ok_or(RustcFrontendError::MissingSnapshot)
     }
 }
 struct SnapshotCallbacks {
@@ -176,18 +175,17 @@ struct SnapshotCallbacks {
 }
 impl SnapshotCallbacks {
     fn new(metadata: FrontendMetadata) -> Self {
-        Self { deltas: None, metadata }
+        Self {
+            deltas: None,
+            metadata,
+        }
     }
     fn into_deltas(self) -> Option<Vec<GraphDelta>> {
         self.deltas
     }
 }
 impl Callbacks for SnapshotCallbacks {
-    fn after_analysis<'tcx>(
-        &mut self,
-        _compiler: &Compiler,
-        tcx: TyCtxt<'tcx>,
-    ) -> Compilation {
+    fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
         self.deltas = Some(build_graph_deltas(tcx, &self.metadata));
         Compilation::Stop
     }
@@ -209,10 +207,7 @@ fn extract_cfg_flags(extra_args: &[String]) -> Vec<String> {
     }
     cfgs
 }
-fn build_graph_deltas<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    metadata: &FrontendMetadata,
-) -> Vec<GraphDelta> {
+fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> Vec<GraphDelta> {
     let mut builder = DeltaCollector::new();
     let mut cache: HashMap<DefId, NodeId> = HashMap::new();
     crate_metadata::capture_crate_metadata(&mut builder, tcx, metadata);
@@ -245,7 +240,14 @@ fn build_graph_deltas<'tcx>(
             continue;
         }
         let caller_id = ensure_node(&mut builder, tcx, def_id, &mut cache, metadata);
-        capture_function(&mut builder, tcx, local_def, caller_id, &mut cache, metadata);
+        capture_function(
+            &mut builder,
+            tcx,
+            local_def,
+            caller_id,
+            &mut cache,
+            metadata,
+        );
         capture_function_types(&mut builder, tcx, local_def, &mut cache, metadata);
     }
     builder.into_deltas()
@@ -259,5 +261,7 @@ fn resolve_rustc_sysroot() -> Result<PathBuf, std::io::Error> {
     }
     let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
     let output = Command::new(rustc).args(["--print", "sysroot"]).output()?;
-    Ok(PathBuf::from(String::from_utf8_lossy(&output.stdout).trim()))
+    Ok(PathBuf::from(
+        String::from_utf8_lossy(&output.stdout).trim(),
+    ))
 }

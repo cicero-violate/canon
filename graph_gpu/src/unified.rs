@@ -33,7 +33,9 @@ pub fn cuda_available() -> bool {
 /// Synchronize the CUDA device (no-op without cuda feature).
 pub fn device_sync() {
     #[cfg(feature = "cuda")]
-    unsafe { cudaDeviceSynchronize(); }
+    unsafe {
+        cudaDeviceSynchronize();
+    }
 }
 
 /// A contiguous buffer in CUDA unified memory (or heap fallback).
@@ -60,7 +62,12 @@ impl<T: Copy + Default> UnifiedVec<T> {
                 {
                     let ptr = raw as *mut T;
                     std::ptr::write_bytes(ptr, 0, cap);
-                    return Self { ptr, len: 0, cap, on_gpu: true };
+                    return Self {
+                        ptr,
+                        len: 0,
+                        cap,
+                        on_gpu: true,
+                    };
                 }
             }
         }
@@ -68,12 +75,19 @@ impl<T: Copy + Default> UnifiedVec<T> {
         let mut v = vec![T::default(); cap];
         let ptr = v.as_mut_ptr();
         std::mem::forget(v);
-        Self { ptr, len: 0, cap, on_gpu: false }
+        Self {
+            ptr,
+            len: 0,
+            cap,
+            on_gpu: false,
+        }
     }
 
     pub fn push(&mut self, val: T) {
         assert!(self.len < self.cap, "UnifiedVec capacity exceeded");
-        unsafe { self.ptr.add(self.len).write(val); }
+        unsafe {
+            self.ptr.add(self.len).write(val);
+        }
         self.len += 1;
     }
 
@@ -85,11 +99,21 @@ impl<T: Copy + Default> UnifiedVec<T> {
         unsafe { std::slice::from_raw_parts_mut(self.ptr, self.len) }
     }
 
-    pub fn as_ptr(&self) -> *const T { self.ptr as *const T }
-    pub fn as_mut_ptr(&mut self) -> *mut T { self.ptr }
-    pub fn len(&self) -> usize { self.len }
-    pub fn is_empty(&self) -> bool { self.len == 0 }
-    pub fn on_gpu(&self) -> bool { self.on_gpu }
+    pub fn as_ptr(&self) -> *const T {
+        self.ptr as *const T
+    }
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.ptr
+    }
+    pub fn len(&self) -> usize {
+        self.len
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+    pub fn on_gpu(&self) -> bool {
+        self.on_gpu
+    }
 
     /// Fill entire capacity with a value (useful for visited/dist arrays).
     pub fn fill(&mut self, val: T) {
@@ -104,10 +128,14 @@ impl<T: Copy + Default> UnifiedVec<T> {
 
 impl<T> Drop for UnifiedVec<T> {
     fn drop(&mut self) {
-        if self.ptr.is_null() { return; }
+        if self.ptr.is_null() {
+            return;
+        }
         if self.on_gpu {
             #[cfg(feature = "cuda")]
-            unsafe { cudaFree(self.ptr as *mut c_void); }
+            unsafe {
+                cudaFree(self.ptr as *mut c_void);
+            }
         } else {
             unsafe {
                 Vec::from_raw_parts(self.ptr, self.len, self.cap);

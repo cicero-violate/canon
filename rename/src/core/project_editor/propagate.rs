@@ -4,18 +4,18 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use syn::visit::Visit;
 
-use crate::rename::alias::{AliasGraph, VisibilityScope};
-use crate::rename::core::collect::{add_file_module_symbol, collect_symbols};
-use crate::rename::core::rename::apply_symbol_edits_to_ast;
-use crate::rename::core::symbol_id::normalize_symbol_id;
-use crate::rename::core::types::{FileRename, SymbolEdit, SymbolIndex, SymbolOccurrence};
-use crate::rename::core::use_map::build_use_map;
-use crate::rename::core::paths::module_path_for_file;
-use crate::rename::occurrence::EnhancedOccurrenceVisitor;
-use crate::rename::structured::{FieldMutation, NodeOp};
-use crate::rename::alias::VisibilityLeakAnalysis;
-use crate::rename::core::oracle::StructuralEditOracle;
-use crate::rename::module_path::{ModuleMovePlan, ModulePath};
+use crate::alias::VisibilityLeakAnalysis;
+use crate::alias::{AliasGraph, VisibilityScope};
+use crate::core::collect::{add_file_module_symbol, collect_symbols};
+use crate::core::oracle::StructuralEditOracle;
+use crate::core::paths::module_path_for_file;
+use crate::core::rename::apply_symbol_edits_to_ast;
+use crate::core::symbol_id::normalize_symbol_id;
+use crate::core::types::{FileRename, SymbolEdit, SymbolIndex, SymbolOccurrence};
+use crate::core::use_map::build_use_map;
+use crate::module_path::{ModuleMovePlan, ModulePath};
+use crate::occurrence::EnhancedOccurrenceVisitor;
+use crate::structured::{FieldMutation, NodeOp};
 use crate::state::NodeRegistry;
 
 use super::EditConflict;
@@ -23,7 +23,7 @@ use super::EditConflict;
 pub struct PropagationResult {
     pub rewrites: Vec<SymbolEdit>,
     pub conflicts: Vec<EditConflict>,
-    pub file_renames: Vec<crate::rename::core::types::FileRename>,
+    pub file_renames: Vec<crate::core::types::FileRename>,
 }
 
 pub fn propagate(
@@ -55,13 +55,13 @@ pub fn propagate(
             FieldMutation::AddVariant(variant) => {
                 propagate_add_variant(symbol_id, variant, registry, oracle)
             }
-            FieldMutation::AddAttribute(_) | FieldMutation::RemoveAttribute(_) => Ok(
-                PropagationResult {
+            FieldMutation::AddAttribute(_) | FieldMutation::RemoveAttribute(_) => {
+                Ok(PropagationResult {
                     rewrites: Vec::new(),
                     conflicts: Vec::new(),
                     file_renames: Vec::new(),
-                },
-            ),
+                })
+            }
         },
         NodeOp::DeleteNode { .. } => propagate_delete(symbol_id, oracle),
         NodeOp::ReplaceNode { .. } => propagate_delete(symbol_id, oracle),
@@ -69,14 +69,20 @@ pub fn propagate(
             new_module_path,
             new_crate,
             ..
-        } => propagate_move(symbol_id, new_module_path, new_crate.as_deref(), registry, oracle),
-        NodeOp::InsertBefore { .. }
-        | NodeOp::InsertAfter { .. }
-        | NodeOp::ReorderItems { .. } => Ok(PropagationResult {
-            rewrites: Vec::new(),
-            conflicts: Vec::new(),
-            file_renames: Vec::new(),
-        }),
+        } => propagate_move(
+            symbol_id,
+            new_module_path,
+            new_crate.as_deref(),
+            registry,
+            oracle,
+        ),
+        NodeOp::InsertBefore { .. } | NodeOp::InsertAfter { .. } | NodeOp::ReorderItems { .. } => {
+            Ok(PropagationResult {
+                rewrites: Vec::new(),
+                conflicts: Vec::new(),
+                file_renames: Vec::new(),
+            })
+        }
     }
 }
 
@@ -203,7 +209,12 @@ fn propagate_move(
     let from_path = ModulePath::from_string(&old_module_path);
     let new_module_path = normalize_symbol_id(new_module_path);
     let to_path = ModulePath::from_string(&new_module_path);
-    let plan = ModuleMovePlan::new(from_path.clone(), to_path.clone(), handle.file.clone(), &project_root)?;
+    let plan = ModuleMovePlan::new(
+        from_path.clone(),
+        to_path.clone(),
+        handle.file.clone(),
+        &project_root,
+    )?;
 
     file_renames.push(FileRename {
         from: handle.file.to_string_lossy().to_string(),
@@ -213,8 +224,7 @@ fn propagate_move(
         new_module_id: to_path.to_string(),
     });
 
-    let (_symbol_table, occurrences, alias_graph) =
-        build_symbol_index_and_occurrences(registry)?;
+    let (_symbol_table, occurrences, alias_graph) = build_symbol_index_and_occurrences(registry)?;
     let mut rewrites = Vec::new();
     let mut seen = HashSet::new();
 
@@ -225,7 +235,10 @@ fn propagate_move(
         .unwrap_or(&new_module_path)
         .to_string();
 
-    for occ in occurrences.iter().filter(|occ| occ.id == norm_id && occ.kind == "use") {
+    for occ in occurrences
+        .iter()
+        .filter(|occ| occ.id == norm_id && occ.kind == "use")
+    {
         push_unique_edit(&mut rewrites, &mut seen, occ, &symbol_name);
     }
 
@@ -251,9 +264,10 @@ fn propagate_move(
     }
 
     for file in importer_files {
-        for occ in occurrences.iter().filter(|occ| {
-            occ.file == file && occ.id == norm_id && occ.kind == "use"
-        }) {
+        for occ in occurrences
+            .iter()
+            .filter(|occ| occ.file == file && occ.id == norm_id && occ.kind == "use")
+        {
             push_unique_edit(&mut rewrites, &mut seen, occ, &symbol_name);
         }
     }
@@ -457,7 +471,13 @@ fn build_symbol_index_and_occurrences(
 
     for (file, ast) in &registry.asts {
         let module_path = normalize_symbol_id(&module_path_for_file(&project_root, file));
-        add_file_module_symbol(&module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
+        add_file_module_symbol(
+            &module_path,
+            file,
+            &mut symbol_table,
+            &mut symbols,
+            &mut symbol_set,
+        );
         let file_alias_graph = collect_symbols(
             ast,
             &module_path,
@@ -501,7 +521,13 @@ fn build_visibility_map(
 
     for (file, ast) in &registry.asts {
         let module_path = normalize_symbol_id(&module_path_for_file(&project_root, file));
-        add_file_module_symbol(&module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
+        add_file_module_symbol(
+            &module_path,
+            file,
+            &mut symbol_table,
+            &mut symbols,
+            &mut symbol_set,
+        );
         let _ = collect_symbols(
             ast,
             &module_path,
@@ -541,7 +567,10 @@ fn find_project_root(registry: &NodeRegistry) -> Result<PathBuf> {
         .keys()
         .next()
         .ok_or_else(|| anyhow::anyhow!("no ASTs loaded"))?;
-    let mut current = file.parent().unwrap_or_else(|| Path::new("/")).to_path_buf();
+    let mut current = file
+        .parent()
+        .unwrap_or_else(|| Path::new("/"))
+        .to_path_buf();
     loop {
         if current.join("Cargo.toml").exists() {
             return Ok(current);
@@ -559,7 +588,10 @@ pub fn apply_rewrites(
 ) -> Result<HashSet<PathBuf>> {
     let mut by_file: HashMap<String, Vec<SymbolEdit>> = HashMap::new();
     for edit in rewrites {
-        by_file.entry(edit.file.clone()).or_default().push(edit.clone());
+        by_file
+            .entry(edit.file.clone())
+            .or_default()
+            .push(edit.clone());
     }
 
     let mut touched = HashSet::new();

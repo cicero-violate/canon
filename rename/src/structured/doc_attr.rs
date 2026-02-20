@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use syn::visit_mut::VisitMut;
 
-use crate::rename::core::{SpanRange, span_to_range};
+use crate::core::{span_to_range, SpanRange};
 
 use super::config::StructuredEditOptions;
 use super::orchestrator::StructuredPass;
@@ -42,19 +42,9 @@ impl StructuredPass for DocAttrPass {
         "doc_attr"
     }
 
-    fn execute(
-        &mut self,
-        file: &Path,
-        content: &str,
-        ast: &mut syn::File,
-    ) -> Result<bool> {
-        let result = rewrite_doc_and_attr_literals(
-            file,
-            content,
-            ast,
-            &self.mapping,
-            &self.config,
-        )?;
+    fn execute(&mut self, file: &Path, content: &str, ast: &mut syn::File) -> Result<bool> {
+        let result =
+            rewrite_doc_and_attr_literals(file, content, ast, &self.mapping, &self.config)?;
         Ok(result.changed)
     }
 
@@ -83,10 +73,7 @@ struct AttributeRewriteVisitor {
 }
 
 impl AttributeRewriteVisitor {
-    fn new(
-        mapping: &HashMap<String, String>,
-        config: &StructuredEditOptions,
-    ) -> Self {
+    fn new(mapping: &HashMap<String, String>, config: &StructuredEditOptions) -> Self {
         Self {
             replacements: build_replacements(mapping),
             rewrite_docs: config.doc_literals_enabled(),
@@ -156,7 +143,11 @@ fn rewrite_literal(value: &str, replacements: &[(String, String)]) -> Option<Str
         }
     }
 
-    if changed { Some(updated) } else { None }
+    if changed {
+        Some(updated)
+    } else {
+        None
+    }
 }
 
 fn replace_identifier(text: &str, old: &str, new_name: &str) -> Option<String> {
@@ -180,7 +171,11 @@ fn replace_identifier(text: &str, old: &str, new_name: &str) -> Option<String> {
     }
 
     result.push_str(&text[cursor..]);
-    if changed { Some(result) } else { None }
+    if changed {
+        Some(result)
+    } else {
+        None
+    }
 }
 
 fn is_boundary(text: &str, start: usize, end: usize) -> bool {

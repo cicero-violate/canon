@@ -5,12 +5,29 @@ use crate::state::{NodeHandle, NodeKind};
 /// Structural node operations executed against live ASTs.
 #[derive(Clone)]
 pub enum NodeOp {
-    ReplaceNode { handle: NodeHandle, new_node: syn::Item },
-    InsertBefore { handle: NodeHandle, new_node: syn::Item },
-    InsertAfter { handle: NodeHandle, new_node: syn::Item },
-    DeleteNode { handle: NodeHandle },
-    MutateField { handle: NodeHandle, mutation: FieldMutation },
-    ReorderItems { file: PathBuf, new_order: Vec<String> },
+    ReplaceNode {
+        handle: NodeHandle,
+        new_node: syn::Item,
+    },
+    InsertBefore {
+        handle: NodeHandle,
+        new_node: syn::Item,
+    },
+    InsertAfter {
+        handle: NodeHandle,
+        new_node: syn::Item,
+    },
+    DeleteNode {
+        handle: NodeHandle,
+    },
+    MutateField {
+        handle: NodeHandle,
+        mutation: FieldMutation,
+    },
+    ReorderItems {
+        file: PathBuf,
+        new_order: Vec<String>,
+    },
     MoveSymbol {
         handle: NodeHandle,
         new_module_path: String,

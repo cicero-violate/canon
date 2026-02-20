@@ -1,8 +1,8 @@
 #![cfg(feature = "rustc_frontend")]
 //! Attribute, visibility, and generics metadata helpers.
 use super::frontend_context::FrontendMetadata;
-use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use crate::compiler_capture::graph::NodePayload;
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use blake3::hash;
 use rustc_hir::{def::DefKind, def_id::DefId, Attribute as HirAttribute};
 use rustc_middle::ty::{GenericParamDefKind, TyCtxt};
@@ -17,10 +17,7 @@ pub(super) fn apply_common_metadata<'tcx>(
     frontend: &FrontendMetadata,
 ) -> NodePayload {
     let crate_name = tcx.crate_name(def_id.krate).to_string();
-    let def_path = normalize_symbol_id_with_crate(
-        &tcx.def_path_str(def_id),
-        Some(&crate_name),
-    );
+    let def_path = normalize_symbol_id_with_crate(&tcx.def_path_str(def_id), Some(&crate_name));
     let name = tcx
         .opt_item_name(def_id)
         .map(|sym| sym.to_string())
@@ -36,12 +33,11 @@ pub(super) fn apply_common_metadata<'tcx>(
     let lo = source_map.lookup_char_pos(span.lo());
     let hi = source_map.lookup_char_pos(span.hi());
     let absolute_path = resolve_source_path_abs(&filename);
-    let relative_path = resolve_source_path_rel(
-        &absolute_path,
-        frontend.workspace_root.as_deref(),
-    );
+    let relative_path = resolve_source_path_rel(&absolute_path, frontend.workspace_root.as_deref());
     let file_stats = compute_source_file_metrics(&lo.file);
-    let snippet = source_map.span_to_snippet(span).unwrap_or_else(|_| String::new());
+    let snippet = source_map
+        .span_to_snippet(span)
+        .unwrap_or_else(|_| String::new());
     payload = payload
         .with_metadata("def_path", def_path.clone())
         .with_metadata("def_path_hash", format!("{def_path_hash:?}"))
@@ -50,7 +46,11 @@ pub(super) fn apply_common_metadata<'tcx>(
         .with_metadata("module", module.clone())
         .with_metadata(
             "module_id",
-            if module.is_empty() { "mod:root".into() } else { format!("mod:{module}") },
+            if module.is_empty() {
+                "mod:root".into()
+            } else {
+                format!("mod:{module}")
+            },
         );
     if let Some(relative) = relative_path {
         payload = payload.with_metadata("source_file_relative", relative);
@@ -84,21 +84,18 @@ pub(super) fn apply_common_metadata<'tcx>(
     }
     if let Some(parent_id) = parent {
         payload = payload.with_metadata("parent", format!("{parent_id:?}"));
-        payload = payload
-            .with_metadata(
-                "parent_kind",
-                format_node_kind_label(tcx.def_kind(parent_id)),
-            );
-        payload = payload
-            .with_metadata(
-                "parent_def_path_hash",
-                format!("{:?}", tcx.def_path_hash(parent_id)),
-            );
-        payload = payload
-            .with_metadata(
-                "container_kind",
-                format_node_kind_label(tcx.def_kind(parent_id)),
-            );
+        payload = payload.with_metadata(
+            "parent_kind",
+            format_node_kind_label(tcx.def_kind(parent_id)),
+        );
+        payload = payload.with_metadata(
+            "parent_def_path_hash",
+            format!("{:?}", tcx.def_path_hash(parent_id)),
+        );
+        payload = payload.with_metadata(
+            "container_kind",
+            format_node_kind_label(tcx.def_kind(parent_id)),
+        );
     }
     payload = payload.with_metadata("crate_edition", frontend.edition.clone());
     if let Some(target_name) = &frontend.target_name {
@@ -167,7 +164,9 @@ fn capture_attributes(tcx: TyCtxt<'_>, def_id: DefId) -> Option<AttributeData> {
     if !doc_lines.is_empty() {
         flags.doc = Some(doc_lines.join("\n"));
     }
-    serde_json::to_string(&captures).ok().map(|raw| AttributeData { raw, flags })
+    serde_json::to_string(&captures)
+        .ok()
+        .map(|raw| AttributeData { raw, flags })
 }
 fn attribute_path(attr: &HirAttribute) -> Vec<String> {
     attr.path().into_iter().map(|sym| sym.to_string()).collect()
@@ -207,16 +206,17 @@ fn serialize_generic_param_list(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String
     };
     serde_json::to_string(&capture).ok()
 }
-fn serialize_where_clause_predicates(
-    tcx: TyCtxt<'_>,
-    def_id: DefId,
-) -> Option<Vec<String>> {
+fn serialize_where_clause_predicates(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Vec<String>> {
     let predicates = tcx.predicates_of(def_id).instantiate_identity(tcx);
     if predicates.predicates.is_empty() {
         return None;
     }
     Some(
-        predicates.predicates.iter().map(|predicate| format!("{predicate:?}")).collect(),
+        predicates
+            .predicates
+            .iter()
+            .map(|predicate| format!("{predicate:?}"))
+            .collect(),
     )
 }
 fn format_generic_param_kind_label(kind: &GenericParamDefKind) -> String {
@@ -316,10 +316,7 @@ impl AttributeFlags {
         }
     }
 }
-fn apply_attribute_flags(
-    mut payload: NodePayload,
-    flags: AttributeFlags,
-) -> NodePayload {
+fn apply_attribute_flags(mut payload: NodePayload, flags: AttributeFlags) -> NodePayload {
     if let Some(inline) = flags.inline {
         payload = payload.with_metadata("inline", inline.to_string());
     }
@@ -391,7 +388,9 @@ fn resolve_source_path_rel(path: &str, workspace_root: Option<&str>) -> Option<S
     let root = workspace_root?;
     let abs = Path::new(path);
     let root_path = Path::new(root);
-    abs.strip_prefix(root_path).ok().map(|p| p.to_string_lossy().to_string())
+    abs.strip_prefix(root_path)
+        .ok()
+        .map(|p| p.to_string_lossy().to_string())
 }
 fn format_node_kind_label(def_kind: DefKind) -> String {
     let kind = match def_kind {
@@ -416,15 +415,17 @@ fn derive_module_path(def_path: &str) -> String {
     def_path.rsplitn(2, "::").nth(1).unwrap_or("").to_string()
 }
 fn format_symbol_label(module: &str, name: &str) -> String {
-    if module.is_empty() { name.to_string() } else { format!("{module}::{name}") }
+    if module.is_empty() {
+        name.to_string()
+    } else {
+        format!("{module}::{name}")
+    }
 }
 fn symbol_kind_label(def_kind: DefKind) -> String {
     let kind = match def_kind {
         DefKind::Mod => "module",
         DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait => "type",
-        DefKind::Fn | DefKind::AssocFn | DefKind::AssocConst | DefKind::Variant => {
-            "value"
-        }
+        DefKind::Fn | DefKind::AssocFn | DefKind::AssocConst | DefKind::Variant => "value",
         DefKind::Const | DefKind::Static { .. } | DefKind::AnonConst => "value",
         DefKind::TyAlias => "type",
         _ => "value",

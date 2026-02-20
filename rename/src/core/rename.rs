@@ -9,8 +9,8 @@ use super::types::{SpanRange, SymbolEdit, SymbolIndex, SymbolOccurrence};
 use super::use_map::build_use_map;
 use super::use_paths::update_use_paths;
 use crate::fs;
-use crate::rename::alias::AliasGraph;
-use crate::rename::structured::{
+use crate::alias::AliasGraph;
+use crate::structured::{
     rewrite_doc_and_attr_literals, structured_edit_config, StructuredAttributeResult,
 };
 use anyhow::{bail, Context, Result};
@@ -110,7 +110,7 @@ pub fn apply_rename_with_map(
             }
         }
         let mut occurrences = Vec::new();
-        let mut visitor = crate::rename::occurrence::EnhancedOccurrenceVisitor::new(
+        let mut visitor = crate::occurrence::EnhancedOccurrenceVisitor::new(
             &module_path,
             file,
             &symbol_table,

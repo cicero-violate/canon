@@ -14,10 +14,7 @@ pub(super) fn capture_crate_metadata<'tcx>(
     let crate_name = tcx.crate_name(LOCAL_CRATE).to_string();
     let crate_hash = tcx.crate_hash(LOCAL_CRATE);
     let dependencies = serialize_crate_dependencies(tcx);
-    let mut payload = NodePayload::new(
-            format!("crate::{crate_name}"),
-            crate_name.clone(),
-        )
+    let mut payload = NodePayload::new(format!("crate::{crate_name}"), crate_name.clone())
         .with_metadata("type", "crate")
         .with_metadata("crate", format!("crate:{crate_name}"))
         .with_metadata("crate_hash", format!("{crate_hash:?}"))
@@ -61,8 +58,8 @@ fn serialize_crate_dependencies(tcx: TyCtxt<'_>) -> String {
         .iter()
         .map(|crate_num| DependencyCapture {
             name: tcx.crate_name(*crate_num).to_string(),
-            hash: format!("{:?}", tcx.crate_hash(* crate_num)),
-            source: format!("{:?}", tcx.used_crate_source(* crate_num)),
+            hash: format!("{:?}", tcx.crate_hash(*crate_num)),
+            source: format!("{:?}", tcx.used_crate_source(*crate_num)),
         })
         .collect();
     serde_json::to_string(&deps).unwrap_or_else(|_| "[]".into())

@@ -1,10 +1,10 @@
 //! Rustc integration frontend that captures graph snapshots.
 #[cfg(feature = "rustc_frontend")]
-mod frontend_driver;
+mod crate_metadata;
 #[cfg(feature = "rustc_frontend")]
 mod frontend_context;
 #[cfg(feature = "rustc_frontend")]
-mod crate_metadata;
+mod frontend_driver;
 #[cfg(feature = "rustc_frontend")]
 mod hir_dump;
 #[cfg(feature = "rustc_frontend")]
@@ -15,12 +15,12 @@ mod metadata_capture;
 mod mir_capture;
 #[cfg(feature = "rustc_frontend")]
 mod node_builder;
+#[cfg(not(feature = "rustc_frontend"))]
+mod stub;
 #[cfg(feature = "rustc_frontend")]
 mod trait_capture;
 #[cfg(feature = "rustc_frontend")]
 mod type_capture;
-#[cfg(not(feature = "rustc_frontend"))]
-mod stub;
 /// Errors that may arise when invoking the rustc frontend.
 #[derive(Debug)]
 pub enum RustcFrontendError {

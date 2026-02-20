@@ -11,7 +11,10 @@ pub struct ModulePath {
 }
 impl ModulePath {
     pub fn new(segments: Vec<String>) -> Self {
-        Self { segments, is_inline: false }
+        Self {
+            segments,
+            is_inline: false,
+        }
     }
     pub fn from_string(path: &str) -> Self {
         let segments = path.split("::").map(String::from).collect();
@@ -24,7 +27,9 @@ impl ModulePath {
         if self.segments.len() <= 1 {
             return None;
         }
-        Some(ModulePath::new(self.segments[..self.segments.len() - 1].to_vec()))
+        Some(ModulePath::new(
+            self.segments[..self.segments.len() - 1].to_vec(),
+        ))
     }
     pub fn last_segment(&self) -> Option<&str> {
         self.segments.last().map(String::as_str)
@@ -54,24 +59,32 @@ impl ModuleLayout {
     }
     /// Check if this is a directory-based layout
     pub fn is_dir_path(&self) -> bool {
-        matches!(self, ModuleLayout::DirectoryModRs(_) | ModuleLayout::DirectoryNamed(_))
+        matches!(
+            self,
+            ModuleLayout::DirectoryModRs(_) | ModuleLayout::DirectoryNamed(_)
+        )
     }
 }
 /// Normalize module path computation for different file layouts
 pub fn compute_module_path(project_root: &Path, file_path: &Path) -> Result<String> {
-    let rel_path = file_path.strip_prefix(project_root).context("File not in project")?;
+    let rel_path = file_path
+        .strip_prefix(project_root)
+        .context("File not in project")?;
     let mut segments = Vec::new();
     let mut components: Vec<_> = rel_path.components().collect();
     if components.first().and_then(|c| c.as_os_str().to_str()) == Some("src") {
         components.remove(0);
     }
     for (i, component) in components.iter().enumerate() {
-        let comp_str = component.as_os_str().to_str().context("Invalid UTF-8 in path")?;
+        let comp_str = component
+            .as_os_str()
+            .to_str()
+            .context("Invalid UTF-8 in path")?;
         let is_last = i == components.len() - 1;
         if is_last {
-            if comp_str == "mod.rs"
-            {} else if comp_str == "lib.rs" || comp_str == "main.rs"
-            {} else if let Some(stem) = Path::new(comp_str).file_stem() {
+            if comp_str == "mod.rs" {
+            } else if comp_str == "lib.rs" || comp_str == "main.rs" {
+            } else if let Some(stem) = Path::new(comp_str).file_stem() {
                 segments.push(stem.to_str().unwrap().to_string());
             }
         } else {
@@ -125,7 +138,10 @@ pub enum LayoutChange {
     /// Convert file module to inline
     FileToInline,
     /// Convert between directory layouts
-    DirectoryLayoutChange { from: ModuleLayout, to: ModuleLayout },
+    DirectoryLayoutChange {
+        from: ModuleLayout,
+        to: ModuleLayout,
+    },
 }
 impl ModuleMovePlan {
     /// Create a plan to move a module
@@ -152,10 +168,7 @@ impl ModuleMovePlan {
     }
 }
 /// Compute the new file path for a module given its new module path
-fn compute_new_file_path(
-    module_path: &ModulePath,
-    project_root: &Path,
-) -> Result<PathBuf> {
+fn compute_new_file_path(module_path: &ModulePath, project_root: &Path) -> Result<PathBuf> {
     let mut path = project_root.join("src");
     let segments: Vec<_> = module_path
         .segments
@@ -180,9 +193,7 @@ pub fn inline_mod_to_file_plan(
     project_root: &Path,
 ) -> Result<ModuleMovePlan> {
     let parent_module = compute_module_path(project_root, parent_file)?;
-    let from_path = ModulePath::from_string(
-        &format!("{}::{}", parent_module, module_name),
-    );
+    let from_path = ModulePath::from_string(&format!("{}::{}", parent_module, module_name));
     let parent_dir = parent_file
         .parent()
         .context("Parent file has no parent directory")?;
@@ -204,9 +215,7 @@ pub fn file_mod_to_inline_plan(
     target_parent_file: &Path,
     project_root: &Path,
 ) -> Result<ModuleMovePlan> {
-    let from_path = ModulePath::from_string(
-        &compute_module_path(project_root, file_path)?,
-    );
+    let from_path = ModulePath::from_string(&compute_module_path(project_root, file_path)?);
     let to_path = from_path.clone();
     let plan = ModuleMovePlan {
         from_path,

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use quote::ToTokens;
 
-use crate::rename::structured::{FieldMutation, NodeOp};
+use crate::structured::{FieldMutation, NodeOp};
 use crate::state::{NodeHandle, NodeKind};
 
 pub(super) fn apply_node_op(
@@ -13,9 +13,7 @@ pub(super) fn apply_node_op(
     op: &NodeOp,
 ) -> Result<bool> {
     match op {
-        NodeOp::ReplaceNode { handle, new_node } => {
-            replace_node(ast, handle, new_node.clone())
-        }
+        NodeOp::ReplaceNode { handle, new_node } => replace_node(ast, handle, new_node.clone()),
         NodeOp::InsertBefore { handle, new_node } => {
             insert_node(ast, handle, new_node.clone(), true)
         }
@@ -291,12 +289,7 @@ fn add_attribute(
     false
 }
 
-fn remove_attribute(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    symbol_id: &str,
-    name: &str,
-) -> bool {
+fn remove_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, name: &str) -> bool {
     let mut removed = false;
     if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
         let matcher = |attr: &syn::Attribute| {
@@ -414,12 +407,13 @@ fn remove_struct_field(
             match &mut item_struct.fields {
                 syn::Fields::Named(named) => {
                     let before = named.named.len();
-                    let filtered: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = named
-                        .named
-                        .iter()
-                        .cloned()
-                        .filter(|f| f.ident.as_ref().map(|i| i != name).unwrap_or(true))
-                        .collect();
+                    let filtered: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> =
+                        named
+                            .named
+                            .iter()
+                            .cloned()
+                            .filter(|f| f.ident.as_ref().map(|i| i != name).unwrap_or(true))
+                            .collect();
                     named.named = filtered;
                     return named.named.len() != before;
                 }
@@ -446,12 +440,7 @@ fn add_variant(
     false
 }
 
-fn remove_variant(
-    ast: &mut syn::File,
-    handle: &NodeHandle,
-    _symbol_id: &str,
-    name: &str,
-) -> bool {
+fn remove_variant(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, name: &str) -> bool {
     if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
         if let syn::Item::Enum(item_enum) = item {
             let before = item_enum.variants.len();

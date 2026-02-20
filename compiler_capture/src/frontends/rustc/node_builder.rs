@@ -2,8 +2,8 @@
 use super::frontend_context::FrontendMetadata;
 use super::hir_dump;
 use super::metadata_capture;
+use crate::compiler_capture::graph::{DeltaCollector, NodeId, NodePayload};
 use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
-use crate::compiler_capture::graph::{DeltaCollector, NodePayload, NodeId};
 use rustc_hir::def::DefKind;
 use rustc_middle::{mir, ty::TyCtxt};
 use rustc_span::def_id::{DefId, LocalDefId};

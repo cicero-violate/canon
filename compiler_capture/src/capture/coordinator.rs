@@ -1,9 +1,9 @@
 //! Coordinates running compiler frontends across projects within a workspace.
-use std::error::Error;
-use std::path::{Path, PathBuf};
 use super::dedup::Deduplicator;
 use super::session::CaptureSession;
 use crate::compiler_capture::{ExtractionResult, FrontendExtractor};
+use std::error::Error;
+use std::path::{Path, PathBuf};
 /// High level orchestrator that walks a workspace and runs a frontend for each crate.
 pub struct CaptureCoordinator {
     dedup: Deduplicator,
@@ -38,10 +38,7 @@ impl CaptureCoordinator {
         Ok(results)
     }
     /// Discovers candidate crates inside the workspace.
-    fn discover_crates(
-        &self,
-        workspace_root: &Path,
-    ) -> Result<Vec<PathBuf>, std::io::Error> {
+    fn discover_crates(&self, workspace_root: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
         Ok(vec![workspace_root.to_path_buf()])
     }
 }

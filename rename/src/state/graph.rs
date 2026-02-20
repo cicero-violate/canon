@@ -113,12 +113,15 @@ impl GraphSnapshot {
         let mut nodes_by_id: HashMap<NodeId, NodeRecord> = HashMap::new();
         for node in snapshot.nodes {
             let id = NodeId::from_bytes(node.id.0);
-            nodes_by_id.insert(id, NodeRecord {
+            nodes_by_id.insert(
                 id,
-                key: Arc::<str>::from(node.key),
-                label: Arc::<str>::from(node.label),
-                metadata: node.metadata,
-            });
+                NodeRecord {
+                    id,
+                    key: Arc::<str>::from(node.key),
+                    label: Arc::<str>::from(node.label),
+                    metadata: node.metadata,
+                },
+            );
         }
 
         let mut edges_by_id: HashMap<EdgeId, EdgeRecord> = HashMap::new();
@@ -126,13 +129,16 @@ impl GraphSnapshot {
             let id = EdgeId::from_bytes(edge.id.0);
             let from = NodeId::from_bytes(edge.from.0);
             let to = NodeId::from_bytes(edge.to.0);
-            edges_by_id.insert(id, EdgeRecord {
+            edges_by_id.insert(
                 id,
-                from,
-                to,
-                kind: EdgeKind::from_str(edge.kind.as_str()),
-                metadata: edge.metadata,
-            });
+                EdgeRecord {
+                    id,
+                    from,
+                    to,
+                    kind: EdgeKind::from_str(edge.kind.as_str()),
+                    metadata: edge.metadata,
+                },
+            );
         }
 
         GraphSnapshot::new(
@@ -162,9 +168,7 @@ impl GraphSnapshot {
             }
             let left = left.unwrap();
             let right = right.unwrap();
-            if left.key != right.key
-                || left.label != right.label
-                || left.metadata != right.metadata
+            if left.key != right.key || left.label != right.label || left.metadata != right.metadata
             {
                 changed.insert(*id);
             }
@@ -205,7 +209,8 @@ impl GraphSnapshot {
     }
 
     pub fn to_wire_snapshot(&self) -> wire::GraphSnapshot {
-        let nodes: Vec<wire::WireNode> = self.nodes
+        let nodes: Vec<wire::WireNode> = self
+            .nodes
             .iter()
             .map(|node| wire::WireNode {
                 id: wire::WireNodeId(node.id.as_bytes()),
@@ -215,7 +220,8 @@ impl GraphSnapshot {
             })
             .collect();
 
-        let edges: Vec<wire::WireEdge> = self.edges
+        let edges: Vec<wire::WireEdge> = self
+            .edges
             .iter()
             .map(|edge| wire::WireEdge {
                 id: wire::WireEdgeId(edge.id.as_bytes()),

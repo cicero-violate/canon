@@ -1,9 +1,9 @@
 #![cfg(feature = "rustc_frontend")]
 use super::frontend_context::FrontendMetadata;
 use super::metadata_capture;
-use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
-use crate::compiler_capture::graph::{DeltaCollector, NodePayload};
 use crate::compiler_capture::graph::NodeId;
+use crate::compiler_capture::graph::{DeltaCollector, NodePayload};
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, TyCtxt};
 use serde::Serialize;
@@ -125,12 +125,13 @@ fn serialize_struct_field_list<'tcx>(
             index: idx,
         })
         .collect();
-    if fields.is_empty() { None } else { serde_json::to_string(&fields).ok() }
+    if fields.is_empty() {
+        None
+    } else {
+        serde_json::to_string(&fields).ok()
+    }
 }
-fn serialize_enum_variants<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    adt_def: ty::AdtDef<'tcx>,
-) -> Option<String> {
+fn serialize_enum_variants<'tcx>(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String> {
     #[derive(Serialize)]
     struct VariantInfo {
         name: String,

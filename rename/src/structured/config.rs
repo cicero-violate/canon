@@ -44,7 +44,11 @@ impl StructuredEditOptions {
         if self.use_statements {
             parts.push("uses");
         }
-        if parts.is_empty() { "none".to_string() } else { parts.join("+") }
+        if parts.is_empty() {
+            "none".to_string()
+        } else {
+            parts.join("+")
+        }
     }
 }
 pub fn are_structured_edits_enabled() -> bool {

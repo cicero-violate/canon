@@ -14,15 +14,16 @@ pub mod rename;
 pub mod span;
 pub mod structured;
 pub mod symbol_id;
+pub mod types;
 pub mod use_map;
 pub mod use_paths;
-pub mod types;
 
 pub use cli::{run_names, run_rename};
 pub use collect::{collect_names, emit_names};
-pub use rename::{apply_rename, apply_rename_with_map};
-pub use project_editor::{ChangeReport, EditConflict, ProjectEditor};
 pub use oracle::{NullOracle, StructuralEditOracle};
+pub use project_editor::{ChangeReport, EditConflict, ProjectEditor};
+pub use rename::{apply_rename, apply_rename_with_map};
+pub(crate) use span::span_to_offsets;
 pub use span::span_to_range;
 pub use structured::StructuredEditTracker;
 pub use symbol_id::normalize_symbol_id;
@@ -30,4 +31,3 @@ pub use types::{
     AliasGraphReport, LineColumn, SpanRange, SymbolIndex, SymbolIndexReport, SymbolOccurrence,
     SymbolRecord,
 };
-pub(crate) use span::span_to_offsets;

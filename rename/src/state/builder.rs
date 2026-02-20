@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use super::graph::{EdgeKind, EdgeRecord, GraphDelta, GraphDeltaError, GraphMaterializer, NodeRecord};
+use super::graph::{
+    EdgeKind, EdgeRecord, GraphDelta, GraphDeltaError, GraphMaterializer, NodeRecord,
+};
 use super::ids::{EdgeId, NodeId};
 use std::sync::Arc;
 

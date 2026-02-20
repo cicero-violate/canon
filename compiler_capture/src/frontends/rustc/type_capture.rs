@@ -40,26 +40,21 @@ pub(super) fn capture_function_types<'tcx>(
         }
     }
 }
-fn collect_type_dependencies<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    ty: ty::Ty<'tcx>,
-    seen: &mut HashSet<DefId>,
-) {
+fn collect_type_dependencies<'tcx>(tcx: TyCtxt<'tcx>, ty: ty::Ty<'tcx>, seen: &mut HashSet<DefId>) {
     use std::cell::RefCell;
     thread_local! {
         static VISITED_TYS : RefCell < HashSet < usize >> = RefCell::new(HashSet::new());
     }
     let ty_ptr = &ty as *const _ as usize;
-    let already_seen = VISITED_TYS
-        .with(|v| {
-            let mut v = v.borrow_mut();
-            if v.contains(&ty_ptr) {
-                true
-            } else {
-                v.insert(ty_ptr);
-                false
-            }
-        });
+    let already_seen = VISITED_TYS.with(|v| {
+        let mut v = v.borrow_mut();
+        if v.contains(&ty_ptr) {
+            true
+        } else {
+            v.insert(ty_ptr);
+            false
+        }
+    });
     if already_seen {
         return;
     }

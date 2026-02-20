@@ -5,16 +5,16 @@
 //! - [`capture`] provides multi-crate orchestration and deduplication tools.
 //! - [`transform`] converts captured items into the graph kernel representation.
 
+/// Small capability helpers (standalone).
+pub mod capability;
 /// Capture pipeline infrastructure and orchestration.
 pub mod capture;
+/// Compatibility shims when compiler_capture is built standalone.
+pub mod compat;
 /// Compiler/language-specific frontends.
 pub mod frontends;
 /// Linux fact capture helpers.
 pub mod linux;
-/// Compatibility shims when compiler_capture is built standalone.
-pub mod compat;
-/// Small capability helpers (standalone).
-pub mod capability;
 /// Multi-target capture utilities for Cargo projects.
 pub mod multi_capture;
 /// Project helpers for invoking cargo/rustc.
@@ -24,8 +24,8 @@ pub mod transform;
 /// Workspace metadata for capture outputs.
 pub mod workspace;
 
-pub mod kernel_root;
 pub mod graph;
+pub mod kernel_root;
 
 use std::collections::HashMap;
 

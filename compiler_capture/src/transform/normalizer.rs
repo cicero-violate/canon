@@ -2,10 +2,10 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::compiler_capture::CapturedItem;
 use crate::compiler_capture::graph::{
     DeltaCollector, EdgeKind, EdgePayload, GraphDelta, NodeId, NodePayload,
 };
+use crate::compiler_capture::CapturedItem;
 use database::graph_log::{WireEdge, WireEdgeId, WireNode, WireNodeId};
 
 /// Normalizes captured items into graph deltas.
@@ -61,7 +61,11 @@ impl GraphNormalizer {
         for (parent_key, child_id) in pending_edges {
             if let Some(parent_id) = node_lookup.get(&parent_key) {
                 let edge = WireEdge {
-                    id: WireEdgeId::from_components(parent_id, &child_id, EdgeKind::Contains.as_str()),
+                    id: WireEdgeId::from_components(
+                        parent_id,
+                        &child_id,
+                        EdgeKind::Contains.as_str(),
+                    ),
                     from: parent_id.clone(),
                     to: child_id.clone(),
                     kind: EdgeKind::Contains.as_str().to_string(),

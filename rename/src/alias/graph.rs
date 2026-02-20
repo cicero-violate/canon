@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
 use super::helpers::extract_module_from_path;
 use super::types::{
     AliasEdge, EdgeKind, ImportNode, ResolutionChain, ResolutionStep, StepKind, UseKind,
     VisibilityScope,
 };
+use std::collections::{HashMap, HashSet};
 /// Graph tracking all use statements and their relationships
 #[derive(Debug, Default)]
 pub struct AliasGraph {
@@ -31,7 +31,8 @@ impl AliasGraph {
         let module_path = node.module_path.clone();
         let local_name = node.local_name.clone();
         let source_path = node.source_path.clone();
-        self.local_names.insert((module_path.clone(), local_name), id.clone());
+        self.local_names
+            .insert((module_path.clone(), local_name), id.clone());
         self.source_imports
             .entry(source_path.clone())
             .or_insert_with(Vec::new)
@@ -63,7 +64,10 @@ impl AliasGraph {
         self.glob_imports
             .get(module_path)
             .map(|globs| {
-                globs.iter().filter_map(|(_, id)| self.nodes.get(id)).collect()
+                globs
+                    .iter()
+                    .filter_map(|(_, id)| self.nodes.get(id))
+                    .collect()
             })
             .unwrap_or_default()
     }
@@ -92,7 +96,10 @@ impl AliasGraph {
     }
     /// Get all use nodes that originate from a specific file path
     pub fn nodes_in_file(&self, file_path: &str) -> Vec<&ImportNode> {
-        self.nodes.values().filter(|node| node.file == file_path).collect()
+        self.nodes
+            .values()
+            .filter(|node| node.file == file_path)
+            .collect()
     }
     /// Add an edge to the graph
     pub fn add_edge(&mut self, from: String, to: String, kind: EdgeKind) {
@@ -104,18 +111,10 @@ impl AliasGraph {
         for node in nodes {
             match node.kind {
                 UseKind::Simple => {
-                    self.add_edge(
-                        node.id.clone(),
-                        node.source_path.clone(),
-                        EdgeKind::Import,
-                    );
+                    self.add_edge(node.id.clone(), node.source_path.clone(), EdgeKind::Import);
                 }
                 UseKind::Aliased => {
-                    self.add_edge(
-                        node.id.clone(),
-                        node.source_path.clone(),
-                        EdgeKind::Alias,
-                    );
+                    self.add_edge(node.id.clone(), node.source_path.clone(), EdgeKind::Alias);
                 }
                 UseKind::ReExport | UseKind::ReExportAliased => {
                     self.add_edge(
@@ -125,11 +124,7 @@ impl AliasGraph {
                     );
                 }
                 UseKind::Glob => {
-                    self.add_edge(
-                        node.id.clone(),
-                        node.source_path.clone(),
-                        EdgeKind::Import,
-                    );
+                    self.add_edge(node.id.clone(), node.source_path.clone(), EdgeKind::Import);
                 }
             }
         }
@@ -142,50 +137,42 @@ impl AliasGraph {
             steps: Vec::new(),
             resolved_symbol: None,
         };
-        chain
-            .steps
-            .push(ResolutionStep {
-                kind: StepKind::Start,
-                name: name.to_string(),
-                module: module_path.to_string(),
-                use_node_id: None,
-            });
+        chain.steps.push(ResolutionStep {
+            kind: StepKind::Start,
+            name: name.to_string(),
+            module: module_path.to_string(),
+            use_node_id: None,
+        });
         if let Some(source) = self.resolve_local(module_path, name) {
             let use_node_id = self
                 .local_names
                 .get(&(module_path.to_string(), name.to_string()))
                 .cloned();
-            chain
-                .steps
-                .push(ResolutionStep {
-                    kind: StepKind::LocalUse,
-                    name: source.to_string(),
-                    module: extract_module_from_path(source),
-                    use_node_id,
-                });
+            chain.steps.push(ResolutionStep {
+                kind: StepKind::LocalUse,
+                name: source.to_string(),
+                module: extract_module_from_path(source),
+                use_node_id,
+            });
             self.follow_reexport_chain(&mut chain, source);
             chain.resolved_symbol = Some(source.to_string());
         } else {
             if let Some(resolved) = self.resolve_through_glob(module_path, name) {
-                chain
-                    .steps
-                    .push(ResolutionStep {
-                        kind: StepKind::GlobImport,
-                        name: resolved.clone(),
-                        module: extract_module_from_path(&resolved),
-                        use_node_id: None,
-                    });
+                chain.steps.push(ResolutionStep {
+                    kind: StepKind::GlobImport,
+                    name: resolved.clone(),
+                    module: extract_module_from_path(&resolved),
+                    use_node_id: None,
+                });
                 chain.resolved_symbol = Some(resolved);
             } else {
                 let direct_path = format!("{}::{}", module_path, name);
-                chain
-                    .steps
-                    .push(ResolutionStep {
-                        kind: StepKind::DirectLookup,
-                        name: direct_path.clone(),
-                        module: module_path.to_string(),
-                        use_node_id: None,
-                    });
+                chain.steps.push(ResolutionStep {
+                    kind: StepKind::DirectLookup,
+                    name: direct_path.clone(),
+                    module: module_path.to_string(),
+                    use_node_id: None,
+                });
                 chain.resolved_symbol = Some(direct_path);
             }
         }
@@ -199,18 +186,14 @@ impl AliasGraph {
             let importers = self.get_importers(&current);
             let reexport = importers
                 .iter()
-                .find(|node| {
-                    matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased)
-                });
+                .find(|node| matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased));
             if let Some(reexport_node) = reexport {
-                chain
-                    .steps
-                    .push(ResolutionStep {
-                        kind: StepKind::ReExport,
-                        name: reexport_node.source_path.clone(),
-                        module: reexport_node.module_path.clone(),
-                        use_node_id: Some(reexport_node.id.clone()),
-                    });
+                chain.steps.push(ResolutionStep {
+                    kind: StepKind::ReExport,
+                    name: reexport_node.source_path.clone(),
+                    module: reexport_node.module_path.clone(),
+                    use_node_id: Some(reexport_node.id.clone()),
+                });
                 current = reexport_node.source_path.clone();
             } else {
                 break;
@@ -247,9 +230,7 @@ impl AliasGraph {
         let reexports: Vec<ImportNode> = importers
             .into_iter()
             .cloned()
-            .filter(|node| {
-                matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased)
-            })
+            .filter(|node| matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased))
             .collect();
         if reexports.is_empty() {
             for chain in current_chains.iter() {
@@ -262,9 +243,7 @@ impl AliasGraph {
         for reexport in reexports {
             let mut new_chain = current_chains[0].clone();
             new_chain.push(reexport.clone());
-            let reexport_path = format!(
-                "{}::{}", reexport.module_path, reexport.local_name
-            );
+            let reexport_path = format!("{}::{}", reexport.module_path, reexport.local_name);
             let mut new_chains = vec![new_chain];
             self.find_reexport_chains_recursive(&reexport_path, &mut new_chains, result);
         }

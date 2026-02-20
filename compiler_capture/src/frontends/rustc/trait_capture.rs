@@ -1,9 +1,9 @@
 #![cfg(feature = "rustc_frontend")]
 use super::frontend_context::FrontendMetadata;
 use super::metadata_capture;
-use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
-use crate::compiler_capture::graph::{DeltaCollector, NodePayload};
 use crate::compiler_capture::graph::NodeId;
+use crate::compiler_capture::graph::{DeltaCollector, NodePayload};
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::TyCtxt;
@@ -57,7 +57,7 @@ pub(super) fn capture_impl<'tcx>(
     let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let node_key = format!("{def_id:?}");
     let def_kind = tcx.def_kind(def_id);
-    let def_impl_trait = matches!(def_kind, DefKind::Impl { of_trait : true });
+    let def_impl_trait = matches!(def_kind, DefKind::Impl { of_trait: true });
     let is_trait_impl = of_trait_hint || def_impl_trait;
     let mut payload = NodePayload::new(&node_key, def_path.clone())
         .with_metadata("type", "impl")
@@ -65,14 +65,17 @@ pub(super) fn capture_impl<'tcx>(
     if is_trait_impl {
         let trait_ref = tcx.impl_trait_ref(def_id).instantiate_identity();
         payload = payload.with_metadata("impl_trait_ref", format!("{:?}", trait_ref));
-        payload = payload
-            .with_metadata("impl_polarity", format!("{:?}", tcx.impl_polarity(def_id)));
+        payload =
+            payload.with_metadata("impl_polarity", format!("{:?}", tcx.impl_polarity(def_id)));
     }
     let impl_ty = tcx.type_of(def_id).instantiate_identity();
     payload = payload
         .with_metadata("impl_target", format!("{impl_ty:?}"))
         .with_metadata("impl_for", format!("{impl_ty:?}"))
-        .with_metadata("impl_kind", if is_trait_impl { "trait" } else { "inherent" });
+        .with_metadata(
+            "impl_kind",
+            if is_trait_impl { "trait" } else { "inherent" },
+        );
     if let Some(items) = serialize_impl_items(tcx, def_id) {
         payload = payload.with_metadata("impl_items", items);
     }
@@ -103,7 +106,11 @@ fn serialize_associated_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> 
             kind: format!("{:?}", item.kind),
         })
         .collect();
-    if captures.is_empty() { None } else { serde_json::to_string(&captures).ok() }
+    if captures.is_empty() {
+        None
+    } else {
+        serde_json::to_string(&captures).ok()
+    }
 }
 fn serialize_impl_items(tcx: TyCtxt<'_>, def_id: DefId) -> Option<String> {
     let item_ids = tcx.associated_item_def_ids(def_id);

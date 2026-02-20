@@ -1,7 +1,7 @@
 use super::structured::StructuredEditTracker;
 use crate::fs;
-use crate::rename::alias::AliasGraph;
-use crate::rename::structured::StructuredEditOptions;
+use crate::alias::AliasGraph;
+use crate::structured::StructuredEditOptions;
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -39,8 +39,8 @@ pub(crate) fn update_use_paths(
         let content = std::fs::read_to_string(file)?;
         let mut ast = syn::parse_file(&content)
             .with_context(|| format!("Failed to parse {}", file.display()))?;
-        use crate::rename::structured::orchestrator::StructuredPass;
-        use crate::rename::structured::use_tree::UsePathRewritePass;
+        use crate::structured::orchestrator::StructuredPass;
+        use crate::structured::use_tree::UsePathRewritePass;
         let file_key = file.to_string_lossy().to_string();
         let alias_nodes = alias_graph
             .nodes_in_file(&file_key)

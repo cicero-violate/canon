@@ -4,24 +4,24 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use syn::visit::Visit;
 
+use compiler_capture::frontends::rustc::RustcFrontend;
+use compiler_capture::multi_capture::capture_project;
+use compiler_capture::project::CargoProject;
 use crate::fs;
-use crate::rename::core::oracle::StructuralEditOracle;
-use crate::rename::core::collect::{add_file_module_symbol, collect_symbols};
-use crate::rename::core::mod_decls::update_mod_declarations;
-use crate::compiler_capture::frontends::rustc::RustcFrontend;
-use crate::compiler_capture::multi_capture::capture_project;
-use crate::compiler_capture::project::CargoProject;
-use database::{MemoryEngine, MemoryEngineConfig};
-use database::graph_log::{GraphSnapshot as WireSnapshot, WireNodeId};
-use crate::rename::core::symbol_id::normalize_symbol_id;
-use crate::rename::structured::{FieldMutation, NodeOp, node_handle};
-use crate::rename::core::paths::{module_child_path, module_path_for_file};
-use crate::rename::structured::use_tree::UsePathRewritePass;
-use crate::rename::structured::{StructuredEditOptions, StructuredPass};
-use crate::rename::core::use_map::{path_to_string, type_path_string};
-use crate::rename::core::types::SymbolIndex;
+use crate::core::collect::{add_file_module_symbol, collect_symbols};
+use crate::core::mod_decls::update_mod_declarations;
+use crate::core::oracle::StructuralEditOracle;
+use crate::core::paths::{module_child_path, module_path_for_file};
+use crate::core::symbol_id::normalize_symbol_id;
+use crate::core::types::FileRename;
+use crate::core::types::SymbolIndex;
+use crate::core::use_map::{path_to_string, type_path_string};
+use crate::structured::use_tree::UsePathRewritePass;
+use crate::structured::{node_handle, FieldMutation, NodeOp};
+use crate::structured::{StructuredEditOptions, StructuredPass};
 use crate::state::{NodeKind, NodeRegistry};
-use crate::rename::core::types::FileRename;
+use database::graph_log::{GraphSnapshot as WireSnapshot, WireNodeId};
+use database::{MemoryEngine, MemoryEngineConfig};
 
 #[derive(Debug, Clone)]
 pub struct EditConflict {
@@ -82,9 +82,8 @@ impl ProjectEditor {
     pub fn load_with_rustc(project: &Path) -> Result<Self> {
         let cargo = CargoProject::from_entry(project)?;
         let frontend = RustcFrontend::new();
-        let _artifacts = capture_project(&frontend, &cargo, &[]).with_context(|| {
-            format!("rustc capture failed for {}", project.display())
-        })?;
+        let _artifacts = capture_project(&frontend, &cargo, &[])
+            .with_context(|| format!("rustc capture failed for {}", project.display()))?;
         let state_dir = cargo.workspace_root().join(".rename");
         std::fs::create_dir_all(&state_dir)?;
         let tlog_path = state_dir.join("state.tlog");
@@ -123,13 +122,10 @@ impl ProjectEditor {
             NodeOp::MoveSymbol { handle, .. } => handle.file.clone(),
         };
 
-        self.changesets
-            .entry(file)
-            .or_default()
-            .push(QueuedOp {
-                symbol_id: norm,
-                op,
-            });
+        self.changesets.entry(file).or_default().push(QueuedOp {
+            symbol_id: norm,
+            op,
+        });
         Ok(())
     }
 
@@ -235,7 +231,7 @@ impl ProjectEditor {
                 .asts
                 .get(&file)
                 .with_context(|| format!("missing AST for {}", file.display()))?;
-            let rendered = crate::rename::structured::render_file(ast);
+            let rendered = crate::structured::render_file(ast);
             std::fs::write(&file, rendered)?;
             written.push(file.clone());
         }
@@ -279,7 +275,7 @@ impl ProjectEditor {
                 .asts
                 .get(&file)
                 .with_context(|| format!("missing AST for {}", file.display()))?;
-            let rendered = crate::rename::structured::render_file(ast);
+            let rendered = crate::structured::render_file(ast);
             if original != &rendered {
                 let diff = similar::TextDiff::from_lines(original, &rendered)
                     .unified_diff()
@@ -359,7 +355,13 @@ fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<Sy
 
     for (file, ast) in &registry.asts {
         let module_path = normalize_symbol_id(&module_path_for_file(project_root, file));
-        add_file_module_symbol(&module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
+        add_file_module_symbol(
+            &module_path,
+            file,
+            &mut symbol_table,
+            &mut symbols,
+            &mut symbol_set,
+        );
         let _ = collect_symbols(
             ast,
             &module_path,
@@ -378,7 +380,10 @@ fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
         Some(f) => f,
         None => return Ok(None),
     };
-    let mut current = file.parent().unwrap_or_else(|| Path::new("/")).to_path_buf();
+    let mut current = file
+        .parent()
+        .unwrap_or_else(|| Path::new("/"))
+        .to_path_buf();
     loop {
         if current.join("Cargo.toml").exists() {
             return Ok(Some(current));
@@ -389,7 +394,6 @@ fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
     }
     Ok(None)
 }
-
 
 mod ops;
 mod propagate;
@@ -426,12 +430,7 @@ impl<'a> NodeRegistryBuilder<'a> {
     }
 
     fn register_with_id(&mut self, id: String, kind: NodeKind) {
-        let handle = node_handle(
-            self.file,
-            self.item_index,
-            self.parent_path.clone(),
-            kind,
-        );
+        let handle = node_handle(self.file, self.item_index, self.parent_path.clone(), kind);
         self.registry
             .insert_handle(normalize_symbol_id(&id), handle);
     }
@@ -613,7 +612,10 @@ fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> 
         .or_else(|| metadata.get("generated_by_macro"))
         .or_else(|| metadata.get("macro"))
         .or_else(|| metadata.get("is_macro"));
-    matches!(value.map(|v| v.as_str()), Some("true") | Some("1") | Some("yes"))
+    matches!(
+        value.map(|v| v.as_str()),
+        Some("true") | Some("1") | Some("yes")
+    )
 }
 
 impl StructuralEditOracle for SnapshotOracle {
@@ -632,7 +634,11 @@ impl StructuralEditOracle for SnapshotOracle {
                     return None;
                 }
                 let key = self.key_by_index.get(idx)?;
-                if key == &symbol_id { None } else { Some(key.clone()) }
+                if key == &symbol_id {
+                    None
+                } else {
+                    Some(key.clone())
+                }
             })
             .collect()
     }
@@ -665,13 +671,19 @@ impl StructuralEditOracle for SnapshotOracle {
             .iter()
             .enumerate()
             .filter_map(|(idx, level)| {
-                if *level < 0 { return None; }
+                if *level < 0 {
+                    return None;
+                }
                 let key = self.key_by_index.get(idx)?;
                 if key == &symbol_id {
                     return None;
                 }
                 let other_crate = self.crate_by_key.get(key)?;
-                if other_crate != symbol_crate { Some(key.clone()) } else { None }
+                if other_crate != symbol_crate {
+                    Some(key.clone())
+                } else {
+                    None
+                }
             })
             .collect()
     }

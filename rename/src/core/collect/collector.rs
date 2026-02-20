@@ -2,11 +2,11 @@ use proc_macro2::Span;
 use std::path::Path;
 use syn::visit::{self, Visit};
 
-use crate::rename::alias::{ImportNode, UseKind, VisibilityScope};
+use crate::alias::{ImportNode, UseKind, VisibilityScope};
 
 use super::super::paths::module_child_path;
-use super::super::symbol_id::normalize_symbol_id;
 use super::super::span::span_to_range;
+use super::super::symbol_id::normalize_symbol_id;
 use super::super::types::SymbolRecord;
 use super::super::use_map::{path_to_string, type_path_string};
 
@@ -15,7 +15,7 @@ pub(super) struct SymbolCollector<'a> {
     file: &'a Path,
     symbols: Vec<SymbolRecord>,
     current_impl: Option<ImplContext>,
-    alias_graph: &'a mut crate::rename::alias::AliasGraph,
+    alias_graph: &'a mut crate::alias::AliasGraph,
 }
 
 #[derive(Clone)]
@@ -28,7 +28,7 @@ impl<'a> SymbolCollector<'a> {
     pub(super) fn new(
         module_path: &'a str,
         file: &'a Path,
-        alias_graph: &'a mut crate::rename::alias::AliasGraph,
+        alias_graph: &'a mut crate::alias::AliasGraph,
     ) -> Self {
         Self {
             module_path,
@@ -243,7 +243,11 @@ impl<'ast> Visit<'ast> for SymbolCollector<'_> {
             module: self.module_path.to_string(),
             file: file_path.clone(),
             declaration_file: Some(file_path.clone()),
-            definition_file: if is_inline { Some(file_path.clone()) } else { None },
+            definition_file: if is_inline {
+                Some(file_path.clone())
+            } else {
+                None
+            },
             span: span_to_range(i.ident.span()),
             alias: None,
             doc_comments: docs,

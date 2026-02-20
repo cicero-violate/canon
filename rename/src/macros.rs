@@ -12,10 +12,7 @@ pub fn extract_macro_rules_identifiers(item_macro: &ItemMacro) -> Vec<(String, S
     identifiers
 }
 /// Recursively extract identifiers from token stream
-fn extract_identifiers_from_tokens(
-    tokens: &TokenStream,
-    identifiers: &mut Vec<(String, Span)>,
-) {
+fn extract_identifiers_from_tokens(tokens: &TokenStream, identifiers: &mut Vec<(String, Span)>) {
     for token in tokens.clone() {
         match token {
             TokenTree::Ident(ident) => {
@@ -34,8 +31,19 @@ fn extract_identifiers_from_tokens(
 /// Check if an identifier is a macro-related keyword
 fn is_macro_keyword(ident: &str) -> bool {
     matches!(
-        ident, "tt" | "ident" | "path" | "expr" | "ty" | "pat" | "stmt" | "block" |
-        "item" | "meta" | "vis" | "lifetime" | "literal"
+        ident,
+        "tt" | "ident"
+            | "path"
+            | "expr"
+            | "ty"
+            | "pat"
+            | "stmt"
+            | "block"
+            | "item"
+            | "meta"
+            | "vis"
+            | "lifetime"
+            | "literal"
     )
 }
 /// Check if an identifier is a metavariable (starts with $)
@@ -73,11 +81,7 @@ impl MacroInvocationAnalyzer {
     pub fn new() -> Self {
         Self { patterns: vec![] }
     }
-    pub fn predict_generated_idents(
-        &self,
-        macro_name: &str,
-        tokens: &TokenStream,
-    ) -> Vec<String> {
+    pub fn predict_generated_idents(&self, macro_name: &str, tokens: &TokenStream) -> Vec<String> {
         for pattern in &self.patterns {
             if pattern.macro_name == macro_name {
                 return (pattern.predict)(tokens);
@@ -91,8 +95,16 @@ pub fn is_unsupported_macro(macro_path: &syn::Path) -> bool {
     if let Some(ident) = macro_path.get_ident() {
         let name = ident.to_string();
         matches!(
-            name.as_str(), "include" | "include_str" | "include_bytes" | "concat" |
-            "stringify" | "file" | "line" | "column" | "module_path"
+            name.as_str(),
+            "include"
+                | "include_str"
+                | "include_bytes"
+                | "concat"
+                | "stringify"
+                | "file"
+                | "line"
+                | "column"
+                | "module_path"
         )
     } else {
         false
