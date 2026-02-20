@@ -11,19 +11,19 @@ extern crate rustc_middle;
 #[cfg(feature = "rustc_frontend")]
 extern crate rustc_span;
 
-pub mod fs;
 pub mod alias;
 pub mod api;
 pub mod attributes;
 pub mod core;
+pub mod fs;
 pub mod macros;
 pub mod module_path;
 pub mod occurrence;
 pub mod pattern;
 pub mod scope;
-pub mod structured;
 pub mod state;
-pub mod rename;
+pub mod structured;
+// pub mod rename;
 #[path = "../../compiler_capture/src/mod.rs"]
 pub mod compiler_capture;
 
