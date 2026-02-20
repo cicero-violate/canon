@@ -35,11 +35,6 @@ cargo run -p canon -- materialize \
 
 /workspace/ai_sandbox/canon_workspace/target/debug/canon bootstrap-graph \
   --ir /workspace/ai_sandbox/canon_workspace/canon.ir.json \
-  --graph-out /workspace/canon_workspace/canon.graph.json \
-  --proposal-out /workspace/ai_sandbox/canon_workspace/canon.proposal.json
-
-/workspace/ai_sandbox/canon_workspace/target/debug/canon bootstrap-graph \
-  --ir /workspace/ai_sandbox/canon_workspace/canon.ir.json \
   --graph-out /workspace/ai_sandbox/canon_workspace/canon.graph.json \
   --proposal-out /workspace/ai_sandbox/canon_workspace/canon.proposal.json
 
