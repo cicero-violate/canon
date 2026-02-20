@@ -9,6 +9,7 @@ use crate::alias::{AliasGraph, VisibilityScope};
 use crate::core::collect::{add_file_module_symbol, collect_symbols};
 use crate::core::oracle::StructuralEditOracle;
 use crate::core::paths::module_path_for_file;
+use crate::core::paths::plan_file_renames;
 use crate::core::rename::apply_symbol_edits_to_ast;
 use crate::core::symbol_id::normalize_symbol_id;
 use crate::core::types::{FileRename, SymbolEdit, SymbolIndex, SymbolOccurrence};
@@ -128,7 +129,12 @@ fn propagate_rename(
     Ok(PropagationResult {
         rewrites,
         conflicts,
-        file_renames: Vec::new(),
+        file_renames: {
+            // If the renamed symbol is a module, plan the corresponding file rename.
+            let mapping: HashMap<String, String> =
+                std::iter::once((norm_id.clone(), new_name.to_string())).collect();
+            plan_file_renames(&_symbol_table, &mapping).unwrap_or_default()
+        },
     })
 }
 
