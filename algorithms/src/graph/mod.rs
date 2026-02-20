@@ -1,9 +1,11 @@
+pub mod adj_list;
+pub mod bellman_ford;
+pub mod bellman_ford_gpu;
 pub mod bfs;
+pub mod csr;
 pub mod dfs;
 pub mod dijkstra;
-pub mod invariant;
-pub mod topological_sort;
-pub mod csr;
-pub mod adj_list;
 #[cfg(feature = "cuda")]
 pub mod gpu;
+pub mod invariant;
+pub mod topological_sort;
