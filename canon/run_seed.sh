@@ -8,9 +8,9 @@ cargo run --bin canon -- ingest \
   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json
 
 # cargo run --bin canon -- ingest \
-#   --src /home/cicero-arch-omen/ai_sandbox/canon/memory/memory_engine \
-#   --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.ir.json \
-#   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/memory_engine.layout.json
+#   --src /home/cicero-arch-omen/ai_sandbox/canon/memory/database \
+#   --semantic-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/database.ir.json \
+#   --layout-out /home/cicero-arch-omen/ai_sandbox/canon/canon_store/database.layout.json
 
 
 
@@ -44,11 +44,11 @@ cargo run -p canon -- materialize \
 
 # 3. Run the agent
 cargo run -- run-agent \
-  --ir /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.json \
-  --layout /home/cicero-arch-omen/ai_sandbox/canon/canon.layout.json \
-  --graph /home/cicero-arch-omen/ai_sandbox/canon/canon.graph.json \
-  --proposal /home/cicero-arch-omen/ai_sandbox/canon/canon.proposal.json \
-  --ir-out /home/cicero-arch-omen/ai_sandbox/canon/canon.ir.out.json \
-  --ledger-out /home/cicero-arch-omen/ai_sandbox/canon/canon.ledger.json \
-  --graph-out /home/cicero-arch-omen/ai_sandbox/canon/canon.graph.out.json \
+  --ir /workspace/ai_sandbox/canon/canon.ir.json \
+  --layout /workspace/ai_sandbox/canon/canon.layout.json \
+  --graph /workspace/ai_sandbox/canon/canon.graph.json \
+  --proposal /workspace/ai_sandbox/canon/canon.proposal.json \
+  --ir-out /workspace/ai_sandbox/canon/canon.ir.out.json \
+  --ledger-out /workspace/ai_sandbox/canon/canon.ledger.json \
+  --graph-out /workspace/ai_sandbox/canon/canon.graph.out.json \
   --max-ticks 1
