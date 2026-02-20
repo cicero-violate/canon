@@ -1,23 +1,21 @@
 #![cfg(feature = "rustc_frontend")]
-use super::crate_metadata;
-use super::frontend_context::FrontendMetadata;
-use super::item_capture::{capture_adt, capture_const_static, capture_type_alias};
-use super::mir_capture::capture_function;
-use super::node_builder::ensure_node;
-use super::trait_capture::{capture_impl, capture_trait};
-use super::type_capture::capture_function_types;
 use super::RustcFrontendError;
-use crate::compiler_capture::graph::{DeltaCollector, GraphDelta, NodeId};
-use rustc_driver::{catch_with_exit_code, run_compiler, Callbacks, Compilation};
-use rustc_hir::def::DefKind;
-use rustc_interface::interface::Compiler;
-use rustc_middle::ty::TyCtxt;
-use rustc_span::def_id::DefId;
-use std::collections::HashMap;
+use crate::compiler_capture::graph::GraphDelta;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::process::ExitCode;
+use std::process::Stdio;
+use std::io::Write;
+use super::frontend_context::FrontendMetadata;
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct CaptureRequest {
+    pub entry: String,
+    pub args: Vec<String>,
+    pub env_vars: Vec<(String, String)>,
+    pub metadata: FrontendMetadata,
+}
 /// Real rustc frontend that runs `rustc_driver` to capture MIR call graphs.
 #[derive(Debug, Clone)]
 pub struct RustcFrontend {
@@ -146,48 +144,38 @@ impl RustcFrontend {
                 cfgs
             },
         };
-        let mut callbacks = SnapshotCallbacks::new(metadata);
-        for (key, value) in env_vars {
-            unsafe {
-                std::env::set_var(key, value);
-            }
-        }
-        let exit_code = catch_with_exit_code(|| run_compiler(&args, &mut callbacks));
-        for (key, _) in env_vars {
-            unsafe {
-                std::env::remove_var(key);
-            }
-        }
-        if exit_code != ExitCode::SUCCESS {
+        let request = CaptureRequest {
+            entry: entry.display().to_string(),
+            args,
+            env_vars: env_vars.to_vec(),
+            metadata,
+        };
+        let request_json = serde_json::to_string(&request).map_err(|e| {
+            RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        })?;
+        let driver = resolve_capture_driver()?;
+        let lib_path = sysroot.join("lib").display().to_string();
+        let ld_path = match std::env::var("LD_LIBRARY_PATH") {
+            Ok(existing) if !existing.is_empty() => format!("{lib_path}:{existing}"),
+            _ => lib_path,
+        };
+        let mut child = Command::new(&driver)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .env("LD_LIBRARY_PATH", &ld_path)
+            .spawn()?;
+        child.stdin.take().unwrap().write_all(request_json.as_bytes())?;
+        let output = child.wait_with_output()?;
+        if !output.status.success() {
             return Err(RustcFrontendError::Io(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("rustc exited with code {:?}", exit_code),
+                format!("capture_driver exited with {:?}", output.status.code()),
             )));
         }
-        callbacks
-            .into_deltas()
-            .ok_or(RustcFrontendError::MissingSnapshot)
-    }
-}
-struct SnapshotCallbacks {
-    deltas: Option<Vec<GraphDelta>>,
-    metadata: FrontendMetadata,
-}
-impl SnapshotCallbacks {
-    fn new(metadata: FrontendMetadata) -> Self {
-        Self {
-            deltas: None,
-            metadata,
-        }
-    }
-    fn into_deltas(self) -> Option<Vec<GraphDelta>> {
-        self.deltas
-    }
-}
-impl Callbacks for SnapshotCallbacks {
-    fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
-        self.deltas = Some(build_graph_deltas(tcx, &self.metadata));
-        Compilation::Stop
+        serde_json::from_slice(&output.stdout).map_err(|e| {
+            RustcFrontendError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        })
     }
 }
 fn extract_cfg_flags(extra_args: &[String]) -> Vec<String> {
@@ -207,54 +195,6 @@ fn extract_cfg_flags(extra_args: &[String]) -> Vec<String> {
     }
     cfgs
 }
-fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> Vec<GraphDelta> {
-    let mut builder = DeltaCollector::new();
-    let mut cache: HashMap<DefId, NodeId> = HashMap::new();
-    crate_metadata::capture_crate_metadata(&mut builder, tcx, metadata);
-    let crate_items = tcx.hir_crate_items(());
-    for local_def_id in crate_items.definitions() {
-        let def_id = local_def_id.to_def_id();
-        let def_kind = tcx.def_kind(def_id);
-        match def_kind {
-            DefKind::Struct | DefKind::Enum | DefKind::Union => {
-                capture_adt(&mut builder, tcx, def_id, &mut cache, metadata);
-            }
-            DefKind::Trait => {
-                capture_trait(&mut builder, tcx, def_id, &mut cache, metadata);
-            }
-            DefKind::Impl { of_trait } => {
-                capture_impl(&mut builder, tcx, def_id, &mut cache, metadata, of_trait);
-            }
-            DefKind::TyAlias => {
-                capture_type_alias(&mut builder, tcx, def_id, &mut cache, metadata);
-            }
-            DefKind::Static { .. } | DefKind::Const => {
-                capture_const_static(&mut builder, tcx, def_id, &mut cache, metadata);
-            }
-            _ => {}
-        }
-    }
-    for &local_def in tcx.mir_keys(()).iter() {
-        let def_id = local_def.to_def_id();
-        if !is_supported_def_kind(tcx.def_kind(def_id)) || !tcx.is_mir_available(def_id) {
-            continue;
-        }
-        let caller_id = ensure_node(&mut builder, tcx, def_id, &mut cache, metadata);
-        capture_function(
-            &mut builder,
-            tcx,
-            local_def,
-            caller_id,
-            &mut cache,
-            metadata,
-        );
-        capture_function_types(&mut builder, tcx, local_def, &mut cache, metadata);
-    }
-    builder.into_deltas()
-}
-fn is_supported_def_kind(kind: DefKind) -> bool {
-    matches!(kind, DefKind::Fn | DefKind::AssocFn)
-}
 fn resolve_rustc_sysroot() -> Result<PathBuf, std::io::Error> {
     if let Ok(sysroot) = std::env::var("SYSROOT") {
         return Ok(PathBuf::from(sysroot));
@@ -264,4 +204,23 @@ fn resolve_rustc_sysroot() -> Result<PathBuf, std::io::Error> {
     Ok(PathBuf::from(
         String::from_utf8_lossy(&output.stdout).trim(),
     ))
+}
+
+fn resolve_capture_driver() -> Result<PathBuf, RustcFrontendError> {
+    if let Ok(mut exe) = std::env::current_exe() {
+        exe.pop();
+        let c = exe.join("capture_driver");
+        if c.exists() { return Ok(c); }
+    }
+    if let Ok(mut cwd) = std::env::current_dir() {
+        loop {
+            let c = cwd.join("target/debug/capture_driver");
+            if c.exists() { return Ok(c); }
+            if !cwd.pop() { break; }
+        }
+    }
+    Err(RustcFrontendError::Io(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "capture_driver not found; run `cargo build -p compiler_capture --bin capture_driver`",
+    )))
 }

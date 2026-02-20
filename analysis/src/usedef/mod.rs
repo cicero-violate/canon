@@ -8,6 +8,7 @@
 //!   def_use(d) = { u ∈ uses(v) | d reaches u }
 //!   use_def(u) = { d ∈ defs(v) | d reaches u }
 
+use algorithms::sorting::merge_sort::merge_sort;
 use std::collections::HashMap;
 
 pub type VarId = String;
@@ -31,10 +32,11 @@ impl UseDefChains {
 
     /// Variables used before any reaching definition (potential UB).
     pub fn used_before_defined(&self) -> Vec<SiteId> {
-        self.use_def
+        let items: Vec<SiteId> = self.use_def
             .iter()
             .filter(|(_, defs)| defs.is_empty())
             .map(|(u, _)| u.clone())
-            .collect()
+            .collect();
+        merge_sort(&items)
     }
 }

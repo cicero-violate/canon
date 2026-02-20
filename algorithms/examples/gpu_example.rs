@@ -23,6 +23,8 @@ use algorithms::string_algorithms::gpu::rabin_karp_gpu;
 use algorithms::optimization::gpu::genetic_optimize_gpu;
 #[cfg(feature = "cuda")]
 use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, root, PAGE_SIZE};
+#[cfg(feature = "cuda")]
+use algorithms::control_flow::gpu::{dominators_gpu, reaching_definitions_gpu};
 
 fn main() {
     #[cfg(not(feature = "cuda"))]
@@ -117,6 +119,48 @@ fn main() {
         let c = matrix_multiply_gpu(&identity, &identity, 3);
         for row in 0..3 {
             println!("  {:?}", &c[row*3 .. row*3+3]);
+        }
+
+        // ── 5. Dominators (GPU) ──────────────────────────────────────────────
+        // CFG: 0 -> 1, 0 -> 2, 1 -> 3, 2 -> 3
+        println!("\n=== GPU Dominators ===");
+        let mut pred_adj: Vec<Vec<usize>> = vec![vec![], vec![0], vec![0], vec![1, 2]];
+        let pred_csr = algorithms::graph::csr::Csr::from_adj(&pred_adj);
+        let dom_bits = dominators_gpu(&pred_csr, 0, 4);
+        let words = (4 + 63) / 64;
+        for n in 0..4 {
+            let mut doms = Vec::new();
+            for i in 0..4 {
+                let word = dom_bits[n * words + (i >> 6)];
+                if (word >> (i & 63)) & 1 == 1 {
+                    doms.push(i);
+                }
+            }
+            println!("  dom({n}) = {:?}", doms);
+        }
+
+        // ── 6. Reaching Definitions (GPU) ────────────────────────────────────
+        // Blocks: 0 -> 1 -> 2, defs: d0 in 0, d1 in 1
+        println!("\n=== GPU Reaching Definitions ===");
+        let pred_adj: Vec<Vec<usize>> = vec![vec![], vec![0], vec![1]];
+        let pred_csr = algorithms::graph::csr::Csr::from_adj(&pred_adj);
+        let block_count = 3;
+        let def_count = 2;
+        let words = (def_count + 63) / 64;
+        let mut r#gen = vec![0u64; block_count * words];
+        let mut kill = vec![0u64; block_count * words];
+        r#gen[0] |= 1u64 << 0;
+        r#gen[1] |= 1u64 << 1;
+        let out_bits = reaching_definitions_gpu(&pred_csr, block_count, def_count, &r#gen, &kill);
+        for b in 0..block_count {
+            let mut defs = Vec::new();
+            for i in 0..def_count {
+                let word = out_bits[b * words + (i >> 6)];
+                if (word >> (i & 63)) & 1 == 1 {
+                    defs.push(i);
+                }
+            }
+            println!("  out({b}) = {:?}", defs);
         }
 
         // ── 5. Sieve of Eratosthenes ─────────────────────────────────────────

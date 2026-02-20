@@ -5,6 +5,7 @@
 //!
 //! Effect kinds: Reads, Writes, Allocates, Panics, Io, Unsafe
 
+use algorithms::searching::hash_lookup::hash_lookup;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -30,7 +31,7 @@ impl EffectMap {
     }
 
     pub fn get(&self, fn_id: &str) -> HashSet<&Effect> {
-        self.effects.get(fn_id)
+        hash_lookup(&self.effects, &fn_id.to_string())
             .map(|s| s.iter().collect())
             .unwrap_or_default()
     }

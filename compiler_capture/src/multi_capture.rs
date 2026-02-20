@@ -75,6 +75,9 @@ pub fn capture_project(
 
     let mut args = extra_args.to_vec();
     args.append(&mut externs);
+    // Tell the target crate it's being compiled for analysis capture,
+    // so it can gate out dependencies that conflict with rustc_private serde.
+    args.push("--cfg=capture_mode".to_string());
 
     // Find OUT_DIR for build scripts
     let mut env_vars = vec![];
@@ -121,7 +124,9 @@ pub fn capture_project(
                     let target_kind = target.kind.join(",");
                     let norm_key = normalize_key(node.key.as_str());
                     let new_id = NodeId::from_key(&norm_key);
+                    // Map both the original id and the already-normalized id
                     id_map.insert(node.id.clone(), new_id.clone());
+                    id_map.insert(new_id.clone(), new_id.clone());
                     node.id = new_id;
                     node.key = norm_key;
                     node.metadata
@@ -133,15 +138,11 @@ pub fn capture_project(
                         .map_err(CaptureError::Engine)?;
                 }
                 GraphDelta::AddEdge(mut edge) => {
-                    let from = id_map.get(&edge.from).ok_or_else(|| {
-                        CaptureError::Generic("edge.from missing in id_map".into())
-                    })?;
-                    let to = id_map
-                        .get(&edge.to)
-                        .ok_or_else(|| CaptureError::Generic("edge.to missing in id_map".into()))?;
+                    let from = id_map.get(&edge.from).cloned().unwrap_or_else(|| edge.from.clone());
+                    let to   = id_map.get(&edge.to  ).cloned().unwrap_or_else(|| edge.to.clone());
                     edge.from = from.clone();
                     edge.to = to.clone();
-                    edge.id = WireEdgeId::from_components(from, to, edge.kind.as_str());
+                    edge.id = WireEdgeId::from_components(&from, &to, edge.kind.as_str());
                     graph_deltas.push(GraphDelta::AddEdge(edge.clone()));
                     engine
                         .commit_graph_delta(graph_deltas.last().unwrap().clone())

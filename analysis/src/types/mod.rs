@@ -9,6 +9,7 @@
 //!   T1 <: T2, T2 <: T3 => T1 <: T3 (transitivity)
 //!   &'a T <: &'b T if 'a: 'b       (lifetime covariance)
 
+use algorithms::graph::dfs::dfs;
 use std::collections::{HashMap, HashSet};
 
 pub type TypeId = String;
@@ -28,19 +29,31 @@ impl TypeHierarchy {
 
     /// Is `child` a subtype of `parent` (transitive)?
     pub fn is_subtype(&self, child: &str, parent: &str) -> bool {
-        if child == parent { return true; }
-        let mut visited = HashSet::new();
-        let mut queue = std::collections::VecDeque::new();
-        queue.push_back(child.to_string());
-        while let Some(t) = queue.pop_front() {
-            if !visited.insert(t.clone()) { continue; }
-            if let Some(supers) = self.supertypes.get(&t) {
-                for s in supers {
-                    if s == parent { return true; }
-                    queue.push_back(s.clone());
+        if child == parent {
+            return true;
+        }
+        let mut all: HashSet<String> = self.supertypes.keys().cloned().collect();
+        for set in self.supertypes.values() {
+            for s in set {
+                all.insert(s.clone());
+            }
+        }
+        let mut nodes: Vec<String> = all.into_iter().collect();
+        nodes.sort();
+        let index: HashMap<String, usize> =
+            nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
+        let (Some(&start), Some(&target)) = (index.get(child), index.get(parent)) else {
+            return false;
+        };
+        let mut adj: Vec<Vec<usize>> = vec![Vec::new(); nodes.len()];
+        for (from, tos) in &self.supertypes {
+            let Some(&fi) = index.get(from) else { continue; };
+            for to in tos {
+                if let Some(&ti) = index.get(to) {
+                    adj[fi].push(ti);
                 }
             }
         }
-        false
+        dfs(&adj, start).into_iter().any(|i| i == target)
     }
 }

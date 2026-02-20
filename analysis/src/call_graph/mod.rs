@@ -11,7 +11,11 @@
 //!     falling back to CPU BFS otherwise.
 //!   call_depth(f) = level[idx(f)] from BFS level vector
 
+use algorithms::graph::dijkstra::dijkstra;
+#[cfg(feature = "cuda")]
 use algorithms::graph::csr::Csr;
+#[cfg(feature = "cuda")]
+use algorithms::graph::gpu::bfs_gpu;
 use database::graph_log::{GraphSnapshot, WireNodeId};
 use std::collections::HashMap;
 
@@ -25,7 +29,7 @@ impl CallGraph {
     }
 
     /// Return all node keys reachable from `start` via call edges.
-    /// Builds a call-only CSR (filtering to kind == "call"), then runs BFS.
+    /// Builds a call-only weighted graph (weight=1), then runs Dijkstra.
     pub fn reachable_from(&mut self, start: &str) -> Vec<String> {
         let nodes = &self.snapshot.nodes;
         let edges = &self.snapshot.edges;
@@ -46,49 +50,42 @@ impl CallGraph {
             return vec![];
         };
 
-        // Build adjacency list filtered to call edges only
-        let mut adj: Vec<Vec<usize>> = vec![vec![]; v];
+        // Build weighted adjacency list filtered to call edges only
+        let mut adj: Vec<Vec<(usize, u64)>> = vec![vec![]; v];
         for edge in edges {
             if edge.kind == "call" {
                 if let (Some(&fi), Some(&ti)) =
                     (id_to_idx.get(&edge.from), id_to_idx.get(&edge.to))
                 {
-                    adj[fi].push(ti);
+                    adj[fi].push((ti, 1));
                 }
             }
         }
-        let csr = Csr::from_adj(&adj);
-        let levels = Self::bfs_cpu(&csr, start_idx);
-        levels
-            .into_iter()
+        if should_use_gpu(v, adj.iter().map(|v| v.len()).sum()) {
+            #[cfg(feature = "cuda")]
+            {
+                let mut adj_u: Vec<Vec<usize>> = vec![Vec::new(); v];
+                for (from, tos) in adj.iter().enumerate() {
+                    for (to, _) in tos {
+                        adj_u[from].push(*to);
+                    }
+                }
+                let csr = Csr::from_adj(&adj_u);
+                let levels = bfs_gpu(&csr, start_idx);
+                return levels
+                    .into_iter()
+                    .enumerate()
+                    .filter(|(_, lvl)| *lvl >= 0)
+                    .map(|(i, _)| idx_to_key[i].clone())
+                    .collect();
+            }
+        }
+        let dist = dijkstra(&adj, start_idx);
+        dist.into_iter()
             .enumerate()
-            .filter(|(_, lvl)| *lvl >= 0)
+            .filter(|(_, d)| *d != u64::MAX)
             .map(|(i, _)| idx_to_key[i].clone())
             .collect()
-    }
-
-    /// GPU BFS when cuda feature enabled, returns level vector.
-    #[cfg(feature = "cuda")]
-    fn bfs_levels(csr: &Csr, start: usize) -> Vec<i32> {
-        algorithms::graph::gpu::bfs_gpu(csr, start)
-    }
-
-    /// CPU BFS fallback: returns level vector (-1 = unreachable).
-    fn bfs_cpu(csr: &Csr, start: usize) -> Vec<i32> {
-        let mut level = vec![-1i32; csr.vertex_count()];
-        let mut queue = std::collections::VecDeque::new();
-        level[start] = 0;
-        queue.push_back(start);
-        while let Some(v) = queue.pop_front() {
-            for &u in csr.neighbours(v) {
-                let u = u as usize;
-                if level[u] == -1 {
-                    level[u] = level[v] + 1;
-                    queue.push_back(u);
-                }
-            }
-        }
-        level
     }
 
     /// Call depth of `target` from `start` (-1 = unreachable).
@@ -108,18 +105,38 @@ impl CallGraph {
         let (Some(&start_idx), Some(&target_idx)) =
             (id_to_idx.get(&start_id), id_to_idx.get(&target_id))
         else { return -1; };
-        let mut adj: Vec<Vec<usize>> = vec![vec![]; v];
+        let mut adj: Vec<Vec<(usize, u64)>> = vec![vec![]; v];
         for edge in edges {
             if edge.kind == "call" {
                 if let (Some(&fi), Some(&ti)) =
                     (id_to_idx.get(&edge.from), id_to_idx.get(&edge.to))
                 {
-                    adj[fi].push(ti);
+                    adj[fi].push((ti, 1));
                 }
             }
         }
-        let csr = Csr::from_adj(&adj);
-        let levels = Self::bfs_cpu(&csr, start_idx);
-        levels[target_idx]
+        if should_use_gpu(v, adj.iter().map(|v| v.len()).sum()) {
+            #[cfg(feature = "cuda")]
+            {
+                let mut adj_u: Vec<Vec<usize>> = vec![Vec::new(); v];
+                for (from, tos) in adj.iter().enumerate() {
+                    for (to, _) in tos {
+                        adj_u[from].push(*to);
+                    }
+                }
+                let csr = Csr::from_adj(&adj_u);
+                let levels = bfs_gpu(&csr, start_idx);
+                return levels[target_idx];
+            }
+        }
+        let dist = dijkstra(&adj, start_idx);
+        match dist[target_idx] {
+            u64::MAX => -1,
+            d => d as i32,
+        }
     }
+}
+
+fn should_use_gpu(nodes: usize, edges: usize) -> bool {
+    nodes.saturating_mul(edges) > 1_000_000
 }

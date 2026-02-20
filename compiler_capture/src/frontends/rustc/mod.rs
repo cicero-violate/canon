@@ -4,7 +4,7 @@ mod crate_metadata;
 #[cfg(feature = "rustc_frontend")]
 mod frontend_context;
 #[cfg(feature = "rustc_frontend")]
-mod frontend_driver;
+pub mod frontend_driver;
 #[cfg(feature = "rustc_frontend")]
 mod hir_dump;
 #[cfg(feature = "rustc_frontend")]

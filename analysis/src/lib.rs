@@ -34,6 +34,7 @@ pub mod effect;
 pub mod escape;
 pub mod interproc;
 pub mod lifetime;
+pub mod report;
 pub mod scc;
 pub mod taint;
 pub mod types;

@@ -10,6 +10,11 @@
 //!   exit  = { b | succ(b) = ∅ }
 //!   dom(b) = { b } ∪ ∩{ dom(p) | p ∈ pred(b) }   (dominators)
 
+use algorithms::control_flow::dominators::dominators as doms;
+#[cfg(feature = "cuda")]
+use algorithms::control_flow::gpu::dominators_gpu;
+#[cfg(feature = "cuda")]
+use algorithms::graph::csr::Csr;
 use std::collections::HashMap;
 
 pub struct CfgNode {
@@ -40,36 +45,73 @@ impl Cfg {
     /// Compute dominator sets using the iterative dataflow algorithm.
     /// dom(entry) = {entry}; dom(b) = {b} ∪ ∩ dom(pred(b))
     pub fn dominators(&self) -> HashMap<usize, std::collections::HashSet<usize>> {
-        let all: std::collections::HashSet<usize> = self.nodes.iter().map(|n| n.id).collect();
-        let mut dom: HashMap<usize, std::collections::HashSet<usize>> = HashMap::new();
-        for node in &self.nodes {
-            dom.insert(node.id, all.clone());
-        }
-        if let Some(entry) = self.nodes.first() {
-            dom.insert(entry.id, std::iter::once(entry.id).collect());
-        }
-        let mut changed = true;
-        while changed {
-            changed = false;
-            for node in self.nodes.iter().skip(1) {
-                let preds = self.pred.get(&node.id).cloned().unwrap_or_default();
-                let new_dom = if preds.is_empty() {
-                    all.clone()
-                } else {
-                    let mut iter = preds.iter().map(|p| dom[p].clone());
-                    let first = iter.next().unwrap();
-                    iter.fold(first, |acc, s| acc.intersection(&s).cloned().collect())
-                };
-                let mut new_dom2 = new_dom;
-                new_dom2.insert(node.id);
-                if dom[&node.id] != new_dom2 {
-                    dom.insert(node.id, new_dom2);
-                    changed = true;
+        let node_count = if !self.nodes.is_empty() {
+            self.nodes.len()
+        } else {
+            let max_id = self
+                .succ
+                .keys()
+                .chain(self.pred.keys())
+                .copied()
+                .max()
+                .unwrap_or(0);
+            max_id + 1
+        };
+        let entry = self.nodes.first().map(|n| n.id).unwrap_or(0);
+        if should_use_gpu(node_count, &self.pred) {
+            #[cfg(feature = "cuda")]
+            {
+                if let Some(dom) = dominators_gpu_path(node_count, entry, &self.pred) {
+                    return dom;
                 }
             }
         }
-        dom
+        let dom_vec = doms(node_count, &self.pred, entry);
+        dom_vec.into_iter().enumerate().collect()
     }
+}
+
+fn should_use_gpu(node_count: usize, pred: &HashMap<usize, Vec<usize>>) -> bool {
+    let edges: usize = pred.values().map(|v| v.len()).sum();
+    node_count.saturating_mul(edges) > 1_000_000
+}
+
+#[cfg(feature = "cuda")]
+fn dominators_gpu_path(
+    node_count: usize,
+    entry: usize,
+    pred: &HashMap<usize, Vec<usize>>,
+) -> Option<HashMap<usize, std::collections::HashSet<usize>>> {
+    // Require dense ids 0..node_count-1
+    for id in 0..node_count {
+        if !pred.contains_key(&id) && id != entry {
+            // allow missing preds for nodes, but ensure id space dense
+            continue;
+        }
+    }
+    let mut adj: Vec<Vec<usize>> = vec![Vec::new(); node_count];
+    for (&n, preds) in pred {
+        for &p in preds {
+            if p < node_count {
+                adj[n].push(p);
+            }
+        }
+    }
+    let pred_csr = Csr::from_adj(&adj);
+    let dom_bits = dominators_gpu(&pred_csr, entry, node_count);
+    let words = (node_count + 63) / 64;
+    let mut out: HashMap<usize, std::collections::HashSet<usize>> = HashMap::new();
+    for n in 0..node_count {
+        let mut set = std::collections::HashSet::new();
+        for i in 0..node_count {
+            let word = dom_bits[n * words + (i >> 6)];
+            if (word >> (i & 63)) & 1 == 1 {
+                set.insert(i);
+            }
+        }
+        out.insert(n, set);
+    }
+    Some(out)
 }
 
 impl Default for Cfg {

@@ -7,6 +7,7 @@
 //!   summary(f) is computed bottom-up in the call graph SCC order.
 //!   For recursive SCCs, iterate to fixpoint.
 
+use algorithms::sorting::merge_sort::merge_sort;
 use std::collections::HashMap;
 
 pub type FnId = String;
@@ -43,11 +44,12 @@ impl SummaryStore {
         mut compute: F,
     ) where F: FnMut(&FnId, &SummaryStore) -> FnSummary {
         for scc in scc_order {
+            let ordered = merge_sort(scc);
             // Iterate to fixpoint for recursive SCCs
             let mut changed = true;
             while changed {
                 changed = false;
-                for fn_id in scc {
+                for fn_id in &ordered {
                     let new_summary = compute(fn_id, self);
                     let old = self.summaries.get(fn_id);
                     if old.map(|s| s.post != new_summary.post).unwrap_or(true) {

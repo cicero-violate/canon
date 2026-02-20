@@ -11,6 +11,11 @@ default = ["rustc_frontend", "compiler_capture_crate"]
 rustc_frontend = []
 compiler_capture_crate = []
 
+[[bin]]
+name = "capture_driver"
+path = "src/bin/capture_driver.rs"
+required-features = ["rustc_frontend"]
+
 [dependencies]
 anyhow = "1"
 database = { path = "../memory/database" }

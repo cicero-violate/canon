@@ -7,6 +7,11 @@
 //!   live(entry) = true
 //!   live(f)     = ∃ g: live(g) ∧ g calls f
 
+use algorithms::graph::dfs::dfs;
+#[cfg(feature = "cuda")]
+use algorithms::graph::csr::Csr;
+#[cfg(feature = "cuda")]
+use algorithms::graph::gpu::bfs_gpu;
 use std::collections::{HashMap, HashSet};
 
 pub struct DeadCodeAnalysis {
@@ -33,21 +38,64 @@ impl DeadCodeAnalysis {
 
     /// Returns set of symbols not reachable from any entry point.
     pub fn dead_symbols(&self) -> HashSet<String> {
-        let mut live = HashSet::new();
-        let mut queue: std::collections::VecDeque<String> =
-            self.entry_points.iter().cloned().collect();
-        while let Some(f) = queue.pop_front() {
-            if !live.insert(f.clone()) { continue; }
-            if let Some(callees) = self.calls.get(&f) {
-                for c in callees { queue.push_back(c.clone()); }
+        let mut all: HashSet<String> = self.calls.keys().cloned().collect();
+        for callees in self.calls.values() {
+            for c in callees {
+                all.insert(c.clone());
             }
         }
-        self.calls.keys()
-            .chain(self.entry_points.iter())
-            .filter(|f| !live.contains(*f))
-            .cloned()
+        for e in &self.entry_points {
+            all.insert(e.clone());
+        }
+        let mut nodes: Vec<String> = all.into_iter().collect();
+        nodes.sort();
+        let index: HashMap<String, usize> =
+            nodes.iter().enumerate().map(|(i, k)| (k.clone(), i)).collect();
+        let mut adj: Vec<Vec<usize>> = vec![Vec::new(); nodes.len()];
+        for (from, tos) in &self.calls {
+            let Some(&fi) = index.get(from) else { continue; };
+            for to in tos {
+                if let Some(&ti) = index.get(to) {
+                    adj[fi].push(ti);
+                }
+            }
+        }
+        let mut live: HashSet<usize> = HashSet::new();
+        if should_use_gpu(nodes.len(), adj.iter().map(|v| v.len()).sum()) {
+            #[cfg(feature = "cuda")]
+            {
+                let csr = Csr::from_adj(&adj);
+                for entry in &self.entry_points {
+                    if let Some(&start) = index.get(entry) {
+                        let levels = bfs_gpu(&csr, start);
+                        for (i, lvl) in levels.iter().enumerate() {
+                            if *lvl >= 0 {
+                                live.insert(i);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            for entry in &self.entry_points {
+                if let Some(&start) = index.get(entry) {
+                    for v in dfs(&adj, start) {
+                        live.insert(v);
+                    }
+                }
+            }
+        }
+        nodes
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| !live.contains(i))
+            .map(|(_, k)| k)
             .collect()
     }
+}
+
+fn should_use_gpu(nodes: usize, edges: usize) -> bool {
+    nodes.saturating_mul(edges) > 1_000_000
 }
 
 impl Default for DeadCodeAnalysis {
