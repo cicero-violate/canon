@@ -3,5 +3,7 @@ pub mod dfs;
 pub mod dijkstra;
 pub mod invariant;
 pub mod topological_sort;
+pub mod csr;
+pub mod adj_list;
 #[cfg(feature = "cuda")]
 pub mod gpu;
