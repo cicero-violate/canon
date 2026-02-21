@@ -8,3 +8,4 @@ cargo build --message-format=json 2>/dev/null \
 > build_errors.json
 
 jq -r '.code' build_errors.json | sort | uniq -c | sort -k2
+bat -n build_errors.json 
