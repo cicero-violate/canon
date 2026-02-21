@@ -1,7 +1,7 @@
 cargo build --message-format=json 2>/dev/null \
 | jq -c 'select(.reason=="compiler-message")
          | .message
-         | select(.level=="warnings")
+         | select(.level=="errors")
          | {code: (.code.code // "unknown"),
             message: .message,
             spans: [.spans[]? | {file: .file_name, line: .line_start, col: .column_start}]}' \
