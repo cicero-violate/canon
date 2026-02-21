@@ -411,6 +411,13 @@ fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &HashMap<Path
             let item_tokens = item.to_token_stream().to_string();
             collect_needed_uses(src_ast, &item_tokens)
         };
+        // Rewrite relative use paths (super::, self::) to absolute crate:: paths
+        // so they remain valid after the item lands in a different module.
+        let needed_uses: Vec<syn::ItemUse> = {
+            let project_root = find_project_root_sync(registry).unwrap_or_else(|| PathBuf::from("."));
+            let src_module = module_path_for_file(&project_root, &mv.src_file);
+            needed_uses.into_iter().map(|u| absolutize_use(u, &src_module)).collect()
+        };
         touched.insert(mv.src_file.clone());
         // Remove use imports that are now orphaned in the source file.
         {
