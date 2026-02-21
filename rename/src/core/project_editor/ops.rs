@@ -15,6 +15,9 @@ pub(super) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeH
         NodeOp::ReorderItems { file: _, new_order } => reorder_items(ast, handles, new_order),
         NodeOp::MutateField { handle, mutation } => apply_field_mutation(ast, handle, symbol_id, mutation),
         NodeOp::MoveSymbol { .. } => Ok(false),
+        NodeOp::MoveSymbol { handle, new_module_path, .. } => {
+            move_symbol_intra_file(ast, handle, new_module_path)
+        }
     }
 }
 
@@ -494,4 +497,80 @@ fn resolve_items_container_from<'a>(items: &'a mut Vec<syn::Item>, module_path: 
         return resolve_items_container_from(inner, rest);
     }
     Some(items)
+}
+
+/// Intra-file move: extract item from its current position and append it into the
+/// target inline mod named by `new_module_path` (e.g. "crate::foo::bar").
+/// Returns Ok(false) if source and target module are the same (no-op).
+/// Returns Ok(false) if the target module path does not exist as an inline mod in
+/// this file — cross-file moves are handled at the mod.rs level.
+fn move_symbol_intra_file(ast: &mut syn::File, handle: &NodeHandle, new_module_path: &str) -> Result<bool> {
+    if !handle.nested_path.is_empty() {
+        anyhow::bail!("MoveSymbol not supported for items nested inside impl blocks");
+    }
+    // Extract the leaf module name segments from new_module_path (drop "crate::" prefix)
+    let target_segments: Vec<&str> = new_module_path
+        .trim_start_matches("crate::")
+        .split("::")
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    // Find the target inline mod container by walking item names
+    let target_indices = find_mod_indices_by_name(&ast.items, &target_segments);
+    let Some(target_indices) = target_indices else {
+        // Target mod not found in this file — cross-file move, handled elsewhere
+        return Ok(false);
+    };
+
+    // Check source container — if item is already at top-level and target is top-level, no-op
+    if target_segments.is_empty() && handle.item_index < ast.items.len() {
+        return Ok(false);
+    }
+
+    // Clone the item before mutating (borrow checker: can't hold ref into items while also mutating)
+    let item = ast.items.get(handle.item_index)
+        .ok_or_else(|| anyhow::anyhow!("MoveSymbol: item_index {} out of bounds", handle.item_index))?
+        .clone();
+
+    // Remove from source
+    ast.items.remove(handle.item_index);
+
+    // Adjust target_indices if they pointed past the removed item at top level
+    // (only relevant when target mod index > source item index at the same level)
+    let adjusted: Vec<usize> = {
+        let mut v = target_indices.clone();
+        if let Some(first) = v.first_mut() {
+            if *first > handle.item_index {
+                *first -= 1;
+            }
+        }
+        v
+    };
+
+    // Navigate to the target container and append
+    let container = resolve_items_container_mut(ast, &adjusted)
+        .ok_or_else(|| anyhow::anyhow!("MoveSymbol: target mod path not found after extraction"))?;
+    container.push(item);
+    Ok(true)
+}
+
+/// Walk items by module name segments, returning the index path to the container vec.
+/// Returns None if any segment is not found as an inline mod.
+fn find_mod_indices_by_name(items: &[syn::Item], segments: &[&str]) -> Option<Vec<usize>> {
+    if segments.is_empty() {
+        return Some(vec![]);
+    }
+    let (head, tail) = segments.split_first()?;
+    for (i, item) in items.iter().enumerate() {
+        if let syn::Item::Mod(m) = item {
+            if m.ident == head {
+                if let Some((_, inner)) = &m.content {
+                    let mut rest = find_mod_indices_by_name(inner, tail)?;
+                    rest.insert(0, i);
+                    return Some(rest);
+                }
+            }
+        }
+    }
+    None
 }

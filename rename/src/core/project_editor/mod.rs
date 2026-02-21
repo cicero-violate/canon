@@ -174,6 +174,11 @@ impl ProjectEditor {
             &self.changesets,
         )?;
         touched_files.extend(use_path_touched);
+        let cross_file_touched = apply_cross_file_moves(
+            &mut self.registry,
+            &self.changesets,
+        )?;
+        touched_files.extend(cross_file_touched);
         let mut validation = self.validate()?;
         validation.extend(conflicts);
         self.pending_file_moves = file_renames
@@ -418,6 +423,130 @@ fn build_symbol_index(
     }
     Ok(symbol_table)
 }
+
+/// Cross-file move pass: for each MoveSymbol op, if source and destination file differ,
+/// extract the item from the source AST and append it to the destination AST.
+fn apply_cross_file_moves(
+    registry: &mut NodeRegistry,
+    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
+) -> Result<HashSet<PathBuf>> {
+    let mut touched: HashSet<PathBuf> = HashSet::new();
+
+    struct PendingMove {
+        src_file: PathBuf,
+        item_index: usize,
+        dst_file: PathBuf,
+        dst_module_segments: Vec<String>,
+    }
+
+    let mut pending: Vec<PendingMove> = Vec::new();
+
+    for (src_file, ops) in changesets {
+        for queued in ops {
+            if let NodeOp::MoveSymbol { handle, new_module_path, .. } = &queued.op {
+                let dst_file = registry
+                    .handles
+                    .values()
+                    .find(|h| {
+                        let file_str = h.file.to_string_lossy();
+                        new_module_path.contains(
+                            &file_str
+                                .split('/')
+                                .last()
+                                .unwrap_or("")
+                                .trim_end_matches(".rs")
+                                .to_string(),
+                        )
+                    })
+                    .map(|h| h.file.clone());
+
+                let dst_file = match dst_file {
+                    Some(f) if f != *src_file => f,
+                    _ => continue,
+                };
+
+                if !registry.asts.contains_key(&dst_file) {
+                    let content = std::fs::read_to_string(&dst_file)?;
+                    let ast = syn::parse_file(&content)
+                        .map_err(|e| anyhow::anyhow!("failed to parse {}: {}", dst_file.display(), e))?;
+                    registry.asts.insert(dst_file.clone(), ast);
+                }
+
+                let segments: Vec<String> = new_module_path
+                    .trim_start_matches("crate::")
+                    .split("::")
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+                    .collect();
+
+                pending.push(PendingMove {
+                    src_file: src_file.clone(),
+                    item_index: handle.item_index,
+                    dst_file,
+                    dst_module_segments: segments,
+                });
+            }
+        }
+    }
+
+    pending.sort_by(|a, b| b.item_index.cmp(&a.item_index));
+
+    for mv in pending {
+        let item = {
+            let src_ast = registry
+                .asts
+                .get_mut(&mv.src_file)
+                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
+            if mv.item_index >= src_ast.items.len() {
+                anyhow::bail!("cross-file move: item_index {} out of bounds", mv.item_index);
+            }
+            src_ast.items.remove(mv.item_index)
+        };
+        touched.insert(mv.src_file.clone());
+
+        let dst_ast = registry
+            .asts
+            .get_mut(&mv.dst_file)
+            .ok_or_else(|| anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display()))?;
+
+        let segs: Vec<&str> = mv.dst_module_segments.iter().map(|s| s.as_str()).collect();
+        match find_mod_container_mut(dst_ast, &segs) {
+            Some(container) => container.push(item),
+            None => dst_ast.items.push(item),
+        }
+
+        touched.insert(mv.dst_file);
+    }
+
+    Ok(touched)
+}
+
+fn find_mod_container_mut<'a>(
+    ast: &'a mut syn::File,
+    segments: &[&str],
+) -> Option<&'a mut Vec<syn::Item>> {
+    fn recurse<'a>(
+        items: &'a mut Vec<syn::Item>,
+        segments: &[&str],
+    ) -> Option<&'a mut Vec<syn::Item>> {
+        if segments.is_empty() {
+            return Some(items);
+        }
+        let (head, tail) = segments.split_first()?;
+        for item in items.iter_mut() {
+            if let syn::Item::Mod(m) = item {
+                if m.ident == head {
+                    if let Some((_, inner)) = m.content.as_mut() {
+                        return recurse(inner, tail);
+                    }
+                }
+            }
+        }
+        None
+    }
+    recurse(&mut ast.items, segments)
+}
+
 fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
     let file = match registry.asts.keys().next() {
         Some(f) => f,
