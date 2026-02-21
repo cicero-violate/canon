@@ -12,7 +12,7 @@ pub struct Indexes<'a> {
     pub proofs: HashMap<&'a str, &'a Proof>,
     pub predicates: HashMap<&'a str, &'a Rule>,
     pub judgments: HashMap<&'a str, &'a Decision>,
-    pub admissions: HashMap<&'a str, &'a ChangeAdmission>,
+    pub admissions: HashMap<&'a str, &'a AdmissionPolicy>,
     pub tick_graphs: HashMap<&'a str, &'a ExecutionGraph>,
     pub ticks: HashMap<&'a str, &'a Tick>,
     pub epochs: HashMap<&'a str, &'a ExecutionEpoch>,

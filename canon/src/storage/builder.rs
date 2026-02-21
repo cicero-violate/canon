@@ -1,6 +1,6 @@
 use crate::ir::{
     AppliedDeltaRecord, CallEdge, SystemState, StateChange as CanonicalDelta,
-    ChangeAdmission, EnumNode, ErrorArtifact, ExecutionRecord, ExternalDependency,
+    AdmissionPolicy, EnumNode, ErrorArtifact, ExecutionRecord, ExternalDependency,
     Function, GoalMutation, GpuFunction, ImplBlock, Decision, Rule, Learning, LoopPolicy,
     Module, ModuleEdge, Plan, PolicyParameters, Proof, Proposal, RewardRecord, Struct,
     SystemGraph, Tick, ExecutionEpoch, ExecutionGraph, Trait,

@@ -10,7 +10,7 @@ use crate::{
     evolution::{apply_admitted_deltas, EvolutionError},
     ir::proposal::{resolve_proposal_nodes, ProposalResolutionError},
     ir::{
-        SystemState, StateChange, ChangeAdmission, DeltaId, Decision, JudgmentDecision,
+        SystemState, StateChange, AdmissionPolicy, DeltaId, Decision, JudgmentDecision,
         ProposalStatus, Word, WordError,
     },
     layout::{FileBinding, LayoutFile, FileTopology, LayoutModule, LayoutNode},
@@ -128,7 +128,7 @@ pub fn accept_proposal(
         });
     working
         .admissions
-        .push(ChangeAdmission {
+        .push(AdmissionPolicy {
             id: input.admission_id.clone(),
             judgment: input.judgment_id.clone(),
             tick: input.tick_id.clone(),

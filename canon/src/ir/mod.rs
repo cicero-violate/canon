@@ -19,7 +19,7 @@ mod timeline;
 mod types;
 mod word;
 pub mod world_model;
-pub use admission::{AppliedDeltaRecord, ChangeAdmission};
+pub use admission::{AppliedDeltaRecord, AdmissionPolicy};
 pub use artifacts::{
     AssociatedConst, AssociatedType, ConstItem, EnumNode, EnumVariant, EnumVariantFields,
     Field, ImplBlock, ImplFunctionBinding, Module, ModuleEdge, PubUseItem, StaticItem,

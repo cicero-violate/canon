@@ -7,7 +7,7 @@ use canon_kernel::{
     ProofScope as KernelProofScope, StateLog,
 };
 use serde_json;
-use crate::ir::{SystemState, CanonicalMeta, StateChange, ChangeAdmission, Proof};
+use crate::ir::{SystemState, CanonicalMeta, StateChange, AdmissionPolicy, Proof};
 use super::EvolutionError;
 pub(super) fn build_proof_registry(proofs: &[Proof]) -> KernelProofRegistry {
     let mut registry = KernelProofRegistry::new();
@@ -49,7 +49,7 @@ pub(super) fn build_state_log(
     Ok(StateLog::from_records(initial_state_seed(&ir.meta), records))
 }
 pub(super) fn build_kernel_admission(
-    admission: &ChangeAdmission,
+    admission: &AdmissionPolicy,
     deltas: &HashMap<&str, &StateChange>,
 ) -> Result<KernelAdmission, EvolutionError> {
     let kernel_deltas = admission

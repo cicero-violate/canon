@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::ids::{AdmissionId, AppliedDeltaId, DeltaId, TickId};
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct ChangeAdmission {
+pub struct AdmissionPolicy {
     pub id: AdmissionId,
     pub judgment: super::ids::JudgmentId,
     pub tick: TickId,

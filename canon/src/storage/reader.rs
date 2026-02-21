@@ -1,7 +1,7 @@
 use crate::ir::world_model::WorldModel;
 use crate::ir::{
     AppliedDeltaRecord, CallEdge, SystemState, CanonicalMeta,
-    StateChange as CanonicalDelta, ChangeAdmission, EnumNode, ErrorArtifact,
+    StateChange as CanonicalDelta, AdmissionPolicy, EnumNode, ErrorArtifact,
     ExecutionRecord, ExternalDependency, Function, GoalMutation, GpuFunction, ImplBlock,
     Decision, Rule, Learning, LoopPolicy, Module, ModuleEdge, Plan, PolicyParameters,
     Project, Proof, Proposal, RewardRecord, Struct, SystemGraph, Tick, ExecutionEpoch,

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use super::reward::RewardRecord;
 use super::world_model::WorldModel;
 use super::{
-    admission::{AppliedDeltaRecord, ChangeAdmission},
+    admission::{AppliedDeltaRecord, AdmissionPolicy},
     artifacts::{EnumNode, ImplBlock, Module, ModuleEdge, Struct, Trait},
     delta::StateChange, errors::ErrorArtifact, functions::Function, goals::GoalMutation,
     gpu::GpuFunction, graphs::{CallEdge, SystemGraph, ExecutionGraph},
@@ -40,7 +40,7 @@ pub struct SystemState {
     pub policy_parameters: Vec<PolicyParameters>,
     pub plans: Vec<Plan>,
     pub executions: Vec<ExecutionRecord>,
-    pub admissions: Vec<ChangeAdmission>,
+    pub admissions: Vec<AdmissionPolicy>,
     pub applied_deltas: Vec<AppliedDeltaRecord>,
     pub gpu_functions: Vec<GpuFunction>,
     pub proposals: Vec<Proposal>,
