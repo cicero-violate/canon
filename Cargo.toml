@@ -10,7 +10,7 @@ members = [
   # "memory/merkle-core", "memory/partition-store", "memory/tlog-writer", "memory/snapshot-manager", "memory/epoch-sealer", "memory/proof-store", "memory/verifier", "memory/root-chain",
   "memory/database", "canon_invariant", "repomap", "task_taxonomy",
   # "smt",
-  "chromium_messenger", "rename", "rename_test", "compiler_capture", "graph_gpu", "algorithms", "rtree", "test_projects/test_rust_project", "analysis",
+  "chromium_messenger", "rename", "fixpoint_test", "compiler_capture", "graph_gpu", "algorithms", "rtree", "test_projects/test_rust_project", "analysis",
 ]
 
 resolver = "2"
