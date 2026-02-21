@@ -4,13 +4,13 @@
 extern crate rustc_driver;
 
 use rename::collect_names;
+use serde::Serialize;
 use std::fs;
 use std::path::Path;
-use serde::Serialize;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Avoid parsing materialized_project (may contain generated / invalid code)
-    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/memory/database/src");
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename");
 
     let report = collect_names(project_path)?;
 
@@ -70,15 +70,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Save in project root directory
-    let md_path = project_path
-        .parent()
-        .unwrap_or(project_path)
-        .join("SYMBOLS.md");
+    let md_path = project_path.parent().unwrap_or(project_path).join("SYMBOLS.md");
 
-    let json_path = project_path
-        .parent()
-        .unwrap_or(project_path)
-        .join("SYMBOLS.json");
+    let json_path = project_path.parent().unwrap_or(project_path).join("SYMBOLS.json");
 
     fs::write(&md_path, output)?;
 
@@ -98,17 +92,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let name = s.name.clone();
 
             if module_path.ends_with(&format!("::{}", name)) {
-                module_path = module_path
-                    .rsplit_once("::")
-                    .map(|(parent, _)| parent.to_string())
-                    .unwrap_or(module_path);
+                module_path = module_path.rsplit_once("::").map(|(parent, _)| parent.to_string()).unwrap_or(module_path);
             }
 
-            JsonSymbol {
-                kind: format!("{:?}", s.kind),
-                symbol: format!("{}::{}", module_path, name),
-                file: s.file.clone(),
-            }
+            JsonSymbol { kind: format!("{:?}", s.kind), symbol: format!("{}::{}", module_path, name), file: s.file.clone() }
         })
         .collect();
 
