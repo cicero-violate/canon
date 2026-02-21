@@ -10,6 +10,7 @@ pub mod occurrence;
 pub mod pattern;
 pub mod scope;
 pub mod structured;
+mod state;
 pub use crate::alias;
 pub use crate::api;
 pub use crate::attributes;

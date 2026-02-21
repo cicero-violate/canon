@@ -244,8 +244,8 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
                 use_path = format!("crate::{}", use_path);
             }
 
-            for name in exported_names {
-                if token_contains_word(&body_tokens, &name) {
+            for name in exported_names.iter() {
+                if token_contains_word(&body_tokens, name) {
                     let use_str = format!("use {}::{};", use_path, name);
                     if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
                         let src_ast = registry
@@ -419,7 +419,7 @@ fn resolve_dst_file(registry: &NodeRegistry, new_module_path: &str, src_file: &P
         }
         let module = normalize_symbol_id(&module_path_for_file(&project_root, file));
         if module == norm_dst {
-            return Some(file.clone());
+            return Some(file.to_path_buf());
         }
     }
     None
