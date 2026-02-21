@@ -1,5 +1,5 @@
 cargo run --example list_symbols
-cd /workspace/ai_sandbox/canon_workspace/memory/database
+cd /workspace/ai_sandbox/canon_workspace/rename/ 
 
 # SYMBOLS.json uses "symbol" not "id" or "path"
 # Dump struct + trait + type fully-qualified symbols
