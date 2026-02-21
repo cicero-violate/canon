@@ -8,6 +8,7 @@ use super::config::StructuredEditOptions;
 use super::orchestrator::StructuredPass;
 use crate::alias::ImportNode;
 use crate::resolve::ResolverContext;
+use crate::resolve::Resolver;
 
 pub struct UsePathRewritePass {
     path_updates: HashMap<String, String>,
@@ -81,7 +82,11 @@ fn rewrite_use_tree_mut(
             let segment = p.ident.to_string();
             current_path.push(segment.clone());
 
-            let resolver = resolver_ctx.resolver();
+            let resolver = Resolver::new(
+                &resolver_ctx.module_path,
+                resolver_ctx.alias_graph.as_ref(),
+                resolver_ctx.symbol_table.as_ref(),
+            );
             let path_str = current_path.join("::");
             if let Some(canonical) = resolver.resolve_path_segments(current_path) {
                 if let Some(new_path) = find_replacement_path(&canonical, updates) {
@@ -110,7 +115,11 @@ fn rewrite_use_tree_mut(
             let segment = n.ident.to_string();
             current_path.push(segment.clone());
 
-            let resolver = resolver_ctx.resolver();
+            let resolver = Resolver::new(
+                &resolver_ctx.module_path,
+                resolver_ctx.alias_graph.as_ref(),
+                resolver_ctx.symbol_table.as_ref(),
+            );
             let path_str = current_path.join("::");
             if let Some(canonical) = resolver.resolve_path_segments(current_path) {
                 if let Some(new_path) = find_replacement_path(&canonical, updates) {
@@ -133,7 +142,11 @@ fn rewrite_use_tree_mut(
             let segment = r.ident.to_string();
             current_path.push(segment.clone());
 
-            let resolver = resolver_ctx.resolver();
+            let resolver = Resolver::new(
+                &resolver_ctx.module_path,
+                resolver_ctx.alias_graph.as_ref(),
+                resolver_ctx.symbol_table.as_ref(),
+            );
             let path_str = current_path.join("::");
             if let Some(canonical) = resolver.resolve_path_segments(current_path) {
                 if let Some(new_path) = find_replacement_path(&canonical, updates) {

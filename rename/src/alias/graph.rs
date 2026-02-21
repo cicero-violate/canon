@@ -100,10 +100,11 @@ impl AliasGraph {
     pub fn resolve_alias_chain(&self, module_path: &str, name: &str) -> ResolutionChain {
         let mut chain = ResolutionChain { start_name: name.to_string(), start_module: module_path.to_string(), steps: Vec::new(), resolved_symbol: None };
         chain.steps.push(ResolutionStep { kind: StepKind::Start, name: name.to_string(), module: module_path.to_string(), use_node_id: None });
+        let mut visited = HashSet::new();
         if let Some(source) = self.resolve_local(module_path, name) {
             let use_node_id = self.local_names.get(&(module_path.to_string(), name.to_string())).cloned();
             chain.steps.push(ResolutionStep { kind: StepKind::LocalUse, name: source.to_string(), module: extract_module_from_path(source), use_node_id });
-            self.follow_reexport_chain(&mut chain, source);
+            self.follow_reexport_chain_safe(&mut chain, source, &mut visited);
             chain.resolved_symbol = Some(source.to_string());
         } else {
             if let Some(resolved) = self.resolve_through_glob(module_path, name) {
@@ -118,12 +119,18 @@ impl AliasGraph {
         chain
     }
     /// Follow re-export chain to find ultimate source
-    fn follow_reexport_chain(&self, chain: &mut ResolutionChain, current_path: &str) {
+    fn follow_reexport_chain_safe(
+        &self,
+        chain: &mut ResolutionChain,
+        current_path: &str,
+        visited: &mut HashSet<String>,
+    ) {
         let mut current = current_path.to_string();
-        let mut visited = HashSet::new();
         while visited.insert(current.clone()) {
             let importers = self.get_importers(&current);
-            let reexport = importers.iter().find(|node| matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased));
+            let reexport = importers
+                .iter()
+                .find(|node| matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased));
             if let Some(reexport_node) = reexport {
                 chain.steps.push(ResolutionStep {
                     kind: StepKind::ReExport,
@@ -184,13 +191,32 @@ impl AliasGraph {
     /// Find all re-export chains for a symbol
     pub fn find_reexport_chains(&self, symbol_id: &str) -> Vec<Vec<ImportNode>> {
         let mut chains = Vec::new();
-        let mut current_chains = vec![vec![]];
-        self.find_reexport_chains_recursive(symbol_id, &mut current_chains, &mut chains);
+        let mut visited = HashSet::new();
+        self.find_reexport_chains_recursive(
+            symbol_id,
+            &mut vec![vec![]],
+            &mut chains,
+            &mut visited,
+        );
         chains
     }
-    fn find_reexport_chains_recursive(&self, symbol_id: &str, current_chains: &mut Vec<Vec<ImportNode>>, result: &mut Vec<Vec<ImportNode>>) {
+    fn find_reexport_chains_recursive(
+        &self,
+        symbol_id: &str,
+        current_chains: &mut Vec<Vec<ImportNode>>,
+        result: &mut Vec<Vec<ImportNode>>,
+        visited: &mut HashSet<String>,
+    ) {
+        if !visited.insert(symbol_id.to_string()) {
+            return;
+        }
+
         let importers = self.get_importers(symbol_id);
-        let reexports: Vec<ImportNode> = importers.into_iter().cloned().filter(|node| matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased)).collect();
+        let reexports: Vec<ImportNode> = importers
+            .into_iter()
+            .cloned()
+            .filter(|node| matches!(node.kind, UseKind::ReExport | UseKind::ReExportAliased))
+            .collect();
         if reexports.is_empty() {
             for chain in current_chains.iter() {
                 if !chain.is_empty() {
@@ -204,7 +230,12 @@ impl AliasGraph {
             new_chain.push(reexport.clone());
             let reexport_path = format!("{}::{}", reexport.module_path, reexport.local_name);
             let mut new_chains = vec![new_chain];
-            self.find_reexport_chains_recursive(&reexport_path, &mut new_chains, result);
+            self.find_reexport_chains_recursive(
+                &reexport_path,
+                &mut new_chains,
+                result,
+                visited,
+            );
         }
     }
 }

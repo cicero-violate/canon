@@ -116,6 +116,18 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
     }
 }
 impl<'a> Visit<'a> for EnhancedOccurrenceVisitor<'a> {
+    fn visit_item_mod(&mut self, node: &'a syn::ItemMod) {
+        // Suppress recursive descent into inline mods via the visit trait.
+        // visit_file_items drives inline mod content iteratively instead.
+        // We still visit the mod's attributes.
+        for (symbol, span) in extract_symbols_from_attributes(&node.attrs) {
+            if let Some(id) = self.resolve_symbol(&symbol) {
+                self.add_occurrence(id, "attribute", span);
+            }
+        }
+        // intentionally no visit::visit_item_mod call
+    }
+
     fn visit_item_struct(&mut self, node: &'a syn::ItemStruct) {
         let struct_name = format!("{}::{}", self.module_path, node.ident);
         self.current_struct = Some(struct_name.clone());
@@ -244,7 +256,7 @@ impl<'a> Visit<'a> for EnhancedOccurrenceVisitor<'a> {
         if segments.is_empty() {
             return;
         }
-        let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+        let resolver = Resolver::new(self.module_path, self.alias_graph, self.symbol_table);
         for (idx, seg) in path.segments.iter().enumerate() {
             let prefix = &segments[..=idx];
             if let Some(symbol) = resolver.resolve_path_segments(prefix) {
@@ -314,13 +326,35 @@ fn path_to_symbol(path: &syn::Path, module_path: &str, alias_graph: &AliasGraph,
     if segments.is_empty() {
         return None;
     }
-    let resolver = Resolver { module_path, alias_graph, symbol_table };
+    let resolver = Resolver::new(module_path, alias_graph, symbol_table);
     resolver.resolve_path_segments(&segments)
 }
 impl<'a> EnhancedOccurrenceVisitor<'a> {
+    /// Iterative file-level walker — visits all items across nested inline mods
+    /// using a heap stack, avoiding OS stack overflow from deep mod nesting.
+    pub fn visit_file_items(&mut self, ast: &'a syn::File) {
+        use syn::visit::Visit;
+        // Stack of item slices to process
+        let mut stack: Vec<&'a [syn::Item]> = vec![&ast.items];
+        while let Some(items) = stack.pop() {
+            for item in items {
+                // Recurse into inline mod content via heap stack
+                if let syn::Item::Mod(m) = item {
+                    if let Some((_, inline_items)) = &m.content {
+                        stack.push(inline_items.as_slice());
+                    }
+                    // visit mod-level attributes only (visit_item_mod is suppressed)
+                    self.visit_item_mod(m);
+                } else {
+                    self.visit_item(item);
+                }
+            }
+        }
+    }
+
     fn resolve_symbol(&self, symbol: &str) -> Option<String> {
         let segments: Vec<String> = symbol.split("::").map(|s| s.to_string()).collect();
-        let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+        let resolver = Resolver::new(self.module_path, self.alias_graph, self.symbol_table);
         resolver.resolve_path_segments(&segments)
     }
     fn record_use_tree(&mut self, tree: &syn::UseTree, prefix: &mut Vec<String>) {
@@ -329,7 +363,7 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
                 let mut next_prefix = prefix.clone();
                 next_prefix.push(p.ident.to_string());
                 let full = normalize_use_prefix(&next_prefix, self.module_path);
-                let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+                let resolver = Resolver::new(self.module_path, self.alias_graph, self.symbol_table);
                 if let Some(resolved) = resolver.resolve_path_segments(&full) {
                     self.add_occurrence(resolved, "use_path", p.ident.span());
                 }
@@ -341,7 +375,7 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
                 let mut next_prefix = prefix.clone();
                 next_prefix.push(name.ident.to_string());
                 let full = normalize_use_prefix(&next_prefix, self.module_path);
-                let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+                let resolver = Resolver::new(self.module_path, self.alias_graph, self.symbol_table);
                 if let Some(resolved) = resolver.resolve_path_segments(&full) {
                     self.add_occurrence(resolved, "use", name.ident.span());
                 }
@@ -350,7 +384,7 @@ impl<'a> EnhancedOccurrenceVisitor<'a> {
                 let mut next_prefix = prefix.clone();
                 next_prefix.push(rename.ident.to_string());
                 let full = normalize_use_prefix(&next_prefix, self.module_path);
-                let resolver = Resolver { module_path: self.module_path, alias_graph: self.alias_graph, symbol_table: self.symbol_table };
+                let resolver = Resolver::new(self.module_path, self.alias_graph, self.symbol_table);
                 if let Some(resolved) = resolver.resolve_path_segments(&full) {
                     self.add_occurrence(resolved, "use", rename.ident.span());
                 }

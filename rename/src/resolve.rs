@@ -1,11 +1,14 @@
 use crate::alias::AliasGraph;
 use crate::model::types::SymbolIndex;
 use std::sync::Arc;
+use std::collections::HashMap;
+use std::cell::RefCell;
 
 pub struct Resolver<'a> {
     pub module_path: &'a str,
     pub alias_graph: &'a AliasGraph,
     pub symbol_table: &'a SymbolIndex,
+    cache: RefCell<HashMap<String, Option<String>>>,
 }
 
 #[derive(Clone)]
@@ -17,13 +20,58 @@ pub struct ResolverContext {
 
 impl ResolverContext {
     pub fn resolver(&self) -> Resolver<'_> {
-        Resolver { module_path: &self.module_path, alias_graph: &self.alias_graph, symbol_table: &self.symbol_table }
+        Resolver {
+            module_path: &self.module_path,
+            alias_graph: &self.alias_graph,
+            symbol_table: &self.symbol_table,
+            cache: RefCell::new(HashMap::new()),
+        }
     }
 }
 
 impl<'a> Resolver<'a> {
+    pub fn new(
+        module_path: &'a str,
+        alias_graph: &'a AliasGraph,
+        symbol_table: &'a SymbolIndex,
+    ) -> Self {
+        Self {
+            module_path,
+            alias_graph,
+            symbol_table,
+            cache: RefCell::new(HashMap::new()),
+        }
+    }
     pub fn resolve_path_segments(&self, segments: &[String]) -> Option<String> {
         if segments.is_empty() {
+            return None;
+        }
+
+        let key = format!("{}::{}", self.module_path, segments.join("::"));
+
+        if let Some(cached) = self.cache.borrow().get(&key) {
+            return cached.clone();
+        }
+
+        let mut visited = std::collections::HashSet::new();
+        let result = self.resolve_path_segments_internal(segments, &mut visited);
+
+        self.cache.borrow_mut().insert(key, result.clone());
+
+        result
+    }
+
+    fn resolve_path_segments_internal(
+        &self,
+        segments: &[String],
+        visited: &mut std::collections::HashSet<String>,
+    ) -> Option<String> {
+        if segments.is_empty() {
+            return None;
+        }
+
+        let key = format!("{}::{}", self.module_path, segments.join("::"));
+        if !visited.insert(key.clone()) {
             return None;
         }
 
@@ -36,7 +84,11 @@ impl<'a> Resolver<'a> {
         let head = &segments[0];
         let tail = &segments[1..];
 
-        if let Some(resolved) = self.alias_graph.resolve_alias_chain(self.module_path, head).resolved_symbol {
+        if let Some(resolved) = self
+            .alias_graph
+            .resolve_alias_chain(self.module_path, head)
+            .resolved_symbol
+        {
             let mut candidate = resolved;
             if !tail.is_empty() {
                 candidate = format!("{}::{}", candidate, tail.join("::"));

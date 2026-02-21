@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use syn::visit::Visit;
-
 use crate::alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
 use crate::fs;
 use crate::occurrence::EnhancedOccurrenceVisitor;
@@ -17,6 +15,19 @@ mod collector;
 use collector::SymbolCollector;
 
 pub fn collect_names(project: &Path) -> Result<SymbolIndexReport> {
+    // Run on a thread with 64 MB stack — syn::visit expression traversal is deeply recursive
+    // and overflows the default 8 MB OS stack on large codebases.
+    let project = project.to_path_buf();
+    let result = std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || collect_names_inner(&project))
+        .expect("failed to spawn collector thread")
+        .join()
+        .expect("collector thread panicked");
+    result
+}
+
+fn collect_names_inner(project: &Path) -> Result<SymbolIndexReport> {
     let files = fs::collect_rs_files(project)?;
     let mut symbols = Vec::new();
     let mut occurrences = Vec::new();
@@ -48,7 +59,7 @@ pub fn collect_names(project: &Path) -> Result<SymbolIndexReport> {
         let ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", file.display()))?;
         let use_map = build_use_map(&ast, &module_path);
         let mut visitor = EnhancedOccurrenceVisitor::new(&module_path, file, &symbol_table, &use_map, &global_alias_graph, &mut occurrences);
-        visitor.visit_file(&ast);
+        visitor.visit_file_items(&ast);
     }
 
     // Perform visibility leak analysis
@@ -160,8 +171,8 @@ pub(crate) fn collect_symbols(ast: &syn::File, module_path: &str, file: &Path, s
     let module_id = normalize_symbol_id(module_path);
     let module_path = module_id.as_str();
     let mut alias_graph = AliasGraph::default();
-    let mut collector = SymbolCollector::new(module_path, file, &mut alias_graph);
-    collector.visit_file(ast);
+    let mut collector = SymbolCollector::new(file, &mut alias_graph);
+    collector.walk(ast, module_path);
     for sym in collector.into_symbols() {
         if let Some(existing) = symbol_table.symbols.get_mut(&sym.id) {
             merge_symbol_metadata(existing, &sym);
