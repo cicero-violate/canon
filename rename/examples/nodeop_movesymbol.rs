@@ -11,10 +11,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // Move PatternBindingCollector from crate::pattern into a new module crate::pattern::binding.
-    // This tests the new-file creation path: pattern/binding.rs doesn't exist yet.
-    let symbol_id = "crate::pattern::PatternBindingCollector";
-    let new_module = "crate::pattern::binding";
+    // Move ScopeFrame from crate::scope into a new module crate::scope::frame.
+    // Tests: impl co-movement, orphaned use cleanup, import absolutization, new file creation.
+    let symbol_id = "crate::scope::ScopeFrame";
+    let new_module = "crate::scope::frame";
 
     let handle = editor
         .registry
