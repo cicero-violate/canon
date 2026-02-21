@@ -4,10 +4,21 @@ cd /workspace/ai_sandbox/canon_workspace/rename/
 # SYMBOLS.json uses "symbol" not "id" or "path"
 # Dump struct + trait + type fully-qualified symbols
 jq -r '
-  .[]
-  | select(.kind=="\"struct\"" or .kind=="\"trait\"" or .kind=="\"type\"")
-  | "\(.kind)  \(.symbol)"
-' SYMBOLS.json | sort
+  map(.kind |= gsub("\""; "")) 
+  | map(
+      if .kind == "function" or .kind == "method"
+      then .kind = "fn"
+      else .
+      end
+    )
+  | map(select(.kind | IN("struct","trait","type","fn")))
+  | group_by(.kind)
+  | sort_by(.[0].kind)
+  | .[]
+  | (.[0].kind | ascii_upcase),
+    (map("  \(.symbol)") | sort[]),
+    ""
+' SYMBOLS.json
 
 jq -r '
   map(.kind |= gsub("\""; ""))
