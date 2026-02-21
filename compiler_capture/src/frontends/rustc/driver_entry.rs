@@ -83,6 +83,9 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
     for local_def_id in crate_items.definitions() {
         let def_id = local_def_id.to_def_id();
         match tcx.def_kind(def_id) {
+            DefKind::Mod => {
+                capture_mod(&mut builder, tcx, def_id, &mut cache, metadata);
+            }
             DefKind::Struct | DefKind::Enum | DefKind::Union => {
                 capture_adt(&mut builder, tcx, def_id, &mut cache, metadata);
             }

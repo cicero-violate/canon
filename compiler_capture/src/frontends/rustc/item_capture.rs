@@ -77,6 +77,25 @@ pub(super) fn capture_const_static<'tcx>(builder: &mut DeltaCollector, tcx: TyCt
     cache.insert(def_id, node_id.clone());
     node_id
 }
+pub(super) fn capture_mod<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) -> NodeId {
+    if let Some(id) = cache.get(&def_id) {
+        return id.clone();
+    }
+    let raw_def_path = tcx.def_path_str(def_id);
+    let node_key = format!("{def_id:?}");
+    let crate_name = tcx.crate_name(def_id.krate).to_string();
+    let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
+    let mut payload = NodePayload::new(&node_key, def_path.clone())
+        .with_metadata("type", "module")
+        .with_metadata("type_kind", "module");
+    if def_id.is_local() {
+        payload = payload.with_metadata("crate_edition", metadata.edition.clone());
+    }
+    payload = metadata_capture::apply_common_metadata(payload, tcx, def_id, metadata);
+    let node_id = builder.add_node(payload);
+    cache.insert(def_id, node_id.clone());
+    node_id
+}
 fn serialize_struct_field_list<'tcx>(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String> {
     if !adt_def.is_struct() && !adt_def.is_union() {
         return None;
