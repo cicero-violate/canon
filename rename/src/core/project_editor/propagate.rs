@@ -213,20 +213,28 @@ fn propagate_move(
     let from_path = ModulePath::from_string(&old_module_path);
     let new_module_path = normalize_symbol_id(new_module_path);
     let to_path = ModulePath::from_string(&new_module_path);
-    let plan = ModuleMovePlan::new(
-        from_path.clone(),
-        to_path.clone(),
-        handle.file.clone(),
-        &project_root,
-    )?;
-    file_renames
-        .push(FileRename {
+    // Only rename the source file if it contains exactly one symbol (the one being moved).
+    // If other symbols remain in the file, this is a partial extraction — no file rename.
+    let symbols_in_source_file = registry
+        .handles
+        .values()
+        .filter(|h| h.file == handle.file)
+        .count();
+    if symbols_in_source_file <= 1 {
+        let plan = ModuleMovePlan::new(
+            from_path.clone(),
+            to_path.clone(),
+            handle.file.clone(),
+            &project_root,
+        )?;
+        file_renames.push(FileRename {
             from: handle.file.to_string_lossy().to_string(),
             to: plan.to_file.to_string_lossy().to_string(),
             is_directory_move: plan.create_directory,
             old_module_id: from_path.to_string(),
             new_module_id: to_path.to_string(),
         });
+    }
     let (_symbol_table, occurrences, alias_graph) = build_symbol_index_and_occurrences(
         registry,
     )?;
