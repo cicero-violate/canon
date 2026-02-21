@@ -15,38 +15,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
     // NOTE:
+    // Ensure these symbol IDs actually exist in the loaded Canon project.
+    // Remove or adjust entries if "no handle found" occurs.
+
+    // NOTE:
     // Symbol IDs must exist in the loaded project.
     // Use symbol index inspection to discover valid IDs.
     //
     // Example valid rename (must exist in loaded project):
     let renames = [
-        // IR → State
-        ("crate::ir::core::CanonicalIr", "SystemState"),
-        ("crate::storage::reader::MemoryIrReader", "StateReader"),
-        ("crate::storage::builder::MemoryIrBuilder", "StateWriter"),
-        // Tick → Execution
-        ("crate::ir::graphs::TickGraph", "ExecutionGraph"),
+        // IR → Canonical State
+        ("crate::ir::core::CanonicalIr", "CanonicalState"),
+        ("crate::ir::delta::Delta", "CanonicalDelta"),
+        ("crate::ir::delta::DeltaPayload", "CanonicalDeltaPayload"),
+
+        // Execution terminology
+        ("crate::ir::graphs::TickGraph", "ExecutionPlanGraph"),
         ("crate::runtime::tick_executor::TickExecutor", "ExecutionEngine"),
-        ("crate::ir::timeline::TickEpoch", "ExecutionEpoch"),
-        // Delta → StateChange
-        ("crate::ir::delta::Delta", "StateChange"),
-        ("crate::ir::admission::DeltaAdmission", "ChangeAdmission"),
-        ("crate::runtime::delta_verifier::DeltaVerifier", "ChangeVerifier"),
-        ("crate::ir::delta::DeltaPayload", "ChangePayload"),
-        // Judgment → Decision / Rule
-        ("crate::ir::judgment::Judgment", "Decision"),
-        ("crate::ir::judgment::JudgmentPredicate", "Rule"),
-        // Layout → FileTopology
-        ("crate::layout::LayoutGraph", "FileTopology"),
-        ("crate::layout::LayoutAssignment", "FileBinding"),
-        ("crate::layout::SemanticGraph", "ParsedModel"),
-        // Capability → Agent
-        ("crate::agent::capability::CapabilityNode", "AgentNode"),
-        ("crate::agent::capability::CapabilityGraph", "AgentGraph"),
-        ("crate::agent::dispatcher::CapabilityNodeDispatcher", "AgentScheduler"),
-        // Evolution / Drift
-        ("crate::evolution::lyapunov::TopologyFingerprint", "StructureMetrics"),
-        ("crate::evolution::lyapunov::LyapunovError", "StructureDriftError"),
+
+        // Judgment terminology
+        ("crate::ir::judgment::JudgmentPredicate", "JudgmentRule"),
+
+        // Layout terminology
+        ("crate::layout::LayoutGraph", "SourceTopology"),
+
+        // Agent terminology
+        ("crate::agent::capability::CapabilityGraph", "AgentTopology"),
     ];
 
     for (symbol_id, new_name) in renames {

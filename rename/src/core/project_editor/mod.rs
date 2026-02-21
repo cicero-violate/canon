@@ -54,6 +54,7 @@ pub struct QueuedOp {
 }
 
 impl ProjectEditor {
+
     pub fn load(project: &Path, oracle: Box<dyn StructuralEditOracle>) -> Result<Self> {
         let files = fs::collect_rs_files(project)?;
         let mut registry = NodeRegistry::new();
