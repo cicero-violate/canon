@@ -424,6 +424,38 @@ fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &HashMap<Path
             let src_ast = registry.asts.get_mut(&mv.src_file).ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
             remove_orphaned_uses(src_ast);
         }
+        // If the moved symbol is still referenced in the source file (e.g. used by
+        // remaining impls or functions), inject a use import pointing to its new location.
+        {
+            let symbol_name = match &item {
+                syn::Item::Struct(s) => Some(s.ident.to_string()),
+                syn::Item::Enum(e) => Some(e.ident.to_string()),
+                syn::Item::Trait(t) => Some(t.ident.to_string()),
+                _ => None,
+            };
+            if let Some(name) = symbol_name {
+                let src_ast = registry.asts.get(&mv.src_file).ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
+                let body_tokens: String = src_ast.items.iter().filter(|i| !matches!(i, syn::Item::Use(_))).map(|i| i.to_token_stream().to_string()).collect::<Vec<_>>().join(" ");
+                if token_contains_word(&body_tokens, &name) {
+                    let norm_dst = normalize_symbol_id(&mv.dst_file.to_string_lossy().to_string());
+                    let _ = norm_dst;
+                    // Build: use crate::dst_module::segments::Name;
+                    let mut use_path = mv.dst_module_segments.join("::");
+                    if !use_path.starts_with("crate") {
+                        use_path = format!("crate::{}", use_path);
+                    }
+                    let use_str = format!("use {}::{};", use_path, name);
+                    if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
+                        let already = src_ast.items.iter().any(|i| if let syn::Item::Use(u) = i { u.to_token_stream().to_string() == parsed.to_token_stream().to_string() } else { false });
+                        if !already {
+                            let src_ast = registry.asts.get_mut(&mv.src_file).ok_or_else(|| anyhow::anyhow!("missing source AST"))?;
+                            src_ast.items.insert(0, syn::Item::Use(parsed));
+                        }
+                    }
+                }
+            }
+        }
+
         let dst_ast = registry.asts.get_mut(&mv.dst_file).ok_or_else(|| anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display()))?;
         let segs: Vec<&str> = mv.dst_module_segments.iter().map(|s| s.as_str()).collect();
         match find_mod_container_mut(dst_ast, &segs) {
@@ -557,11 +589,7 @@ fn build_use_path(segments: &[&str], inner: syn::UseTree) -> syn::UseTree {
     }
     let (head, tail) = segments.split_first().unwrap();
     let ident = syn::Ident::new(head, proc_macro2::Span::call_site());
-    syn::UseTree::Path(syn::UsePath {
-        ident,
-        colon2_token: Default::default(),
-        tree: Box::new(build_use_path(tail, inner)),
-    })
+    syn::UseTree::Path(syn::UsePath { ident, colon2_token: Default::default(), tree: Box::new(build_use_path(tail, inner)) })
 }
 fn find_mod_container_mut<'a>(ast: &'a mut syn::File, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
     fn recurse<'a>(items: &'a mut Vec<syn::Item>, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
