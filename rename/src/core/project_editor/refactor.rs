@@ -7,6 +7,7 @@ use crate::state::NodeRegistry;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use quote::ToTokens;
 use syn::visit::{self, Visit};
 use syn::visit_mut::VisitMut;
 
@@ -244,7 +245,7 @@ pub(crate) fn run_pass3_orphan_cleanup(registry: &mut NodeRegistry) -> Result<Ha
     for (file, ast) in registry.asts.iter_mut() {
         let file_str = file.to_string_lossy().to_string();
         let module_path = normalize_symbol_id(&module_path_for_file(&project_root, file));
-        let occs = occ_by_file.get(&file_str).cloned().unwrap_or_default();
+        let occs = occ_by_file.get(&file_str);
         let mut keep_items = Vec::with_capacity(ast.items.len());
         for item in ast.items.drain(..) {
             let syn::Item::Use(use_item) = &item else {
@@ -260,12 +261,12 @@ pub(crate) fn run_pass3_orphan_cleanup(registry: &mut NodeRegistry) -> Result<Ha
             for u in &uses {
                 if u.is_glob {
                     let prefix = format!("{}::", u.source_path);
-                    if occs.iter().any(|o| o.kind != "use" && o.kind != "use_path" && o.id.starts_with(&prefix)) {
+                    if occs.map(|o| o.iter().any(|o| o.kind != "use" && o.kind != "use_path" && o.id.starts_with(&prefix))).unwrap_or(false) {
                         used = true;
                         break;
                     }
                 } else {
-                    if occs.iter().any(|o| o.kind != "use" && o.kind != "use_path" && o.id == u.source_path) {
+                    if occs.map(|o| o.iter().any(|o| o.kind != "use" && o.kind != "use_path" && o.id == u.source_path)).unwrap_or(false) {
                         used = true;
                         break;
                     }
@@ -403,4 +404,8 @@ fn is_in_scope(alias_graph: &crate::alias::AliasGraph, module_path: &str, file: 
 
 fn extract_module(path: &str) -> String {
     path.rsplit_once("::").map(|(m, _)| m.to_string()).unwrap_or_else(|| "crate".to_string())
+}
+
+fn split_module_and_name(path: &str) -> Option<(&str, &str)> {
+    path.rsplit_once("::")
 }
