@@ -1,34 +1,34 @@
-use crate::primitives::Hash;
-
+use crate::primitives::StateHash;
 const PAGE_SIZE: usize = 4096;
 const BLOCK_SIZE: usize = 64;
-
 const K: [u32; 64] = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
+    0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
+    0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
+    0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
+    0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+    0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116,
+    0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+    0xc67178f2,
 ];
-
 #[inline(always)]
 fn rotr(x: u32, n: u32) -> u32 {
     (x >> n) | (x << (32 - n))
 }
-
 fn sha256_block(block: &[u8; BLOCK_SIZE], state: &mut [u32; 8]) {
     let mut w = [0u32; 64];
-
     for i in 0..16 {
         let idx = i * 4;
-        w[i] = ((block[idx] as u32) << 24) | ((block[idx + 1] as u32) << 16) | ((block[idx + 2] as u32) << 8) | block[idx + 3] as u32;
+        w[i] = ((block[idx] as u32) << 24) | ((block[idx + 1] as u32) << 16)
+            | ((block[idx + 2] as u32) << 8) | block[idx + 3] as u32;
     }
-
     for i in 16..64 {
         let s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
         let s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >> 10);
         w[i] = w[i - 16].wrapping_add(s0).wrapping_add(w[i - 7]).wrapping_add(s1);
     }
-
     let mut a = state[0];
     let mut b = state[1];
     let mut c = state[2];
@@ -37,15 +37,17 @@ fn sha256_block(block: &[u8; BLOCK_SIZE], state: &mut [u32; 8]) {
     let mut f = state[5];
     let mut g = state[6];
     let mut h = state[7];
-
     for i in 0..64 {
         let s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
         let ch = (e & f) ^ ((!e) & g);
-        let temp1 = h.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
+        let temp1 = h
+            .wrapping_add(s1)
+            .wrapping_add(ch)
+            .wrapping_add(K[i])
+            .wrapping_add(w[i]);
         let s0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
         let maj = (a & b) ^ (a & c) ^ (b & c);
         let temp2 = s0.wrapping_add(maj);
-
         h = g;
         g = f;
         f = e;
@@ -55,7 +57,6 @@ fn sha256_block(block: &[u8; BLOCK_SIZE], state: &mut [u32; 8]) {
         b = a;
         a = temp1.wrapping_add(temp2);
     }
-
     state[0] = state[0].wrapping_add(a);
     state[1] = state[1].wrapping_add(b);
     state[2] = state[2].wrapping_add(c);
@@ -65,8 +66,7 @@ fn sha256_block(block: &[u8; BLOCK_SIZE], state: &mut [u32; 8]) {
     state[6] = state[6].wrapping_add(g);
     state[7] = state[7].wrapping_add(h);
 }
-
-fn state_to_bytes(state: [u32; 8]) -> Hash {
+fn state_to_bytes(state: [u32; 8]) -> StateHash {
     let mut out = [0u8; 32];
     for (i, word) in state.iter().enumerate() {
         let base = i * 4;
@@ -77,24 +77,24 @@ fn state_to_bytes(state: [u32; 8]) -> Hash {
     }
     out
 }
-
-fn sha256_internal(left: &Hash, right: &Hash) -> Hash {
+fn sha256_internal(left: &StateHash, right: &StateHash) -> StateHash {
     let mut block = [0u8; BLOCK_SIZE];
     block[..32].copy_from_slice(left);
     block[32..].copy_from_slice(right);
-
-    let mut state = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
-
+    let mut state = [
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
+        0x1f83d9ab, 0x5be0cd19,
+    ];
     sha256_block(&block, &mut state);
     state_to_bytes(state)
 }
-
-fn sha256_page(page: &[u8]) -> Hash {
-    let mut state = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
-
+fn sha256_page(page: &[u8]) -> StateHash {
+    let mut state = [
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
+        0x1f83d9ab, 0x5be0cd19,
+    ];
     let chunks = PAGE_SIZE / BLOCK_SIZE;
     let mut block = [0u8; BLOCK_SIZE];
-
     for chunk_idx in 0..chunks {
         let start = chunk_idx * BLOCK_SIZE;
         block.copy_from_slice(&page[start..start + BLOCK_SIZE]);
@@ -103,25 +103,25 @@ fn sha256_page(page: &[u8]) -> Hash {
         }
         sha256_block(&block, &mut state);
     }
-
     state_to_bytes(state)
 }
-
-pub fn rebuild_merkle_tree(nodes: &mut [Hash], tree_size: u64, pages_ptr: *const u8) {
+pub fn rebuild_merkle_tree(
+    nodes: &mut [StateHash],
+    tree_size: u64,
+    pages_ptr: *const u8,
+) {
     if tree_size == 0 {
         return;
     }
-
     let tree_size = tree_size as usize;
-
     for tid in 0..tree_size {
-        let page = unsafe { std::slice::from_raw_parts(pages_ptr.add(tid * PAGE_SIZE), PAGE_SIZE) };
+        let page = unsafe {
+            std::slice::from_raw_parts(pages_ptr.add(tid * PAGE_SIZE), PAGE_SIZE)
+        };
         nodes[tree_size + tid] = sha256_page(page);
     }
-
     let mut level_size = tree_size;
     let mut level_offset = tree_size;
-
     while level_size > 1 {
         let parent_count = level_size >> 1;
         for tid in 0..parent_count {
@@ -131,7 +131,6 @@ pub fn rebuild_merkle_tree(nodes: &mut [Hash], tree_size: u64, pages_ptr: *const
             let hash = sha256_internal(&nodes[left_index], &nodes[right_index]);
             nodes[parent_index] = hash;
         }
-
         level_offset >>= 1;
         level_size >>= 1;
     }

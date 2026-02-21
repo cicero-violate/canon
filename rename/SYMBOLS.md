@@ -232,7 +232,7 @@
 | "use"          | crate::core::collect::collector::normalize_use_prefix                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
 | "use"          | crate::core::collect::collector::span_to_range                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
 | "use"          | crate::core::collect::collector::SymbolRecord                              | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
-| "struct"       | crate::core::collect::collector::SymbolCollector                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
+| "struct"       | crate::core::collect::collector::ItemCollector                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
 | "field"        | crate::core::collect::collector::file                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
 | "field"        | crate::core::collect::collector::symbols                                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
 | "field"        | crate::core::collect::collector::alias_graph                               | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/collector.rs        |
@@ -258,7 +258,7 @@
 | "use"          | crate::core::collect::ImportNode                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "use"          | crate::core::collect::AliasGraph                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "use"          | crate::core::collect::fs                                                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
-| "use"          | crate::core::collect::EnhancedOccurrenceVisitor                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
+| "use"          | crate::core::collect::OccurrenceVisitor                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "use"          | crate::core::collect::module_path_for_file                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "use"          | crate::core::collect::normalize_symbol_id                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "use"          | crate::core::collect::SymbolRecord                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
@@ -268,7 +268,7 @@
 | "use"          | crate::core::collect::LineColumn                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "use"          | crate::core::collect::AliasGraphReport                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "use"          | crate::core::collect::build_use_map                                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
-| "use"          | crate::core::collect::SymbolCollector                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
+| "use"          | crate::core::collect::ItemCollector                                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "function"     | crate::core::collect::collect_names                                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "function"     | crate::core::collect::collect_names_inner                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
 | "function"     | crate::core::collect::emit_names                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/collect/mod.rs              |
@@ -304,7 +304,7 @@
 | "use"          | crate::core::ChangeReport                                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
 | "use"          | crate::core::apply_rename_with_map                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
 | "use"          | crate::core::apply_rename                                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
-| "use"          | crate::core::StructuredEditTracker                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
+| "use"          | crate::core::EditSessionTracker                                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
 | "use"          | crate::core::normalize_symbol_id                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
 | "use"          | crate::core::span_to_range                                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
 | "use"          | crate::core::SymbolRecord                                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/mod.rs                      |
@@ -355,7 +355,7 @@
 | "function"     | crate::core::paths::compute_new_file_path                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/paths.rs                    |
 | "function"     | crate::core::paths::module_path_for_file                                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/paths.rs                    |
 | "function"     | crate::core::paths::module_child_path                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/paths.rs                    |
-| "use"          | crate::core::preview::StructuredEditTracker                                | /workspace/ai_sandbox/canon_workspace/rename/src/core/preview.rs                  |
+| "use"          | crate::core::preview::EditSessionTracker                                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/preview.rs                  |
 | "use"          | crate::core::preview::SymbolEdit                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/preview.rs                  |
 | "use"          | crate::core::preview::FileRename                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/preview.rs                  |
 | "use"          | crate::core::preview::StructuredEditOptions                                | /workspace/ai_sandbox/canon_workspace/rename/src/core/preview.rs                  |
@@ -459,7 +459,7 @@
 | "struct"       | crate::core::project_editor::ImplContext                                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "field"        | crate::core::project_editor::struct_path                                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "field"        | crate::core::project_editor::trait_path                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
-| "struct"       | crate::core::project_editor::SnapshotOracle                                | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "struct"       | crate::core::project_editor::GraphSnapshotOracle                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "field"        | crate::core::project_editor::snapshot                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "field"        | crate::core::project_editor::id_by_key                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "field"        | crate::core::project_editor::key_by_index                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
@@ -526,7 +526,7 @@
 | "use"          | crate::core::project_editor::propagate::build_use_map                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
 | "use"          | crate::core::project_editor::propagate::ModulePath                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
 | "use"          | crate::core::project_editor::propagate::ModuleMovePlan                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
-| "use"          | crate::core::project_editor::propagate::EnhancedOccurrenceVisitor          | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
+| "use"          | crate::core::project_editor::propagate::OccurrenceVisitor                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
 | "use"          | crate::core::project_editor::propagate::NodeRegistry                       | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
 | "use"          | crate::core::project_editor::propagate::NodeOp                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
 | "use"          | crate::core::project_editor::propagate::FieldMutation                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
@@ -561,7 +561,7 @@
 | "use"          | crate::core::rename::plan_file_renames                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
 | "use"          | crate::core::rename::module_path_for_file                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
 | "use"          | crate::core::rename::write_preview                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
-| "use"          | crate::core::rename::StructuredEditTracker                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
+| "use"          | crate::core::rename::EditSessionTracker                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
 | "use"          | crate::core::rename::SymbolOccurrence                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
 | "use"          | crate::core::rename::SymbolIndex                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
 | "use"          | crate::core::rename::SymbolEdit                                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
@@ -602,7 +602,7 @@
 | "function"     | crate::core::rename::apply_rename                                          | /workspace/ai_sandbox/canon_workspace/rename/src/core/rename.rs                   |
 | "use"          | crate::core::structured::StructuredEditOptions                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/structured.rs               |
 | "use"          | crate::core::structured::HashSet                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/structured.rs               |
-| "struct"       | crate::core::structured::StructuredEditTracker                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/structured.rs               |
+| "struct"       | crate::core::structured::EditSessionTracker                                | /workspace/ai_sandbox/canon_workspace/rename/src/core/structured.rs               |
 | "field"        | crate::core::structured::files                                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/structured.rs               |
 | "field"        | crate::core::structured::doc_files                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/structured.rs               |
 | "field"        | crate::core::structured::attr_files                                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/structured.rs               |
@@ -625,7 +625,7 @@
 | "function"     | crate::core::use_map::resolve_relative_prefix                              | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_map.rs                  |
 | "function"     | crate::core::use_map::path_to_string                                       | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_map.rs                  |
 | "function"     | crate::core::use_map::type_path_string                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_map.rs                  |
-| "use"          | crate::core::use_paths::StructuredEditTracker                              | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_paths.rs                |
+| "use"          | crate::core::use_paths::EditSessionTracker                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_paths.rs                |
 | "use"          | crate::core::use_paths::AliasGraph                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_paths.rs                |
 | "use"          | crate::core::use_paths::fs                                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_paths.rs                |
 | "use"          | crate::core::use_paths::StructuredEditOptions                              | /workspace/ai_sandbox/canon_workspace/rename/src/core/use_paths.rs                |
@@ -720,7 +720,7 @@
 | "use"          | crate::SymbolRecord                                                        | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
 | "use"          | crate::SymbolOccurrence                                                    | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
 | "use"          | crate::SymbolIndexReport                                                   | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
-| "use"          | crate::StructuredEditTracker                                               | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
+| "use"          | crate::EditSessionTracker                                                  | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
 | "use"          | crate::SpanRange                                                           | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
 | "use"          | crate::LineColumn                                                          | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
 | "use"          | crate::run_rename                                                          | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                           |
@@ -869,7 +869,7 @@
 | "use"          | crate::occurrence::Expr                                                    | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "use"          | crate::occurrence::Arm                                                     | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "function"     | crate::occurrence::file_contains_symbol                                    | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
-| "struct"       | crate::occurrence::EnhancedOccurrenceVisitor                               | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
+| "struct"       | crate::occurrence::OccurrenceVisitor                                       | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::module_path                                             | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::file                                                    | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::symbol_table                                            | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
@@ -879,7 +879,7 @@
 | "field"        | crate::occurrence::scoped_binder                                           | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::current_impl                                            | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::current_struct                                          | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
-| "struct"       | crate::occurrence::ImplContext                                             | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
+| "struct"       | crate::occurrence::OccurrenceImplContext                                   | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::type_name                                               | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "method"       | crate::occurrence::new                                                     | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "method"       | crate::occurrence::add_occurrence                                          | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |

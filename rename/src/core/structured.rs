@@ -14,13 +14,13 @@ use std::collections::HashSet;
 /// - Dry-run previews with pass-specific breakdowns
 /// - Debugging structured editing pipelines
 #[derive(Default)]
-pub struct StructuredEditTracker {
+pub struct EditSessionTracker {
     files: HashSet<String>,
     pub(crate) doc_files: HashSet<String>,
     pub(crate) attr_files: HashSet<String>,
     pub(crate) use_files: HashSet<String>,
 }
-impl StructuredEditTracker {
+impl EditSessionTracker {
     pub fn new() -> Self {
         Self::default()
     }
@@ -71,7 +71,9 @@ impl StructuredEditTracker {
         if parts.is_empty() {
             format!("{} files via structured edits", self.files.len())
         } else {
-            format!("{} files via structured edits ({})", self.files.len(), parts.join(", "))
+            format!(
+                "{} files via structured edits ({})", self.files.len(), parts.join(", ")
+            )
         }
     }
 }

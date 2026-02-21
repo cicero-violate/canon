@@ -1,3 +1,2 @@
 pub mod tlog;
-
-pub use tlog::TransactionLog;
+pub use tlog::DeltaLog;

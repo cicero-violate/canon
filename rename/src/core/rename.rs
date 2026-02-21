@@ -4,20 +4,27 @@ use super::format::format_files;
 use super::mod_decls::update_mod_declarations;
 use super::paths::{module_path_for_file, plan_file_renames};
 use super::preview::write_preview;
-use super::structured::StructuredEditTracker;
+use super::structured::EditSessionTracker;
 use crate::model::types::{SpanRange, SymbolEdit, SymbolIndex, SymbolOccurrence};
 use super::use_map::build_use_map;
 use super::use_paths::update_use_paths;
 use crate::alias::AliasGraph;
 use crate::fs;
-use crate::structured::{rewrite_doc_and_attr_literals, structured_edit_config, StructuredAttributeResult};
+use crate::structured::{
+    rewrite_doc_and_attr_literals, structured_edit_config, StructuredAttributeResult,
+};
 use anyhow::{bail, Context, Result};
 use proc_macro2::Span;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
-pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, dry_run: bool, out_path: Option<&Path>) -> Result<()> {
+pub fn apply_rename_with_map(
+    project: &Path,
+    mapping: &HashMap<String, String>,
+    dry_run: bool,
+    out_path: Option<&Path>,
+) -> Result<()> {
     if mapping.is_empty() {
         println!("No renames applied (empty map).");
         return Ok(());
@@ -34,7 +41,7 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
     let mut global_alias_graph = AliasGraph::new();
     let structured_config = structured_edit_config();
     let structured_mode = structured_config.is_enabled();
-    let mut structured_tracker = StructuredEditTracker::new();
+    let mut structured_tracker = EditSessionTracker::new();
     let mut touched_files: HashSet<PathBuf> = HashSet::new();
     if structured_mode {
         eprintln!("Structured editing enabled: {}", structured_config.summary());
@@ -42,9 +49,23 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
     for file in &files {
         let module_path = module_path_for_file(project, file);
         let content = std::fs::read_to_string(file)?;
-        let ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", file.display()))?;
-        add_file_module_symbol(&module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
-        let file_alias_graph = collect_symbols(&ast, &module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
+        let ast = syn::parse_file(&content)
+            .with_context(|| format!("Failed to parse {}", file.display()))?;
+        add_file_module_symbol(
+            &module_path,
+            file,
+            &mut symbol_table,
+            &mut symbols,
+            &mut symbol_set,
+        );
+        let file_alias_graph = collect_symbols(
+            &ast,
+            &module_path,
+            file,
+            &mut symbol_table,
+            &mut symbols,
+            &mut symbol_set,
+        );
         for node in file_alias_graph.all_nodes() {
             global_alias_graph.add_use_node(node.clone());
         }
@@ -60,11 +81,18 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
     for file in &files {
         let module_path = module_path_for_file(project, file);
         let content = std::fs::read_to_string(file)?;
-        let mut ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", file.display()))?;
+        let mut ast = syn::parse_file(&content)
+            .with_context(|| format!("Failed to parse {}", file.display()))?;
         let use_map = build_use_map(&ast, &module_path);
         let mut structured_attr = StructuredAttributeResult::new();
         if structured_config.doc_or_attr_enabled() {
-            structured_attr = rewrite_doc_and_attr_literals(file, &content, &mut ast, &mapping, &structured_config)?;
+            structured_attr = rewrite_doc_and_attr_literals(
+                file,
+                &content,
+                &mut ast,
+                &mapping,
+                &structured_config,
+            )?;
             if structured_attr.changed {
                 let file_str = file.to_string_lossy().to_string();
                 if structured_config.doc_literals_enabled() {
@@ -76,22 +104,45 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
             }
         }
         let mut occurrences = Vec::new();
-        let mut visitor = crate::occurrence::EnhancedOccurrenceVisitor::new(&module_path, file, &symbol_table, &use_map, &global_alias_graph, &mut occurrences);
+        let mut visitor = crate::occurrence::OccurrenceVisitor::new(
+            &module_path,
+            file,
+            &symbol_table,
+            &use_map,
+            &global_alias_graph,
+            &mut occurrences,
+        );
         visitor.visit_file(&ast);
         for (symbol_id, symbol_entry) in &symbol_table.symbols {
             if symbol_entry.file == file.to_string_lossy().to_string() {
                 if mapping.contains_key(symbol_id.as_str()) {
-                    occurrences.push(SymbolOccurrence { id: symbol_id.clone(), file: symbol_entry.file.clone(), kind: format!("{}_definition", symbol_entry.kind), span: symbol_entry.span.clone() });
+                    occurrences
+                        .push(SymbolOccurrence {
+                            id: symbol_id.clone(),
+                            file: symbol_entry.file.clone(),
+                            kind: format!("{}_definition", symbol_entry.kind),
+                            span: symbol_entry.span.clone(),
+                        });
                 }
             }
         }
         let mut edits = Vec::new();
         for occ in occurrences {
-            if structured_config.doc_or_attr_enabled() && occ.kind == "attribute" && structured_attr.should_skip(&occ.span) {
+            if structured_config.doc_or_attr_enabled() && occ.kind == "attribute"
+                && structured_attr.should_skip(&occ.span)
+            {
                 continue;
             }
             if let Some(new_name) = mapping.get(&occ.id) {
-                edits.push(SymbolEdit { id: occ.id.clone(), file: occ.file.clone(), kind: occ.kind.clone(), start: occ.span.start.clone(), end: occ.span.end.clone(), new_name: new_name.clone() });
+                edits
+                    .push(SymbolEdit {
+                        id: occ.id.clone(),
+                        file: occ.file.clone(),
+                        kind: occ.kind.clone(),
+                        start: occ.span.start.clone(),
+                        end: occ.span.end.clone(),
+                        new_name: new_name.clone(),
+                    });
             }
         }
         let file_key = file.to_string_lossy().to_string();
@@ -120,7 +171,8 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
         for (path_str, edits) in alias_by_file {
             let path = Path::new(&path_str);
             let content = std::fs::read_to_string(path)?;
-            let mut ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", path.display()))?;
+            let mut ast = syn::parse_file(&content)
+                .with_context(|| format!("Failed to parse {}", path.display()))?;
             if apply_symbol_edits_to_ast(&mut ast, &edits)? {
                 let rendered = prettyplease::unparse(&ast);
                 if rendered != content {
@@ -136,8 +188,15 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
         }
     }
     if dry_run {
-        let out = out_path.unwrap_or_else(|| Path::new(".semantic-lint/rename_preview.json"));
-        write_preview(out, &all_edits, &file_renames, &structured_tracker, &structured_config)?;
+        let out = out_path
+            .unwrap_or_else(|| Path::new(".semantic-lint/rename_preview.json"));
+        write_preview(
+            out,
+            &all_edits,
+            &file_renames,
+            &structured_tracker,
+            &structured_config,
+        )?;
         return Ok(());
     }
     for rename in &file_renames {
@@ -155,9 +214,18 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
         std::fs::rename(&rename.from, &rename.to)?;
     }
     update_mod_declarations(project, &symbol_table, &file_renames, &mut touched_files)?;
-    update_use_paths(project, &file_renames, &mapping, &structured_config, &global_alias_graph, &symbol_table, &mut structured_tracker, &mut touched_files)?;
+    update_use_paths(
+        project,
+        &file_renames,
+        &mapping,
+        &structured_config,
+        &global_alias_graph,
+        &symbol_table,
+        &mut structured_tracker,
+        &mut touched_files,
+    )?;
     if structured_mode && !structured_tracker.all_files().is_empty() {
-        eprintln!("{}", structured_tracker.summary(&structured_config));
+        eprintln!("{}", structured_tracker.summary(& structured_config));
     }
     if !touched_files.is_empty() {
         let touched: Vec<PathBuf> = touched_files.iter().cloned().collect();
@@ -168,9 +236,15 @@ pub fn apply_rename_with_map(project: &Path, mapping: &HashMap<String, String>, 
         edited_files.insert(edit.file.clone());
     }
     if file_renames.is_empty() {
-        println!("Renamed {} occurrences across {} files.", all_edits.len(), edited_files.len());
+        println!(
+            "Renamed {} occurrences across {} files.", all_edits.len(), edited_files
+            .len()
+        );
     } else {
-        println!("Renamed {} occurrences across {} files ({} file renames).", all_edits.len(), edited_files.len(), file_renames.len());
+        println!(
+            "Renamed {} occurrences across {} files ({} file renames).", all_edits.len(),
+            edited_files.len(), file_renames.len()
+        );
     }
     Ok(())
 }
@@ -183,28 +257,47 @@ struct SpanRangeKey {
 }
 impl SpanRangeKey {
     fn from_range(range: &SpanRange) -> Self {
-        Self { start_line: range.start.line, start_col: range.start.column, end_line: range.end.line, end_col: range.end.column }
+        Self {
+            start_line: range.start.line,
+            start_col: range.start.column,
+            end_line: range.end.line,
+            end_col: range.end.column,
+        }
     }
     fn from_span(span: Span) -> Self {
         Self::from_range(&crate::model::core_span::span_to_range(span))
     }
 }
-pub(crate) fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool> {
+pub(crate) fn apply_symbol_edits_to_ast(
+    ast: &mut syn::File,
+    edits: &[SymbolEdit],
+) -> Result<bool> {
     if edits.is_empty() {
         return Ok(false);
     }
     let mut map: HashMap<SpanRangeKey, String> = HashMap::new();
     for edit in edits {
-        let key = SpanRangeKey::from_range(&SpanRange { start: edit.start.clone(), end: edit.end.clone() });
+        let key = SpanRangeKey::from_range(
+            &SpanRange {
+                start: edit.start.clone(),
+                end: edit.end.clone(),
+            },
+        );
         if let Some(existing) = map.get(&key) {
             if existing != &edit.new_name {
-                bail!("Conflicting rename edits for span {:?}: {} vs {}", key, existing, edit.new_name);
+                bail!(
+                    "Conflicting rename edits for span {:?}: {} vs {}", key, existing,
+                    edit.new_name
+                );
             }
         } else {
             map.insert(key, edit.new_name.clone());
         }
     }
-    let mut renamer = SpanRangeRenamer { map, changed: false };
+    let mut renamer = SpanRangeRenamer {
+        map,
+        changed: false,
+    };
     renamer.visit_file_mut(ast);
     Ok(renamer.changed)
 }
@@ -223,13 +316,15 @@ impl VisitMut for SpanRangeRenamer {
         }
         syn::visit_mut::visit_ident_mut(self, ident);
     }
-
     fn visit_macro_mut(&mut self, mac: &mut syn::Macro) {
-        mac.tokens = rewrite_token_stream(mac.tokens.clone(), &self.map, &mut self.changed);
+        mac.tokens = rewrite_token_stream(
+            mac.tokens.clone(),
+            &self.map,
+            &mut self.changed,
+        );
         syn::visit_mut::visit_macro_mut(self, mac);
     }
 }
-
 fn rewrite_token_stream(
     tokens: proc_macro2::TokenStream,
     map: &HashMap<SpanRangeKey, String>,
@@ -274,7 +369,14 @@ fn is_valid_ident(name: &str) -> bool {
     }
     chars.all(|c| c == '_' || c.is_ascii_alphanumeric())
 }
-pub fn apply_rename(project: &Path, map_path: &Path, dry_run: bool, out_path: Option<&Path>) -> Result<()> {
-    let mapping: HashMap<String, String> = serde_json::from_str(&std::fs::read_to_string(map_path)?)?;
+pub fn apply_rename(
+    project: &Path,
+    map_path: &Path,
+    dry_run: bool,
+    out_path: Option<&Path>,
+) -> Result<()> {
+    let mapping: HashMap<String, String> = serde_json::from_str(
+        &std::fs::read_to_string(map_path)?,
+    )?;
     apply_rename_with_map(project, &mapping, dry_run, out_path)
 }

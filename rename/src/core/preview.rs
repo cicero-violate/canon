@@ -1,11 +1,17 @@
-use super::structured::StructuredEditTracker;
+use super::structured::EditSessionTracker;
 use crate::model::types::{FileRename, SymbolEdit};
 use crate::structured::StructuredEditOptions;
 use anyhow::Result;
 use std::collections::BTreeMap;
 use std::path::Path;
 /// B2: Write preview with structured edit tracking
-pub(crate) fn write_preview(out: &Path, edits: &[SymbolEdit], renames: &[FileRename], structured_tracker: &StructuredEditTracker, config: &StructuredEditOptions) -> Result<()> {
+pub(crate) fn write_preview(
+    out: &Path,
+    edits: &[SymbolEdit],
+    renames: &[FileRename],
+    structured_tracker: &EditSessionTracker,
+    config: &StructuredEditOptions,
+) -> Result<()> {
     let mut by_file: BTreeMap<String, Vec<&SymbolEdit>> = BTreeMap::new();
     for edit in edits {
         by_file.entry(edit.file.clone()).or_default().push(edit);
@@ -33,11 +39,19 @@ pub(crate) fn write_preview(out: &Path, edits: &[SymbolEdit], renames: &[FileRen
             )
         })
         .collect();
-    let mut structured: Vec<_> = structured_tracker.all_files().iter().cloned().collect();
+    let mut structured: Vec<_> = structured_tracker
+        .all_files()
+        .iter()
+        .cloned()
+        .collect();
     structured.sort();
     let mut doc_files: Vec<_> = structured_tracker.doc_files().iter().cloned().collect();
     doc_files.sort();
-    let mut attr_files: Vec<_> = structured_tracker.attr_files().iter().cloned().collect();
+    let mut attr_files: Vec<_> = structured_tracker
+        .attr_files()
+        .iter()
+        .cloned()
+        .collect();
     attr_files.sort();
     let mut use_files: Vec<_> = structured_tracker.use_files().iter().cloned().collect();
     use_files.sort();

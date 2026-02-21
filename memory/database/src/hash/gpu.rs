@@ -1,8 +1,5 @@
 use crate::hash::{cpu, HashBackend};
-use crate::primitives::Hash;
-
-// ── CUDA-only types and impls ────────────────────────────────────────────────
-
+use crate::primitives::StateHash;
 #[cfg(feature = "cuda")]
 use crate::hash::cuda_ffi::*;
 #[cfg(feature = "cuda")]
@@ -11,13 +8,9 @@ use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, HASH_SIZE, PAG
 use core::ffi::c_void;
 #[cfg(feature = "cuda")]
 use std::sync::Once;
-
-// ── GpuBackend ───────────────────────────────────────────────────────────────
-
 pub struct GpuBackend {
     cuda: bool,
 }
-
 impl GpuBackend {
     pub fn allocate_tree_bytes(bytes: usize) -> *mut u8 {
         #[cfg(feature = "cuda")]
@@ -34,14 +27,12 @@ impl GpuBackend {
         }
         Self::heap_allocate(bytes)
     }
-
     fn heap_allocate(bytes: usize) -> *mut u8 {
         let mut v = vec![0u8; bytes];
         let ptr = v.as_mut_ptr();
         core::mem::forget(v);
         ptr
     }
-
     pub fn free_tree(ptr: *mut u8) {
         #[cfg(feature = "cuda")]
         unsafe {
@@ -50,13 +41,16 @@ impl GpuBackend {
                 return;
             }
         }
-        // heap fallback: reconstruct and drop — we don't have size so just leak
         let _ = ptr;
     }
 }
-
 impl HashBackend for GpuBackend {
-    fn rebuild_merkle_tree(&self, nodes: &mut [Hash], tree_size: u64, pages_ptr: *const u8) {
+    fn rebuild_merkle_tree(
+        &self,
+        nodes: &mut [StateHash],
+        tree_size: u64,
+        pages_ptr: *const u8,
+    ) {
         if tree_size == 0 {
             return;
         }
@@ -70,13 +64,11 @@ impl HashBackend for GpuBackend {
             let pages_len = tree_size_usize * PAGE_SIZE;
             let pages = unsafe { std::slice::from_raw_parts(pages_ptr, pages_len) };
             let tree = merkle_build_gpu(pages);
-
             let expected_nodes = 2 * tree_size_usize;
             if nodes.len() < expected_nodes {
                 cpu::rebuild_merkle_tree(nodes, tree_size, pages_ptr);
                 return;
             }
-
             for (i, node) in nodes.iter_mut().take(expected_nodes).enumerate() {
                 let base = i * HASH_SIZE;
                 node.copy_from_slice(&tree[base..base + HASH_SIZE]);
@@ -86,7 +78,6 @@ impl HashBackend for GpuBackend {
         cpu::rebuild_merkle_tree(nodes, tree_size, pages_ptr);
     }
 }
-
 pub fn create_gpu_backend() -> Box<dyn HashBackend> {
     #[cfg(feature = "cuda")]
     {
@@ -98,15 +89,12 @@ pub fn create_gpu_backend() -> Box<dyn HashBackend> {
         }
         return Box::new(GpuBackend { cuda: false });
     }
-    #[cfg(not(feature = "cuda"))]
-    Box::new(GpuBackend { cuda: false })
+    #[cfg(not(feature = "cuda"))] Box::new(GpuBackend { cuda: false })
 }
-
 #[cfg(feature = "cuda")]
 static CUDA_ONCE: Once = Once::new();
 #[cfg(feature = "cuda")]
 static mut CUDA_PRESENT: bool = false;
-
 #[cfg(feature = "cuda")]
 fn detect_cuda() -> bool {
     unsafe {
@@ -116,24 +104,22 @@ fn detect_cuda() -> bool {
         status == 0 && count > 0
     }
 }
-
 #[cfg(feature = "cuda")]
 pub fn gpu_available() -> bool {
     unsafe {
-        CUDA_ONCE.call_once(|| {
-            CUDA_PRESENT = detect_cuda();
-            let present = CUDA_PRESENT;
-            debug_cuda(&format!("gpu_available cached result: {}", present));
-        });
+        CUDA_ONCE
+            .call_once(|| {
+                CUDA_PRESENT = detect_cuda();
+                let present = CUDA_PRESENT;
+                debug_cuda(&format!("gpu_available cached result: {}", present));
+            });
         CUDA_PRESENT
     }
 }
-
 #[cfg(not(feature = "cuda"))]
 pub fn gpu_available() -> bool {
     false
 }
-
 #[cfg(feature = "cuda")]
 fn debug_cuda(message: &str) {
     if std::env::var_os("MEMORY_ENGINE_DEBUG_CUDA").is_some() {
