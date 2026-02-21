@@ -6,16 +6,16 @@ use crate::state::{NodeHandle, NodeKind};
 use crate::structured::NodeOp;
 
 use super::field_mutations::apply_field_mutation;
-use super::helpers::{resolve_items_container_mut};
+use super::helpers::{find_item_container_by_span, get_items_container_mut_by_path};
 
-pub(crate) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeHandle>, symbol_id: &str, op: &NodeOp) -> Result<bool> {
+pub(crate) fn apply_node_op(ast: &mut syn::File, content: &str, handles: &HashMap<String, NodeHandle>, symbol_id: &str, op: &NodeOp) -> Result<bool> {
     match op {
-        NodeOp::ReplaceNode { handle, new_node } => replace_node(ast, handle, new_node.clone()),
-        NodeOp::InsertBefore { handle, new_node } => insert_node(ast, handle, new_node.clone(), true),
-        NodeOp::InsertAfter { handle, new_node } => insert_node(ast, handle, new_node.clone(), false),
-        NodeOp::DeleteNode { handle } => delete_node(ast, handle),
-        NodeOp::ReorderItems { file: _, new_order } => reorder_items(ast, handles, new_order),
-        NodeOp::MutateField { handle, mutation } => apply_field_mutation(ast, handle, symbol_id, mutation),
+        NodeOp::ReplaceNode { handle, new_node } => replace_node(ast, content, handle, new_node.clone()),
+        NodeOp::InsertBefore { handle, new_node } => insert_node(ast, content, handle, new_node.clone(), true),
+        NodeOp::InsertAfter { handle, new_node } => insert_node(ast, content, handle, new_node.clone(), false),
+        NodeOp::DeleteNode { handle } => delete_node(ast, content, handle),
+        NodeOp::ReorderItems { file: _, new_order } => reorder_items(ast, content, handles, new_order),
+        NodeOp::MutateField { handle, mutation } => apply_field_mutation(ast, content, handle, symbol_id, mutation),
         NodeOp::MoveSymbol { .. } => {
             // Cross-file moves handled in apply_cross_file_moves.
             // Intra-file move disabled to prevent double extraction.
@@ -24,78 +24,75 @@ pub(crate) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeH
     }
 }
 
-fn replace_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item) -> Result<bool> {
-    if !handle.nested_path.is_empty() {
-        anyhow::bail!("replace node not supported for nested items");
-    }
-    let item = ast.items.get_mut(handle.item_index).ok_or_else(|| anyhow::anyhow!("item index out of bounds"))?;
-    *item = new_node;
+fn replace_node(ast: &mut syn::File, content: &str, handle: &NodeHandle, new_node: syn::Item) -> Result<bool> {
+    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
+        .ok_or_else(|| anyhow::anyhow!("replace node: item not found by span"))?;
+    let items = get_items_container_mut_by_path(&mut ast.items, &path).ok_or_else(|| anyhow::anyhow!("replace node: container not found"))?;
+    items[idx] = new_node;
     Ok(true)
 }
 
-fn insert_node(ast: &mut syn::File, handle: &NodeHandle, new_node: syn::Item, before: bool) -> Result<bool> {
-    if !handle.nested_path.is_empty() {
-        anyhow::bail!("insert node not supported for nested items");
-    }
-    let mut idx = handle.item_index;
-    if !before {
-        idx = idx.saturating_add(1);
-    }
-    if idx > ast.items.len() {
+fn insert_node(ast: &mut syn::File, content: &str, handle: &NodeHandle, new_node: syn::Item, before: bool) -> Result<bool> {
+    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
+        .ok_or_else(|| anyhow::anyhow!("insert node: item not found by span"))?;
+    let items = get_items_container_mut_by_path(&mut ast.items, &path).ok_or_else(|| anyhow::anyhow!("insert node: container not found"))?;
+    let insert_at = if before { idx } else { idx.saturating_add(1) };
+    if insert_at > items.len() {
         anyhow::bail!("insert index out of bounds");
     }
-    ast.items.insert(idx, new_node);
+    items.insert(insert_at, new_node);
     Ok(true)
 }
 
-fn delete_node(ast: &mut syn::File, handle: &NodeHandle) -> Result<bool> {
-    if !handle.nested_path.is_empty() {
-        anyhow::bail!("delete node not supported for nested items");
-    }
-    if handle.item_index >= ast.items.len() {
+fn delete_node(ast: &mut syn::File, content: &str, handle: &NodeHandle) -> Result<bool> {
+    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
+        .ok_or_else(|| anyhow::anyhow!("delete node: item not found by span"))?;
+    let items = get_items_container_mut_by_path(&mut ast.items, &path).ok_or_else(|| anyhow::anyhow!("delete node: container not found"))?;
+    if idx >= items.len() {
         anyhow::bail!("delete index out of bounds");
     }
-    ast.items.remove(handle.item_index);
+    items.remove(idx);
     Ok(true)
 }
 
-fn reorder_items(ast: &mut syn::File, handles: &HashMap<String, NodeHandle>, new_order: &[String]) -> Result<bool> {
-    let mut container_path: Option<Vec<usize>> = None;
+fn reorder_items(ast: &mut syn::File, content: &str, handles: &HashMap<String, NodeHandle>, new_order: &[String]) -> Result<bool> {
+    let mut indices: Vec<usize> = Vec::new();
+    let mut items_path: Option<Vec<usize>> = None;
     for symbol_id in new_order {
         let handle = handles.get(symbol_id).ok_or_else(|| anyhow::anyhow!("missing handle for {}", symbol_id))?;
         if handle.kind == NodeKind::ImplFn {
             anyhow::bail!("reorder not supported for impl items");
         }
-        match &container_path {
-            Some(existing) if existing.as_slice() != handle.nested_path.as_slice() => {
+        let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
+            .ok_or_else(|| anyhow::anyhow!("reorder: item not found by span"))?;
+        let ptr = path.clone();
+        if let Some(existing) = &items_path {
+            if existing != &ptr {
                 anyhow::bail!("reorder requires a single container scope");
             }
-            None => container_path = Some(handle.nested_path.clone()),
-            _ => {}
+        } else {
+            items_path = Some(ptr);
         }
+        indices.push(idx);
     }
-
-    let container_path = container_path.unwrap_or_default();
-    let items = resolve_items_container_mut(ast, &container_path).ok_or_else(|| anyhow::anyhow!("failed to resolve container for reorder"))?;
-
+    let Some(items_path) = items_path else {
+        return Ok(false);
+    };
+    let items = get_items_container_mut_by_path(&mut ast.items, &items_path).ok_or_else(|| anyhow::anyhow!("reorder: container not found"))?;
     let mut taken = vec![false; items.len()];
     let mut reordered = Vec::with_capacity(items.len());
-
-    for symbol_id in new_order {
-        let handle = handles.get(symbol_id).ok_or_else(|| anyhow::anyhow!("missing handle for {}", symbol_id))?;
-        if handle.item_index >= items.len() || taken[handle.item_index] {
+    for idx in indices {
+        if idx >= items.len() || taken[idx] {
             continue;
         }
-        reordered.push(items[handle.item_index].clone());
-        taken[handle.item_index] = true;
+        reordered.push(items[idx].clone());
+        taken[idx] = true;
     }
-
     for (idx, item) in items.iter().cloned().enumerate() {
         if !taken[idx] {
             reordered.push(item);
         }
     }
-
     *items = reordered;
     Ok(true)
 }

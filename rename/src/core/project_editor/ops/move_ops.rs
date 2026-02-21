@@ -2,49 +2,32 @@ use anyhow::Result;
 
 use crate::state::NodeHandle;
 
-use super::helpers::resolve_items_container_mut;
+use super::helpers::{find_item_container_by_span, get_items_container_mut_by_path};
 
 /// Intra-file move: extract item from its current position and append it into the
 /// target inline mod named by `new_module_path` (e.g. "crate::foo::bar").
 /// Returns Ok(false) if source and target module are the same (no-op).
 /// Returns Ok(false) if the target module path does not exist as an inline mod in
 /// this file — cross-file moves are handled at the mod.rs level.
-pub(super) fn move_symbol_intra_file(ast: &mut syn::File, handle: &NodeHandle, new_module_path: &str) -> Result<bool> {
-    if !handle.nested_path.is_empty() {
-        anyhow::bail!("MoveSymbol not supported for items nested inside impl blocks");
-    }
+pub(super) fn move_symbol_intra_file(ast: &mut syn::File, content: &str, handle: &NodeHandle, new_module_path: &str) -> Result<bool> {
     let target_segments: Vec<&str> = new_module_path.trim_start_matches("crate::").split("::").filter(|s| !s.is_empty()).collect();
-
-    let target_indices = find_mod_indices_by_name(&ast.items, &target_segments);
-    let Some(target_indices) = target_indices else {
+    let target_path = find_mod_indices_by_name(&ast.items, &target_segments);
+    let Some(target_path) = target_path else {
         return Ok(false);
     };
-
-    if target_segments.is_empty() && handle.item_index < ast.items.len() {
-        return Ok(false);
-    }
-
-    let item = ast
-        .items
-        .get(handle.item_index)
-        .ok_or_else(|| anyhow::anyhow!("MoveSymbol: item_index {} out of bounds", handle.item_index))?
-        .clone();
-
-    ast.items.remove(handle.item_index);
-
-    let adjusted: Vec<usize> = {
-        let mut v = target_indices.clone();
-        if let Some(first) = v.first_mut() {
-            if *first > handle.item_index {
-                *first -= 1;
-            }
+    let (src_path, src_idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
+        .ok_or_else(|| anyhow::anyhow!("MoveSymbol: item not found by span"))?;
+    let item = {
+        let src_items = get_items_container_mut_by_path(&mut ast.items, &src_path)
+            .ok_or_else(|| anyhow::anyhow!("MoveSymbol: source container not found"))?;
+        if src_idx >= src_items.len() {
+            anyhow::bail!("MoveSymbol: item index out of bounds");
         }
-        v
+        src_items.remove(src_idx)
     };
-
-    let container = resolve_items_container_mut(ast, &adjusted)
+    let target_items = get_items_container_mut_by_path(&mut ast.items, &target_path)
         .ok_or_else(|| anyhow::anyhow!("MoveSymbol: target mod path not found after extraction"))?;
-    container.push(item);
+    target_items.push(item);
     Ok(true)
 }
 

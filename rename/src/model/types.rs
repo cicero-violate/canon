@@ -46,13 +46,13 @@ pub struct SymbolOccurrence {
     pub span: SpanRange,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SpanRange {
     pub start: LineColumn,
     pub end: LineColumn,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LineColumn {
     pub line: i64,
     pub column: i64,

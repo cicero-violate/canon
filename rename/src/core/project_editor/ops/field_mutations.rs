@@ -6,66 +6,66 @@ use crate::structured::FieldMutation;
 
 use super::helpers::{rename_ident_in_item, resolve_target_mut, TargetItemMut};
 
-pub(super) fn apply_field_mutation(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, mutation: &FieldMutation) -> Result<bool> {
+pub(super) fn apply_field_mutation(ast: &mut syn::File, content: &str, handle: &NodeHandle, symbol_id: &str, mutation: &FieldMutation) -> Result<bool> {
     match mutation {
         FieldMutation::RenameIdent(new_name) => {
-            if rename_ident(ast, handle, symbol_id, new_name) {
+            if rename_ident(ast, content, handle, symbol_id, new_name) {
                 Ok(true)
             } else {
                 anyhow::bail!("rename failed for {}", symbol_id);
             }
         }
         FieldMutation::ChangeVisibility(new_vis) => {
-            if change_visibility(ast, handle, symbol_id, new_vis) {
+            if change_visibility(ast, content, handle, symbol_id, new_vis) {
                 Ok(true)
             } else {
                 anyhow::bail!("visibility change failed for {}", symbol_id);
             }
         }
         FieldMutation::AddAttribute(attr) => {
-            if add_attribute(ast, handle, symbol_id, attr.clone()) {
+            if add_attribute(ast, content, handle, symbol_id, attr.clone()) {
                 Ok(true)
             } else {
                 anyhow::bail!("add attribute failed for {}", symbol_id);
             }
         }
         FieldMutation::RemoveAttribute(name) => {
-            if remove_attribute(ast, handle, symbol_id, name) {
+            if remove_attribute(ast, content, handle, symbol_id, name) {
                 Ok(true)
             } else {
                 anyhow::bail!("remove attribute failed for {}", symbol_id);
             }
         }
         FieldMutation::ReplaceSignature(sig) => {
-            if replace_signature(ast, handle, symbol_id, sig.clone()) {
+            if replace_signature(ast, content, handle, symbol_id, sig.clone()) {
                 Ok(true)
             } else {
                 anyhow::bail!("replace signature failed for {}", symbol_id);
             }
         }
         FieldMutation::AddStructField(field) => {
-            if add_struct_field(ast, handle, symbol_id, field.clone()) {
+            if add_struct_field(ast, content, handle, symbol_id, field.clone()) {
                 Ok(true)
             } else {
                 anyhow::bail!("add struct field failed for {}", symbol_id);
             }
         }
         FieldMutation::RemoveStructField(name) => {
-            if remove_struct_field(ast, handle, symbol_id, name) {
+            if remove_struct_field(ast, content, handle, symbol_id, name) {
                 Ok(true)
             } else {
                 anyhow::bail!("remove struct field failed for {}", symbol_id);
             }
         }
         FieldMutation::AddVariant(variant) => {
-            if add_variant(ast, handle, symbol_id, variant.clone()) {
+            if add_variant(ast, content, handle, symbol_id, variant.clone()) {
                 Ok(true)
             } else {
                 anyhow::bail!("add variant failed for {}", symbol_id);
             }
         }
         FieldMutation::RemoveVariant(name) => {
-            if remove_variant(ast, handle, symbol_id, name) {
+            if remove_variant(ast, content, handle, symbol_id, name) {
                 Ok(true)
             } else {
                 anyhow::bail!("remove variant failed for {}", symbol_id);
@@ -74,10 +74,10 @@ pub(super) fn apply_field_mutation(ast: &mut syn::File, handle: &NodeHandle, sym
     }
 }
 
-fn rename_ident(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_name: &str) -> bool {
+fn rename_ident(ast: &mut syn::File, content: &str, handle: &NodeHandle, symbol_id: &str, new_name: &str) -> bool {
     let target = symbol_id.rsplit("::").next().unwrap_or(symbol_id);
 
-    match resolve_target_mut(ast, handle, symbol_id) {
+    match resolve_target_mut(ast, content, handle, symbol_id) {
         Some(TargetItemMut::Top(item)) => rename_ident_in_item(item, target, new_name),
         Some(TargetItemMut::ImplFn(impl_fn)) => {
             if impl_fn.sig.ident == target {
@@ -91,8 +91,8 @@ fn rename_ident(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_n
     }
 }
 
-fn change_visibility(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, new_vis: &syn::Visibility) -> bool {
-    if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
+fn change_visibility(ast: &mut syn::File, content: &str, handle: &NodeHandle, symbol_id: &str, new_vis: &syn::Visibility) -> bool {
+    if let Some(target) = resolve_target_mut(ast, content, handle, symbol_id) {
         match target {
             TargetItemMut::Top(item) => match item {
                 syn::Item::Fn(item_fn) => {
@@ -137,8 +137,8 @@ fn change_visibility(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, 
     false
 }
 
-fn add_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, attr: syn::Attribute) -> bool {
-    if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
+fn add_attribute(ast: &mut syn::File, content: &str, handle: &NodeHandle, symbol_id: &str, attr: syn::Attribute) -> bool {
+    if let Some(target) = resolve_target_mut(ast, content, handle, symbol_id) {
         match target {
             TargetItemMut::Top(item) => match item {
                 syn::Item::Fn(item_fn) => item_fn.attrs.push(attr),
@@ -158,9 +158,9 @@ fn add_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, attr
     false
 }
 
-fn remove_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, name: &str) -> bool {
+fn remove_attribute(ast: &mut syn::File, content: &str, handle: &NodeHandle, symbol_id: &str, name: &str) -> bool {
     let mut removed = false;
-    if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
+    if let Some(target) = resolve_target_mut(ast, content, handle, symbol_id) {
         let matcher = |attr: &syn::Attribute| attr.path().is_ident(name) || attr.path().to_token_stream().to_string() == name;
         match target {
             TargetItemMut::Top(item) => match item {
@@ -216,8 +216,8 @@ fn remove_attribute(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, n
     removed
 }
 
-fn replace_signature(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, sig: syn::Signature) -> bool {
-    if let Some(target) = resolve_target_mut(ast, handle, symbol_id) {
+fn replace_signature(ast: &mut syn::File, content: &str, handle: &NodeHandle, symbol_id: &str, sig: syn::Signature) -> bool {
+    if let Some(target) = resolve_target_mut(ast, content, handle, symbol_id) {
         match target {
             TargetItemMut::Top(item) => {
                 if let syn::Item::Fn(item_fn) = item {
@@ -234,8 +234,8 @@ fn replace_signature(ast: &mut syn::File, handle: &NodeHandle, symbol_id: &str, 
     false
 }
 
-fn add_struct_field(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, field: syn::Field) -> bool {
-    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
+fn add_struct_field(ast: &mut syn::File, content: &str, handle: &NodeHandle, _symbol_id: &str, field: syn::Field) -> bool {
+    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, content, handle, _symbol_id) {
         if let syn::Item::Struct(item_struct) = item {
             match &mut item_struct.fields {
                 syn::Fields::Named(named) => {
@@ -253,8 +253,8 @@ fn add_struct_field(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, 
     false
 }
 
-fn remove_struct_field(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, name: &str) -> bool {
-    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
+fn remove_struct_field(ast: &mut syn::File, content: &str, handle: &NodeHandle, _symbol_id: &str, name: &str) -> bool {
+    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, content, handle, _symbol_id) {
         if let syn::Item::Struct(item_struct) = item {
             match &mut item_struct.fields {
                 syn::Fields::Named(named) => {
@@ -272,8 +272,8 @@ fn remove_struct_field(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &st
     false
 }
 
-fn add_variant(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, variant: syn::Variant) -> bool {
-    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
+fn add_variant(ast: &mut syn::File, content: &str, handle: &NodeHandle, _symbol_id: &str, variant: syn::Variant) -> bool {
+    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, content, handle, _symbol_id) {
         if let syn::Item::Enum(item_enum) = item {
             item_enum.variants.push(variant);
             return true;
@@ -282,8 +282,8 @@ fn add_variant(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, varia
     false
 }
 
-fn remove_variant(ast: &mut syn::File, handle: &NodeHandle, _symbol_id: &str, name: &str) -> bool {
-    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, handle, _symbol_id) {
+fn remove_variant(ast: &mut syn::File, content: &str, handle: &NodeHandle, _symbol_id: &str, name: &str) -> bool {
+    if let Some(TargetItemMut::Top(item)) = resolve_target_mut(ast, content, handle, _symbol_id) {
         if let syn::Item::Enum(item_enum) = item {
             let before = item_enum.variants.len();
             item_enum.variants = item_enum.variants.iter().cloned().filter(|v| v.ident != name).collect();

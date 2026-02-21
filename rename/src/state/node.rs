@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Identifies a concrete AST node inside a file.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -12,6 +13,12 @@ pub struct NodeHandle {
     pub nested_path: Vec<usize>,
     /// Kind of node being referenced.
     pub kind: NodeKind,
+    /// Span range for the node (line/column).
+    pub span: crate::model::types::SpanRange,
+    /// Byte offsets for the node within its source file.
+    pub byte_range: (usize, usize),
+    /// Source text snapshot used to compute the span/byte offsets.
+    pub source: Arc<String>,
 }
 
 /// Supported structural node categories.
@@ -36,6 +43,8 @@ pub struct NodeRegistry {
     pub handles: HashMap<String, NodeHandle>,
     /// file -> parsed AST
     pub asts: HashMap<PathBuf, syn::File>,
+    /// file -> source text snapshot
+    pub sources: HashMap<PathBuf, Arc<String>>,
 }
 
 impl NodeRegistry {
@@ -49,5 +58,9 @@ impl NodeRegistry {
 
     pub fn insert_ast(&mut self, file: impl Into<PathBuf>, ast: syn::File) {
         self.asts.insert(file.into(), ast);
+    }
+
+    pub fn insert_source(&mut self, file: impl Into<PathBuf>, source: Arc<String>) {
+        self.sources.insert(file.into(), source);
     }
 }

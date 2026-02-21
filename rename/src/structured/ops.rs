@@ -1,6 +1,8 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::state::{NodeHandle, NodeKind};
+use crate::model::types::SpanRange;
 
 /// Structural node operations executed against live ASTs.
 #[derive(Clone)]
@@ -34,6 +36,14 @@ pub enum FieldMutation {
 }
 
 /// Convenience constructor for NodeHandle creation.
-pub fn node_handle(file: impl Into<PathBuf>, item_index: usize, nested_path: Vec<usize>, kind: NodeKind) -> NodeHandle {
-    NodeHandle { file: file.into(), item_index, nested_path, kind }
+pub fn node_handle(
+    file: impl Into<PathBuf>,
+    item_index: usize,
+    nested_path: Vec<usize>,
+    kind: NodeKind,
+    span: SpanRange,
+    byte_range: (usize, usize),
+    source: Arc<String>,
+) -> NodeHandle {
+    NodeHandle { file: file.into(), item_index, nested_path, kind, span, byte_range, source }
 }

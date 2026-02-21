@@ -1,4 +1,4 @@
-use super::use_imports::{absolutize_use, collect_needed_uses, remove_orphaned_uses, token_contains_word};
+use syn::spanned::Spanned;
 use syn::visit_mut::VisitMut;
 use super::utils::find_project_root_sync;
 use super::QueuedOp;
@@ -7,19 +7,27 @@ use crate::core::symbol_id::normalize_symbol_id;
 use crate::module_path::{compute_new_file_path, ModulePath};
 use crate::state::NodeRegistry;
 use anyhow::Result;
-use quote::ToTokens;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Cross-file move pass: for each MoveSymbol op, if source and destination file differ,
-/// extract the item from the source AST and append it to the destination AST.
+/// extract the item from source text spans and insert into destination text.
 pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &std::collections::HashMap<PathBuf, Vec<QueuedOp>>) -> Result<HashSet<PathBuf>> {
     let mut touched: HashSet<PathBuf> = HashSet::new();
+    #[derive(Clone)]
     struct PendingMove {
         src_file: PathBuf,
-        item_index: usize,
         dst_file: PathBuf,
         dst_module_segments: Vec<String>,
+        symbol_id: String,
+        kind: crate::state::NodeKind,
+        span: crate::model::types::SpanRange,
+        byte_range: (usize, usize),
+    }
+    struct ResolvedMove {
+        pending: PendingMove,
+        item: syn::Item,
     }
     let mut pending: Vec<PendingMove> = Vec::new();
     for (src_file, ops) in changesets {
@@ -35,370 +43,202 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
                     .filter(|s| !s.is_empty())
                     .map(|s| s.to_string())
                     .collect();
-                pending.push(PendingMove { src_file: src_file.clone(), item_index: handle.item_index, dst_file, dst_module_segments: segments });
+                pending.push(PendingMove {
+                    src_file: src_file.clone(),
+                    dst_file,
+                    dst_module_segments: segments,
+                    symbol_id: queued.symbol_id.clone(),
+                    kind: handle.kind,
+                    span: handle.span.clone(),
+                    byte_range: handle.byte_range,
+                });
             }
         }
     }
-    let mut extra: Vec<PendingMove> = Vec::new();
+    if pending.is_empty() {
+        return Ok(touched);
+    }
     for mv in &pending {
-        let struct_name = {
-            let src_ast = match registry.asts.get(&mv.src_file) {
-                Some(a) => a,
-                None => continue,
-            };
-            let item = match src_ast.items.get(mv.item_index) {
-                Some(i) => i,
-                None => continue,
-            };
-            match item {
-                syn::Item::Struct(s) => s.ident.to_string(),
-                syn::Item::Enum(e) => e.ident.to_string(),
-                syn::Item::Trait(t) => t.ident.to_string(),
-                _ => continue,
-            }
-        };
-        let src_ast = match registry.asts.get(&mv.src_file) {
-            Some(a) => a,
-            None => continue,
-        };
-        for (idx, item) in src_ast.items.iter().enumerate() {
-            if idx == mv.item_index {
+        ensure_source_loaded(registry, &mv.src_file)?;
+        ensure_source_loaded(registry, &mv.dst_file)?;
+    }
+    let mut seen: HashSet<(PathBuf, usize, usize)> = HashSet::new();
+    for mv in &pending {
+        seen.insert((mv.src_file.clone(), mv.byte_range.0, mv.byte_range.1));
+    }
+    let mut extra: Vec<PendingMove> = Vec::new();
+    let mut src_ast_cache: std::collections::HashMap<PathBuf, syn::File> = std::collections::HashMap::new();
+    for mv in &pending {
+        if !matches!(mv.kind, crate::state::NodeKind::Struct | crate::state::NodeKind::Enum | crate::state::NodeKind::Trait) {
+            continue;
+        }
+        let struct_name = mv.symbol_id.rsplit("::").next().unwrap_or(&mv.symbol_id).to_string();
+        let src_text = registry.sources.get(&mv.src_file).expect("source missing");
+        let src_ast = src_ast_cache
+            .entry(mv.src_file.clone())
+            .or_insert_with(|| syn::parse_file(src_text).unwrap_or_else(|_| syn::parse_quote!()));
+        for item in &src_ast.items {
+            let syn::Item::Impl(item_impl) = item else { continue };
+            let self_name = impl_self_type_name(&item_impl.self_ty);
+            if self_name.as_deref() != Some(&struct_name) {
                 continue;
             }
-            if let syn::Item::Impl(item_impl) = item {
-                let self_name = impl_self_type_name(&item_impl.self_ty);
-                if self_name.as_deref() == Some(&struct_name) {
-                    let already = pending.iter().any(|p| p.src_file == mv.src_file && p.item_index == idx);
-                    if !already {
-                        extra.push(PendingMove { src_file: mv.src_file.clone(), item_index: idx, dst_file: mv.dst_file.clone(), dst_module_segments: mv.dst_module_segments.clone() });
-                    }
-                }
+            let span = crate::model::core_span::span_to_range(item.span());
+            let (start, end) = crate::model::core_span::span_to_offsets(src_text, &span.start, &span.end);
+            if seen.insert((mv.src_file.clone(), start, end)) {
+                extra.push(PendingMove {
+                    src_file: mv.src_file.clone(),
+                    dst_file: mv.dst_file.clone(),
+                    dst_module_segments: mv.dst_module_segments.clone(),
+                    symbol_id: mv.symbol_id.clone(),
+                    kind: crate::state::NodeKind::Impl,
+                    span,
+                    byte_range: (start, end),
+                });
             }
         }
     }
     pending.extend(extra);
-    pending.sort_by(|a, b| b.item_index.cmp(&a.item_index));
-    // Pre-compute which struct/enum names will land in each dst file,
-    // so Gap 7b can skip `use super::X` when X itself is moving to dst.
-    let mut structs_moving_to: std::collections::HashMap<PathBuf, std::collections::HashSet<String>> = std::collections::HashMap::new();
+    let mut resolved: Vec<ResolvedMove> = Vec::new();
     for mv in &pending {
-        if let Some(src_ast) = registry.asts.get(&mv.src_file) {
-            if let Some(item) = src_ast.items.get(mv.item_index) {
-                let name = match item {
-                    syn::Item::Struct(s) => Some(s.ident.to_string()),
-                    syn::Item::Enum(e) => Some(e.ident.to_string()),
-                    _ => None,
-                };
-                if let Some(name) = name {
-                    structs_moving_to.entry(mv.dst_file.clone()).or_default().insert(name);
-                }
-            }
+        let src_text = registry.sources.get(&mv.src_file).expect("source missing");
+        let (start, end) = mv.byte_range;
+        if start >= end || end > src_text.len() {
+            anyhow::bail!("cross-file move: invalid span {}..{} for {}", start, end, mv.src_file.display());
         }
+        let snippet = src_text[start..end].to_string();
+        let item = parse_single_item(&snippet)
+            .ok_or_else(|| anyhow::anyhow!("cross-file move: span does not parse as a single item in {}", mv.src_file.display()))?;
+        validate_item_matches(&item, &mv.symbol_id)?;
+        resolved.push(ResolvedMove { pending: mv.clone(), item });
     }
-    for mv in pending {
-        // Resolve symbol name from handle instead of trusting item_index.
-        // Resolve symbol name using normalized symbol id
-        let symbol_name = {
-            let entry = registry
-                .handles
-                .iter()
-                .find(|(_, h)| h.file == mv.src_file && h.item_index == mv.item_index)
-                .ok_or_else(|| anyhow::anyhow!("cross-file move: unable to resolve handle"))?;
-
-            let full_id = entry.0;
-            full_id
-                .rsplit("::")
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("cross-file move: invalid symbol id"))?
-                .to_string()
-        };
-
-        let mut item = {
-            let src_ast = registry
-                .asts
-                .get_mut(&mv.src_file)
-                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
-
-            // Match by identifier string equality only
-            if let Some(pos) = src_ast.items.iter().position(|i| {
-                match i {
-                    syn::Item::Struct(s) => s.ident.to_string() == symbol_name,
-                    syn::Item::Enum(e) => e.ident.to_string() == symbol_name,
-                    syn::Item::Trait(t) => t.ident.to_string() == symbol_name,
-                    syn::Item::Fn(f) => f.sig.ident.to_string() == symbol_name,
-                    _ => false,
-                }
-            }) {
-                src_ast.items.remove(pos)
-            } else {
-                anyhow::bail!("cross-file move: symbol '{}' not found in AST", symbol_name);
-            }
-        };
-        promote_private_to_pub_crate(&mut item);
-       // Collect self-type names from impl blocks before item is consumed,
-       // used by Gap 7b to inject `use super::Type` in the dst file.
-       let impl_self_names: Vec<String> = match &item {
-           syn::Item::Impl(impl_item) => {
-               impl_self_type_name(&impl_item.self_ty).into_iter().collect()
-           }
-           _ => vec![],
-       };
-        // Only inject `use super::SelfType` for inherent impls (no trait_).
-        // Trait impls don't need the type in scope the same way, and the
-        // struct may be co-moving to the same file anyway.
-        let is_inherent_impl = matches!(&item, syn::Item::Impl(i) if i.trait_.is_none());
-        let needed_uses: Vec<syn::ItemUse> = {
-            let src_ast = registry
-                .asts
-                .get(&mv.src_file)
-                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
-            let item_tokens = item.to_token_stream().to_string();
-            collect_needed_uses(src_ast, &item_tokens)
-        };
-        let needed_uses: Vec<syn::ItemUse> = {
-            let project_root = find_project_root_sync(registry).unwrap_or_else(|| PathBuf::from("."));
-            let src_module = module_path_for_file(&project_root, &mv.src_file);
-            needed_uses.into_iter().map(|u| absolutize_use(u, &src_module)).collect()
-        };
-        // Gap 7: rewrite absolute crate:: imports inside the moved item that
-        // point back at the source module → use super:: when dst is a direct
-        // child of src (e.g. crate::occurrence::Foo → super::Foo).
-        // For deeper moves, the absolute crate:: path is kept as-is.
-        let needed_uses: Vec<syn::ItemUse> = {
-            let project_root = find_project_root_sync(registry).unwrap_or_else(|| PathBuf::from("."));
-            let src_module = module_path_for_file(&project_root, &mv.src_file);
-            let dst_module = mv.dst_module_segments.join("::");
-            let dst_is_direct_child = {
-                let dst_full = format!("crate::{}", dst_module);
-                let src_full = format!("crate::{}", src_module.trim_start_matches("crate::"));
-                dst_full.starts_with(&format!("{}::", src_full))
-                    && dst_full[src_full.len() + 2..].split("::").count() == 1
-            };
-            if dst_is_direct_child {
-                let src_crate = format!("crate::{}", src_module.trim_start_matches("crate::"));
-                needed_uses
-                    .into_iter()
-                    .map(|u| superize_use_if_from_src(u, &src_crate))
-                    .collect()
-            } else {
-                needed_uses
-            }
-        };
-        touched.insert(mv.src_file.clone());
-        {
-            let src_ast = registry
-                .asts
-                .get_mut(&mv.src_file)
-                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
-            remove_orphaned_uses(src_ast);
-        }
-        {
-            let symbol_name = match &item {
-                syn::Item::Struct(s) => Some(s.ident.to_string()),
-                syn::Item::Enum(e) => Some(e.ident.to_string()),
-                syn::Item::Trait(t) => Some(t.ident.to_string()),
-                _ => None,
-            };
-            if let Some(name) = symbol_name {
-                let src_ast = registry
-                    .asts
-                    .get(&mv.src_file)
-                    .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
-                let body_tokens: String = src_ast
-                    .items
-                    .iter()
-                    .filter(|i| !matches!(i, syn::Item::Use(_)))
-                    .map(|i| i.to_token_stream().to_string())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                if token_contains_word(&body_tokens, &name) {
-                    let mut use_path = mv.dst_module_segments.join("::");
-                    if !use_path.starts_with("crate") {
-                        use_path = format!("crate::{}", use_path);
-                    }
-                    let use_str = format!("use {}::{};", use_path, name);
-                    if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
-                        let already = src_ast.items.iter().any(|i| {
-                            if let syn::Item::Use(u) = i {
-                                u.to_token_stream().to_string() == parsed.to_token_stream().to_string()
-                            } else {
-                                false
-                            }
-                        });
-                        if !already {
-                            let src_ast = registry.asts.get_mut(&mv.src_file).ok_or_else(|| anyhow::anyhow!("missing source AST"))?;
-                            src_ast.items.insert(0, syn::Item::Use(parsed));
-                        }
-                    }
-                }
+    let mut removals_by_file: std::collections::HashMap<PathBuf, Vec<(usize, usize)>> = std::collections::HashMap::new();
+    for mv in &pending {
+        removals_by_file.entry(mv.src_file.clone()).or_default().push(mv.byte_range);
+    }
+    for (file, mut ranges) in removals_by_file {
+        let src_text = registry.sources.get(&file).expect("source missing");
+        let mut text = src_text.as_str().to_string();
+        ranges.sort_by(|a, b| b.0.cmp(&a.0));
+        for (start, end) in ranges {
+            if end <= text.len() && start < end {
+                text.replace_range(start..end, "");
             }
         }
-        // Gap 5b: inject `use dst::Name;` for co-moved free functions still
-        // referenced in the source file (e.g. is_ignored_dir).
-        {
-            // First: immutable analysis phase
-            let (body_tokens, exported_names) = {
-                let src_ast = registry
-                    .asts
-                    .get(&mv.src_file)
-                    .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
-
-                let body_tokens: String = src_ast
-                    .items
-                    .iter()
-                    .filter(|i| !matches!(i, syn::Item::Use(_)))
-                    .map(|i| i.to_token_stream().to_string())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-
-                let mut exported_names: Vec<String> = Vec::new();
-                if let syn::Item::Impl(impl_item) = &item {
-                    for impl_item_inner in &impl_item.items {
-                        if let syn::ImplItem::Fn(f) = impl_item_inner {
-                            exported_names.push(f.sig.ident.to_string());
-                        }
-                    }
-                }
-                if let syn::Item::Fn(f) = &item {
-                    exported_names.push(f.sig.ident.to_string());
-                }
-
-                (body_tokens, exported_names)
-            };
-
-            // Second: mutation phase
-            let mut use_path = mv.dst_module_segments.join("::");
-            if !use_path.starts_with("crate") {
-                use_path = format!("crate::{}", use_path);
-            }
-
-            for name in exported_names.iter() {
-                if token_contains_word(&body_tokens, name) {
-                    let use_str = format!("use {}::{};", use_path, name);
-                    if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
-                        let src_ast = registry
-                            .asts
-                            .get_mut(&mv.src_file)
-                            .ok_or_else(|| anyhow::anyhow!("missing source AST"))?;
-
-                        let already = src_ast.items.iter().any(|i| {
-                            if let syn::Item::Use(u) = i {
-                                u.to_token_stream().to_string() == parsed.to_token_stream().to_string()
-                            } else { false }
-                        });
-
-                        if !already {
-                            src_ast.items.insert(0, syn::Item::Use(parsed));
-                        }
-                    }
-                }
-            }
-        }
-
-        // Compute relation before mutable borrow
-        let project_root = find_project_root_sync(registry).unwrap_or_else(|| PathBuf::from("."));
-        let src_module = module_path_for_file(&project_root, &mv.src_file);
-        let dst_full = format!("crate::{}", mv.dst_module_segments.join("::"));
-        let src_full = format!("crate::{}", src_module.trim_start_matches("crate::"));
-        let is_direct_child = dst_full.starts_with(&format!("{}::", src_full))
-            && dst_full[src_full.len() + 2..].split("::").count() == 1;
-        // Gap 7b pre-check: for each impl self name, determine whether the
-        // struct is still in src (meaning it did NOT move to dst).
-        // Must be computed before the mutable borrow of dst_ast below.
-        let self_names_still_in_src: std::collections::HashSet<String> = impl_self_names
-            .iter()
-            .filter(|name| {
-                registry.asts.get(&mv.src_file)
-                    .map(|a| a.items.iter().any(|i| match i {
-                        syn::Item::Struct(s) => &s.ident.to_string() == *name,
-                        syn::Item::Enum(e) => &e.ident.to_string() == *name,
-                        _ => false,
-                    }))
-                    .unwrap_or(false)
-            })
-            .cloned()
-            .collect();
-        // Additionally, exclude names that appear in ANY pending move to the
-        // same dst — those structs will land in dst, not stay in src.
-        let self_names_moving_to_dst: std::collections::HashSet<String> = {
-            let src_ast_snapshot = registry.asts.get(&mv.src_file);
-            impl_self_names.iter().filter(|name| {
-                // If the struct with this name is no longer at its original
-                // index in src (already removed), it moved to dst.
-                src_ast_snapshot.map(|a| !a.items.iter().any(|i| match i {
-                    syn::Item::Struct(s) => &s.ident.to_string() == *name,
-                    syn::Item::Enum(e) => &e.ident.to_string() == *name,
-                    _ => false,
-                })).unwrap_or(false)
-            }).cloned().collect()
-        };
-
-        let empty_set = std::collections::HashSet::new();
-        let structs_at_dst = structs_moving_to.get(&mv.dst_file).unwrap_or(&empty_set);
-        {
-            let dst_ast = registry
-                .asts
-                .get_mut(&mv.dst_file)
-                .ok_or_else(|| anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display()))?;
-
-            let segs: Vec<&str> = mv.dst_module_segments.iter().map(|s| s.as_str()).collect();
-            match find_mod_container_mut(dst_ast, &segs) {
-                Some(container) => container.push(item),
-                None => dst_ast.items.push(item),
-            }
-
-            if is_direct_child {
-               for self_name in &impl_self_names {
-                    // Don't inject `use super::X` if X is already defined
-                    // in the dst file (i.e. the struct itself was also moved there).
-                    let already_defined = dst_ast.items.iter().any(|i| match i {
-                        syn::Item::Struct(s) => s.ident == self_name.as_str(),
-                        syn::Item::Enum(e) => e.ident == self_name.as_str(),
-                        _ => false,
-                    });
-                    if already_defined { continue; }
-                    if !self_names_still_in_src.contains(self_name) { continue; }
-                    // Skip if the struct itself is moving to the same dst file.
-                    if structs_at_dst.contains(self_name) { continue; }
-                    // Skip trait impls — they don't need the type imported.
-                    if !is_inherent_impl { continue; }
-                    let use_str = format!("use super::{};", self_name);
-                    if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
-                        let already = dst_ast.items.iter().any(|i| {
-                            if let syn::Item::Use(u) = i {
-                                u.to_token_stream().to_string() == parsed.to_token_stream().to_string()
-                            } else { false }
-                        });
-                        if !already {
-                            dst_ast.items.insert(0, syn::Item::Use(parsed));
-                        }
-                    }
-                }
-            }
-
-            let existing: HashSet<String> = dst_ast
-                .items
-                .iter()
-                .filter_map(|i| {
-                    if let syn::Item::Use(u) = i {
-                        Some(u.to_token_stream().to_string())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            for use_item in needed_uses {
-                let rendered = use_item.to_token_stream().to_string();
-                if !existing.contains(&rendered) {
-                    dst_ast.items.insert(0, syn::Item::Use(use_item));
-                }
-            }
-        }
-
-        touched.insert(mv.dst_file);
+        registry.sources.insert(file.clone(), std::sync::Arc::new(text));
+        touched.insert(file);
+    }
+    for mv in resolved {
+        let dst_text = registry.sources.get(&mv.pending.dst_file).expect("source missing");
+        let mut text = dst_text.as_str().to_string();
+        let snippet = crate::structured::ast_render::render_node({
+            let mut item = mv.item;
+            promote_private_to_pub_crate(&mut item);
+            item
+        });
+        let insert_offset = find_insert_offset(&text, &mv.pending.dst_module_segments);
+        let insert_text = normalize_snippet(&snippet, &text, insert_offset);
+        text.insert_str(insert_offset, &insert_text);
+        registry.sources.insert(mv.pending.dst_file.clone(), std::sync::Arc::new(text));
+        touched.insert(mv.pending.dst_file.clone());
     }
     Ok(touched)
+}
+
+fn ensure_source_loaded(registry: &mut NodeRegistry, file: &PathBuf) -> Result<()> {
+    if registry.sources.contains_key(file) {
+        return Ok(());
+    }
+    if file.exists() {
+        let content = std::fs::read_to_string(file)?;
+        registry.sources.insert(file.clone(), Arc::new(content));
+        return Ok(());
+    }
+    registry.sources.insert(file.clone(), Arc::new(String::new()));
+    Ok(())
+}
+
+fn parse_single_item(snippet: &str) -> Option<syn::Item> {
+    if snippet.trim().is_empty() {
+        return None;
+    }
+    let attempt = syn::parse_file(snippet).or_else(|_| syn::parse_file(&format!("{snippet}\n")));
+    let file = attempt.ok()?;
+    if file.items.len() == 1 {
+        return file.items.into_iter().next();
+    }
+    None
+}
+
+fn validate_item_matches(item: &syn::Item, symbol_id: &str) -> Result<()> {
+    let expected = symbol_id.rsplit("::").next().unwrap_or(symbol_id);
+    let actual = match item {
+        syn::Item::Struct(s) => Some(s.ident.to_string()),
+        syn::Item::Enum(e) => Some(e.ident.to_string()),
+        syn::Item::Trait(t) => Some(t.ident.to_string()),
+        syn::Item::Fn(f) => Some(f.sig.ident.to_string()),
+        syn::Item::Type(t) => Some(t.ident.to_string()),
+        syn::Item::Const(c) => Some(c.ident.to_string()),
+        syn::Item::Mod(m) => Some(m.ident.to_string()),
+        _ => None,
+    };
+    if let Some(actual) = actual {
+        if actual != expected {
+            anyhow::bail!("cross-file move: span item '{}' does not match expected '{}'", actual, expected);
+        }
+    }
+    Ok(())
+}
+
+fn find_insert_offset(text: &str, dst_module_segments: &[String]) -> usize {
+    if dst_module_segments.is_empty() {
+        return text.len();
+    }
+    let Ok(ast) = syn::parse_file(text) else {
+        return text.len();
+    };
+    let segs: Vec<&str> = dst_module_segments.iter().map(|s| s.as_str()).collect();
+    if let Some((start, end)) = find_mod_span(&ast.items, &segs, text) {
+        let slice = &text[start..end];
+        if let Some(rel) = slice.rfind('}') {
+            return start + rel;
+        }
+    }
+    text.len()
+}
+
+fn find_mod_span(items: &[syn::Item], segments: &[&str], text: &str) -> Option<(usize, usize)> {
+    let (head, tail) = segments.split_first()?;
+    for item in items {
+        let syn::Item::Mod(m) = item else { continue };
+        if m.ident != head {
+            continue;
+        }
+        if tail.is_empty() {
+            let span = crate::model::core_span::span_to_range(m.span());
+            let (start, end) = crate::model::core_span::span_to_offsets(text, &span.start, &span.end);
+            return Some((start, end));
+        }
+        let Some((_, inner)) = &m.content else { return None };
+        return find_mod_span(inner, tail, text);
+    }
+    None
+}
+
+fn normalize_snippet(snippet: &str, dst_text: &str, insert_offset: usize) -> String {
+    let mut out = String::new();
+    let before = dst_text.get(..insert_offset).unwrap_or("");
+    let after = dst_text.get(insert_offset..).unwrap_or("");
+    if !before.ends_with('\n') {
+        out.push('\n');
+    }
+    let trimmed = snippet.trim_matches('\n');
+    out.push_str(trimmed);
+    out.push('\n');
+    if !after.starts_with('\n') {
+        out.push('\n');
+    }
+    out
 }
 
 fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
@@ -408,50 +248,7 @@ fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
     }
 }
 
-fn find_mod_container_mut<'a>(ast: &'a mut syn::File, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
-    fn recurse<'a>(items: &'a mut Vec<syn::Item>, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
-        if segments.is_empty() {
-            return Some(items);
-        }
-        let (head, tail) = segments.split_first()?;
-        for item in items.iter_mut() {
-            if let syn::Item::Mod(m) = item {
-                if m.ident == head {
-                    if let Some((_, inner)) = m.content.as_mut() {
-                        return recurse(inner, tail);
-                    }
-                }
-            }
-        }
-        None
-    }
-    recurse(&mut ast.items, segments)
-}
-
-fn resolve_dst_file(registry: &NodeRegistry, new_module_path: &str, src_file: &PathBuf) -> Option<PathBuf> {
-    let project_root = registry.asts.keys().next().and_then(|f| {
-        let mut cur = f.parent()?.to_path_buf();
-        loop {
-            if cur.join("Cargo.toml").exists() {
-                return Some(cur);
-            }
-            if !cur.pop() {
-                return None;
-            }
-        }
-    })?;
-    let norm_dst = normalize_symbol_id(new_module_path);
-    for file in registry.asts.keys() {
-        if file == src_file {
-            continue;
-        }
-        let module = normalize_symbol_id(&module_path_for_file(&project_root, file));
-        if module == norm_dst {
-            return Some(file.to_path_buf());
-        }
-    }
-    None
-}
+ 
 
 fn resolve_or_create_dst_file(registry: &mut NodeRegistry, new_module_path: &str, src_file: &PathBuf) -> Option<PathBuf> {
     let project_root = find_project_root_sync(registry)?;
@@ -471,10 +268,12 @@ fn resolve_or_create_dst_file(registry: &mut NodeRegistry, new_module_path: &str
         let content = std::fs::read_to_string(&dst_file).ok()?;
         let ast = syn::parse_file(&content).ok()?;
         registry.asts.insert(dst_file.clone(), ast);
+        registry.sources.insert(dst_file.clone(), Arc::new(content));
         return Some(dst_file);
     }
     let blank: syn::File = syn::parse_quote!();
     registry.asts.insert(dst_file.clone(), blank);
+    registry.sources.insert(dst_file.clone(), Arc::new(String::new()));
     Some(dst_file)
 }
 

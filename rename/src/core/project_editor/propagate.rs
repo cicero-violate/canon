@@ -230,7 +230,7 @@ fn propagate_add_variant(symbol_id: &str, variant: &syn::Variant, _registry: &No
 fn occurrence_to_edit(occ: &SymbolOccurrence, new_name: &str) -> SymbolEdit {
     SymbolEdit { id: occ.id.clone(), file: occ.file.clone(), kind: occ.kind.clone(), start: occ.span.start.clone(), end: occ.span.end.clone(), new_name: new_name.to_string() }
 }
-fn build_symbol_index_and_occurrences(registry: &NodeRegistry) -> Result<(SymbolIndex, Vec<SymbolOccurrence>, AliasGraph)> {
+pub(crate) fn build_symbol_index_and_occurrences(registry: &NodeRegistry) -> Result<(SymbolIndex, Vec<SymbolOccurrence>, AliasGraph)> {
     let project_root = find_project_root(registry)?;
     let mut symbols = Vec::new();
     let mut symbol_set: HashSet<String> = HashSet::new();

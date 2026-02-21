@@ -1,15 +1,15 @@
 use super::cross_file::{apply_cross_file_moves, collect_new_files};
 use super::ops::apply_node_op;
 use super::oracle::GraphSnapshotOracle;
-use super::propagate::{apply_rewrites, propagate};
-use super::registry_builder::NodeRegistryBuilder;
+use super::propagate::{apply_rewrites, build_symbol_index_and_occurrences, propagate};
+use super::registry_builder::{NodeRegistryBuilder, SpanLookup, SpanOverride};
 use super::use_path::run_use_path_rewrite;
 use super::utils::{build_symbol_index, find_project_root};
 use crate::core::mod_decls::update_mod_declarations;
 use crate::core::oracle::StructuralEditOracle;
 use crate::core::symbol_id::normalize_symbol_id;
 use crate::fs;
-use crate::model::types::FileRename;
+use crate::model::types::{FileRename, LineColumn, SpanRange};
 use crate::state::NodeRegistry;
 use crate::structured::{FieldMutation, NodeOp};
 use anyhow::{Context, Result};
@@ -17,8 +17,10 @@ use compiler_capture::frontends::rustc::RustcFrontend;
 use compiler_capture::multi_capture::capture_project;
 use compiler_capture::project::CargoProject;
 use database::{MemoryEngine, MemoryEngineConfig};
+use database::graph_log::GraphSnapshot;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use syn::visit::Visit;
 
 #[derive(Debug, Clone)]
@@ -39,6 +41,7 @@ pub struct ProjectEditor {
     pub changesets: HashMap<PathBuf, Vec<QueuedOp>>,
     pub oracle: Box<dyn StructuralEditOracle>,
     pub original_sources: HashMap<PathBuf, String>,
+    span_lookup: Option<SpanLookup>,
     pending_file_moves: Vec<(PathBuf, PathBuf)>,
     pending_file_renames: Vec<FileRename>,
     pending_new_files: Vec<(PathBuf, String)>,
@@ -58,10 +61,12 @@ impl ProjectEditor {
         let mut original_sources = HashMap::new();
         for file in files {
             let content = std::fs::read_to_string(&file)?;
+            let source = Arc::new(content.clone());
             let ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", file.display()))?;
-            let mut builder = NodeRegistryBuilder::new(project, &file, &mut registry);
+            let mut builder = NodeRegistryBuilder::new(project, &file, &mut registry, source.clone(), None);
             builder.visit_file(&ast);
             registry.insert_ast(file.clone(), ast);
+            registry.insert_source(file.clone(), source);
             original_sources.insert(file, content);
         }
         Ok(Self {
@@ -69,6 +74,7 @@ impl ProjectEditor {
             changesets: HashMap::new(),
             oracle,
             original_sources,
+            span_lookup: None,
             pending_file_moves: Vec::new(),
             pending_file_renames: Vec::new(),
             pending_new_files: Vec::new(),
@@ -86,8 +92,36 @@ impl ProjectEditor {
         let tlog_path = state_dir.join("state.tlog");
         let engine = MemoryEngine::new(MemoryEngineConfig { tlog_path })?;
         let snapshot = engine.materialized_graph()?;
+        let span_lookup = build_span_lookup_from_snapshot(&snapshot)?;
         let oracle = Box::new(GraphSnapshotOracle::from_snapshot(snapshot));
-        Self::load(project, oracle)
+        Self::load_with_span_lookup(project, oracle, span_lookup)
+    }
+
+    fn load_with_span_lookup(project: &Path, oracle: Box<dyn StructuralEditOracle>, span_lookup: SpanLookup) -> Result<Self> {
+        let files = fs::collect_rs_files(project)?;
+        let mut registry = NodeRegistry::new();
+        let mut original_sources = HashMap::new();
+        for file in files {
+            let content = std::fs::read_to_string(&file)?;
+            let source = Arc::new(content.clone());
+            let ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", file.display()))?;
+            let mut builder = NodeRegistryBuilder::new(project, &file, &mut registry, source.clone(), Some(&span_lookup));
+            builder.visit_file(&ast);
+            registry.insert_ast(file.clone(), ast);
+            registry.insert_source(file.clone(), source);
+            original_sources.insert(file, content);
+        }
+        Ok(Self {
+            registry,
+            changesets: HashMap::new(),
+            oracle,
+            original_sources,
+            span_lookup: Some(span_lookup),
+            pending_file_moves: Vec::new(),
+            pending_file_renames: Vec::new(),
+            pending_new_files: Vec::new(),
+            last_touched_files: HashSet::new(),
+        })
     }
 
     pub fn queue(&mut self, symbol_id: &str, op: NodeOp) -> Result<()> {
@@ -147,7 +181,8 @@ impl ProjectEditor {
             for queued in ops {
                 let changed = {
                     let ast = self.registry.asts.get_mut(file).with_context(|| format!("missing AST for {}", file.display()))?;
-                    apply_node_op(ast, &handle_snapshot, &queued.symbol_id, &queued.op)
+                    let content = self.registry.sources.get(file).map(|s| s.as_str()).unwrap_or("");
+                    apply_node_op(ast, content, &handle_snapshot, &queued.symbol_id, &queued.op)
                         .with_context(|| format!("failed to apply {}", queued.symbol_id))?
                 };
                 if changed {
@@ -155,10 +190,14 @@ impl ProjectEditor {
                 }
             }
         }
+        let ast_touched = touched_files.clone();
+        let cross_file_touched = apply_cross_file_moves(&mut self.registry, &self.changesets)?;
+        touched_files.extend(cross_file_touched.clone());
+        self.refresh_sources_from_asts(&ast_touched, &cross_file_touched)?;
+        self.rebuild_registry_from_sources()?;
+        let _ = build_symbol_index_and_occurrences(&self.registry)?;
         let use_path_touched = run_use_path_rewrite(&mut self.registry, &self.changesets)?;
         touched_files.extend(use_path_touched);
-        let cross_file_touched = apply_cross_file_moves(&mut self.registry, &self.changesets)?;
-        touched_files.extend(cross_file_touched);
         self.pending_new_files = collect_new_files(&self.registry, &self.changesets);
         let mut validation = self.validate()?;
         validation.extend(conflicts);
@@ -170,6 +209,35 @@ impl ProjectEditor {
             conflicts: validation,
             file_moves: self.pending_file_moves.clone(),
         })
+    }
+
+    fn rebuild_registry_from_sources(&mut self) -> Result<()> {
+        let project_root = find_project_root(&self.registry)?.unwrap_or_else(|| PathBuf::from("."));
+        let mut rebuilt = NodeRegistry::new();
+        let span_lookup = self.span_lookup.as_ref();
+        for (file, source) in self.registry.sources.iter() {
+            let content = source.as_str();
+            let ast = syn::parse_file(content).with_context(|| format!("Failed to parse {}", file.display()))?;
+            let mut builder = NodeRegistryBuilder::new(&project_root, file, &mut rebuilt, source.clone(), span_lookup);
+            builder.visit_file(&ast);
+            rebuilt.insert_ast(file.clone(), ast);
+            rebuilt.insert_source(file.clone(), source.clone());
+        }
+        self.registry = rebuilt;
+        Ok(())
+    }
+
+    fn refresh_sources_from_asts(&mut self, files: &HashSet<PathBuf>, exclude: &HashSet<PathBuf>) -> Result<()> {
+        for file in files {
+            if exclude.contains(file) {
+                continue;
+            }
+            if let Some(ast) = self.registry.asts.get(file) {
+                let rendered = crate::structured::render_file(ast);
+                self.registry.sources.insert(file.clone(), Arc::new(rendered));
+            }
+        }
+        Ok(())
     }
 
     pub fn validate(&self) -> Result<Vec<EditConflict>> {
@@ -285,4 +353,40 @@ impl ProjectEditor {
     pub fn debug_list_symbol_ids(&self) -> Vec<String> {
         self.registry.handles.keys().cloned().collect()
     }
+}
+
+fn build_span_lookup_from_snapshot(snapshot: &GraphSnapshot) -> Result<SpanLookup> {
+    let mut lookup: SpanLookup = HashMap::new();
+    for node in snapshot.nodes.iter() {
+        let metadata = &node.metadata;
+        let Some(source_file) = metadata.get("source_file") else { continue };
+        let def_path = metadata.get("def_path").map(|s| s.as_str()).unwrap_or(node.key.as_str());
+        let symbol_id = normalize_symbol_id(def_path);
+        let file_path = PathBuf::from(source_file);
+        let canonical = std::fs::canonicalize(&file_path).unwrap_or(file_path);
+        let Some(line) = parse_i64(metadata.get("line")) else { continue };
+        let Some(col) = parse_i64(metadata.get("column")) else { continue };
+        let Some(end_line) = parse_i64(metadata.get("span_end_line")) else { continue };
+        let Some(end_col) = parse_i64(metadata.get("span_end_column")) else { continue };
+        let span = SpanRange {
+            start: LineColumn { line, column: col + 1 },
+            end: LineColumn { line: end_line, column: end_col + 1 },
+        };
+        let byte_range = match (metadata.get("span_start_byte"), metadata.get("span_end_byte")) {
+            (Some(start), Some(end)) => match (start.parse::<usize>(), end.parse::<usize>()) {
+                (Ok(start), Ok(end)) => Some((start, end)),
+                _ => None,
+            },
+            _ => None,
+        };
+        lookup
+            .entry(canonical)
+            .or_default()
+            .insert(symbol_id, SpanOverride { span, byte_range });
+    }
+    Ok(lookup)
+}
+
+fn parse_i64(value: Option<&String>) -> Option<i64> {
+    value.and_then(|v| v.parse::<i64>().ok())
 }
