@@ -31,6 +31,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         new_crate: None,
     })?;
 
+    // Also move the impl block — it's a separate item that must travel with the struct
+    let impl_id = "crate::core::oracle::NullOracle as crate::core::oracle::StructuralEditOracle";
+    if let Some(impl_handle) = editor.registry.handles.get(impl_id).cloned() {
+        println!("found impl handle: {:?}", impl_handle);
+        editor.queue(impl_id, NodeOp::MoveSymbol {
+            handle: impl_handle,
+            new_module_path: new_module.to_string(),
+            new_crate: None,
+        })?;
+    } else {
+        println!("impl handle not found, skipping");
+    }
+
     let conflicts = editor.validate()?;
     println!("conflicts: {conflicts:?}");
 
