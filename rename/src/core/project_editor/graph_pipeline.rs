@@ -245,7 +245,22 @@ fn enforce_root_guard(project_root: &Path, plan: &Plan1) -> Result<()> {
     if !project_root.join("Cargo.toml").exists() {
         return Err(anyhow!("project_root missing Cargo.toml"));
     }
+    if !project_root.join("src").exists() {
+        return Err(anyhow!("project_root/src missing"));
+    }
+    if plan.files.is_empty() {
+        return Err(anyhow!("plan has no files"));
+    }
     for file in &plan.files {
+        let rel_any = file
+            .path
+            .strip_prefix(project_root)
+            .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
+        for comp in rel_any.components() {
+            if comp.as_os_str() == ".." {
+                return Err(anyhow!("plan path contains ..: {}", file.path.display()));
+            }
+        }
         let rel = file
             .path
             .strip_prefix(project_root)
@@ -261,6 +276,7 @@ fn enforce_root_guard(project_root: &Path, plan: &Plan1) -> Result<()> {
 }
 
 pub(crate) fn ensure_emission_branch(project_root: &Path) -> Result<()> {
+    ensure_clean_working_tree(project_root)?;
     let current = git_cmd(project_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
     if current.trim() == "refactor-plan-emission" {
         return Ok(());
@@ -268,7 +284,6 @@ pub(crate) fn ensure_emission_branch(project_root: &Path) -> Result<()> {
     let exists = git_cmd(project_root, &["show-ref", "--verify", "--quiet", "refs/heads/refactor-plan-emission"]).is_ok();
     if exists {
         git_cmd(project_root, &["checkout", "refactor-plan-emission"])?;
-        git_cmd(project_root, &["reset", "--hard", "main"])?;
     } else {
         git_cmd(project_root, &["checkout", "-b", "refactor-plan-emission"])?;
     }
@@ -292,6 +307,14 @@ fn git_cmd(project_root: &Path, args: &[&str]) -> Result<String> {
         return Err(anyhow!("git command failed: git {}", args.join(" ")));
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+fn ensure_clean_working_tree(project_root: &Path) -> Result<()> {
+    let status = git_cmd(project_root, &["status", "--porcelain"])?;
+    if !status.trim().is_empty() {
+        return Err(anyhow!("working tree is dirty; aborting plan emission"));
+    }
+    Ok(())
 }
 
 pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapshot> {
