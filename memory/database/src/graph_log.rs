@@ -267,6 +267,8 @@ impl GraphDeltaLog {
             count += 1;
         }
 
+        nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
+        edges.sort_by(|a, b| a.id.0.cmp(&b.id.0));
         let (csr, index) = build_csr_cache(&nodes, &edges);
         Ok(GraphSnapshot { nodes, edges, csr_cache: Some(csr), node_index: Some(index) })
     }

@@ -5,7 +5,7 @@ use crate::compiler_capture::graph::NodePayload;
 use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use blake3::hash;
 use rustc_hir::{def::DefKind, def_id::DefId, Attribute as HirAttribute};
-use rustc_middle::ty::{GenericParamDefKind, TyCtxt};
+use rustc_middle::ty::{GenericParamDefKind, TyCtxt, Visibility};
 use rustc_span::{symbol::sym, FileName, SourceFile};
 use serde::Serialize;
 use std::path::Path;
@@ -33,10 +33,12 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
         .with_metadata("name", name.clone())
         .with_metadata("display", format_symbol_label(&module, &name))
         .with_metadata("module", module.clone())
+        .with_metadata("module_path", module.clone())
         .with_metadata("module_id", if module.is_empty() { "mod:root".into() } else { format!("mod:{module}") });
     if let Some(relative) = relative_path {
         payload = payload.with_metadata("source_file_relative", relative);
     }
+    let visibility = format_visibility(tcx, def_id, &crate_name);
     payload = payload
         .with_metadata("crate", format!("crate:{}", tcx.crate_name(def_id.krate)))
         .with_metadata("node_kind", format_node_kind_label(def_kind))
@@ -46,10 +48,12 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
         .with_metadata("column", lo.col.0.to_string())
         .with_metadata("span_end_line", hi.line.to_string())
         .with_metadata("span_end_column", hi.col.0.to_string())
+        .with_metadata("span_start_byte", span.lo().0.to_string())
+        .with_metadata("span_end_byte", span.hi().0.to_string())
         .with_metadata("source_snippet", snippet)
         .with_metadata("source_file_line_count", file_stats.line_count.to_string())
         .with_metadata("source_file_byte_len", file_stats.byte_len.to_string())
-        .with_metadata("visibility", format!("{:?}", tcx.visibility(def_id)))
+        .with_metadata("visibility", visibility)
         .with_metadata("crate_type", frontend.crate_type.clone())
         .with_metadata("target_triple", frontend.target_triple.clone());
     if let Some(ident_span) = tcx.def_ident_span(def_id) {
@@ -357,6 +361,26 @@ fn format_node_kind_label(def_kind: DefKind) -> String {
 }
 fn derive_module_path(def_path: &str) -> String {
     def_path.rsplitn(2, "::").nth(1).unwrap_or("").to_string()
+}
+
+fn format_visibility<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, crate_name: &str) -> String {
+    let def_path = normalize_symbol_id_with_crate(&tcx.def_path_str(def_id), Some(crate_name));
+    let module = normalize_symbol_id_with_crate(&derive_module_path(&def_path), Some(crate_name));
+    let vis = tcx.visibility(def_id);
+    match vis {
+        Visibility::Public => "public".to_string(),
+        Visibility::Restricted(restricted_id) => {
+            if restricted_id.is_crate_root() {
+                return "crate".to_string();
+            }
+            let path = normalize_symbol_id_with_crate(&tcx.def_path_str(restricted_id), Some(crate_name));
+            if normalize_symbol_id_with_crate(&path, Some(crate_name)) == module {
+                "private".to_string()
+            } else {
+                format!("restricted:{path}")
+            }
+        }
+    }
 }
 fn format_symbol_label(module: &str, name: &str) -> String {
     if module.is_empty() {
