@@ -10,22 +10,20 @@ use rename::structured::FieldMutation;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Target external project to refactor (example: canon crate)
-    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/canon/src");
+    // Target memory/database crate
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/memory/database/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // NOTE:
-    // Ensure these symbol IDs actually exist in the loaded Canon project.
-    // Remove or adjust entries if "no handle found" occurs.
-
-    // NOTE:
-    // Symbol IDs must exist in the loaded project.
-    // Use symbol index inspection to discover valid IDs.
-    //
-    // Use ONLY symbol IDs confirmed in SYMBOLS.md
+    // Use ONLY fully-qualified symbols confirmed in memory/database SYMBOLS.json
     let renames = [
-        // Confirmed existing struct
-        ("crate::ir::admission::ChangeAdmission", "AdmissionPolicy"),
+        // struct crate::tlog::tlog::TransactionLog
+        ("crate::tlog::tlog::TransactionLog", "DeltaLog"),
+
+        // trait crate::engine::Engine
+        ("crate::engine::Engine", "DeltaExecutionEngine"),
+
+        // type crate::primitives::Hash
+        ("crate::primitives::Hash", "StateHash"),
     ];
 
     for (symbol_id, new_name) in renames {

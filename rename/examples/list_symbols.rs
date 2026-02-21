@@ -6,6 +6,7 @@ extern crate rustc_driver;
 use rename::collect_names;
 use std::fs;
 use std::path::Path;
+use serde::Serialize;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Avoid parsing materialized_project (may contain generated / invalid code)
@@ -68,8 +69,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         output.push_str(&format!("| {:<max_kind$} | {:<max_symbol$} | {:<max_file$} |\n", kind, symbol_path, file, max_kind = max_kind, max_symbol = max_symbol, max_file = max_file));
     }
 
-    fs::write("/workspace/ai_sandbox/canon_workspace/canon/SYMBOLS.md", output)?;
+    // Save in project root directory
+    let md_path = project_path
+        .parent()
+        .unwrap_or(project_path)
+        .join("SYMBOLS.md");
 
-    println!("Emitted SYMBOLS.md");
+    let json_path = project_path
+        .parent()
+        .unwrap_or(project_path)
+        .join("SYMBOLS.json");
+
+    fs::write(&md_path, output)?;
+
+    #[derive(Serialize)]
+    struct JsonSymbol {
+        kind: String,
+        symbol: String,
+        file: String,
+    }
+
+    let json_rows: Vec<JsonSymbol> = report
+        .symbols
+        .iter()
+        .filter(|s| !s.file.contains("/tests/"))
+        .map(|s| {
+            let mut module_path = s.module.clone();
+            let name = s.name.clone();
+
+            if module_path.ends_with(&format!("::{}", name)) {
+                module_path = module_path
+                    .rsplit_once("::")
+                    .map(|(parent, _)| parent.to_string())
+                    .unwrap_or(module_path);
+            }
+
+            JsonSymbol {
+                kind: format!("{:?}", s.kind),
+                symbol: format!("{}::{}", module_path, name),
+                file: s.file.clone(),
+            }
+        })
+        .collect();
+
+    let json = serde_json::to_string_pretty(&json_rows)?;
+    fs::write(&json_path, json)?;
+
+    println!("Emitted:");
+    println!("  - {}", md_path.display());
+    println!("  - {}", json_path.display());
     Ok(())
 }
