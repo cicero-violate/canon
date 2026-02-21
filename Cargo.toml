@@ -11,7 +11,7 @@ members = [
   "memory/database", "canon_invariant", "repomap", "task_taxonomy",
   # "smt",
   "chromium_messenger", "rename",
-  "rename/fix_point",
+  # "rename/fix_point",
   "compiler_capture", "graph_gpu", "algorithms", "rtree", "test_projects/test_rust_project", "analysis",
 ]
 
