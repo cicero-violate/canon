@@ -2,6 +2,8 @@ mod cross_file;
 mod editor;
 mod oracle;
 mod refactor;
+mod model_validation;
+mod graph_pipeline;
 mod registry_builder;
 mod use_imports;
 mod use_path;

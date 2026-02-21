@@ -8,7 +8,7 @@ use rename::structured::NodeOp;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
     // Cross-file MoveSymbol test: move three utils functions into editor.rs.

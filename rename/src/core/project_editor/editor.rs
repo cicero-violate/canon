@@ -1,4 +1,6 @@
 use super::cross_file::{apply_cross_file_moves, collect_new_files};
+use super::graph_pipeline::{allow_plan_deletions, apply_moves_to_snapshot, compare_snapshots, emit_plan, ensure_emission_branch, project_plan, rebuild_graph_snapshot};
+use super::model_validation::validate_model0;
 use super::ops::apply_node_op;
 use super::oracle::GraphSnapshotOracle;
 use super::propagate::{apply_rewrites, build_symbol_index_and_occurrences, propagate};
@@ -43,6 +45,8 @@ pub struct ProjectEditor {
     pub changesets: HashMap<PathBuf, Vec<QueuedOp>>,
     pub oracle: Box<dyn StructuralEditOracle>,
     pub original_sources: HashMap<PathBuf, String>,
+    project_root: PathBuf,
+    model0: Option<GraphSnapshot>,
     span_lookup: Option<SpanLookup>,
     pending_file_moves: Vec<(PathBuf, PathBuf)>,
     pending_file_renames: Vec<FileRename>,
@@ -77,6 +81,8 @@ impl ProjectEditor {
             changesets: HashMap::new(),
             oracle,
             original_sources,
+            project_root: project.to_path_buf(),
+            model0: None,
             span_lookup: None,
             pending_file_moves: Vec::new(),
             pending_file_renames: Vec::new(),
@@ -94,13 +100,15 @@ impl ProjectEditor {
         std::fs::create_dir_all(&state_dir)?;
         let tlog_path = state_dir.join("state.tlog");
         let engine = MemoryEngine::new(MemoryEngineConfig { tlog_path })?;
-        let snapshot = engine.materialized_graph()?;
+        let mut snapshot = engine.materialized_graph()?;
+        validate_model0(&mut snapshot)?;
         let span_lookup = build_span_lookup_from_snapshot(&snapshot)?;
+        let model0 = snapshot.clone();
         let oracle = Box::new(GraphSnapshotOracle::from_snapshot(snapshot));
-        Self::load_with_span_lookup(project, oracle, span_lookup)
+        Self::load_with_span_lookup(project, oracle, span_lookup, Some(model0))
     }
 
-    fn load_with_span_lookup(project: &Path, oracle: Box<dyn StructuralEditOracle>, span_lookup: SpanLookup) -> Result<Self> {
+    fn load_with_span_lookup(project: &Path, oracle: Box<dyn StructuralEditOracle>, span_lookup: SpanLookup, model0: Option<GraphSnapshot>) -> Result<Self> {
         let files = fs::collect_rs_files(project)?;
         let mut registry = NodeRegistry::new();
         let mut original_sources = HashMap::new();
@@ -119,6 +127,8 @@ impl ProjectEditor {
             changesets: HashMap::new(),
             oracle,
             original_sources,
+            project_root: project.to_path_buf(),
+            model0,
             span_lookup: Some(span_lookup),
             pending_file_moves: Vec::new(),
             pending_file_renames: Vec::new(),
@@ -165,6 +175,32 @@ impl ProjectEditor {
     }
 
     pub fn apply(&mut self) -> Result<ChangeReport> {
+        let only_moves = self
+            .changesets
+            .values()
+            .all(|ops| ops.iter().all(|q| matches!(q.op, NodeOp::MoveSymbol { .. })));
+        if only_moves {
+            if let Some(model0) = self.model0.clone() {
+                let moveset = self.build_moveset()?;
+                let mut model1 = model0.clone();
+                apply_moves_to_snapshot(&mut model1, &moveset)?;
+                ensure_emission_branch(&self.project_root)?;
+                let allow_delete = allow_plan_deletions(&self.project_root)?;
+                let plan = project_plan(&model1, &self.project_root)?;
+                let touched = emit_plan(&mut self.registry, plan, &self.project_root, allow_delete)?;
+                self.rebuild_registry_from_sources()?;
+                let model2 = rebuild_graph_snapshot(&self.project_root)?;
+                compare_snapshots(&model1, &model2)?;
+                self.model0 = Some(model2.clone());
+                self.oracle = Box::new(GraphSnapshotOracle::from_snapshot(model2));
+                self.last_touched_files = touched.clone();
+                return Ok(ChangeReport {
+                    touched_files: touched.into_iter().collect(),
+                    conflicts: Vec::new(),
+                    file_moves: Vec::new(),
+                });
+            }
+        }
         let mut touched_files: HashSet<PathBuf> = HashSet::new();
         let mut rewrites = Vec::new();
         let mut conflicts = Vec::new();
