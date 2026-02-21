@@ -236,6 +236,15 @@ impl ProjectEditor {
             Ok(output)
         }
     }
+
+    /// DEBUG: return all registered symbol IDs currently indexed.
+    pub fn debug_list_symbol_ids(&self) -> Vec<String> {
+        self.registry
+            .handles
+            .keys()
+            .cloned()
+            .collect()
+    }
 }
 
 fn run_use_path_rewrite(registry: &mut NodeRegistry, changesets: &HashMap<PathBuf, Vec<QueuedOp>>) -> Result<HashSet<PathBuf>> {

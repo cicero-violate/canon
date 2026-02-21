@@ -22,21 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Symbol IDs must exist in the loaded project.
     // Use symbol index inspection to discover valid IDs.
     //
-    // Example valid rename (must exist in loaded project):
+    // Use ONLY symbol IDs confirmed in SYMBOLS.md
     let renames = [
-        // IR → Canonical State
-        ("crate::ir::core::SystemState", "CanonicalState"),
-        ("crate::ir::delta::Delta", "CanonicalDelta"),
-        ("crate::ir::delta::DeltaPayload", "CanonicalDeltaPayload"),
-        // Execution terminology
-        ("crate::ir::graphs::TickGraph", "ExecutionPlanGraph"),
-        ("crate::runtime::tick_executor::TickExecutor", "ExecutionEngine"),
-        // Judgment terminology
-        ("crate::ir::judgment::JudgmentPredicate", "JudgmentRule"),
-        // Layout terminology
-        ("crate::layout::LayoutGraph", "SourceTopology"),
-        // Agent terminology
-        ("crate::agent::capability::CapabilityGraph", "AgentTopology"),
+        // Confirmed existing struct
+        ("crate::ir::admission::ChangeAdmission", "AdmissionPolicy"),
     ];
 
     for (symbol_id, new_name) in renames {

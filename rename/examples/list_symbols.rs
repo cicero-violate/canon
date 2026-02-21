@@ -8,7 +8,8 @@ use std::fs;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/canon");
+    // Avoid parsing materialized_project (may contain generated / invalid code)
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/canon/src");
 
     let report = collect_names(project_path)?;
 
