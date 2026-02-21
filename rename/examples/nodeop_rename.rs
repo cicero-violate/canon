@@ -8,26 +8,14 @@ use rename::structured::FieldMutation;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Target: rename crate itself
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // 5 confusing names in the rename crate, confirmed from SYMBOLS.json
+    // 3 targeted renames pulled from SYMBOLS.json
     let renames = [
-        // "Enhanced" is meaningless — no non-enhanced version exists
-        ("crate::occurrence::EnhancedOccurrenceVisitor", "OccurrenceVisitor"),
-
-        // "Symbol" is overloaded — this walks AST items, not symbols
-        ("crate::core::collect::collector::SymbolCollector", "ItemCollector"),
-
-        // "Enhanced" prefix on ImplContext inside occurrence is redundant noise
-        ("crate::occurrence::ImplContext", "OccurrenceImplContext"),
-
-        // "Structured" prefix is vague — this tracks an edit session
-        ("crate::core::structured::StructuredEditTracker", "EditSessionTracker"),
-
-        // Ambiguous with GraphSnapshot in state — needs Graph prefix
-        ("crate::core::project_editor::SnapshotOracle", "GraphSnapshotOracle"),
+        ("crate::core::project_editor::cross_file::normalize_snippet", "normalize_insert_snippet"),
+        ("crate::core::project_editor::cross_file::parse_single_item", "parse_single_item_snippet"),
+        ("crate::core::project_editor::cross_file::validate_item_matches", "validate_moved_item"),
     ];
 
     for (symbol_id, new_name) in renames {

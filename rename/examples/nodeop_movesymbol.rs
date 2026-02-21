@@ -11,27 +11,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // Cross-file MoveSymbol test:
-    // Move AliasGraph from crate::alias::graph into crate::alias (mod.rs).
-    let symbol_id = "crate::alias::graph::AliasGraph";
-    let new_module = "crate::alias";
+    // Cross-file MoveSymbol test: move three utils functions into editor.rs.
+    let moves = [
+        ("crate::core::project_editor::utils::build_symbol_index", "crate::core::project_editor::editor"),
+        ("crate::core::project_editor::utils::find_project_root", "crate::core::project_editor::editor"),
+        ("crate::core::project_editor::utils::find_project_root_sync", "crate::core::project_editor::editor"),
+    ];
 
-    let handle = editor
-        .registry
-        .handles
-        .get(symbol_id)
-        .cloned()
-        .ok_or_else(|| format!("symbol not found: {symbol_id}"))?;
+    for (symbol_id, new_module) in moves {
+        let handle = editor
+            .registry
+            .handles
+            .get(symbol_id)
+            .cloned()
+            .ok_or_else(|| format!("symbol not found: {symbol_id}"))?;
 
-    println!("found handle: {:?}", handle);
-    println!("symbol_id used: {}", symbol_id);
-
-    editor.queue(symbol_id, NodeOp::MoveSymbol {
-        handle,
-        symbol_id: symbol_id.to_string(),
-        new_module_path: new_module.to_string(),
-        new_crate: None,
-    })?;
+        println!("queue move: {symbol_id} -> {new_module}");
+        editor.queue(symbol_id, NodeOp::MoveSymbol {
+            handle,
+            symbol_id: symbol_id.to_string(),
+            new_module_path: new_module.to_string(),
+            new_crate: None,
+        })?;
+    }
 
     let conflicts = editor.validate()?;
     println!("conflicts: {conflicts:?}");
@@ -45,8 +47,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("written: {:?}", written);
     } else {
         let preview = editor.preview()?;
-        println!("preview:\n{preview}");
-        println!("\n(dry-run — pass --commit to apply)");
+        println!("preview:
+{preview}");
+        println!("
+(dry-run — pass --commit to apply)");
     }
 
     Ok(())
