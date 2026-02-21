@@ -2,10 +2,12 @@ use super::cross_file::{apply_cross_file_moves, collect_new_files};
 use super::ops::apply_node_op;
 use super::oracle::GraphSnapshotOracle;
 use super::propagate::{apply_rewrites, build_symbol_index_and_occurrences, propagate};
+use super::refactor::{run_pass1_canonical_rewrite, MoveSet};
 use super::registry_builder::{NodeRegistryBuilder, SpanLookup, SpanOverride};
 use super::use_path::run_use_path_rewrite;
 use super::utils::{build_symbol_index, find_project_root};
 use crate::core::mod_decls::update_mod_declarations;
+use crate::core::paths::module_path_for_file;
 use crate::core::oracle::StructuralEditOracle;
 use crate::core::symbol_id::normalize_symbol_id;
 use crate::fs;
@@ -47,6 +49,7 @@ pub struct ProjectEditor {
     pending_new_files: Vec<(PathBuf, String)>,
     last_touched_files: HashSet<PathBuf>,
 }
+
 
 #[derive(Clone)]
 pub(crate) struct QueuedOp {
@@ -166,6 +169,7 @@ impl ProjectEditor {
         let mut rewrites = Vec::new();
         let mut conflicts = Vec::new();
         let mut file_renames = Vec::new();
+        let moveset = self.build_moveset()?;
         let handle_snapshot = self.registry.handles.clone();
         for (_file, ops) in &self.changesets {
             for queued in ops {
@@ -195,6 +199,7 @@ impl ProjectEditor {
         touched_files.extend(cross_file_touched.clone());
         self.refresh_sources_from_asts(&ast_touched, &cross_file_touched)?;
         self.rebuild_registry_from_sources()?;
+        self.run_refactor_pipeline(&moveset)?;
         let _ = build_symbol_index_and_occurrences(&self.registry)?;
         let use_path_touched = run_use_path_rewrite(&mut self.registry, &self.changesets)?;
         touched_files.extend(use_path_touched);
@@ -236,6 +241,30 @@ impl ProjectEditor {
                 let rendered = crate::structured::render_file(ast);
                 self.registry.sources.insert(file.clone(), Arc::new(rendered));
             }
+        }
+        Ok(())
+    }
+
+    fn build_moveset(&self) -> Result<MoveSet> {
+        let project_root = find_project_root(&self.registry)?.unwrap_or_else(|| PathBuf::from("."));
+        let mut moveset = MoveSet::default();
+        for (_file, ops) in &self.changesets {
+            for queued in ops {
+                let crate::structured::NodeOp::MoveSymbol { handle, new_module_path, .. } = &queued.op else {
+                    continue;
+                };
+                let old_module = normalize_symbol_id(&module_path_for_file(&project_root, &handle.file));
+                let new_module = normalize_symbol_id(new_module_path);
+                moveset.entries.insert(queued.symbol_id.clone(), (old_module, new_module));
+            }
+        }
+        Ok(moveset)
+    }
+
+    fn run_refactor_pipeline(&mut self, moveset: &MoveSet) -> Result<()> {
+        let touched = run_pass1_canonical_rewrite(&mut self.registry, moveset)?;
+        if !touched.is_empty() {
+            self.rebuild_registry_from_sources()?;
         }
         Ok(())
     }

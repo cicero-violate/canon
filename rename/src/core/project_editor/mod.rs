@@ -1,6 +1,7 @@
 mod cross_file;
 mod editor;
 mod oracle;
+mod refactor;
 mod registry_builder;
 mod use_imports;
 mod use_path;
