@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use syn::visit::Visit;
+use syn::Signature;
 use crate::alias::AliasGraph;
 use crate::core::collect::{add_file_module_symbol, collect_symbols};
 use crate::core::mod_decls::update_mod_declarations;
@@ -423,7 +424,6 @@ fn build_symbol_index(
     }
     Ok(symbol_table)
 }
-
 /// Cross-file move pass: for each MoveSymbol op, if source and destination file differ,
 /// extract the item from the source AST and append it to the destination AST.
 fn apply_cross_file_moves(
@@ -431,80 +431,86 @@ fn apply_cross_file_moves(
     changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
 ) -> Result<HashSet<PathBuf>> {
     let mut touched: HashSet<PathBuf> = HashSet::new();
-
     struct PendingMove {
         src_file: PathBuf,
         item_index: usize,
         dst_file: PathBuf,
         dst_module_segments: Vec<String>,
     }
-
     let mut pending: Vec<PendingMove> = Vec::new();
-
     for (src_file, ops) in changesets {
         for queued in ops {
             if let NodeOp::MoveSymbol { handle, new_module_path, .. } = &queued.op {
-                let dst_file = match resolve_dst_file(registry, new_module_path, src_file) {
+                let dst_file = match resolve_dst_file(
+                    registry,
+                    new_module_path,
+                    src_file,
+                ) {
                     Some(f) if f != *src_file => f,
                     _ => continue,
                 };
-
                 if !registry.asts.contains_key(&dst_file) {
                     let content = std::fs::read_to_string(&dst_file)?;
                     let ast = syn::parse_file(&content)
-                        .map_err(|e| anyhow::anyhow!("failed to parse {}: {}", dst_file.display(), e))?;
+                        .map_err(|e| {
+                            anyhow::anyhow!(
+                                "failed to parse {}: {}", dst_file.display(), e
+                            )
+                        })?;
                     registry.asts.insert(dst_file.clone(), ast);
                 }
-
                 let segments: Vec<String> = new_module_path
                     .trim_start_matches("crate::")
                     .split("::")
                     .filter(|s| !s.is_empty())
                     .map(|s| s.to_string())
                     .collect();
-
-                pending.push(PendingMove {
-                    src_file: src_file.clone(),
-                    item_index: handle.item_index,
-                    dst_file,
-                    dst_module_segments: segments,
-                });
+                pending
+                    .push(PendingMove {
+                        src_file: src_file.clone(),
+                        item_index: handle.item_index,
+                        dst_file,
+                        dst_module_segments: segments,
+                    });
             }
         }
     }
-
     pending.sort_by(|a, b| b.item_index.cmp(&a.item_index));
-
     for mv in pending {
         let item = {
             let src_ast = registry
                 .asts
                 .get_mut(&mv.src_file)
-                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!("missing source AST for {}", mv.src_file.display())
+                })?;
             if mv.item_index >= src_ast.items.len() {
-                anyhow::bail!("cross-file move: item_index {} out of bounds", mv.item_index);
+                anyhow::bail!(
+                    "cross-file move: item_index {} out of bounds", mv.item_index
+                );
             }
             src_ast.items.remove(mv.item_index)
         };
         touched.insert(mv.src_file.clone());
-
         let dst_ast = registry
             .asts
             .get_mut(&mv.dst_file)
-            .ok_or_else(|| anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display()))?;
-
-        let segs: Vec<&str> = mv.dst_module_segments.iter().map(|s| s.as_str()).collect();
+            .ok_or_else(|| {
+                anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display())
+            })?;
+        let segs: Vec<&str> = mv
+            .dst_module_segments
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
         match find_mod_container_mut(dst_ast, &segs) {
             Some(container) => container.push(item),
             None => dst_ast.items.push(item),
         }
-
         touched.insert(mv.dst_file);
     }
-
     Ok(touched)
 }
-
 fn find_mod_container_mut<'a>(
     ast: &'a mut syn::File,
     segments: &[&str],
@@ -530,7 +536,6 @@ fn find_mod_container_mut<'a>(
     }
     recurse(&mut ast.items, segments)
 }
-
 fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
     let file = match registry.asts.keys().next() {
         Some(f) => f,
@@ -547,7 +552,6 @@ fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
     }
     Ok(None)
 }
-
 /// Resolve the destination file for a cross-file move by matching the target module
 /// path against the module paths of all ASTs currently in the registry.
 fn resolve_dst_file(
@@ -555,17 +559,21 @@ fn resolve_dst_file(
     new_module_path: &str,
     src_file: &PathBuf,
 ) -> Option<PathBuf> {
-    let project_root = registry.asts.keys().next().and_then(|f| {
-        let mut cur = f.parent()?.to_path_buf();
-        loop {
-            if cur.join("Cargo.toml").exists() {
-                return Some(cur);
+    let project_root = registry
+        .asts
+        .keys()
+        .next()
+        .and_then(|f| {
+            let mut cur = f.parent()?.to_path_buf();
+            loop {
+                if cur.join("Cargo.toml").exists() {
+                    return Some(cur);
+                }
+                if !cur.pop() {
+                    return None;
+                }
             }
-            if !cur.pop() {
-                return None;
-            }
-        }
-    })?;
+        })?;
     let norm_dst = normalize_symbol_id(new_module_path);
     for file in registry.asts.keys() {
         if file == src_file {
@@ -841,3 +849,20 @@ impl StructuralEditOracle for GraphSnapshotOracle {
             .collect()
     }
 }
+impl StructuralEditOracle for NullOracle {
+    fn impact_of(&self, _symbol_id: &str) -> Vec<String> {
+        Vec::new()
+    }
+    fn satisfies_bounds(&self, _id: &str, _new_sig: &Signature) -> bool {
+        true
+    }
+    fn is_macro_generated(&self, _symbol_id: &str) -> bool {
+        false
+    }
+    fn cross_crate_users(&self, _symbol_id: &str) -> Vec<String> {
+        Vec::new()
+    }
+}
+/// Fallback oracle for offline usage (no rustc integration).
+#[derive(Debug, Clone, Default)]
+pub struct NullOracle;
