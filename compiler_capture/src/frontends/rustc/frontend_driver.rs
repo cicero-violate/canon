@@ -102,7 +102,9 @@ impl RustcFrontend {
     pub fn capture_deltas<P: AsRef<Path>>(&self, entry: P, extra_args: &[String], env_vars: &[(String, String)]) -> Result<Vec<GraphDelta>, RustcFrontendError> {
         let entry = fs::canonicalize(entry)?;
         let mut args = vec!["rustc".to_string(), entry.display().to_string(), format!("--crate-type={}", self.crate_type), format!("--edition={}", self.edition)];
-        if let Some(name) = entry.file_stem().and_then(|s| s.to_str()) {
+        if let Some(name) = self.target_name.as_ref().or(self.package_name.as_ref()) {
+            args.push(format!("--crate-name={}", name.replace('-', "_")));
+        } else if let Some(name) = entry.file_stem().and_then(|s| s.to_str()) {
             args.push(format!("--crate-name={}", name.replace('-', "_")));
         }
         let sysroot = resolve_rustc_sysroot().map_err(RustcFrontendError::Sysroot)?;

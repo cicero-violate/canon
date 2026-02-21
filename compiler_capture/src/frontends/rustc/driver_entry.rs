@@ -9,7 +9,7 @@ use rustc_driver::{catch_with_exit_code, run_compiler, Callbacks, Compilation};
 use rustc_hir::def::DefKind;
 use rustc_interface::interface::Compiler;
 use rustc_middle::ty::TyCtxt;
-use rustc_span::def_id::DefId;
+use rustc_span::def_id::{DefId, CRATE_DEF_ID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
@@ -80,6 +80,7 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
     let mut cache: HashMap<DefId, NodeId> = HashMap::new();
     crate_metadata::capture_crate_metadata(&mut builder, tcx, metadata);
     let crate_items = tcx.hir_crate_items(());
+    capture_mod(&mut builder, tcx, CRATE_DEF_ID.to_def_id(), &mut cache, metadata);
     for local_def_id in crate_items.definitions() {
         let def_id = local_def_id.to_def_id();
         match tcx.def_kind(def_id) {
@@ -117,3 +118,4 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
     }
     builder.into_deltas()
 }
+

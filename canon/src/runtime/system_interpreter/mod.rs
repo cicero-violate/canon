@@ -14,7 +14,7 @@ use blake3::Hasher;
 use database::delta::delta_types::{DeltaError, Source};
 use database::delta::Delta as EngineDelta;
 use database::epoch::Epoch;
-use database::primitives::{DeltaID, Hash as EngineHash, PageID};
+use database::primitives::{DeltaID, StateHash as EngineHash, PageID};
 use database::{
     AdmissionProof, CommitProof, JudgmentProof, MemoryEngine, MemoryEngineError,
     OutcomeProof,

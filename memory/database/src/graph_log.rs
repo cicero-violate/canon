@@ -236,8 +236,8 @@ impl GraphDeltaLog {
 
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
-        let mut nodes: Vec<WireNode> = Vec::new();
-        let mut edges: Vec<WireEdge> = Vec::new();
+        let mut nodes: HashMap<WireNodeId, WireNode> = HashMap::new();
+        let mut edges: HashMap<WireEdgeId, WireEdge> = HashMap::new();
         let mut count = 0u64;
 
         loop {
@@ -260,13 +260,19 @@ impl GraphDeltaLog {
             let delta: GraphDelta = bincode::deserialize(&payload).map_err(|e| GraphDeltaError::Encode(e.to_string()))?;
 
             match delta {
-                GraphDelta::AddNode(n) => nodes.push(n),
-                GraphDelta::AddEdge(e) => edges.push(e),
+                GraphDelta::AddNode(n) => {
+                    nodes.insert(n.id.clone(), n);
+                }
+                GraphDelta::AddEdge(e) => {
+                    edges.insert(e.id.clone(), e);
+                }
             }
 
             count += 1;
         }
 
+        let mut nodes: Vec<WireNode> = nodes.into_values().collect();
+        let mut edges: Vec<WireEdge> = edges.into_values().collect();
         nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
         edges.sort_by(|a, b| a.id.0.cmp(&b.id.0));
         let (csr, index) = build_csr_cache(&nodes, &edges);

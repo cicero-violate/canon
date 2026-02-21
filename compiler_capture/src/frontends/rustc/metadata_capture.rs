@@ -19,7 +19,14 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
     let def_kind = tcx.def_kind(def_id);
     let def_path_hash = tcx.def_path_hash(def_id);
     let source_map = tcx.sess.source_map();
-    let span = tcx.def_span(def_id);
+    let mut span = tcx.def_span(def_id);
+    if let Some(local) = def_id.as_local() {
+        if matches!(def_kind, DefKind::Fn | DefKind::AssocFn | DefKind::Const | DefKind::Static { .. }) {
+            if let Some(body) = tcx.hir_maybe_body_owned_by(local) {
+                span = span.with_hi(body.value.span.hi());
+            }
+        }
+    }
     let filename = source_map.span_to_filename(span);
     let lo = source_map.lookup_char_pos(span.lo());
     let hi = source_map.lookup_char_pos(span.hi());
@@ -29,6 +36,7 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
     let snippet = source_map.span_to_snippet(span).unwrap_or_else(|_| String::new());
     payload = payload
         .with_metadata("def_path", def_path.clone())
+        .with_metadata("path", def_path.clone())
         .with_metadata("def_path_hash", format!("{def_path_hash:?}"))
         .with_metadata("name", name.clone())
         .with_metadata("display", format_symbol_label(&module, &name))
@@ -42,6 +50,7 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
     payload = payload
         .with_metadata("crate", format!("crate:{}", tcx.crate_name(def_id.krate)))
         .with_metadata("node_kind", format_node_kind_label(def_kind))
+        .with_metadata("kind", format_node_kind_label(def_kind))
         .with_metadata("symbol_kind", symbol_kind_label(def_kind))
         .with_metadata("source_file", absolute_path.clone())
         .with_metadata("line", lo.line.to_string())
@@ -104,8 +113,10 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
         payload = payload.with_metadata("attributes", attr_data.raw);
         payload = apply_attribute_flags(payload, attr_data.flags);
     }
-    if let Some(generics_json) = serialize_generic_param_list(tcx, def_id) {
-        payload = payload.with_metadata("generics", generics_json);
+    if def_kind != DefKind::Mod {
+        if let Some(generics_json) = serialize_generic_param_list(tcx, def_id) {
+            payload = payload.with_metadata("generics", generics_json);
+        }
     }
     payload
 }
