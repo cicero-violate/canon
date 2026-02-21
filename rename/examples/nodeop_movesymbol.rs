@@ -11,10 +11,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // Move ScopeFrame from crate::scope into a new module crate::scope::frame.
-    // Tests: impl co-movement, orphaned use cleanup, import absolutization, new file creation.
-    let symbol_id = "crate::scope::ScopeFrame";
-    let new_module = "crate::scope::frame";
+    // Move OccurrenceVisitor from crate::occurrence into crate::occurrence::visitor.
+    // Tests: impl co-movement, orphaned use cleanup, import absolutization, new file creation,
+    // and Gap 6 visibility promotion on cross-module move.
+    let symbol_id = "crate::occurrence::OccurrenceVisitor";
+    let new_module = "crate::occurrence::visitor";
 
     let handle = editor
         .registry
