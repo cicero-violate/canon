@@ -78,6 +78,23 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
     }
     pending.extend(extra);
     pending.sort_by(|a, b| b.item_index.cmp(&a.item_index));
+    // Pre-compute which struct/enum names will land in each dst file,
+    // so Gap 7b can skip `use super::X` when X itself is moving to dst.
+    let mut structs_moving_to: std::collections::HashMap<PathBuf, std::collections::HashSet<String>> = std::collections::HashMap::new();
+    for mv in &pending {
+        if let Some(src_ast) = registry.asts.get(&mv.src_file) {
+            if let Some(item) = src_ast.items.get(mv.item_index) {
+                let name = match item {
+                    syn::Item::Struct(s) => Some(s.ident.to_string()),
+                    syn::Item::Enum(e) => Some(e.ident.to_string()),
+                    _ => None,
+                };
+                if let Some(name) = name {
+                    structs_moving_to.entry(mv.dst_file.clone()).or_default().insert(name);
+                }
+            }
+        }
+    }
     for mv in pending {
         let mut item = {
             let src_ast = registry
@@ -90,14 +107,18 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
         src_ast.items.remove(mv.item_index)
         };
         promote_private_to_pub_crate(&mut item);
-        // Collect self-type names from impl blocks before item is consumed,
-        // used by Gap 7b to inject `use super::Type` in the dst file.
-        let impl_self_names: Vec<String> = match &item {
-            syn::Item::Impl(impl_item) => {
-                impl_self_type_name(&impl_item.self_ty).into_iter().collect()
-            }
-            _ => vec![],
-        };
+       // Collect self-type names from impl blocks before item is consumed,
+       // used by Gap 7b to inject `use super::Type` in the dst file.
+       let impl_self_names: Vec<String> = match &item {
+           syn::Item::Impl(impl_item) => {
+               impl_self_type_name(&impl_item.self_ty).into_iter().collect()
+           }
+           _ => vec![],
+       };
+        // Only inject `use super::SelfType` for inherent impls (no trait_).
+        // Trait impls don't need the type in scope the same way, and the
+        // struct may be co-moving to the same file anyway.
+        let is_inherent_impl = matches!(&item, syn::Item::Impl(i) if i.trait_.is_none());
         let needed_uses: Vec<syn::ItemUse> = {
             let src_ast = registry
                 .asts
@@ -253,7 +274,39 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
         let src_full = format!("crate::{}", src_module.trim_start_matches("crate::"));
         let is_direct_child = dst_full.starts_with(&format!("{}::", src_full))
             && dst_full[src_full.len() + 2..].split("::").count() == 1;
+        // Gap 7b pre-check: for each impl self name, determine whether the
+        // struct is still in src (meaning it did NOT move to dst).
+        // Must be computed before the mutable borrow of dst_ast below.
+        let self_names_still_in_src: std::collections::HashSet<String> = impl_self_names
+            .iter()
+            .filter(|name| {
+                registry.asts.get(&mv.src_file)
+                    .map(|a| a.items.iter().any(|i| match i {
+                        syn::Item::Struct(s) => &s.ident.to_string() == *name,
+                        syn::Item::Enum(e) => &e.ident.to_string() == *name,
+                        _ => false,
+                    }))
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect();
+        // Additionally, exclude names that appear in ANY pending move to the
+        // same dst — those structs will land in dst, not stay in src.
+        let self_names_moving_to_dst: std::collections::HashSet<String> = {
+            let src_ast_snapshot = registry.asts.get(&mv.src_file);
+            impl_self_names.iter().filter(|name| {
+                // If the struct with this name is no longer at its original
+                // index in src (already removed), it moved to dst.
+                src_ast_snapshot.map(|a| !a.items.iter().any(|i| match i {
+                    syn::Item::Struct(s) => &s.ident.to_string() == *name,
+                    syn::Item::Enum(e) => &e.ident.to_string() == *name,
+                    _ => false,
+                })).unwrap_or(false)
+            }).cloned().collect()
+        };
 
+        let empty_set = std::collections::HashSet::new();
+        let structs_at_dst = structs_moving_to.get(&mv.dst_file).unwrap_or(&empty_set);
         {
             let dst_ast = registry
                 .asts
@@ -276,7 +329,12 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
                         _ => false,
                     });
                     if already_defined { continue; }
-                   let use_str = format!("use super::{};", self_name);
+                    if !self_names_still_in_src.contains(self_name) { continue; }
+                    // Skip if the struct itself is moving to the same dst file.
+                    if structs_at_dst.contains(self_name) { continue; }
+                    // Skip trait impls — they don't need the type imported.
+                    if !is_inherent_impl { continue; }
+                    let use_str = format!("use super::{};", self_name);
                     if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
                         let already = dst_ast.items.iter().any(|i| {
                             if let syn::Item::Use(u) = i {
