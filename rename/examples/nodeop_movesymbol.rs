@@ -4,18 +4,32 @@
 extern crate rustc_driver;
 
 use rename::core::project_editor::ProjectEditor;
-use rename::structured::{FieldMutation, NodeOp};
+use rename::structured::NodeOp;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // Rename OccurrenceImplContext -> ImplCtx in occurrence.rs.
-    // It is a private struct used only in that file — the long name adds no value.
-    let symbol_id = "crate::occurrence::OccurrenceImplContext";
+    // Move PatternBindingCollector from crate::pattern into a new module crate::pattern::binding.
+    // This tests the new-file creation path: pattern/binding.rs doesn't exist yet.
+    let symbol_id = "crate::pattern::PatternBindingCollector";
+    let new_module = "crate::pattern::binding";
 
-    editor.queue_by_id(symbol_id, FieldMutation::RenameIdent("ImplCtx".to_string()))?;
+    let handle = editor
+        .registry
+        .handles
+        .get(symbol_id)
+        .cloned()
+        .ok_or_else(|| format!("symbol not found: {symbol_id}"))?;
+
+    println!("found handle: {:?}", handle);
+
+    editor.queue(symbol_id, NodeOp::MoveSymbol {
+        handle,
+        new_module_path: new_module.to_string(),
+        new_crate: None,
+    })?;
 
     let conflicts = editor.validate()?;
     println!("conflicts: {conflicts:?}");

@@ -9,6 +9,7 @@ use crate::core::collect::{add_file_module_symbol, collect_symbols};
 use crate::core::mod_decls::update_mod_declarations;
 use crate::core::oracle::StructuralEditOracle;
 use crate::core::paths::{module_child_path, module_path_for_file};
+use crate::module_path::{compute_new_file_path, ModulePath};
 use crate::core::symbol_id::normalize_symbol_id;
 use crate::model::types::FileRename;
 use crate::model::types::SymbolIndex;
@@ -41,6 +42,7 @@ pub struct ProjectEditor {
     pub original_sources: HashMap<PathBuf, String>,
     pending_file_moves: Vec<(PathBuf, PathBuf)>,
     pending_file_renames: Vec<FileRename>,
+    pending_new_files: Vec<(PathBuf, String)>,
     last_touched_files: HashSet<PathBuf>,
 }
 #[derive(Clone)]
@@ -69,6 +71,7 @@ impl ProjectEditor {
             original_sources,
             pending_file_moves: Vec::new(),
             pending_file_renames: Vec::new(),
+            pending_new_files: Vec::new(),
             last_touched_files: HashSet::new(),
         })
     }
@@ -181,6 +184,7 @@ impl ProjectEditor {
             &self.changesets,
         )?;
         touched_files.extend(cross_file_touched);
+        self.pending_new_files = collect_new_files(&self.registry, &self.changesets);
         let mut validation = self.validate()?;
         validation.extend(conflicts);
         self.pending_file_moves = file_renames
@@ -257,6 +261,40 @@ impl ProjectEditor {
                     &project_root,
                     &symbol_table,
                     &self.pending_file_renames,
+                    &mut touched,
+                )?;
+                written.extend(touched.into_iter());
+            }
+        }
+        if !self.pending_new_files.is_empty() {
+            if let Some(project_root) = find_project_root(&self.registry)? {
+                let symbol_table = build_symbol_index(&project_root, &self.registry)?;
+                let mut touched = HashSet::new();
+                let mut synthetic_renames: Vec<FileRename> = Vec::new();
+                for (new_path, new_module_id) in &self.pending_new_files {
+                    if let Some(ast) = self.registry.asts.get(new_path) {
+                        if let Some(parent) = new_path.parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        let rendered = crate::structured::render_file(ast);
+                        std::fs::write(new_path, &rendered)?;
+                        written.push(new_path.clone());
+                    }
+                    let parts: Vec<&str> = new_module_id.split("::").collect();
+                    if parts.len() >= 2 {
+                        synthetic_renames.push(FileRename {
+                            from: String::new(),
+                            to: new_path.to_string_lossy().to_string(),
+                            is_directory_move: false,
+                            old_module_id: format!("crate::__new__::{}", parts.last().unwrap()),
+                            new_module_id: new_module_id.clone(),
+                        });
+                    }
+                }
+                update_mod_declarations(
+                    &project_root,
+                    &symbol_table,
+                    &synthetic_renames,
                     &mut touched,
                 )?;
                 written.extend(touched.into_iter());
@@ -442,7 +480,7 @@ fn apply_cross_file_moves(
     for (src_file, ops) in changesets {
         for queued in ops {
             if let NodeOp::MoveSymbol { handle, new_module_path, .. } = &queued.op {
-                let dst_file = match resolve_dst_file(
+                let dst_file = match resolve_or_create_dst_file(
                     registry,
                     new_module_path,
                     src_file,
@@ -450,16 +488,6 @@ fn apply_cross_file_moves(
                     Some(f) if f != *src_file => f,
                     _ => continue,
                 };
-                if !registry.asts.contains_key(&dst_file) {
-                    let content = std::fs::read_to_string(&dst_file)?;
-                    let ast = syn::parse_file(&content)
-                        .map_err(|e| {
-                            anyhow::anyhow!(
-                                "failed to parse {}: {}", dst_file.display(), e
-                            )
-                        })?;
-                    registry.asts.insert(dst_file.clone(), ast);
-                }
                 let segments: Vec<String> = new_module_path
                     .trim_start_matches("crate::")
                     .split("::")
@@ -662,6 +690,82 @@ fn resolve_dst_file(
         }
     }
     None
+}
+/// Resolve the destination file, creating a blank AST in the registry if it doesn't exist yet.
+/// Returns None only if the project root cannot be determined.
+fn resolve_or_create_dst_file(
+    registry: &mut NodeRegistry,
+    new_module_path: &str,
+    src_file: &PathBuf,
+) -> Option<PathBuf> {
+    let project_root = find_project_root_sync(registry)?;
+    let norm_dst = normalize_symbol_id(new_module_path);
+    let existing: Option<PathBuf> = registry
+        .asts
+        .keys()
+        .filter(|f| *f != src_file)
+        .find(|f| normalize_symbol_id(&module_path_for_file(&project_root, f)) == norm_dst)
+        .cloned();
+    if let Some(f) = existing {
+        return Some(f);
+    }
+    let to_path = ModulePath::from_string(&norm_dst);
+    let dst_file = compute_new_file_path(&to_path, &project_root).ok()?;
+    if dst_file.exists() {
+        let content = std::fs::read_to_string(&dst_file).ok()?;
+        let ast = syn::parse_file(&content).ok()?;
+        registry.asts.insert(dst_file.clone(), ast);
+        return Some(dst_file);
+    }
+    // File doesn't exist — synthesize a blank one in the registry.
+    let blank: syn::File = syn::parse_quote!();
+    registry.asts.insert(dst_file.clone(), blank);
+    Some(dst_file)
+}
+/// After apply(), scan changesets to find which dst files were newly synthesized
+/// (i.e. not present on disk). Returns (path, module_id) pairs for commit() to write.
+fn collect_new_files(
+    registry: &NodeRegistry,
+    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
+) -> Vec<(PathBuf, String)> {
+    let project_root = match find_project_root_sync(registry) {
+        Some(r) => r,
+        None => return Vec::new(),
+    };
+    let mut seen: HashSet<PathBuf> = HashSet::new();
+    let mut result = Vec::new();
+    for ops in changesets.values() {
+        for queued in ops {
+            if let NodeOp::MoveSymbol { handle, new_module_path, .. } = &queued.op {
+                let norm_dst = normalize_symbol_id(new_module_path);
+                let to_path = ModulePath::from_string(&norm_dst);
+                let dst_file = match compute_new_file_path(&to_path, &project_root) {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                };
+                if !dst_file.exists()
+                    && registry.asts.contains_key(&dst_file)
+                    && seen.insert(dst_file.clone())
+                {
+                    let _ = handle;
+                    result.push((dst_file, norm_dst));
+                }
+            }
+        }
+    }
+    result
+}
+fn find_project_root_sync(registry: &NodeRegistry) -> Option<PathBuf> {
+    let file = registry.asts.keys().next()?;
+    let mut cur = file.parent()?.to_path_buf();
+    loop {
+        if cur.join("Cargo.toml").exists() {
+            return Some(cur);
+        }
+        if !cur.pop() {
+            return None;
+        }
+    }
 }
 mod ops;
 mod propagate;

@@ -134,7 +134,7 @@ impl ModuleMovePlan {
     }
 }
 /// Compute the new file path for a module given its new module path
-fn compute_new_file_path(module_path: &ModulePath, project_root: &Path) -> Result<PathBuf> {
+pub(crate) fn compute_new_file_path(module_path: &ModulePath, project_root: &Path) -> Result<PathBuf> {
     let mut path = project_root.join("src");
     let segments: Vec<_> = module_path.segments.iter().skip_while(|s| *s == "crate").collect();
     if segments.is_empty() {
