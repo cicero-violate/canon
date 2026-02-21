@@ -59,8 +59,8 @@ pub(crate) fn apply_moves_to_snapshot(snapshot: &mut GraphSnapshot, moveset: &Mo
 }
 
 fn update_containment_edge(snapshot: &mut GraphSnapshot, node_id: WireNodeId, old_module: &str, new_module: &str) {
-    let from_old = find_node_id_by_key(snapshot, old_module);
-    let from_new = find_node_id_by_key(snapshot, new_module);
+    let from_old = find_node_id_by_module(snapshot, old_module);
+    let from_new = find_node_id_by_module(snapshot, new_module);
     let (Some(from_old), Some(from_new)) = (from_old, from_new) else {
         return;
     };
@@ -71,8 +71,19 @@ fn update_containment_edge(snapshot: &mut GraphSnapshot, node_id: WireNodeId, ol
     }
 }
 
-fn find_node_id_by_key(snapshot: &GraphSnapshot, key: &str) -> Option<WireNodeId> {
-    snapshot.nodes.iter().find(|n| n.key == key).map(|n| n.id.clone())
+fn find_node_id_by_module(snapshot: &GraphSnapshot, module_path: &str) -> Option<WireNodeId> {
+    snapshot
+        .nodes
+        .iter()
+        .find(|n| {
+            n.key == module_path
+                || n
+                    .metadata
+                    .get("def_path")
+                    .map(|v| normalize_symbol_id(v) == module_path)
+                    .unwrap_or(false)
+        })
+        .map(|n| n.id.clone())
 }
 
 pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Result<Plan1> {
@@ -82,7 +93,14 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
     for node in &snapshot.nodes {
         let node_kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
         if node_kind == "module" {
-            modules.insert(node.key.clone(), node.clone());
+            let module_id = node
+                .metadata
+                .get("def_path")
+                .or_else(|| node.metadata.get("module_path"))
+                .cloned()
+                .unwrap_or_else(|| node.key.clone());
+            let module_id = normalize_symbol_id(&module_id);
+            modules.insert(module_id, node.clone());
             continue;
         }
         if !is_top_level_item(node) {
