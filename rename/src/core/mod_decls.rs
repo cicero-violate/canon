@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::fs;
 
 use super::paths::{module_child_path, module_path_for_file};
-use super::types::{FileRename, SymbolIndex};
+use crate::model::types::{FileRename, SymbolIndex};
 
 /// Update mod declarations after file renames/moves
 pub(crate) fn update_mod_declarations(project: &Path, table: &SymbolIndex, file_renames: &[FileRename], touched_files: &mut HashSet<PathBuf>) -> Result<()> {

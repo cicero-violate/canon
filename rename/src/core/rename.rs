@@ -5,7 +5,7 @@ use super::mod_decls::update_mod_declarations;
 use super::paths::{module_path_for_file, plan_file_renames};
 use super::preview::write_preview;
 use super::structured::StructuredEditTracker;
-use super::types::{SpanRange, SymbolEdit, SymbolIndex, SymbolOccurrence};
+use crate::model::types::{SpanRange, SymbolEdit, SymbolIndex, SymbolOccurrence};
 use super::use_map::build_use_map;
 use super::use_paths::update_use_paths;
 use crate::alias::AliasGraph;
@@ -186,7 +186,7 @@ impl SpanRangeKey {
         Self { start_line: range.start.line, start_col: range.start.column, end_line: range.end.line, end_col: range.end.column }
     }
     fn from_span(span: Span) -> Self {
-        Self::from_range(&super::span::span_to_range(span))
+        Self::from_range(&crate::model::core_span::span_to_range(span))
     }
 }
 pub(crate) fn apply_symbol_edits_to_ast(ast: &mut syn::File, edits: &[SymbolEdit]) -> Result<bool> {

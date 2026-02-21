@@ -12,7 +12,7 @@ use crate::core::paths::module_path_for_file;
 use crate::core::paths::plan_file_renames;
 use crate::core::rename::apply_symbol_edits_to_ast;
 use crate::core::symbol_id::normalize_symbol_id;
-use crate::core::types::{FileRename, SymbolEdit, SymbolIndex, SymbolOccurrence};
+use crate::model::types::{FileRename, SymbolEdit, SymbolIndex, SymbolOccurrence};
 use crate::core::use_map::build_use_map;
 use crate::module_path::{ModuleMovePlan, ModulePath};
 use crate::occurrence::EnhancedOccurrenceVisitor;
@@ -24,7 +24,7 @@ use super::EditConflict;
 pub struct PropagationResult {
     pub rewrites: Vec<SymbolEdit>,
     pub conflicts: Vec<EditConflict>,
-    pub file_renames: Vec<crate::core::types::FileRename>,
+    pub file_renames: Vec<crate::model::types::FileRename>,
 }
 
 pub fn propagate(op: &NodeOp, symbol_id: &str, registry: &NodeRegistry, oracle: &dyn StructuralEditOracle) -> Result<PropagationResult> {

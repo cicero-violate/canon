@@ -5,9 +5,9 @@ use syn::visit::{self, Visit};
 use crate::alias::{ImportNode, UseKind, VisibilityScope};
 
 use super::super::paths::module_child_path;
-use super::super::span::span_to_range;
+use crate::model::core_span::span_to_range;
 use super::super::symbol_id::normalize_symbol_id;
-use super::super::types::SymbolRecord;
+use crate::model::types::SymbolRecord;
 use super::super::use_map::{normalize_use_prefix, path_to_string, type_path_string};
 
 pub(super) struct SymbolCollector<'a> {

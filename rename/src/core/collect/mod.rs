@@ -9,7 +9,7 @@ use crate::occurrence::EnhancedOccurrenceVisitor;
 
 use super::paths::module_path_for_file;
 use super::symbol_id::normalize_symbol_id;
-use super::types::{AliasGraphReport, LineColumn, SpanRange, SymbolIndex, SymbolIndexReport, SymbolRecord};
+use crate::model::types::{AliasGraphReport, LineColumn, SpanRange, SymbolIndex, SymbolIndexReport, SymbolRecord};
 use super::use_map::build_use_map;
 
 mod collector;

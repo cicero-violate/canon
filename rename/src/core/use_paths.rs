@@ -3,7 +3,7 @@ use crate::alias::AliasGraph;
 use crate::fs;
 use crate::structured::StructuredEditOptions;
 use crate::resolve::ResolverContext;
-use crate::core::types::SymbolIndex;
+use crate::model::types::SymbolIndex;
 use std::sync::Arc;
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 /// B2: Update use statement paths after module moves with structured tracking
 pub(crate) fn update_use_paths(
     project: &std::path::Path,
-    file_renames: &[super::types::FileRename],
+    file_renames: &[crate::model::types::FileRename],
     symbol_mapping: &HashMap<String, String>,
     structured_config: &StructuredEditOptions,
     alias_graph: &AliasGraph,

@@ -6,8 +6,8 @@ use syn::visit::{self, Visit};
 use crate::fs;
 
 use super::paths::module_path_for_file;
-use super::span::span_to_range;
-use super::types::{SymbolEdit, SymbolIndex};
+use crate::model::core_span::span_to_range;
+use crate::model::types::{SymbolEdit, SymbolIndex};
 use super::use_map::normalize_use_prefix;
 
 /// Track and rename use statement aliases

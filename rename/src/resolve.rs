@@ -1,5 +1,5 @@
 use crate::alias::AliasGraph;
-use crate::core::types::SymbolIndex;
+use crate::model::types::SymbolIndex;
 use std::sync::Arc;
 
 pub struct Resolver<'a> {

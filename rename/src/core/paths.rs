@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use super::types::{FileRename, SymbolIndex};
+use crate::model::types::{FileRename, SymbolIndex};
 
 pub(crate) fn plan_file_renames(table: &SymbolIndex, mapping: &HashMap<String, String>) -> Result<Vec<FileRename>> {
     let mut renames = Vec::new();
