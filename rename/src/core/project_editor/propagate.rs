@@ -121,7 +121,6 @@ fn propagate_move(symbol_id: &str, new_module_path: &str, new_crate: Option<&str
     let mut rewrites = Vec::new();
     let mut seen = HashSet::new();
     let symbol_name = norm_id.rsplit("::").next().unwrap_or(&norm_id).to_string();
-    let new_module_leaf = new_module_path.rsplit("::").next().unwrap_or(&new_module_path).to_string();
     for occ in occurrences.iter().filter(|occ| occ.id == norm_id && occ.kind == "use") {
         push_unique_edit(&mut rewrites, &mut seen, occ, &symbol_name);
     }
@@ -140,7 +139,22 @@ fn propagate_move(symbol_id: &str, new_module_path: &str, new_crate: Option<&str
     if let Some(old_module) = parent_module_path(&norm_id) {
         if old_module != new_module_path {
             for occ in occurrences.iter().filter(|occ| occ.id == old_module && occ.kind == "use_path" && importer_files.contains(&occ.file)) {
-                push_unique_edit(&mut rewrites, &mut seen, occ, &new_module_leaf);
+                // Replace the matched old-module segment with the full tail of the
+                // new module path that diverges after the common prefix.
+                // e.g. old=crate::occurrence, new=crate::occurrence::visitor
+                // common prefix = crate, so replacement = occurrence::visitor
+                let old_parts: Vec<&str> = old_module.split("::").collect();
+                let new_parts: Vec<&str> = new_module_path.split("::").collect();
+                let common = old_parts.iter().zip(new_parts.iter()).take_while(|(a, b)| a == b).count();
+                // The occ span covers the first diverging segment of old_module.
+                // Replacement is everything in new_module_path from that point on.
+                let replacement = new_parts[common..].join("::");
+                let replacement = if replacement.is_empty() {
+                    new_module_path.rsplit("::").next().unwrap_or(&new_module_path).to_string()
+                } else {
+                    replacement
+                };
+                push_unique_edit(&mut rewrites, &mut seen, occ, &replacement);
             }
         }
     }
