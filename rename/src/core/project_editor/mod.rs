@@ -515,6 +515,54 @@ fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
         _ => None,
     }
 }
+/// Rewrite a `use` item so that any leading `super` or `self` segments are
+/// replaced with the absolute `crate::…` equivalent derived from `src_module`.
+fn absolutize_use(mut item: syn::ItemUse, src_module: &str) -> syn::ItemUse {
+    item.tree = absolutize_tree(item.tree, src_module);
+    item
+}
+fn absolutize_tree(tree: syn::UseTree, src_module: &str) -> syn::UseTree {
+    match tree {
+        syn::UseTree::Path(mut path) => {
+            let seg = path.ident.to_string();
+            if seg == "super" || seg == "self" {
+                // Resolve the prefix against src_module.
+                let resolved = if seg == "self" {
+                    src_module.to_string()
+                } else {
+                    // super:: — drop last segment of src_module
+                    let mut parts: Vec<&str> = src_module.split("::").collect();
+                    parts.pop();
+                    parts.join("::")
+                };
+                // Build a crate-rooted path from resolved + rest of tree.
+                // Turn "crate::foo::bar" into nested UsePath nodes.
+                let segments: Vec<&str> = resolved.split("::").collect();
+                let inner = absolutize_tree(*path.tree, src_module);
+                return build_use_path(&segments, inner);
+            }
+            path.tree = Box::new(absolutize_tree(*path.tree, src_module));
+            syn::UseTree::Path(path)
+        }
+        syn::UseTree::Group(mut group) => {
+            group.items = group.items.into_iter().map(|t| absolutize_tree(t, src_module)).collect();
+            syn::UseTree::Group(group)
+        }
+        other => other,
+    }
+}
+fn build_use_path(segments: &[&str], inner: syn::UseTree) -> syn::UseTree {
+    if segments.is_empty() {
+        return inner;
+    }
+    let (head, tail) = segments.split_first().unwrap();
+    let ident = syn::Ident::new(head, proc_macro2::Span::call_site());
+    syn::UseTree::Path(syn::UsePath {
+        ident,
+        colon2_token: Default::default(),
+        tree: Box::new(build_use_path(tail, inner)),
+    })
+}
 fn find_mod_container_mut<'a>(ast: &'a mut syn::File, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
     fn recurse<'a>(items: &'a mut Vec<syn::Item>, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
         if segments.is_empty() {

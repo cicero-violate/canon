@@ -14,9 +14,7 @@ pub(super) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeH
         NodeOp::DeleteNode { handle } => delete_node(ast, handle),
         NodeOp::ReorderItems { file: _, new_order } => reorder_items(ast, handles, new_order),
         NodeOp::MutateField { handle, mutation } => apply_field_mutation(ast, handle, symbol_id, mutation),
-        NodeOp::MoveSymbol { handle, new_module_path, .. } => {
-            move_symbol_intra_file(ast, handle, new_module_path)
-        }
+        NodeOp::MoveSymbol { handle, new_module_path, .. } => move_symbol_intra_file(ast, handle, new_module_path),
     }
 }
 
@@ -508,11 +506,7 @@ fn move_symbol_intra_file(ast: &mut syn::File, handle: &NodeHandle, new_module_p
         anyhow::bail!("MoveSymbol not supported for items nested inside impl blocks");
     }
     // Extract the leaf module name segments from new_module_path (drop "crate::" prefix)
-    let target_segments: Vec<&str> = new_module_path
-        .trim_start_matches("crate::")
-        .split("::")
-        .filter(|s| !s.is_empty())
-        .collect();
+    let target_segments: Vec<&str> = new_module_path.trim_start_matches("crate::").split("::").filter(|s| !s.is_empty()).collect();
 
     // Find the target inline mod container by walking item names
     let target_indices = find_mod_indices_by_name(&ast.items, &target_segments);
@@ -527,9 +521,7 @@ fn move_symbol_intra_file(ast: &mut syn::File, handle: &NodeHandle, new_module_p
     }
 
     // Clone the item before mutating (borrow checker: can't hold ref into items while also mutating)
-    let item = ast.items.get(handle.item_index)
-        .ok_or_else(|| anyhow::anyhow!("MoveSymbol: item_index {} out of bounds", handle.item_index))?
-        .clone();
+    let item = ast.items.get(handle.item_index).ok_or_else(|| anyhow::anyhow!("MoveSymbol: item_index {} out of bounds", handle.item_index))?.clone();
 
     // Remove from source
     ast.items.remove(handle.item_index);
@@ -547,8 +539,7 @@ fn move_symbol_intra_file(ast: &mut syn::File, handle: &NodeHandle, new_module_p
     };
 
     // Navigate to the target container and append
-    let container = resolve_items_container_mut(ast, &adjusted)
-        .ok_or_else(|| anyhow::anyhow!("MoveSymbol: target mod path not found after extraction"))?;
+    let container = resolve_items_container_mut(ast, &adjusted).ok_or_else(|| anyhow::anyhow!("MoveSymbol: target mod path not found after extraction"))?;
     container.push(item);
     Ok(true)
 }
