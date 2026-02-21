@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "rustc_frontend", feature(rustc_private))]
+#![allow(dead_code)]
 
 #[cfg(feature = "rustc_frontend")]
 extern crate rustc_driver;
