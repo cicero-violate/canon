@@ -15,6 +15,7 @@ pub(super) fn remove_orphaned_uses(src_ast: &mut syn::File) {
         let mut leaves = Vec::new();
         collect_use_leaves(&use_item.tree, &mut leaves);
         leaves.iter().any(|leaf| token_contains_word(&body_tokens, leaf))
+            || leaves.iter().any(|leaf| leaf == "self")
     });
 }
 

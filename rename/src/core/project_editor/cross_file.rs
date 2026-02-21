@@ -90,6 +90,14 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
         src_ast.items.remove(mv.item_index)
         };
         promote_private_to_pub_crate(&mut item);
+        // Collect self-type names from impl blocks before item is consumed,
+        // used by Gap 7b to inject `use super::Type` in the dst file.
+        let impl_self_names: Vec<String> = match &item {
+            syn::Item::Impl(impl_item) => {
+                impl_self_type_name(&impl_item.self_ty).into_iter().collect()
+            }
+            _ => vec![],
+        };
         let needed_uses: Vec<syn::ItemUse> = {
             let src_ast = registry
                 .asts
@@ -176,27 +184,124 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
                 }
             }
         }
+        // Gap 5b: inject `use dst::Name;` for co-moved free functions still
+        // referenced in the source file (e.g. is_ignored_dir).
+        {
+            // First: immutable analysis phase
+            let (body_tokens, exported_names) = {
+                let src_ast = registry
+                    .asts
+                    .get(&mv.src_file)
+                    .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
 
-        let dst_ast = registry
-            .asts
-            .get_mut(&mv.dst_file)
-            .ok_or_else(|| anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display()))?;
-        let segs: Vec<&str> = mv.dst_module_segments.iter().map(|s| s.as_str()).collect();
-        match find_mod_container_mut(dst_ast, &segs) {
-            Some(container) => container.push(item),
-            None => dst_ast.items.push(item),
-        }
-        let existing: HashSet<String> = dst_ast
-            .items
-            .iter()
-            .filter_map(|i| if let syn::Item::Use(u) = i { Some(u.to_token_stream().to_string()) } else { None })
-            .collect();
-        for use_item in needed_uses {
-            let rendered = use_item.to_token_stream().to_string();
-            if !existing.contains(&rendered) {
-                dst_ast.items.insert(0, syn::Item::Use(use_item));
+                let body_tokens: String = src_ast
+                    .items
+                    .iter()
+                    .filter(|i| !matches!(i, syn::Item::Use(_)))
+                    .map(|i| i.to_token_stream().to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                let mut exported_names: Vec<String> = Vec::new();
+                if let syn::Item::Impl(impl_item) = &item {
+                    for impl_item_inner in &impl_item.items {
+                        if let syn::ImplItem::Fn(f) = impl_item_inner {
+                            exported_names.push(f.sig.ident.to_string());
+                        }
+                    }
+                }
+                if let syn::Item::Fn(f) = &item {
+                    exported_names.push(f.sig.ident.to_string());
+                }
+
+                (body_tokens, exported_names)
+            };
+
+            // Second: mutation phase
+            let mut use_path = mv.dst_module_segments.join("::");
+            if !use_path.starts_with("crate") {
+                use_path = format!("crate::{}", use_path);
+            }
+
+            for name in exported_names {
+                if token_contains_word(&body_tokens, &name) {
+                    let use_str = format!("use {}::{};", use_path, name);
+                    if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
+                        let src_ast = registry
+                            .asts
+                            .get_mut(&mv.src_file)
+                            .ok_or_else(|| anyhow::anyhow!("missing source AST"))?;
+
+                        let already = src_ast.items.iter().any(|i| {
+                            if let syn::Item::Use(u) = i {
+                                u.to_token_stream().to_string() == parsed.to_token_stream().to_string()
+                            } else { false }
+                        });
+
+                        if !already {
+                            src_ast.items.insert(0, syn::Item::Use(parsed));
+                        }
+                    }
+                }
             }
         }
+
+        // Compute relation before mutable borrow
+        let project_root = find_project_root_sync(registry).unwrap_or_else(|| PathBuf::from("."));
+        let src_module = module_path_for_file(&project_root, &mv.src_file);
+        let dst_full = format!("crate::{}", mv.dst_module_segments.join("::"));
+        let src_full = format!("crate::{}", src_module.trim_start_matches("crate::"));
+        let is_direct_child = dst_full.starts_with(&format!("{}::", src_full))
+            && dst_full[src_full.len() + 2..].split("::").count() == 1;
+
+        {
+            let dst_ast = registry
+                .asts
+                .get_mut(&mv.dst_file)
+                .ok_or_else(|| anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display()))?;
+
+            let segs: Vec<&str> = mv.dst_module_segments.iter().map(|s| s.as_str()).collect();
+            match find_mod_container_mut(dst_ast, &segs) {
+                Some(container) => container.push(item),
+                None => dst_ast.items.push(item),
+            }
+
+            if is_direct_child {
+                for self_name in &impl_self_names {
+                    let use_str = format!("use super::{};", self_name);
+                    if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
+                        let already = dst_ast.items.iter().any(|i| {
+                            if let syn::Item::Use(u) = i {
+                                u.to_token_stream().to_string() == parsed.to_token_stream().to_string()
+                            } else { false }
+                        });
+                        if !already {
+                            dst_ast.items.insert(0, syn::Item::Use(parsed));
+                        }
+                    }
+                }
+            }
+
+            let existing: HashSet<String> = dst_ast
+                .items
+                .iter()
+                .filter_map(|i| {
+                    if let syn::Item::Use(u) = i {
+                        Some(u.to_token_stream().to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            for use_item in needed_uses {
+                let rendered = use_item.to_token_stream().to_string();
+                if !existing.contains(&rendered) {
+                    dst_ast.items.insert(0, syn::Item::Use(use_item));
+                }
+            }
+        }
+
         touched.insert(mv.dst_file);
     }
     Ok(touched)
