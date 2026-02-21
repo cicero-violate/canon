@@ -431,6 +431,7 @@
 | "function"     | crate::core::project_editor::apply_cross_file_moves                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::find_mod_container_mut                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::find_project_root                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "function"     | crate::core::project_editor::resolve_dst_file                              | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "module"       | crate::core::project_editor::ops                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "module"       | crate::core::project_editor::propagate                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::apply_node_op                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |

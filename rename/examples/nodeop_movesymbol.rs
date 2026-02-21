@@ -25,11 +25,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("found handle: {:?}", handle);
 
+    // Debug: print all handles containing "oracle" to find the impl block ID
+    for id in editor.debug_list_symbol_ids() {
+        if id.contains("oracle") || id.contains("NullOracle") {
+            println!("handle: {id}");
+        }
+    }
+
     editor.queue(symbol_id, NodeOp::MoveSymbol {
         handle,
         new_module_path: new_module.to_string(),
         new_crate: None,
     })?;
+
+    // Debug: print all handles containing "oracle" to find the impl block ID
+    for id in editor.debug_list_symbol_ids() {
+        if id.contains("oracle") || id.contains("NullOracle") {
+            println!("handle: {id}");
+        }
+    }
 
     // Also move the impl block — it's a separate item that must travel with the struct
     let impl_id = "crate::core::oracle::NullOracle as crate::core::oracle::StructuralEditOracle";
@@ -42,6 +56,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })?;
     } else {
         println!("impl handle not found, skipping");
+    }
+    // The impl block has no direct handle — derive it from a method handle.
+    // All methods share the same item_index which points to the impl block.
+    let method_id = "crate::core::oracle::NullOracle as crate::core::oracle::StructuralEditOracle::impact_of";
+    if let Some(method_handle) = editor.registry.handles.get(method_id).cloned() {
+        // Build an impl-level handle: same file + item_index, no nested_path
+        let impl_handle = rename::structured::node_handle(
+            method_handle.file.clone(),
+            method_handle.item_index,
+            vec![],
+            rename::state::NodeKind::Impl,
+        );
+        println!("derived impl handle: {:?}", impl_handle);
+        editor.queue("crate::core::oracle::NullOracle::impl_StructuralEditOracle", NodeOp::MoveSymbol {
+            handle: impl_handle,
+            new_module_path: new_module.to_string(),
+            new_crate: None,
+        })?;
     }
 
     let conflicts = editor.validate()?;
