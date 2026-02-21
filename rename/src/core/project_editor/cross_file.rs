@@ -103,6 +103,30 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
             let src_module = module_path_for_file(&project_root, &mv.src_file);
             needed_uses.into_iter().map(|u| absolutize_use(u, &src_module)).collect()
         };
+        // Gap 7: rewrite absolute crate:: imports inside the moved item that
+        // point back at the source module → use super:: when dst is a direct
+        // child of src (e.g. crate::occurrence::Foo → super::Foo).
+        // For deeper moves, the absolute crate:: path is kept as-is.
+        let needed_uses: Vec<syn::ItemUse> = {
+            let project_root = find_project_root_sync(registry).unwrap_or_else(|| PathBuf::from("."));
+            let src_module = module_path_for_file(&project_root, &mv.src_file);
+            let dst_module = mv.dst_module_segments.join("::");
+            let dst_is_direct_child = {
+                let dst_full = format!("crate::{}", dst_module);
+                let src_full = format!("crate::{}", src_module.trim_start_matches("crate::"));
+                dst_full.starts_with(&format!("{}::", src_full))
+                    && dst_full[src_full.len() + 2..].split("::").count() == 1
+            };
+            if dst_is_direct_child {
+                let src_crate = format!("crate::{}", src_module.trim_start_matches("crate::"));
+                needed_uses
+                    .into_iter()
+                    .map(|u| superize_use_if_from_src(u, &src_crate))
+                    .collect()
+            } else {
+                needed_uses
+            }
+        };
         touched.insert(mv.src_file.clone());
         {
             let src_ast = registry
@@ -350,4 +374,65 @@ fn is_private(vis: &syn::Visibility) -> bool {
 
 fn pub_crate() -> syn::Visibility {
     syn::parse_quote!(pub(crate))
+}
+
+/// Gap 7: if a collected use item resolves into `src_crate_path`, rewrite it
+/// to use `super::` — valid when dst is a direct child of src.
+fn superize_use_if_from_src(item: syn::ItemUse, src_crate_path: &str) -> syn::ItemUse {
+    let rewritten = superize_tree(item.tree.clone(), src_crate_path);
+    syn::ItemUse { tree: rewritten, ..item }
+}
+
+fn superize_tree(tree: syn::UseTree, src_crate_path: &str) -> syn::UseTree {
+    // Reconstruct the full path this tree starts with and check if it
+    // begins with src_crate_path. If so, strip that prefix and prepend super::.
+    let rendered = quote::quote!(use #tree;).to_string();
+    // Walk: if the tree is a Path chain starting with "crate" that matches
+    // src_crate_path, rewrite by building super:: prefix.
+    if let Some(new_tree) = try_superize(&tree, src_crate_path, &[]) {
+        new_tree
+    } else {
+        tree
+    }
+}
+
+/// Recursively walk a UseTree. `accumulated` tracks segments seen so far.
+/// When the accumulated path equals src_crate_path, replace with super:: tail.
+fn try_superize(
+    tree: &syn::UseTree,
+    src_crate_path: &str,
+    accumulated: &[String],
+) -> Option<syn::UseTree> {
+    match tree {
+        syn::UseTree::Path(p) => {
+            let mut acc = accumulated.to_vec();
+            acc.push(p.ident.to_string());
+            let acc_str = acc.join("::");
+            if acc_str == src_crate_path {
+                // The path up to here matches src. Replace with super:: + tail.
+                Some(build_super_tree(&p.tree))
+            } else if src_crate_path.starts_with(&format!("{}::", acc_str)) {
+                // Still a prefix — keep descending.
+                let inner = try_superize(&p.tree, src_crate_path, &acc)?;
+                Some(syn::UseTree::Path(syn::UsePath {
+                    ident: p.ident.clone(),
+                    colon2_token: p.colon2_token,
+                    tree: Box::new(inner),
+                }))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Wrap a UseTree tail with `super::`.
+fn build_super_tree(tail: &syn::UseTree) -> syn::UseTree {
+    let super_ident = syn::Ident::new("super", proc_macro2::Span::call_site());
+    syn::UseTree::Path(syn::UsePath {
+        ident: super_ident,
+        colon2_token: syn::token::PathSep::default(),
+        tree: Box::new(tail.clone()),
+    })
 }
