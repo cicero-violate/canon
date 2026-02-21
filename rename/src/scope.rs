@@ -1,20 +1,8 @@
 //! Scoped binder for tracking variable types through nested scopes
+mod frame;
+use crate::scope::frame::ScopeFrame;
 /// Replaces the ad-hoc LocalTypeContext with a proper scope hierarchy
 use super::core::SymbolIndex;
-use std::collections::HashMap;
-/// A scope in the binding hierarchy
-#[derive(Debug, Clone)]
-pub struct ScopeFrame {
-    /// Bindings local to this scope (variable name -> type)
-    bindings: HashMap<String, String>,
-    /// Parent scope index (None for root scope)
-    parent: Option<usize>,
-}
-impl ScopeFrame {
-    fn new(parent: Option<usize>) -> Self {
-        Self { bindings: HashMap::new(), parent }
-    }
-}
 /// Scoped binder that tracks variable types through nested scopes
 /// Supports pattern destructuring, closure captures, and method return types
 pub struct ScopeBinder {
@@ -28,7 +16,11 @@ pub struct ScopeBinder {
 impl ScopeBinder {
     pub fn new(symbol_table: &SymbolIndex) -> Self {
         let root = ScopeFrame::new(None);
-        Self { scopes: vec![root], current_scope: 0, symbol_table_ref: symbol_table as *const SymbolIndex }
+        Self {
+            scopes: vec![root],
+            current_scope: 0,
+            symbol_table_ref: symbol_table as *const SymbolIndex,
+        }
     }
     /// Enter a new scope (for blocks, functions, closures)
     pub fn push_scope(&mut self) {
@@ -62,7 +54,11 @@ impl ScopeBinder {
         }
     }
     /// Resolve a method call to a symbol ID
-    pub fn resolve_method(&self, receiver_type: &str, method_name: &str) -> Option<String> {
+    pub fn resolve_method(
+        &self,
+        receiver_type: &str,
+        method_name: &str,
+    ) -> Option<String> {
         let symbol_table = unsafe { &*self.symbol_table_ref };
         let direct_id = format!("{}::{}", receiver_type, method_name);
         if symbol_table.symbols.contains_key(&direct_id) {
@@ -76,11 +72,19 @@ impl ScopeBinder {
         None
     }
     /// Get the return type of a method by looking up its signature
-    pub fn get_method_return_type(&self, receiver_type: &str, method_name: &str) -> Option<String> {
+    pub fn get_method_return_type(
+        &self,
+        receiver_type: &str,
+        method_name: &str,
+    ) -> Option<String> {
         let symbol_table = unsafe { &*self.symbol_table_ref };
         let method_id = self.resolve_method(receiver_type, method_name)?;
         let method_entry = symbol_table.symbols.get(&method_id)?;
-        if let Some(signature) = method_entry.attributes.iter().find(|attr| attr.starts_with("return_type:")) {
+        if let Some(signature) = method_entry
+            .attributes
+            .iter()
+            .find(|attr| attr.starts_with("return_type:"))
+        {
             let return_type = signature.trim_start_matches("return_type:").trim();
             return Some(return_type.to_string());
         }
