@@ -378,6 +378,7 @@
 | "function"     | crate::core::project_editor::cross_file::apply_cross_file_moves            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/cross_file.rs          |
 | "function"     | crate::core::project_editor::cross_file::impl_self_type_name               | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/cross_file.rs          |
 | "function"     | crate::core::project_editor::cross_file::find_mod_container_mut            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/cross_file.rs          |
+| "function"     | crate::core::project_editor::cross_file::remove_item_recursive             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/cross_file.rs          |
 | "function"     | crate::core::project_editor::cross_file::resolve_dst_file                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/cross_file.rs          |
 | "function"     | crate::core::project_editor::cross_file::resolve_or_create_dst_file        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/cross_file.rs          |
 | "function"     | crate::core::project_editor::cross_file::collect_new_files                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/cross_file.rs          |
@@ -466,7 +467,6 @@
 | "use"          | crate::core::project_editor::ops::dispatch::NodeOp                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops/dispatch.rs        |
 | "use"          | crate::core::project_editor::ops::dispatch::apply_field_mutation           | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops/dispatch.rs        |
 | "use"          | crate::core::project_editor::ops::dispatch::resolve_items_container_mut    | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops/dispatch.rs        |
-| "use"          | crate::core::project_editor::ops::dispatch::move_symbol_intra_file         | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops/dispatch.rs        |
 | "function"     | crate::core::project_editor::ops::dispatch::apply_node_op                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops/dispatch.rs        |
 | "function"     | crate::core::project_editor::ops::dispatch::replace_node                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops/dispatch.rs        |
 | "function"     | crate::core::project_editor::ops::dispatch::insert_node                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops/dispatch.rs        |
@@ -778,7 +778,7 @@
 | "module"       | crate::pattern                                                             | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                                     |
 | "module"       | crate::resolve                                                             | /workspace/ai_sandbox/canon_workspace/rename/src/lib.rs                                     |
 | "module"       | crate::scope                                                               | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                                     |
-| "module"       | crate::state                                                               | /workspace/ai_sandbox/canon_workspace/rename/src/lib.rs                                     |
+| "module"       | crate::state                                                               | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                                     |
 | "module"       | crate::structured                                                          | /workspace/ai_sandbox/canon_workspace/rename/src/mod.rs                                     |
 | "module"       | crate::compiler_capture                                                    | /workspace/ai_sandbox/canon_workspace/rename/src/lib.rs                                     |
 | "use"          | crate::emit_names                                                          | /workspace/ai_sandbox/canon_workspace/rename/src/lib.rs                                     |
@@ -1197,23 +1197,9 @@
 | "method"       | crate::state::ids::from_components                                         | /workspace/ai_sandbox/canon_workspace/rename/src/state/ids.rs                               |
 | "module"       | crate::state::node                                                         | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
 | "module"       | crate::state::workspace                                                    | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::NodePayload                                                  | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::KernelGraphBuilder                                           | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::EdgePayload                                                  | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::NodeRecord                                                   | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::GraphSnapshot                                                | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::GraphMaterializer                                            | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::GraphDeltaError                                              | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::GraphDelta                                                   | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::EdgeRecord                                                   | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::EdgeKind                                                     | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::NodeId                                                       | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::EdgeId                                                       | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
 | "use"          | crate::state::NodeRegistry                                                 | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
 | "use"          | crate::state::NodeKind                                                     | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
 | "use"          | crate::state::NodeHandle                                                   | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::WorkspaceBuilder                                             | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
-| "use"          | crate::state::GraphWorkspace                                               | /workspace/ai_sandbox/canon_workspace/rename/src/state/mod.rs                               |
 | "use"          | crate::state::node::HashMap                                                | /workspace/ai_sandbox/canon_workspace/rename/src/state/node.rs                              |
 | "use"          | crate::state::node::PathBuf                                                | /workspace/ai_sandbox/canon_workspace/rename/src/state/node.rs                              |
 | "struct"       | crate::state::node::NodeHandle                                             | /workspace/ai_sandbox/canon_workspace/rename/src/state/node.rs                              |
@@ -1345,6 +1331,7 @@
 | "field"        | crate::structured::ops::file                                               | /workspace/ai_sandbox/canon_workspace/rename/src/structured/ops.rs                          |
 | "field"        | crate::structured::ops::new_order                                          | /workspace/ai_sandbox/canon_workspace/rename/src/structured/ops.rs                          |
 | "variant"      | crate::structured::ops::MoveSymbol                                         | /workspace/ai_sandbox/canon_workspace/rename/src/structured/ops.rs                          |
+| "field"        | crate::structured::ops::symbol_id                                          | /workspace/ai_sandbox/canon_workspace/rename/src/structured/ops.rs                          |
 | "field"        | crate::structured::ops::new_module_path                                    | /workspace/ai_sandbox/canon_workspace/rename/src/structured/ops.rs                          |
 | "field"        | crate::structured::ops::new_crate                                          | /workspace/ai_sandbox/canon_workspace/rename/src/structured/ops.rs                          |
 | "enum"         | crate::structured::ops::FieldMutation                                      | /workspace/ai_sandbox/canon_workspace/rename/src/structured/ops.rs                          |

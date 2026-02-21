@@ -7,7 +7,6 @@ use crate::structured::NodeOp;
 
 use super::field_mutations::apply_field_mutation;
 use super::helpers::{resolve_items_container_mut};
-use super::move_ops::move_symbol_intra_file;
 
 pub(crate) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeHandle>, symbol_id: &str, op: &NodeOp) -> Result<bool> {
     match op {
@@ -17,7 +16,11 @@ pub(crate) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeH
         NodeOp::DeleteNode { handle } => delete_node(ast, handle),
         NodeOp::ReorderItems { file: _, new_order } => reorder_items(ast, handles, new_order),
         NodeOp::MutateField { handle, mutation } => apply_field_mutation(ast, handle, symbol_id, mutation),
-        NodeOp::MoveSymbol { handle, new_module_path, .. } => move_symbol_intra_file(ast, handle, new_module_path),
+        NodeOp::MoveSymbol { .. } => {
+            // Cross-file moves handled in apply_cross_file_moves.
+            // Intra-file move disabled to prevent double extraction.
+            Ok(false)
+        }
     }
 }
 

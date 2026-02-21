@@ -24,9 +24,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or_else(|| format!("symbol not found: {symbol_id}"))?;
 
     println!("found handle: {:?}", handle);
+    println!("symbol_id used: {}", symbol_id);
 
     editor.queue(symbol_id, NodeOp::MoveSymbol {
         handle,
+        symbol_id: symbol_id.to_string(),
         new_module_path: new_module.to_string(),
         new_crate: None,
     })?;

@@ -11,7 +11,12 @@ pub enum NodeOp {
     DeleteNode { handle: NodeHandle },
     MutateField { handle: NodeHandle, mutation: FieldMutation },
     ReorderItems { file: PathBuf, new_order: Vec<String> },
-    MoveSymbol { handle: NodeHandle, new_module_path: String, new_crate: Option<String> },
+    MoveSymbol {
+        handle: NodeHandle,
+        symbol_id: String,
+        new_module_path: String,
+        new_crate: Option<String>,
+    },
 }
 
 /// Field-level mutation options for structural edits.
