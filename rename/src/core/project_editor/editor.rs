@@ -2,7 +2,7 @@ use super::cross_file::{apply_cross_file_moves, collect_new_files};
 use super::ops::apply_node_op;
 use super::oracle::GraphSnapshotOracle;
 use super::propagate::{apply_rewrites, build_symbol_index_and_occurrences, propagate};
-use super::refactor::{run_pass1_canonical_rewrite, MoveSet};
+use super::refactor::{run_pass1_canonical_rewrite, run_pass2_scope_rehydration, run_pass3_orphan_cleanup, MoveSet};
 use super::registry_builder::{NodeRegistryBuilder, SpanLookup, SpanOverride};
 use super::use_path::run_use_path_rewrite;
 use super::utils::{build_symbol_index, find_project_root};
@@ -262,8 +262,16 @@ impl ProjectEditor {
     }
 
     fn run_refactor_pipeline(&mut self, moveset: &MoveSet) -> Result<()> {
-        let touched = run_pass1_canonical_rewrite(&mut self.registry, moveset)?;
-        if !touched.is_empty() {
+        let touched1 = run_pass1_canonical_rewrite(&mut self.registry, moveset)?;
+        if !touched1.is_empty() {
+            self.rebuild_registry_from_sources()?;
+        }
+        let touched2 = run_pass2_scope_rehydration(&mut self.registry, moveset)?;
+        if !touched2.is_empty() {
+            self.rebuild_registry_from_sources()?;
+        }
+        let touched3 = run_pass3_orphan_cleanup(&mut self.registry)?;
+        if !touched3.is_empty() {
             self.rebuild_registry_from_sources()?;
         }
         Ok(())
