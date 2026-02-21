@@ -188,11 +188,8 @@ impl ProjectEditor {
                 let moveset = self.build_moveset()?;
                 let mut model1 = model0.clone();
                 apply_moves_to_snapshot(&mut model1, &moveset)?;
-                ensure_emission_branch(&self.project_root)?;
-                verify_refactor_branch(&self.project_root)?;
-                let allow_delete = allow_plan_deletions(&self.project_root)?;
                 let plan = project_plan(&model1, &self.project_root)?;
-                let report = emit_plan(&mut self.registry, plan, &self.project_root, allow_delete)?;
+                let report = emit_plan(&mut self.registry, plan, &self.project_root, false)?;
                 self.rebuild_registry_from_sources()?;
                 let model2 = rebuild_graph_snapshot(&self.project_root)?;
                 if let Err(err) = compare_snapshots(&model1, &model2) {
@@ -201,7 +198,6 @@ impl ProjectEditor {
                 }
                 self.model0 = Some(model2.clone());
                 self.oracle = Box::new(GraphSnapshotOracle::from_snapshot(model2));
-                maybe_commit_emission(&self.project_root)?;
                 let touched: HashSet<PathBuf> = report.written.iter().cloned().collect();
                 self.last_touched_files = touched.clone();
                 return Ok(ChangeReport {

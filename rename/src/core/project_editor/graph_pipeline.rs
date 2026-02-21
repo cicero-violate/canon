@@ -1,6 +1,5 @@
 use crate::core::project_editor::refactor::MoveSet;
 use crate::core::symbol_id::normalize_symbol_id;
-use crate::fs;
 use crate::module_path::ModulePath;
 use crate::state::NodeRegistry;
 use anyhow::{anyhow, Result};
@@ -300,50 +299,41 @@ pub(crate) fn emit_plan(
     registry: &mut NodeRegistry,
     plan: Plan1,
     project_root: &Path,
-    allow_delete: bool,
+    _allow_delete: bool,
 ) -> Result<EmissionReport> {
     let mut written = Vec::new();
     let mut unchanged = Vec::new();
     enforce_root_guard(project_root, &plan)?;
-    let existing = fs::collect_rs_files(project_root)?;
-    let plan_paths: HashSet<PathBuf> = plan.files.iter().map(|f| f.path.clone()).collect();
-    let deletion_candidates: Vec<PathBuf> = existing
-        .into_iter()
-        .filter(|file| !plan_paths.contains(file))
-        .collect();
-    let deletion_count = deletion_candidates.len();
-    if allow_delete {
-        for file in &deletion_candidates {
-            let _ = std::fs::remove_file(&file);
-        }
-    } else if deletion_count > 0 {
-        eprintln!("Plan emission would delete {} files (suppressed):", deletion_count);
-        for file in &deletion_candidates {
-            eprintln!("  {}", file.display());
-        }
-    }
+    let output_root = project_root.join("fix_point");
+    let deletion_candidates: Vec<PathBuf> = Vec::new();
+    let deletion_count = 0;
     registry.asts.clear();
     registry.sources.clear();
     for file in plan.files {
+        let rel = file
+            .path
+            .strip_prefix(project_root)
+            .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
+        let out_path = output_root.join(rel);
         let ast = syn::parse_file(&file.content).map_err(|e| anyhow!("failed to parse {}: {e}", file.path.display()))?;
         let source = Arc::new(file.content);
-        registry.insert_ast(file.path.clone(), ast);
-        registry.insert_source(file.path.clone(), source);
-        if let Some(parent) = file.path.parent() {
+        registry.insert_ast(out_path.clone(), ast);
+        registry.insert_source(out_path.clone(), source);
+        if let Some(parent) = out_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let new_content = registry.sources.get(&file.path).unwrap().as_str();
+        let new_content = registry.sources.get(&out_path).unwrap().as_str();
         let mut changed = true;
-        if let Ok(existing) = std::fs::read_to_string(&file.path) {
+        if let Ok(existing) = std::fs::read_to_string(&out_path) {
             if existing == new_content {
                 changed = false;
             }
         }
         if changed {
-            std::fs::write(&file.path, new_content)?;
-            written.push(file.path);
+            std::fs::write(&out_path, new_content)?;
+            written.push(out_path);
         } else {
-            unchanged.push(file.path);
+            unchanged.push(out_path);
         }
     }
     eprintln!(
@@ -369,6 +359,7 @@ fn enforce_root_guard(project_root: &Path, plan: &Plan1) -> Result<()> {
     if plan.files.is_empty() {
         return Err(anyhow!("plan has no files"));
     }
+    let output_root = project_root.join("fix_point");
     for file in &plan.files {
         let rel_any = file
             .path
@@ -383,94 +374,26 @@ fn enforce_root_guard(project_root: &Path, plan: &Plan1) -> Result<()> {
             .path
             .strip_prefix(project_root)
             .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
-        let mut comps = rel.components();
-        if let (Some(first), Some(second)) = (comps.next(), comps.next()) {
-            if first.as_os_str() == "src" && second.as_os_str() == "src" {
-                return Err(anyhow!("plan path would create nested src/src: {}", file.path.display()));
-            }
+        let rel = file
+            .path
+            .strip_prefix(project_root)
+            .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
+        let out_path = output_root.join(rel);
+        if out_path.components().any(|c| c.as_os_str() == "..") {
+            return Err(anyhow!("output path contains ..: {}", out_path.display()));
         }
-    }
-    Ok(())
-}
-
-pub(crate) fn ensure_emission_branch(project_root: &Path) -> Result<()> {
-    ensure_clean_working_tree(project_root)?;
-    let current = git_cmd(project_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
-    if current.trim() == "refactor-plan-emission" {
-        return Ok(());
-    }
-    let exists = git_cmd(project_root, &["show-ref", "--verify", "--quiet", "refs/heads/refactor-plan-emission"]).is_ok();
-    if exists {
-        git_cmd(project_root, &["checkout", "refactor-plan-emission"])?;
-    } else {
-        git_cmd(project_root, &["checkout", "-b", "refactor-plan-emission"])?;
-    }
-    Ok(())
-}
-
-pub(crate) fn verify_refactor_branch(project_root: &Path) -> Result<()> {
-    let current = git_cmd(project_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
-    if !current.trim().starts_with("refactor-") {
-        return Err(anyhow!("refactor branch required for emission"));
-    }
-    Ok(())
-}
-
-pub(crate) fn allow_plan_deletions(project_root: &Path) -> Result<bool> {
-    let current = git_cmd(project_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
-    if !current.trim().starts_with("refactor-") {
-        return Ok(false);
-    }
-    Ok(std::env::args().any(|a| a == "--commit"))
-}
-
-fn git_cmd(project_root: &Path, args: &[&str]) -> Result<String> {
-    let output = std::process::Command::new("git")
-        .args(args)
-        .current_dir(project_root)
-        .output()?;
-    if !output.status.success() {
-        return Err(anyhow!("git command failed: git {}", args.join(" ")));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-fn ensure_clean_working_tree(project_root: &Path) -> Result<()> {
-    let status = git_cmd(project_root, &["status", "--porcelain"])?;
-    if !status.trim().is_empty() {
-        return Err(anyhow!("working tree is dirty; aborting plan emission"));
     }
     Ok(())
 }
 
 pub(crate) fn rollback_emission(project_root: &Path, written: &[PathBuf]) -> Result<()> {
     for path in written {
-        let rel = path
-            .strip_prefix(project_root)
-            .unwrap_or(path)
-            .to_path_buf();
-        let rel_str = rel.to_string_lossy().to_string();
-        let exists_in_head = std::process::Command::new("git")
-            .args(["cat-file", "-e", &format!("HEAD:{}", rel_str)])
-            .current_dir(project_root)
-            .output()?
-            .status
-            .success();
-        if exists_in_head {
-            git_cmd(project_root, &["restore", "--source=HEAD", "--", &rel_str])?;
-        } else {
-            let _ = std::fs::remove_file(path);
-        }
+        let _ = std::fs::remove_file(path);
     }
     Ok(())
 }
 
 pub(crate) fn maybe_commit_emission(project_root: &Path) -> Result<()> {
-    if !std::env::args().any(|a| a == "--commit") {
-        return Ok(());
-    }
-    git_cmd(project_root, &["add", "-A"])?;
-    git_cmd(project_root, &["commit", "-m", "plan emission"])?;
     Ok(())
 }
 
