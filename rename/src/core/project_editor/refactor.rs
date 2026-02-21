@@ -228,7 +228,6 @@ pub(crate) fn run_pass2_scope_rehydration(registry: &mut NodeRegistry, moveset: 
 
 pub(crate) fn run_pass3_orphan_cleanup(registry: &mut NodeRegistry) -> Result<HashSet<PathBuf>> {
     let (symbol_table, occurrences, alias_graph) = build_symbol_index_and_occurrences(registry)?;
-    let _ = symbol_table; // keep for future expansion
     let mut occ_by_file: HashMap<String, Vec<crate::model::types::SymbolOccurrence>> = HashMap::new();
     for occ in occurrences {
         occ_by_file.entry(occ.file.clone()).or_default().push(occ);
@@ -259,6 +258,14 @@ pub(crate) fn run_pass3_orphan_cleanup(registry: &mut NodeRegistry) -> Result<Ha
             let uses = collect_use_imports(use_item, &module_path);
             let mut used = false;
             for u in &uses {
+                // If we can't resolve this import to a known in-crate symbol,
+                // keep it. This avoids dropping std/external imports and any
+                // paths outside the symbol table.
+                let is_in_crate = u.source_path.starts_with("crate::");
+                if !is_in_crate || !symbol_table.symbols.contains_key(&u.source_path) {
+                    used = true;
+                    break;
+                }
                 if u.is_glob {
                     let prefix = format!("{}::", u.source_path);
                     if occs.map(|o| o.iter().any(|o| o.kind != "use" && o.kind != "use_path" && o.id.starts_with(&prefix))).unwrap_or(false) {
