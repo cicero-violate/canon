@@ -89,6 +89,7 @@ fn find_node_id_by_module(snapshot: &GraphSnapshot, module_path: &str) -> Option
 pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Result<Plan1> {
     let mut modules: HashMap<String, WireNode> = HashMap::new();
     let mut items_by_module: HashMap<String, Vec<WireNode>> = HashMap::new();
+    let debug_plan = std::env::var("RENAME_DEBUG_PLAN").ok().as_deref() == Some("1");
 
     for node in &snapshot.nodes {
         let node_kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
@@ -105,6 +106,12 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
         }
         if !is_top_level_item(node) {
             continue;
+        }
+        if debug_plan && node.metadata.get("source_snippet").is_none() {
+            eprintln!(
+                "[plan] top-level item missing source_snippet: key={} kind={}",
+                node.key, node_kind
+            );
         }
         let module_path = node
             .metadata
@@ -143,6 +150,14 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
             .keys()
             .any(|m| is_direct_child(m, &module_path));
         let file_path = module_file_path(&module_path, has_children, project_root)?;
+        if debug_plan {
+            eprintln!(
+                "[plan] module={} has_children={} file={}",
+                module_path,
+                has_children,
+                file_path.display()
+            );
+        }
         let mut file_items = Vec::new();
 
         let mut child_modules: Vec<String> = modules
@@ -173,6 +188,13 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
         }
 
         let content = file_items.join("\n\n");
+        if debug_plan {
+            eprintln!(
+                "[plan] file={} items={}",
+                file_path.display(),
+                file_items.len()
+            );
+        }
         files.push(FilePlan { path: file_path, content });
     }
 
