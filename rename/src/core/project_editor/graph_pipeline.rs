@@ -177,15 +177,22 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
 }
 
 fn is_top_level_item(node: &WireNode) -> bool {
-    let container = node.metadata.get("container_kind").map(|s| s.as_str()).unwrap_or("");
-    if container != "module" {
+    let node_kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
+    if node_kind == "module" {
         return false;
     }
-    match node.metadata.get("node_kind").map(|s| s.as_str()) {
-        Some("module") => false,
-        Some("struct" | "enum" | "union" | "trait" | "impl" | "function" | "const" | "static" | "type_alias") => true,
-        _ => false,
+    let is_emit_kind = matches!(
+        node_kind,
+        "struct" | "enum" | "union" | "trait" | "impl" | "function" | "const" | "static" | "type_alias"
+    );
+    if !is_emit_kind {
+        return false;
     }
+    let container = node.metadata.get("container_kind").map(|s| s.as_str()).unwrap_or("");
+    if container.is_empty() {
+        return true;
+    }
+    container == "module"
 }
 
 fn is_direct_child(module: &str, parent: &str) -> bool {

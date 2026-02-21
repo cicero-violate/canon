@@ -12,13 +12,18 @@ pub(crate) fn validate_model0(snapshot: &mut GraphSnapshot) -> Result<()> {
 }
 
 fn validate_identity_integrity(snapshot: &GraphSnapshot) -> Result<()> {
-    let mut node_ids = HashSet::with_capacity(snapshot.nodes.len());
+    let mut node_ids: std::collections::HashMap<_, _> = std::collections::HashMap::with_capacity(snapshot.nodes.len());
     for node in &snapshot.nodes {
-        if !node_ids.insert(node.id.clone()) {
-            return Err(anyhow!("duplicate node id in snapshot"));
+        if let Some(existing) = node_ids.insert(node.id.clone(), node.key.clone()) {
+            return Err(anyhow!(
+                "duplicate node id in snapshot: id={:?} existing_key={} new_key={}",
+                node.id,
+                existing,
+                node.key
+            ));
         }
     }
-    let mut edge_ids = HashSet::with_capacity(snapshot.edges.len());
+    let mut edge_ids: HashSet<_> = HashSet::with_capacity(snapshot.edges.len());
     for edge in &snapshot.edges {
         if !edge_ids.insert(edge.id.clone()) {
             return Err(anyhow!("duplicate edge id in snapshot"));

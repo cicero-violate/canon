@@ -41,6 +41,8 @@ pub fn normalize_symbol_id_with_crate(raw: &str, crate_name: Option<&str>) -> St
             s = format!("crate::{}", &s[prefix.len()..]);
         } else if s == crate_name {
             s = "crate".to_string();
+        } else if !s.starts_with("crate::") {
+            s = format!("crate::{s}");
         }
     }
 
