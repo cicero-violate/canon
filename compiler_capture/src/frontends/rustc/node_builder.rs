@@ -14,7 +14,6 @@ pub(super) fn ensure_node<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>,
         return id.clone();
     }
     let raw_def_path = tcx.def_path_str(def_id);
-    let node_key = format!("{def_id:?}");
     let crate_name = tcx.crate_name(def_id.krate).to_string();
     let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let def_kind = format!("{:?}", tcx.def_kind(def_id));
@@ -23,7 +22,7 @@ pub(super) fn ensure_node<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>,
     let loc = source_map.lookup_char_pos(span.lo());
     let source_file = loc.file.name.prefer_local_unconditionally().to_string();
     let signature = matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn).then(|| tcx.fn_sig(def_id).skip_binder().to_string());
-    let mut payload = NodePayload::new(&node_key, def_path.clone())
+    let mut payload = NodePayload::new(&def_path, def_path.clone())
         .with_metadata("crate", crate_name)
         .with_metadata("def_kind", def_kind)
         .with_metadata("local", def_id.is_local().to_string())

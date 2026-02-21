@@ -1,24 +1,146 @@
-#[derive(Debug, Default, Clone)]
+struct CanonicalRewriteVisitor {
+    module_path: String,
+    rewrite_map: HashMap<String, (String, String)>,
+    changed: bool,
+}
+
+
 pub(crate) struct MoveSet {
     pub entries: HashMap<String, (String, String)>,
 }
 
 
-#[derive(Debug, Default, Clone)]
-pub(crate) struct MoveSet {
-    pub entries: HashMap<String, (String, String)>,
+struct ReferenceCollector<'a> {
+    resolver: Resolver<'a>,
+    refs: HashSet<String>,
 }
 
 
-#[derive(Debug, Default, Clone)]
-pub(crate) struct MoveSet {
-    pub entries: HashMap<String, (String, String)>,
+struct UseImport {
+    source_path: String,
+    is_glob: bool,
 }
 
 
-#[derive(Debug, Default, Clone)]
-pub(crate) struct MoveSet {
-    pub entries: HashMap<String, (String, String)>,
+fn build_moveset_rewrite_map(moveset: &MoveSet) -> HashMap<String, (String, String)> {
+    let mut map = HashMap::new();
+    for (symbol_id, (old_module, new_module)) in &moveset.entries {
+        let name = symbol_id.rsplit("::").next().unwrap_or(symbol_id);
+        let old_full = format!("{old_module}::{name}");
+        map.insert(old_full, (new_module.clone(), name.to_string()));
+    }
+    map
+}
+
+
+fn build_use_tree(head: &str, tail: &[String]) -> syn::UseTree {
+    let ident = syn::Ident::new(head, proc_macro2::Span::call_site());
+    if tail.is_empty() {
+        return syn::UseTree::Name(syn::UseName { ident });
+    }
+    let next = build_use_tree(&tail[0], &tail[1..]);
+    syn::UseTree::Path(syn::UsePath {
+        ident,
+        colon2_token: Default::default(),
+        tree: Box::new(next),
+    })
+}
+
+
+fn collect_use_imports(item: &syn::ItemUse, module_path: &str) -> Vec<UseImport> {
+    let mut out = Vec::new();
+    let mut prefix: Vec<String> = Vec::new();
+    if item.leading_colon.is_some() {
+        prefix.push("crate".to_string());
+    }
+    collect_use_tree_imports(&item.tree, &mut prefix, module_path, &mut out);
+    out
+}
+
+
+fn collect_use_tree_imports(
+    tree: &syn::UseTree,
+    prefix: &mut Vec<String>,
+    module_path: &str,
+    out: &mut Vec<UseImport>,
+) {
+    match tree {
+        syn::UseTree::Path(p) => {
+            prefix.push(p.ident.to_string());
+            collect_use_tree_imports(&p.tree, prefix, module_path, out);
+            prefix.pop();
+        }
+        syn::UseTree::Name(name) => {
+            let mut full = normalize_use_prefix(prefix, module_path);
+            full.push(name.ident.to_string());
+            out.push(UseImport {
+                source_path: full.join("::"),
+                is_glob: false,
+            });
+        }
+        syn::UseTree::Rename(rename) => {
+            let mut full = normalize_use_prefix(prefix, module_path);
+            full.push(rename.ident.to_string());
+            out.push(UseImport {
+                source_path: full.join("::"),
+                is_glob: false,
+            });
+        }
+        syn::UseTree::Group(group) => {
+            for item in &group.items {
+                collect_use_tree_imports(item, prefix, module_path, out);
+            }
+        }
+        syn::UseTree::Glob(_) => {
+            let full = normalize_use_prefix(prefix, module_path).join("::");
+            out.push(UseImport {
+                source_path: full,
+                is_glob: true,
+            });
+        }
+    }
+}
+
+
+fn extract_module(path: &str) -> String {
+    path.rsplit_once("::")
+        .map(|(m, _)| m.to_string())
+        .unwrap_or_else(|| "crate".to_string())
+}
+
+
+fn is_in_scope(
+    alias_graph: &crate::alias::AliasGraph,
+    module_path: &str,
+    file: &str,
+    local_name: &str,
+    symbol_id: &str,
+) -> bool {
+    if let Some(resolved) = alias_graph.resolve_local(module_path, local_name) {
+        if resolved == symbol_id {
+            return true;
+        }
+        return true;
+    }
+    if alias_graph.get_importers(symbol_id).iter().any(|n| n.file == file) {
+        return true;
+    }
+    let prefix = format!("{}::", extract_module(symbol_id));
+    for glob in alias_graph.get_glob_imports(module_path) {
+        if prefix.starts_with(&format!("{}::", glob.source_path)) {
+            return true;
+        }
+    }
+    false
+}
+
+
+fn is_private_use(item: &syn::ItemUse) -> bool {
+    match &item.vis {
+        syn::Visibility::Public(_) => false,
+        syn::Visibility::Restricted(restricted) => restricted.path.is_ident("crate"),
+        _ => true,
+    }
 }
 
 
@@ -58,107 +180,6 @@ pub(crate) fn run_pass1_canonical_rewrite(
         }
     }
     Ok(touched)
-}
-
-
-struct CanonicalRewriteVisitor {
-    module_path: String,
-    rewrite_map: HashMap<String, (String, String)>,
-    changed: bool,
-}
-
-
-impl CanonicalRewriteVisitor {
-    fn rewrite_path(&mut self, path: &mut syn::Path) {
-        let full = path_to_string(path, &self.module_path);
-        let Some((new_module, name)) = self.rewrite_map.get(&full) else { return };
-        let new_path_str = format!("{new_module}::{name}");
-        if let Ok(new_path) = syn::parse_str::<syn::Path>(&new_path_str) {
-            *path = new_path;
-            self.changed = true;
-        }
-    }
-    fn rewrite_use_tree(&mut self, tree: &mut syn::UseTree, prefix: &[String]) {
-        match tree {
-            syn::UseTree::Name(name) => {
-                let mut full = prefix.to_vec();
-                full.push(name.ident.to_string());
-                let full = normalize_use_prefix(&full, &self.module_path).join("::");
-                if let Some((new_module, name)) = self.rewrite_map.get(&full) {
-                    let mut new_segments: Vec<String> = new_module
-                        .split("::")
-                        .map(|s| s.to_string())
-                        .collect();
-                    new_segments.push(name.to_string());
-                    if let Some((first, rest)) = new_segments.split_first() {
-                        *tree = build_use_tree(first, rest);
-                        self.changed = true;
-                    }
-                }
-            }
-            syn::UseTree::Rename(rename) => {
-                let mut full = prefix.to_vec();
-                full.push(rename.ident.to_string());
-                let full = normalize_use_prefix(&full, &self.module_path).join("::");
-                if let Some((new_module, name)) = self.rewrite_map.get(&full) {
-                    let mut new_segments: Vec<String> = new_module
-                        .split("::")
-                        .map(|s| s.to_string())
-                        .collect();
-                    new_segments.push(name.to_string());
-                    if let Some((first, rest)) = new_segments.split_first() {
-                        let mut rebuilt = build_use_tree(first, rest);
-                        if let syn::UseTree::Name(name_tree) = &mut rebuilt {
-                            let rename_ident = rename.rename.clone();
-                            rebuilt = syn::UseTree::Rename(syn::UseRename {
-                                ident: name_tree.ident.clone(),
-                                as_token: rename.as_token,
-                                rename: rename_ident,
-                            });
-                        }
-                        *tree = rebuilt;
-                        self.changed = true;
-                    }
-                }
-            }
-            syn::UseTree::Path(path) => {
-                let mut next_prefix = prefix.to_vec();
-                next_prefix.push(path.ident.to_string());
-                self.rewrite_use_tree(&mut path.tree, &next_prefix);
-            }
-            syn::UseTree::Group(group) => {
-                for item in &mut group.items {
-                    self.rewrite_use_tree(item, prefix);
-                }
-            }
-            syn::UseTree::Glob(_) => {}
-        }
-    }
-}
-
-
-fn build_use_tree(head: &str, tail: &[String]) -> syn::UseTree {
-    let ident = syn::Ident::new(head, proc_macro2::Span::call_site());
-    if tail.is_empty() {
-        return syn::UseTree::Name(syn::UseName { ident });
-    }
-    let next = build_use_tree(&tail[0], &tail[1..]);
-    syn::UseTree::Path(syn::UsePath {
-        ident,
-        colon2_token: Default::default(),
-        tree: Box::new(next),
-    })
-}
-
-
-fn build_moveset_rewrite_map(moveset: &MoveSet) -> HashMap<String, (String, String)> {
-    let mut map = HashMap::new();
-    for (symbol_id, (old_module, new_module)) in &moveset.entries {
-        let name = symbol_id.rsplit("::").next().unwrap_or(symbol_id);
-        let old_full = format!("{old_module}::{name}");
-        map.insert(old_full, (new_module.clone(), name.to_string()));
-    }
-    map
 }
 
 
@@ -326,115 +347,6 @@ pub(crate) fn run_pass3_orphan_cleanup(
     }
     let _ = alias_graph;
     Ok(touched)
-}
-
-
-struct ReferenceCollector<'a> {
-    resolver: Resolver<'a>,
-    refs: HashSet<String>,
-}
-
-
-struct UseImport {
-    source_path: String,
-    is_glob: bool,
-}
-
-
-fn collect_use_imports(item: &syn::ItemUse, module_path: &str) -> Vec<UseImport> {
-    let mut out = Vec::new();
-    let mut prefix: Vec<String> = Vec::new();
-    if item.leading_colon.is_some() {
-        prefix.push("crate".to_string());
-    }
-    collect_use_tree_imports(&item.tree, &mut prefix, module_path, &mut out);
-    out
-}
-
-
-fn collect_use_tree_imports(
-    tree: &syn::UseTree,
-    prefix: &mut Vec<String>,
-    module_path: &str,
-    out: &mut Vec<UseImport>,
-) {
-    match tree {
-        syn::UseTree::Path(p) => {
-            prefix.push(p.ident.to_string());
-            collect_use_tree_imports(&p.tree, prefix, module_path, out);
-            prefix.pop();
-        }
-        syn::UseTree::Name(name) => {
-            let mut full = normalize_use_prefix(prefix, module_path);
-            full.push(name.ident.to_string());
-            out.push(UseImport {
-                source_path: full.join("::"),
-                is_glob: false,
-            });
-        }
-        syn::UseTree::Rename(rename) => {
-            let mut full = normalize_use_prefix(prefix, module_path);
-            full.push(rename.ident.to_string());
-            out.push(UseImport {
-                source_path: full.join("::"),
-                is_glob: false,
-            });
-        }
-        syn::UseTree::Group(group) => {
-            for item in &group.items {
-                collect_use_tree_imports(item, prefix, module_path, out);
-            }
-        }
-        syn::UseTree::Glob(_) => {
-            let full = normalize_use_prefix(prefix, module_path).join("::");
-            out.push(UseImport {
-                source_path: full,
-                is_glob: true,
-            });
-        }
-    }
-}
-
-
-fn is_private_use(item: &syn::ItemUse) -> bool {
-    match &item.vis {
-        syn::Visibility::Public(_) => false,
-        syn::Visibility::Restricted(restricted) => restricted.path.is_ident("crate"),
-        _ => true,
-    }
-}
-
-
-fn is_in_scope(
-    alias_graph: &crate::alias::AliasGraph,
-    module_path: &str,
-    file: &str,
-    local_name: &str,
-    symbol_id: &str,
-) -> bool {
-    if let Some(resolved) = alias_graph.resolve_local(module_path, local_name) {
-        if resolved == symbol_id {
-            return true;
-        }
-        return true;
-    }
-    if alias_graph.get_importers(symbol_id).iter().any(|n| n.file == file) {
-        return true;
-    }
-    let prefix = format!("{}::", extract_module(symbol_id));
-    for glob in alias_graph.get_glob_imports(module_path) {
-        if prefix.starts_with(&format!("{}::", glob.source_path)) {
-            return true;
-        }
-    }
-    false
-}
-
-
-fn extract_module(path: &str) -> String {
-    path.rsplit_once("::")
-        .map(|(m, _)| m.to_string())
-        .unwrap_or_else(|| "crate".to_string())
 }
 
 

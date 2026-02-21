@@ -1,30 +1,9 @@
-pub(crate) fn collect_and_rename_aliases(
-    project: &Path,
-    symbol_table: &SymbolIndex,
-    mapping: &HashMap<String, String>,
-) -> Result<Vec<SymbolEdit>> {
-    let mut alias_edits = Vec::new();
-    let files = fs::collect_rs_files(project)?;
-    for file in &files {
-        let module_path = module_path_for_file(project, file);
-        let content = std::fs::read_to_string(file)?;
-        let ast = syn::parse_file(&content)
-            .with_context(|| format!("Failed to parse {}", file.display()))?;
-        for item in &ast.items {
-            if let syn::Item::Use(use_item) = item {
-                collect_alias_edits(
-                    &use_item.tree,
-                    use_item.leading_colon.is_some(),
-                    &module_path,
-                    file,
-                    symbol_table,
-                    mapping,
-                    &mut alias_edits,
-                );
-            }
-        }
-    }
-    Ok(alias_edits)
+struct AliasUsageVisitor<'a> {
+    alias_name: String,
+    new_alias: String,
+    target_id: String,
+    file: &'a Path,
+    edits: &'a mut Vec<SymbolEdit>,
 }
 
 
@@ -163,10 +142,31 @@ fn collect_alias_usage_edits(
 }
 
 
-struct AliasUsageVisitor<'a> {
-    alias_name: String,
-    new_alias: String,
-    target_id: String,
-    file: &'a Path,
-    edits: &'a mut Vec<SymbolEdit>,
+pub(crate) fn collect_and_rename_aliases(
+    project: &Path,
+    symbol_table: &SymbolIndex,
+    mapping: &HashMap<String, String>,
+) -> Result<Vec<SymbolEdit>> {
+    let mut alias_edits = Vec::new();
+    let files = fs::collect_rs_files(project)?;
+    for file in &files {
+        let module_path = module_path_for_file(project, file);
+        let content = std::fs::read_to_string(file)?;
+        let ast = syn::parse_file(&content)
+            .with_context(|| format!("Failed to parse {}", file.display()))?;
+        for item in &ast.items {
+            if let syn::Item::Use(use_item) = item {
+                collect_alias_edits(
+                    &use_item.tree,
+                    use_item.leading_colon.is_some(),
+                    &module_path,
+                    file,
+                    symbol_table,
+                    mapping,
+                    &mut alias_edits,
+                );
+            }
+        }
+    }
+    Ok(alias_edits)
 }

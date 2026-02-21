@@ -90,6 +90,7 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
     let mut modules: HashMap<String, WireNode> = HashMap::new();
     let mut items_by_module: HashMap<String, Vec<WireNode>> = HashMap::new();
     let mut ast_cache: HashMap<PathBuf, syn::File> = HashMap::new();
+    let mut seen_item_keys: HashSet<String> = HashSet::new();
     let debug_plan = std::env::var("RENAME_DEBUG_PLAN").ok().as_deref() == Some("1");
     let mut node_kind_counts: HashMap<String, usize> = HashMap::new();
     let mut container_kind_counts: HashMap<String, usize> = HashMap::new();
@@ -132,7 +133,9 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
         if !is_local_module_path(&module_path) {
             continue;
         }
-        items_by_module.entry(module_path).or_default().push(node.clone());
+       if seen_item_keys.insert(node.key.clone()) {
+           items_by_module.entry(module_path).or_default().push(node.clone());
+       }
     }
 
     if !modules.contains_key("crate") {

@@ -1,3 +1,71 @@
+fn extract_bracket_references(
+    doc_text: &str,
+    symbols: &mut Vec<(String, Span)>,
+    span: Span,
+) {
+    let mut chars = doc_text.chars().peekable();
+    let mut in_bracket = false;
+    let mut current_ref = String::new();
+    while let Some(ch) = chars.next() {
+        if ch == '[' && chars.peek() != Some(&'`') {
+            in_bracket = true;
+            current_ref.clear();
+        } else if ch == ']' && in_bracket {
+            if !current_ref.is_empty() && is_likely_symbol_ref(&current_ref) {
+                symbols.push((current_ref.clone(), span));
+            }
+            current_ref.clear();
+            in_bracket = false;
+        } else if in_bracket && ch != '`' {
+            current_ref.push(ch);
+        }
+    }
+}
+
+
+fn extract_doc_references(
+    doc_text: &str,
+    symbols: &mut Vec<(String, Span)>,
+    span: Span,
+) {
+    let mut chars = doc_text.chars().peekable();
+    let mut in_backtick = false;
+    let mut current_ref = String::new();
+    while let Some(ch) = chars.next() {
+        if ch == '`' {
+            if in_backtick {
+                if !current_ref.is_empty() && is_likely_symbol_ref(&current_ref) {
+                    symbols.push((current_ref.clone(), span));
+                }
+                current_ref.clear();
+                in_backtick = false;
+            } else {
+                in_backtick = true;
+            }
+        } else if in_backtick {
+            current_ref.push(ch);
+        }
+    }
+    extract_bracket_references(doc_text, symbols, span);
+}
+
+
+fn extract_identifiers_from_token_string(
+    tokens: &str,
+    symbols: &mut Vec<(String, Span)>,
+    span: Span,
+) {
+    for word in tokens
+        .split(&[' ', ',', '(', ')', '[', ']', '{', '}', '<', '>', ':', ';'])
+    {
+        let trimmed = word.trim();
+        if !trimmed.is_empty() && is_valid_ident_char(trimmed) {
+            symbols.push((trimmed.to_string(), span));
+        }
+    }
+}
+
+
 pub fn extract_symbols_from_attributes(attrs: &[Attribute]) -> Vec<(String, Span)> {
     let mut symbols = Vec::new();
     for attr in attrs {
@@ -36,19 +104,17 @@ pub fn extract_symbols_from_attributes(attrs: &[Attribute]) -> Vec<(String, Span
 }
 
 
-fn extract_identifiers_from_token_string(
-    tokens: &str,
-    symbols: &mut Vec<(String, Span)>,
-    span: Span,
-) {
-    for word in tokens
-        .split(&[' ', ',', '(', ')', '[', ']', '{', '}', '<', '>', ':', ';'])
-    {
-        let trimmed = word.trim();
-        if !trimmed.is_empty() && is_valid_ident_char(trimmed) {
-            symbols.push((trimmed.to_string(), span));
-        }
+fn is_likely_symbol_ref(s: &str) -> bool {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return false;
     }
+    let first_char = trimmed.chars().next().unwrap();
+    let looks_like_type = first_char.is_uppercase();
+    let has_path_sep = trimmed.contains("::");
+    let common_words = ["the", "this", "that", "these", "those", "a", "an"];
+    let is_common_word = common_words.contains(&trimmed.to_lowercase().as_str());
+    (looks_like_type || has_path_sep) && !is_common_word
 }
 
 
@@ -61,70 +127,4 @@ fn is_valid_ident_char(s: &str) -> bool {
         return false;
     }
     s.chars().all(|c| c.is_alphanumeric() || c == '_' || c == ':')
-}
-
-
-fn extract_doc_references(
-    doc_text: &str,
-    symbols: &mut Vec<(String, Span)>,
-    span: Span,
-) {
-    let mut chars = doc_text.chars().peekable();
-    let mut in_backtick = false;
-    let mut current_ref = String::new();
-    while let Some(ch) = chars.next() {
-        if ch == '`' {
-            if in_backtick {
-                if !current_ref.is_empty() && is_likely_symbol_ref(&current_ref) {
-                    symbols.push((current_ref.clone(), span));
-                }
-                current_ref.clear();
-                in_backtick = false;
-            } else {
-                in_backtick = true;
-            }
-        } else if in_backtick {
-            current_ref.push(ch);
-        }
-    }
-    extract_bracket_references(doc_text, symbols, span);
-}
-
-
-fn extract_bracket_references(
-    doc_text: &str,
-    symbols: &mut Vec<(String, Span)>,
-    span: Span,
-) {
-    let mut chars = doc_text.chars().peekable();
-    let mut in_bracket = false;
-    let mut current_ref = String::new();
-    while let Some(ch) = chars.next() {
-        if ch == '[' && chars.peek() != Some(&'`') {
-            in_bracket = true;
-            current_ref.clear();
-        } else if ch == ']' && in_bracket {
-            if !current_ref.is_empty() && is_likely_symbol_ref(&current_ref) {
-                symbols.push((current_ref.clone(), span));
-            }
-            current_ref.clear();
-            in_bracket = false;
-        } else if in_bracket && ch != '`' {
-            current_ref.push(ch);
-        }
-    }
-}
-
-
-fn is_likely_symbol_ref(s: &str) -> bool {
-    let trimmed = s.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-    let first_char = trimmed.chars().next().unwrap();
-    let looks_like_type = first_char.is_uppercase();
-    let has_path_sep = trimmed.contains("::");
-    let common_words = ["the", "this", "that", "these", "those", "a", "an"];
-    let is_common_word = common_words.contains(&trimmed.to_lowercase().as_str());
-    (looks_like_type || has_path_sep) && !is_common_word
 }

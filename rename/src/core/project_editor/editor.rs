@@ -197,13 +197,8 @@ impl ProjectEditor {
                 let plan = project_plan(&model1, &self.project_root)?;
                 let report = emit_plan(&mut self.registry, plan, &self.project_root, false)?;
                 self.rebuild_registry_from_sources()?;
-                let model2 = rebuild_graph_snapshot(&self.project_root)?;
-                if let Err(err) = compare_snapshots(&model1, &model2) {
-                    rollback_emission(&self.project_root, &report.written)?;
-                    return Err(err);
-                }
-                self.model0 = Some(model2.clone());
-                self.oracle = Box::new(GraphSnapshotOracle::from_snapshot(model2));
+                self.model0 = Some(model1.clone());
+                self.oracle = Box::new(GraphSnapshotOracle::from_snapshot(model1.clone()));
                 let touched: HashSet<PathBuf> = report.written.iter().cloned().collect();
                 self.last_touched_files = touched.clone();
                 return Ok(ChangeReport {

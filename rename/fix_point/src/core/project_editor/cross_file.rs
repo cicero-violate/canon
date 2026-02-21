@@ -174,6 +174,52 @@ fn apply_cross_file_moves(
 }
 
 
+fn build_super_tree(tail: &syn::UseTree) -> syn::UseTree {
+    let super_ident = syn::Ident::new("super", proc_macro2::Span::call_site());
+    syn::UseTree::Path(syn::UsePath {
+        ident: super_ident,
+        colon2_token: syn::token::PathSep::default(),
+        tree: Box::new(tail.clone()),
+    })
+}
+
+
+fn collect_new_files(
+    registry: &NodeRegistry,
+    changesets: &std::collections::HashMap<PathBuf, Vec<QueuedOp>>,
+) -> Vec<(PathBuf, String)> {
+    let project_root = match find_project_root_sync(registry) {
+        Some(r) => r,
+        None => return Vec::new(),
+    };
+    let mut seen: HashSet<PathBuf> = HashSet::new();
+    let mut result = Vec::new();
+    for ops in changesets.values() {
+        for queued in ops {
+            if let crate::structured::NodeOp::MoveSymbol {
+                handle: _,
+                new_module_path,
+                ..
+            } = &queued.op
+            {
+                let norm_dst = normalize_symbol_id(new_module_path);
+                let to_path = ModulePath::from_string(&norm_dst);
+                let dst_file = match compute_new_file_path(&to_path, &project_root) {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                };
+                if !dst_file.exists() && registry.asts.contains_key(&dst_file)
+                    && seen.insert(dst_file.clone())
+                {
+                    result.push((dst_file, norm_dst));
+                }
+            }
+        }
+    }
+    result
+}
+
+
 fn ensure_source_loaded(registry: &mut NodeRegistry, file: &PathBuf) -> Result<()> {
     if registry.sources.contains_key(file) {
         return Ok(());
@@ -184,44 +230,6 @@ fn ensure_source_loaded(registry: &mut NodeRegistry, file: &PathBuf) -> Result<(
         return Ok(());
     }
     registry.sources.insert(file.clone(), Arc::new(String::new()));
-    Ok(())
-}
-
-
-fn parse_single_item(snippet: &str) -> Option<syn::Item> {
-    if snippet.trim().is_empty() {
-        return None;
-    }
-    let attempt = syn::parse_file(snippet)
-        .or_else(|_| syn::parse_file(&format!("{snippet}\n")));
-    let file = attempt.ok()?;
-    if file.items.len() == 1 {
-        return file.items.into_iter().next();
-    }
-    None
-}
-
-
-fn validate_item_matches(item: &syn::Item, symbol_id: &str) -> Result<()> {
-    let expected = symbol_id.rsplit("::").next().unwrap_or(symbol_id);
-    let actual = match item {
-        syn::Item::Struct(s) => Some(s.ident.to_string()),
-        syn::Item::Enum(e) => Some(e.ident.to_string()),
-        syn::Item::Trait(t) => Some(t.ident.to_string()),
-        syn::Item::Fn(f) => Some(f.sig.ident.to_string()),
-        syn::Item::Type(t) => Some(t.ident.to_string()),
-        syn::Item::Const(c) => Some(c.ident.to_string()),
-        syn::Item::Mod(m) => Some(m.ident.to_string()),
-        _ => None,
-    };
-    if let Some(actual) = actual {
-        if actual != expected {
-            anyhow::bail!(
-                "cross-file move: span item '{}' does not match expected '{}'", actual,
-                expected
-            );
-        }
-    }
     Ok(())
 }
 
@@ -271,6 +279,23 @@ fn find_mod_span(
 }
 
 
+fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
+    match ty {
+        syn::Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
+        _ => None,
+    }
+}
+
+
+fn is_private(vis: &syn::Visibility) -> bool {
+    match vis {
+        syn::Visibility::Inherited => true,
+        syn::Visibility::Restricted(r) => r.path.is_ident("self"),
+        _ => false,
+    }
+}
+
+
 fn normalize_snippet(snippet: &str, dst_text: &str, insert_offset: usize) -> String {
     let mut out = String::new();
     let before = dst_text.get(..insert_offset).unwrap_or("");
@@ -288,81 +313,17 @@ fn normalize_snippet(snippet: &str, dst_text: &str, insert_offset: usize) -> Str
 }
 
 
-fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
-    match ty {
-        syn::Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
-        _ => None,
+fn parse_single_item(snippet: &str) -> Option<syn::Item> {
+    if snippet.trim().is_empty() {
+        return None;
     }
-}
-
-
-fn resolve_or_create_dst_file(
-    registry: &mut NodeRegistry,
-    new_module_path: &str,
-    src_file: &PathBuf,
-) -> Option<PathBuf> {
-    let project_root = find_project_root_sync(registry)?;
-    let norm_dst = normalize_symbol_id(new_module_path);
-    let existing: Option<PathBuf> = registry
-        .asts
-        .keys()
-        .filter(|f| *f != src_file)
-        .find(|f| {
-            normalize_symbol_id(&module_path_for_file(&project_root, f)) == norm_dst
-        })
-        .cloned();
-    if let Some(f) = existing {
-        return Some(f);
+    let attempt = syn::parse_file(snippet)
+        .or_else(|_| syn::parse_file(&format!("{snippet}\n")));
+    let file = attempt.ok()?;
+    if file.items.len() == 1 {
+        return file.items.into_iter().next();
     }
-    let to_path = ModulePath::from_string(&norm_dst);
-    let dst_file = compute_new_file_path(&to_path, &project_root).ok()?;
-    if dst_file.exists() {
-        let content = std::fs::read_to_string(&dst_file).ok()?;
-        let ast = syn::parse_file(&content).ok()?;
-        registry.asts.insert(dst_file.clone(), ast);
-        registry.sources.insert(dst_file.clone(), Arc::new(content));
-        return Some(dst_file);
-    }
-    let blank: syn::File = syn::parse_quote!();
-    registry.asts.insert(dst_file.clone(), blank);
-    registry.sources.insert(dst_file.clone(), Arc::new(String::new()));
-    Some(dst_file)
-}
-
-
-fn collect_new_files(
-    registry: &NodeRegistry,
-    changesets: &std::collections::HashMap<PathBuf, Vec<QueuedOp>>,
-) -> Vec<(PathBuf, String)> {
-    let project_root = match find_project_root_sync(registry) {
-        Some(r) => r,
-        None => return Vec::new(),
-    };
-    let mut seen: HashSet<PathBuf> = HashSet::new();
-    let mut result = Vec::new();
-    for ops in changesets.values() {
-        for queued in ops {
-            if let crate::structured::NodeOp::MoveSymbol {
-                handle: _,
-                new_module_path,
-                ..
-            } = &queued.op
-            {
-                let norm_dst = normalize_symbol_id(new_module_path);
-                let to_path = ModulePath::from_string(&norm_dst);
-                let dst_file = match compute_new_file_path(&to_path, &project_root) {
-                    Ok(p) => p,
-                    Err(_) => continue,
-                };
-                if !dst_file.exists() && registry.asts.contains_key(&dst_file)
-                    && seen.insert(dst_file.clone())
-                {
-                    result.push((dst_file, norm_dst));
-                }
-            }
-        }
-    }
-    result
+    None
 }
 
 
@@ -412,26 +373,42 @@ fn promote_private_to_pub_crate(item: &mut syn::Item) {
 }
 
 
-fn is_private(vis: &syn::Visibility) -> bool {
-    match vis {
-        syn::Visibility::Inherited => true,
-        syn::Visibility::Restricted(r) => r.path.is_ident("self"),
-        _ => false,
-    }
-}
-
-
 fn pub_crate() -> syn::Visibility {
     syn::parse_quote!(pub (crate))
 }
 
 
-fn superize_use_if_from_src(item: syn::ItemUse, src_crate_path: &str) -> syn::ItemUse {
-    let rewritten = superize_tree(item.tree.clone(), src_crate_path);
-    syn::ItemUse {
-        tree: rewritten,
-        ..item
+fn resolve_or_create_dst_file(
+    registry: &mut NodeRegistry,
+    new_module_path: &str,
+    src_file: &PathBuf,
+) -> Option<PathBuf> {
+    let project_root = find_project_root_sync(registry)?;
+    let norm_dst = normalize_symbol_id(new_module_path);
+    let existing: Option<PathBuf> = registry
+        .asts
+        .keys()
+        .filter(|f| *f != src_file)
+        .find(|f| {
+            normalize_symbol_id(&module_path_for_file(&project_root, f)) == norm_dst
+        })
+        .cloned();
+    if let Some(f) = existing {
+        return Some(f);
     }
+    let to_path = ModulePath::from_string(&norm_dst);
+    let dst_file = compute_new_file_path(&to_path, &project_root).ok()?;
+    if dst_file.exists() {
+        let content = std::fs::read_to_string(&dst_file).ok()?;
+        let ast = syn::parse_file(&content).ok()?;
+        registry.asts.insert(dst_file.clone(), ast);
+        registry.sources.insert(dst_file.clone(), Arc::new(content));
+        return Some(dst_file);
+    }
+    let blank: syn::File = syn::parse_quote!();
+    registry.asts.insert(dst_file.clone(), blank);
+    registry.sources.insert(dst_file.clone(), Arc::new(String::new()));
+    Some(dst_file)
 }
 
 
@@ -441,6 +418,15 @@ fn superize_tree(tree: syn::UseTree, src_crate_path: &str) -> syn::UseTree {
         new_tree
     } else {
         tree
+    }
+}
+
+
+fn superize_use_if_from_src(item: syn::ItemUse, src_crate_path: &str) -> syn::ItemUse {
+    let rewritten = superize_tree(item.tree.clone(), src_crate_path);
+    syn::ItemUse {
+        tree: rewritten,
+        ..item
     }
 }
 
@@ -475,11 +461,25 @@ fn try_superize(
 }
 
 
-fn build_super_tree(tail: &syn::UseTree) -> syn::UseTree {
-    let super_ident = syn::Ident::new("super", proc_macro2::Span::call_site());
-    syn::UseTree::Path(syn::UsePath {
-        ident: super_ident,
-        colon2_token: syn::token::PathSep::default(),
-        tree: Box::new(tail.clone()),
-    })
+fn validate_item_matches(item: &syn::Item, symbol_id: &str) -> Result<()> {
+    let expected = symbol_id.rsplit("::").next().unwrap_or(symbol_id);
+    let actual = match item {
+        syn::Item::Struct(s) => Some(s.ident.to_string()),
+        syn::Item::Enum(e) => Some(e.ident.to_string()),
+        syn::Item::Trait(t) => Some(t.ident.to_string()),
+        syn::Item::Fn(f) => Some(f.sig.ident.to_string()),
+        syn::Item::Type(t) => Some(t.ident.to_string()),
+        syn::Item::Const(c) => Some(c.ident.to_string()),
+        syn::Item::Mod(m) => Some(m.ident.to_string()),
+        _ => None,
+    };
+    if let Some(actual) = actual {
+        if actual != expected {
+            anyhow::bail!(
+                "cross-file move: span item '{}' does not match expected '{}'", actual,
+                expected
+            );
+        }
+    }
+    Ok(())
 }

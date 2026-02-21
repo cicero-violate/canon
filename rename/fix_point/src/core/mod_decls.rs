@@ -1,4 +1,3 @@
-#[derive(Debug)]
 struct ModuleRenamePlan {
     old_name: String,
     new_name: String,
@@ -7,30 +6,43 @@ struct ModuleRenamePlan {
 }
 
 
-#[derive(Debug)]
-struct ModuleRenamePlan {
-    old_name: String,
-    new_name: String,
-    old_parent: String,
-    new_parent: String,
+fn find_crate_root_file(project: &Path) -> Option<PathBuf> {
+    let lib = project.join("src/lib.rs");
+    if lib.exists() {
+        return Some(lib);
+    }
+    let main = project.join("src/main.rs");
+    if main.exists() {
+        return Some(main);
+    }
+    None
 }
 
 
-#[derive(Debug)]
-struct ModuleRenamePlan {
-    old_name: String,
-    new_name: String,
-    old_parent: String,
-    new_parent: String,
+fn resolve_parent_definition_file(
+    project: &Path,
+    table: &SymbolIndex,
+    parent_id: &str,
+    rename_lookup: &HashMap<String, PathBuf>,
+) -> Option<PathBuf> {
+    let raw_path = if parent_id == "crate" {
+        find_crate_root_file(project)?
+    } else {
+        let entry = table.symbols.get(parent_id)?;
+        let file = entry
+            .definition_file
+            .as_ref()
+            .or(entry.declaration_file.as_ref())?
+            .to_string();
+        PathBuf::from(file)
+    };
+    Some(resolve_renamed_path(raw_path, rename_lookup))
 }
 
 
-#[derive(Debug)]
-struct ModuleRenamePlan {
-    old_name: String,
-    new_name: String,
-    old_parent: String,
-    new_parent: String,
+fn resolve_renamed_path(path: PathBuf, lookup: &HashMap<String, PathBuf>) -> PathBuf {
+    let key = path.to_string_lossy().to_string();
+    lookup.get(&key).cloned().unwrap_or(path)
 }
 
 
@@ -188,44 +200,4 @@ pub(crate) fn update_mod_declarations(
         }
     }
     Ok(())
-}
-
-
-fn resolve_renamed_path(path: PathBuf, lookup: &HashMap<String, PathBuf>) -> PathBuf {
-    let key = path.to_string_lossy().to_string();
-    lookup.get(&key).cloned().unwrap_or(path)
-}
-
-
-fn resolve_parent_definition_file(
-    project: &Path,
-    table: &SymbolIndex,
-    parent_id: &str,
-    rename_lookup: &HashMap<String, PathBuf>,
-) -> Option<PathBuf> {
-    let raw_path = if parent_id == "crate" {
-        find_crate_root_file(project)?
-    } else {
-        let entry = table.symbols.get(parent_id)?;
-        let file = entry
-            .definition_file
-            .as_ref()
-            .or(entry.declaration_file.as_ref())?
-            .to_string();
-        PathBuf::from(file)
-    };
-    Some(resolve_renamed_path(raw_path, rename_lookup))
-}
-
-
-fn find_crate_root_file(project: &Path) -> Option<PathBuf> {
-    let lib = project.join("src/lib.rs");
-    if lib.exists() {
-        return Some(lib);
-    }
-    let main = project.join("src/main.rs");
-    if main.exists() {
-        return Some(main);
-    }
-    None
 }

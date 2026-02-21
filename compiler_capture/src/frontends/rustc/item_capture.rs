@@ -8,16 +8,16 @@ use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, TyCtxt};
 use serde::Serialize;
 use std::collections::HashMap;
+
 pub(super) fn capture_adt<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) -> NodeId {
     if let Some(id) = cache.get(&def_id) {
         return id.clone();
     }
     let adt_def = tcx.adt_def(def_id);
     let raw_def_path = tcx.def_path_str(def_id);
-    let node_key = format!("{def_id:?}");
     let crate_name = tcx.crate_name(def_id.krate).to_string();
     let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
-    let mut payload = NodePayload::new(&node_key, def_path.clone())
+    let mut payload = NodePayload::new(&def_path, def_path.clone())
         .with_metadata("type", "adt")
         .with_metadata("adt_kind", format!("{:?}", adt_def.adt_kind()))
         .with_metadata("type_kind", adt_kind_label(adt_def))
@@ -39,17 +39,19 @@ pub(super) fn capture_adt<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>,
     cache.insert(def_id, node_id.clone());
     node_id
 }
+
 pub(super) fn capture_type_alias<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) -> NodeId {
     if let Some(id) = cache.get(&def_id) {
         return id.clone();
     }
     let raw_def_path = tcx.def_path_str(def_id);
-    let node_key = format!("{def_id:?}");
     let crate_name = tcx.crate_name(def_id.krate).to_string();
     let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let aliased_ty = tcx.type_of(def_id).instantiate_identity();
-    let mut payload =
-        NodePayload::new(&node_key, def_path.clone()).with_metadata("type", "type_alias").with_metadata("type_kind", "type_alias").with_metadata("aliased_type", format!("{:?}", aliased_ty));
+    let mut payload = NodePayload::new(&def_path, def_path.clone())
+        .with_metadata("type", "type_alias")
+        .with_metadata("type_kind", "type_alias")
+        .with_metadata("aliased_type", format!("{:?}", aliased_ty));
     if def_id.is_local() {
         payload = payload.with_metadata("crate_edition", metadata.edition.clone());
     }
@@ -58,17 +60,19 @@ pub(super) fn capture_type_alias<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt
     cache.insert(def_id, node_id.clone());
     node_id
 }
+
 pub(super) fn capture_const_static<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) -> NodeId {
     if let Some(id) = cache.get(&def_id) {
         return id.clone();
     }
     let raw_def_path = tcx.def_path_str(def_id);
-    let node_key = format!("{def_id:?}");
     let crate_name = tcx.crate_name(def_id.krate).to_string();
     let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
     let const_ty = tcx.type_of(def_id).instantiate_identity();
-    let mut payload =
-        NodePayload::new(&node_key, def_path.clone()).with_metadata("type", "const_or_static").with_metadata("type_kind", "const_or_static").with_metadata("value_type", format!("{:?}", const_ty));
+    let mut payload = NodePayload::new(&def_path, def_path.clone())
+        .with_metadata("type", "const_or_static")
+        .with_metadata("type_kind", "const_or_static")
+        .with_metadata("value_type", format!("{:?}", const_ty));
     if def_id.is_local() {
         payload = payload.with_metadata("crate_edition", metadata.edition.clone());
     }
@@ -77,15 +81,15 @@ pub(super) fn capture_const_static<'tcx>(builder: &mut DeltaCollector, tcx: TyCt
     cache.insert(def_id, node_id.clone());
     node_id
 }
+
 pub(super) fn capture_mod<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>, def_id: DefId, cache: &mut HashMap<DefId, NodeId>, metadata: &FrontendMetadata) -> NodeId {
     if let Some(id) = cache.get(&def_id) {
         return id.clone();
     }
     let raw_def_path = tcx.def_path_str(def_id);
-    let node_key = format!("{def_id:?}");
     let crate_name = tcx.crate_name(def_id.krate).to_string();
     let def_path = normalize_symbol_id_with_crate(&raw_def_path, Some(&crate_name));
-    let mut payload = NodePayload::new(&node_key, def_path.clone())
+    let mut payload = NodePayload::new(&def_path, def_path.clone())
         .with_metadata("type", "module")
         .with_metadata("type_kind", "module");
     if def_id.is_local() {
@@ -96,6 +100,7 @@ pub(super) fn capture_mod<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'tcx>,
     cache.insert(def_id, node_id.clone());
     node_id
 }
+
 fn serialize_struct_field_list<'tcx>(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String> {
     if !adt_def.is_struct() && !adt_def.is_union() {
         return None;
@@ -112,7 +117,12 @@ fn serialize_struct_field_list<'tcx>(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx
         .fields
         .iter()
         .enumerate()
-        .map(|(idx, field)| FieldInfo { name: field.name.to_string(), ty: format!("{:?}", tcx.type_of(field.did).skip_binder()), vis: format!("{:?}", tcx.visibility(field.did)), index: idx })
+        .map(|(idx, field)| FieldInfo {
+            name: field.name.to_string(),
+            ty: format!("{:?}", tcx.type_of(field.did).skip_binder()),
+            vis: format!("{:?}", tcx.visibility(field.did)),
+            index: idx,
+        })
         .collect();
     if fields.is_empty() {
         None
@@ -120,6 +130,7 @@ fn serialize_struct_field_list<'tcx>(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx
         serde_json::to_string(&fields).ok()
     }
 }
+
 fn serialize_enum_variants<'tcx>(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -> Option<String> {
     #[derive(Serialize)]
     struct VariantInfo {
@@ -145,13 +156,19 @@ fn serialize_enum_variants<'tcx>(tcx: TyCtxt<'tcx>, adt_def: ty::AdtDef<'tcx>) -
                 .fields
                 .iter()
                 .enumerate()
-                .map(|(idx, field)| FieldInfo { name: field.name.to_string(), ty: format!("{:?}", tcx.type_of(field.did).skip_binder()), vis: format!("{:?}", tcx.visibility(field.did)), index: idx })
+                .map(|(idx, field)| FieldInfo {
+                    name: field.name.to_string(),
+                    ty: format!("{:?}", tcx.type_of(field.did).skip_binder()),
+                    vis: format!("{:?}", tcx.visibility(field.did)),
+                    index: idx,
+                })
                 .collect();
             VariantInfo { name: variant.name.to_string(), discr: adt_def.discriminant_for_variant(tcx, idx).val, fields }
         })
         .collect();
     serde_json::to_string(&variants).ok()
 }
+
 fn adt_kind_label(adt_def: ty::AdtDef<'_>) -> String {
     if adt_def.is_enum() {
         "enum".into()

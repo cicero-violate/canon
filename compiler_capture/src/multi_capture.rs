@@ -4,6 +4,7 @@ use crate::compiler_capture::frontends::rustc::{RustcFrontend, RustcFrontendErro
 use crate::compiler_capture::graph::{GraphDelta, NodeId};
 use crate::compiler_capture::project::CargoProject;
 use crate::compiler_capture::workspace::{GraphWorkspace, WorkspaceBuilder};
+use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use database::graph_log::WireEdgeId;
 use database::{MemoryEngine, MemoryEngineConfig, MemoryEngineError};
 
@@ -64,6 +65,8 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
     let workspace_root = project_meta.workspace_root.clone();
     let primary_package = project_meta.packages.first().cloned();
     let engine = open_engine(&workspace_root)?;
+    let mut committed_node_ids: std::collections::HashSet<NodeId> = std::collections::HashSet::new();
+    let mut committed_edge_ids: std::collections::HashSet<database::graph_log::WireEdgeId> = std::collections::HashSet::new();
 
     let mut externs = project.extern_args("debug").map_err(|e| CaptureError::Generic(format!("failed to gather extern args: {e}")))?;
 
@@ -96,6 +99,13 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
 
         // Strip rustc crate hash: foo[abcd]::bar -> foo::bar
         fn normalize_key(key: &str) -> String {
+            // Strip DefId(N:M ~ path) wrapper -> path
+            let key = if let (Some(start), Some(end)) = (key.find(" ~ "), key.rfind(')')) {
+                &key[start + 3..end]
+            } else {
+                key
+            };
+            // Strip rustc crate hash brackets: foo[abcd]::bar -> foo::bar
             let mut out = String::with_capacity(key.len());
             let mut in_brackets = false;
             for c in key.chars() {
@@ -114,6 +124,7 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
                 GraphDelta::AddNode(mut node) => {
                     let target_kind = target.kind.join(",");
                     let norm_key = normalize_key(node.key.as_str());
+                    let norm_key = normalize_symbol_id_with_crate(&norm_key, None);
                     let new_id = NodeId::from_key(&norm_key);
                     // Map both the original id and the already-normalized id
                     id_map.insert(node.id.clone(), new_id.clone());
@@ -122,8 +133,10 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
                     node.key = norm_key;
                     node.metadata.insert("target_name".into(), target.name.clone());
                     node.metadata.insert("target_kind".into(), target_kind);
-                    graph_deltas.push(GraphDelta::AddNode(node.clone()));
-                    engine.commit_graph_delta(graph_deltas.last().unwrap().clone()).map_err(CaptureError::Engine)?;
+                    if committed_node_ids.insert(node.id.clone()) {
+                        graph_deltas.push(GraphDelta::AddNode(node.clone()));
+                        engine.commit_graph_delta(GraphDelta::AddNode(node)).map_err(CaptureError::Engine)?;
+                    }
                 }
                 GraphDelta::AddEdge(mut edge) => {
                     let from = id_map.get(&edge.from).cloned().unwrap_or_else(|| edge.from.clone());
@@ -131,8 +144,10 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
                     edge.from = from.clone();
                     edge.to = to.clone();
                     edge.id = WireEdgeId::from_components(&from, &to, edge.kind.as_str());
-                    graph_deltas.push(GraphDelta::AddEdge(edge.clone()));
-                    engine.commit_graph_delta(graph_deltas.last().unwrap().clone()).map_err(CaptureError::Engine)?;
+                    if committed_edge_ids.insert(edge.id.clone()) {
+                        graph_deltas.push(GraphDelta::AddEdge(edge.clone()));
+                        engine.commit_graph_delta(GraphDelta::AddEdge(edge)).map_err(CaptureError::Engine)?;
+                    }
                 }
             }
         }

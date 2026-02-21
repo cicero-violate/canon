@@ -21,6 +21,14 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
     let source_map = tcx.sess.source_map();
     let mut span = tcx.def_span(def_id);
     if let Some(local) = def_id.as_local() {
+        let node = tcx.hir_node_by_def_id(local);
+        span = match node {
+            rustc_hir::Node::Item(item) => tcx.hir_span(item.hir_id()),
+            rustc_hir::Node::ImplItem(item) => tcx.hir_span(item.hir_id()),
+            rustc_hir::Node::TraitItem(item) => tcx.hir_span(item.hir_id()),
+            rustc_hir::Node::ForeignItem(item) => tcx.hir_span(item.hir_id()),
+            _ => span,
+        };
         if matches!(def_kind, DefKind::Fn | DefKind::AssocFn | DefKind::Const | DefKind::Static { .. }) {
             if let Some(body) = tcx.hir_maybe_body_owned_by(local) {
                 span = span.with_hi(body.value.span.hi());
@@ -33,7 +41,9 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
     let absolute_path = resolve_source_path_abs(&filename);
     let relative_path = resolve_source_path_rel(&absolute_path, frontend.workspace_root.as_deref());
     let file_stats = compute_source_file_metrics(&lo.file);
-    let snippet = source_map.span_to_snippet(span).unwrap_or_else(|_| String::new());
+    let snippet = extract_item_snippet(&lo.file, span)
+        .or_else(|| source_map.span_to_snippet(span).ok())
+        .unwrap_or_else(String::new);
     payload = payload
         .with_metadata("def_path", def_path.clone())
         .with_metadata("path", def_path.clone())
@@ -399,6 +409,173 @@ fn format_symbol_label(module: &str, name: &str) -> String {
     } else {
         format!("{module}::{name}")
     }
+}
+
+fn extract_item_snippet(file: &SourceFile, span: rustc_span::Span) -> Option<String> {
+    let owned;
+    let src = if let Some(s) = file.src.as_ref() {
+        s.as_str()
+    } else if let FileName::Real(path) = &file.name {
+        let path = path.local_path()?;
+        owned = std::fs::read_to_string(path).ok()?;
+        owned.as_str()
+    } else {
+        return None;
+    };
+    let start = span.lo().0.saturating_sub(file.start_pos.0) as usize;
+    let end = find_item_end(src, start)?;
+    if end <= start || end > src.len() {
+        return None;
+    }
+    Some(src[start..end].to_string())
+}
+
+fn find_item_end(src: &str, start: usize) -> Option<usize> {
+    let bytes = src.as_bytes();
+    let mut i = start;
+    let mut in_line_comment = false;
+    let mut in_block_comment = 0usize;
+    let mut in_string = false;
+    let mut in_char = false;
+    let mut raw_hashes: Option<usize> = None;
+    let mut seen_open = false;
+    let mut brace_depth = 0usize;
+    let mut paren_depth = 0usize;
+
+    while i < bytes.len() {
+        let b = bytes[i];
+        let next = bytes.get(i + 1).copied();
+
+        if in_line_comment {
+            if b == b'\n' {
+                in_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_block_comment > 0 {
+            if b == b'/' && next == Some(b'*') {
+                in_block_comment += 1;
+                i += 2;
+                continue;
+            }
+            if b == b'*' && next == Some(b'/') {
+                in_block_comment -= 1;
+                i += 2;
+                continue;
+            }
+            i += 1;
+            continue;
+        }
+        if in_string {
+            if b == b'\\' {
+                i += 2;
+                continue;
+            }
+            if b == b'"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_char {
+            if b == b'\\' {
+                i += 2;
+                continue;
+            }
+            if b == b'\'' {
+                in_char = false;
+            }
+            i += 1;
+            continue;
+        }
+        if let Some(hashes) = raw_hashes {
+            if b == b'"' {
+                let mut j = i + 1;
+                let mut count = 0usize;
+                while j < bytes.len() && bytes[j] == b'#' && count < hashes {
+                    count += 1;
+                    j += 1;
+                }
+                if count == hashes {
+                    raw_hashes = None;
+                    i = j;
+                    continue;
+                }
+            }
+            i += 1;
+            continue;
+        }
+
+        if b == b'/' && next == Some(b'/') {
+            in_line_comment = true;
+            i += 2;
+            continue;
+        }
+        if b == b'/' && next == Some(b'*') {
+            in_block_comment = 1;
+            i += 2;
+            continue;
+        }
+        if b == b'r' && (next == Some(b'"') || next == Some(b'#')) {
+            let mut j = i + 1;
+            let mut hashes = 0usize;
+            while j < bytes.len() && bytes[j] == b'#' {
+                hashes += 1;
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b'"' {
+                raw_hashes = Some(hashes);
+                i = j + 1;
+                continue;
+            }
+        }
+        if b == b'"' {
+            in_string = true;
+            i += 1;
+            continue;
+        }
+        if b == b'\'' {
+            in_char = true;
+            i += 1;
+            continue;
+        }
+
+        match b {
+            b'{' => {
+                seen_open = true;
+                brace_depth += 1;
+            }
+            b'}' => {
+                if brace_depth > 0 {
+                    brace_depth -= 1;
+                    if brace_depth == 0 && seen_open {
+                        return Some(i + 1);
+                    }
+                }
+            }
+            b'(' => {
+                seen_open = true;
+                paren_depth += 1;
+            }
+            b')' => {
+                if paren_depth > 0 {
+                    paren_depth -= 1;
+                }
+            }
+            b';' => {
+                if !seen_open {
+                    return Some(i + 1);
+                }
+                if seen_open && brace_depth == 0 && paren_depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
 fn symbol_kind_label(def_kind: DefKind) -> String {
     let kind = match def_kind {

@@ -1,5 +1,52 @@
 mod collector;
 
+pub(crate) fn add_file_module_symbol(
+    module_path: &str,
+    file: &Path,
+    symbol_table: &mut SymbolIndex,
+    out: &mut Vec<SymbolRecord>,
+    symbol_set: &mut HashSet<String>,
+) {
+    let module_id = normalize_symbol_id(module_path);
+    let module_path = module_id.as_str();
+    if module_path == "crate" {
+        return;
+    }
+    let file_string = file.to_string_lossy().to_string();
+    if let Some(existing) = symbol_table.symbols.get_mut(module_path) {
+        existing.definition_file = Some(file_string.clone());
+        update_symbol_snapshot(
+            out,
+            module_path,
+            |entry| {
+                entry.definition_file = Some(file_string.clone());
+            },
+        );
+        return;
+    }
+    if symbol_set.contains(module_path) {
+        return;
+    }
+    let name = module_path.split("::").last().unwrap_or(module_path).to_string();
+    let entry = SymbolRecord {
+        id: module_path.to_string(),
+        kind: "module".to_string(),
+        name,
+        module: module_path.to_string(),
+        file: file_string.clone(),
+        declaration_file: None,
+        definition_file: Some(file_string),
+        span: stub_range(),
+        alias: None,
+        doc_comments: Vec::new(),
+        attributes: Vec::new(),
+    };
+    symbol_set.insert(entry.id.clone());
+    symbol_table.symbols.insert(entry.id.clone(), entry.clone());
+    out.push(entry);
+}
+
+
 pub fn collect_names(project: &Path) -> Result<SymbolIndexReport> {
     let project = project.to_path_buf();
     let result = std::thread::Builder::new()
@@ -106,103 +153,6 @@ fn collect_names_inner(project: &Path) -> Result<SymbolIndexReport> {
 }
 
 
-pub fn emit_names(project: &Path, out: &Path) -> Result<()> {
-    let report = collect_names(project)?;
-    if let Some(parent) = out.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::write(out, serde_json::to_vec_pretty(&report)?)?;
-    Ok(())
-}
-
-
-fn update_symbol_snapshot<F>(out: &mut Vec<SymbolRecord>, id: &str, mut update: F)
-where
-    F: FnMut(&mut SymbolRecord),
-{
-    if let Some(entry) = out.iter_mut().find(|entry| entry.id == id) {
-        update(entry);
-    }
-}
-
-
-fn merge_symbol_metadata(target: &mut SymbolRecord, source: &SymbolRecord) {
-    if target.kind != source.kind {
-        return;
-    }
-    if target.kind == "module" {
-        if source.declaration_file.is_some() {
-            target.declaration_file = source.declaration_file.clone();
-            target.file = source.file.clone();
-            target.span = source.span.clone();
-            target.doc_comments = source.doc_comments.clone();
-            target.attributes = source.attributes.clone();
-        }
-        if source.definition_file.is_some() {
-            target.definition_file = source.definition_file.clone();
-        }
-        if source.alias.is_some() {
-            target.alias = source.alias.clone();
-        }
-    }
-}
-
-
-pub(crate) fn add_file_module_symbol(
-    module_path: &str,
-    file: &Path,
-    symbol_table: &mut SymbolIndex,
-    out: &mut Vec<SymbolRecord>,
-    symbol_set: &mut HashSet<String>,
-) {
-    let module_id = normalize_symbol_id(module_path);
-    let module_path = module_id.as_str();
-    if module_path == "crate" {
-        return;
-    }
-    let file_string = file.to_string_lossy().to_string();
-    if let Some(existing) = symbol_table.symbols.get_mut(module_path) {
-        existing.definition_file = Some(file_string.clone());
-        update_symbol_snapshot(
-            out,
-            module_path,
-            |entry| {
-                entry.definition_file = Some(file_string.clone());
-            },
-        );
-        return;
-    }
-    if symbol_set.contains(module_path) {
-        return;
-    }
-    let name = module_path.split("::").last().unwrap_or(module_path).to_string();
-    let entry = SymbolRecord {
-        id: module_path.to_string(),
-        kind: "module".to_string(),
-        name,
-        module: module_path.to_string(),
-        file: file_string.clone(),
-        declaration_file: None,
-        definition_file: Some(file_string),
-        span: stub_range(),
-        alias: None,
-        doc_comments: Vec::new(),
-        attributes: Vec::new(),
-    };
-    symbol_set.insert(entry.id.clone());
-    symbol_table.symbols.insert(entry.id.clone(), entry.clone());
-    out.push(entry);
-}
-
-
-fn stub_range() -> SpanRange {
-    SpanRange {
-        start: LineColumn { line: 1, column: 1 },
-        end: LineColumn { line: 1, column: 1 },
-    }
-}
-
-
 pub(crate) fn collect_symbols(
     ast: &syn::File,
     module_path: &str,
@@ -234,4 +184,54 @@ pub(crate) fn collect_symbols(
         }
     }
     alias_graph
+}
+
+
+pub fn emit_names(project: &Path, out: &Path) -> Result<()> {
+    let report = collect_names(project)?;
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(out, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}
+
+
+fn merge_symbol_metadata(target: &mut SymbolRecord, source: &SymbolRecord) {
+    if target.kind != source.kind {
+        return;
+    }
+    if target.kind == "module" {
+        if source.declaration_file.is_some() {
+            target.declaration_file = source.declaration_file.clone();
+            target.file = source.file.clone();
+            target.span = source.span.clone();
+            target.doc_comments = source.doc_comments.clone();
+            target.attributes = source.attributes.clone();
+        }
+        if source.definition_file.is_some() {
+            target.definition_file = source.definition_file.clone();
+        }
+        if source.alias.is_some() {
+            target.alias = source.alias.clone();
+        }
+    }
+}
+
+
+fn stub_range() -> SpanRange {
+    SpanRange {
+        start: LineColumn { line: 1, column: 1 },
+        end: LineColumn { line: 1, column: 1 },
+    }
+}
+
+
+fn update_symbol_snapshot<F>(out: &mut Vec<SymbolRecord>, id: &str, mut update: F)
+where
+    F: FnMut(&mut SymbolRecord),
+{
+    if let Some(entry) = out.iter_mut().find(|entry| entry.id == id) {
+        update(entry);
+    }
 }
