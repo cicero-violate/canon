@@ -18,6 +18,12 @@ pub(crate) struct Plan1 {
     pub files: Vec<FilePlan>,
 }
 
+pub(crate) struct EmissionReport {
+    pub written: Vec<PathBuf>,
+    pub unchanged: Vec<PathBuf>,
+    pub deletion_candidates: Vec<PathBuf>,
+}
+
 pub(crate) fn apply_moves_to_snapshot(snapshot: &mut GraphSnapshot, moveset: &MoveSet) -> Result<()> {
     if moveset.entries.is_empty() {
         return Ok(());
@@ -206,8 +212,9 @@ pub(crate) fn emit_plan(
     plan: Plan1,
     project_root: &Path,
     allow_delete: bool,
-) -> Result<HashSet<PathBuf>> {
-    let mut touched = HashSet::new();
+) -> Result<EmissionReport> {
+    let mut written = Vec::new();
+    let mut unchanged = Vec::new();
     enforce_root_guard(project_root, &plan)?;
     let existing = fs::collect_rs_files(project_root)?;
     let plan_paths: HashSet<PathBuf> = plan.files.iter().map(|f| f.path.clone()).collect();
@@ -215,13 +222,14 @@ pub(crate) fn emit_plan(
         .into_iter()
         .filter(|file| !plan_paths.contains(file))
         .collect();
+    let deletion_count = deletion_candidates.len();
     if allow_delete {
-        for file in deletion_candidates {
+        for file in &deletion_candidates {
             let _ = std::fs::remove_file(&file);
         }
-    } else if !deletion_candidates.is_empty() {
-        eprintln!("Plan emission would delete {} files (suppressed):", deletion_candidates.len());
-        for file in deletion_candidates {
+    } else if deletion_count > 0 {
+        eprintln!("Plan emission would delete {} files (suppressed):", deletion_count);
+        for file in &deletion_candidates {
             eprintln!("  {}", file.display());
         }
     }
@@ -235,10 +243,31 @@ pub(crate) fn emit_plan(
         if let Some(parent) = file.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&file.path, registry.sources.get(&file.path).unwrap().as_str())?;
-        touched.insert(file.path);
+        let new_content = registry.sources.get(&file.path).unwrap().as_str();
+        let mut changed = true;
+        if let Ok(existing) = std::fs::read_to_string(&file.path) {
+            if existing == new_content {
+                changed = false;
+            }
+        }
+        if changed {
+            std::fs::write(&file.path, new_content)?;
+            written.push(file.path);
+        } else {
+            unchanged.push(file.path);
+        }
     }
-    Ok(touched)
+    eprintln!(
+        "Plan emission summary: written={}, unchanged={}, deletions={}",
+        written.len(),
+        unchanged.len(),
+        deletion_count
+    );
+    Ok(EmissionReport {
+        written,
+        unchanged,
+        deletion_candidates,
+    })
 }
 
 fn enforce_root_guard(project_root: &Path, plan: &Plan1) -> Result<()> {
@@ -290,6 +319,14 @@ pub(crate) fn ensure_emission_branch(project_root: &Path) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn verify_refactor_branch(project_root: &Path) -> Result<()> {
+    let current = git_cmd(project_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+    if !current.trim().starts_with("refactor-") {
+        return Err(anyhow!("refactor branch required for emission"));
+    }
+    Ok(())
+}
+
 pub(crate) fn allow_plan_deletions(project_root: &Path) -> Result<bool> {
     let current = git_cmd(project_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
     if !current.trim().starts_with("refactor-") {
@@ -317,6 +354,20 @@ fn ensure_clean_working_tree(project_root: &Path) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn rollback_emission(project_root: &Path) -> Result<()> {
+    git_cmd(project_root, &["checkout", "--", "."])?;
+    Ok(())
+}
+
+pub(crate) fn maybe_commit_emission(project_root: &Path) -> Result<()> {
+    if !std::env::args().any(|a| a == "--commit") {
+        return Ok(());
+    }
+    git_cmd(project_root, &["add", "-A"])?;
+    git_cmd(project_root, &["commit", "-m", "plan emission"])?;
+    Ok(())
+}
+
 pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapshot> {
     use compiler_capture::frontends::rustc::RustcFrontend;
     use compiler_capture::multi_capture::capture_project;
@@ -336,16 +387,30 @@ pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapsho
 }
 
 pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> Result<()> {
+    let left_node_count = left.nodes.len();
+    let right_node_count = right.nodes.len();
+    let left_edge_count = left.edges.len();
+    let right_edge_count = right.edges.len();
     let mut left_nodes = left.nodes.clone();
     let mut right_nodes = right.nodes.clone();
     left_nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
     right_nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
     if left_nodes.len() != right_nodes.len() {
-        return Err(anyhow!("snapshot node count mismatch"));
+        return Err(anyhow!(
+            "snapshot node count mismatch (left={}, right={})",
+            left_node_count,
+            right_node_count
+        ));
     }
     for (l, r) in left_nodes.iter().zip(right_nodes.iter()) {
         if l.id != r.id || l.key != r.key || l.label != r.label || l.metadata != r.metadata {
-            return Err(anyhow!("snapshot node mismatch"));
+            return Err(anyhow!(
+                "snapshot node mismatch (left_nodes={}, right_nodes={}, left_edges={}, right_edges={})",
+                left_node_count,
+                right_node_count,
+                left_edge_count,
+                right_edge_count
+            ));
         }
     }
     let mut left_edges = left.edges.clone();
@@ -353,11 +418,21 @@ pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> 
     left_edges.sort_by(|a, b| a.id.0.cmp(&b.id.0));
     right_edges.sort_by(|a, b| a.id.0.cmp(&b.id.0));
     if left_edges.len() != right_edges.len() {
-        return Err(anyhow!("snapshot edge count mismatch"));
+        return Err(anyhow!(
+            "snapshot edge count mismatch (left={}, right={})",
+            left_edge_count,
+            right_edge_count
+        ));
     }
     for (l, r) in left_edges.iter().zip(right_edges.iter()) {
         if l.id != r.id || l.from != r.from || l.to != r.to || l.kind != r.kind || l.metadata != r.metadata {
-            return Err(anyhow!("snapshot edge mismatch"));
+            return Err(anyhow!(
+                "snapshot edge mismatch (left_nodes={}, right_nodes={}, left_edges={}, right_edges={})",
+                left_node_count,
+                right_node_count,
+                left_edge_count,
+                right_edge_count
+            ));
         }
     }
     Ok(())

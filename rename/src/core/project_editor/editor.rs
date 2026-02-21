@@ -1,5 +1,9 @@
 use super::cross_file::{apply_cross_file_moves, collect_new_files};
-use super::graph_pipeline::{allow_plan_deletions, apply_moves_to_snapshot, compare_snapshots, emit_plan, ensure_emission_branch, project_plan, rebuild_graph_snapshot};
+use super::graph_pipeline::{
+    allow_plan_deletions, apply_moves_to_snapshot, compare_snapshots, emit_plan,
+    ensure_emission_branch, maybe_commit_emission, project_plan, rebuild_graph_snapshot,
+    rollback_emission, verify_refactor_branch,
+};
 use super::model_validation::validate_model0;
 use super::ops::apply_node_op;
 use super::oracle::GraphSnapshotOracle;
@@ -185,14 +189,20 @@ impl ProjectEditor {
                 let mut model1 = model0.clone();
                 apply_moves_to_snapshot(&mut model1, &moveset)?;
                 ensure_emission_branch(&self.project_root)?;
+                verify_refactor_branch(&self.project_root)?;
                 let allow_delete = allow_plan_deletions(&self.project_root)?;
                 let plan = project_plan(&model1, &self.project_root)?;
-                let touched = emit_plan(&mut self.registry, plan, &self.project_root, allow_delete)?;
+                let report = emit_plan(&mut self.registry, plan, &self.project_root, allow_delete)?;
                 self.rebuild_registry_from_sources()?;
                 let model2 = rebuild_graph_snapshot(&self.project_root)?;
-                compare_snapshots(&model1, &model2)?;
+                if let Err(err) = compare_snapshots(&model1, &model2) {
+                    rollback_emission(&self.project_root)?;
+                    return Err(err);
+                }
                 self.model0 = Some(model2.clone());
                 self.oracle = Box::new(GraphSnapshotOracle::from_snapshot(model2));
+                maybe_commit_emission(&self.project_root)?;
+                let touched: HashSet<PathBuf> = report.written.iter().cloned().collect();
                 self.last_touched_files = touched.clone();
                 return Ok(ChangeReport {
                     touched_files: touched.into_iter().collect(),
