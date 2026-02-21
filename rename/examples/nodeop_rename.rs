@@ -3,27 +3,31 @@
 #[cfg(feature = "rustc_frontend")]
 extern crate rustc_driver;
 
-// rename::* is redundant/confusing.
-// Crate name is already `rename`.
 use rename::core::project_editor::ProjectEditor;
 use rename::structured::FieldMutation;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Target memory/database crate
-    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/memory/database/src");
+    // Target: rename crate itself
+    let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // Use ONLY fully-qualified symbols confirmed in memory/database SYMBOLS.json
+    // 5 confusing names in the rename crate, confirmed from SYMBOLS.json
     let renames = [
-        // struct crate::tlog::tlog::TransactionLog
-        ("crate::tlog::tlog::TransactionLog", "DeltaLog"),
+        // "Enhanced" is meaningless — no non-enhanced version exists
+        ("crate::occurrence::EnhancedOccurrenceVisitor", "OccurrenceVisitor"),
 
-        // trait crate::engine::Engine
-        ("crate::engine::Engine", "DeltaExecutionEngine"),
+        // "Symbol" is overloaded — this walks AST items, not symbols
+        ("crate::core::collect::collector::SymbolCollector", "ItemCollector"),
 
-        // type crate::primitives::Hash
-        ("crate::primitives::Hash", "StateHash"),
+        // "Enhanced" prefix on ImplContext inside occurrence is redundant noise
+        ("crate::occurrence::ImplContext", "OccurrenceImplContext"),
+
+        // "Structured" prefix is vague — this tracks an edit session
+        ("crate::core::structured::StructuredEditTracker", "EditSessionTracker"),
+
+        // Ambiguous with GraphSnapshot in state — needs Graph prefix
+        ("crate::core::project_editor::SnapshotOracle", "GraphSnapshotOracle"),
     ];
 
     for (symbol_id, new_name) in renames {
