@@ -364,6 +364,7 @@
 | "use"          | crate::core::project_editor::Path                                          | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::Result                                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::Context                                       | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "use"          | crate::core::project_editor::ToTokens                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::Visit                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::Signature                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::AliasGraph                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
@@ -425,6 +426,9 @@
 | "function"     | crate::core::project_editor::replace_last_segment                          | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::build_symbol_index                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::apply_cross_file_moves                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "function"     | crate::core::project_editor::collect_needed_uses                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "function"     | crate::core::project_editor::collect_use_leaves                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "function"     | crate::core::project_editor::token_contains_word                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::find_mod_container_mut                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::find_project_root                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::resolve_dst_file                              | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
@@ -881,7 +885,7 @@
 | "field"        | crate::occurrence::scoped_binder                                           | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::current_impl                                            | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::current_struct                                          | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
-| "struct"       | crate::occurrence::OccurrenceImplContext                                   | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
+| "struct"       | crate::occurrence::ImplCtx                                                 | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "field"        | crate::occurrence::type_name                                               | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "method"       | crate::occurrence::new                                                     | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |
 | "method"       | crate::occurrence::add_occurrence                                          | /workspace/ai_sandbox/canon_workspace/rename/src/occurrence.rs                    |

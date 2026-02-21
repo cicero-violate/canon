@@ -33,11 +33,11 @@ pub struct OccurrenceVisitor<'a> {
     alias_graph: &'a AliasGraph,
     occurrences: &'a mut Vec<SymbolOccurrence>,
     scoped_binder: ScopeBinder,
-    current_impl: Option<OccurrenceImplContext>,
+    current_impl: Option<ImplCtx>,
     current_struct: Option<String>,
 }
 #[derive(Clone)]
-struct OccurrenceImplContext {
+struct ImplCtx {
     type_name: String,
 }
 impl<'a> OccurrenceVisitor<'a> {
@@ -195,7 +195,7 @@ impl<'a> Visit<'a> for OccurrenceVisitor<'a> {
             _ => None,
         };
         if let Some(type_name) = type_name {
-            self.current_impl = Some(OccurrenceImplContext { type_name });
+            self.current_impl = Some(ImplCtx { type_name });
         } else {
             self.current_impl = None;
         }
