@@ -76,6 +76,8 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
         crate_metadata, item_capture::*, mir_capture::capture_function,
         node_builder::ensure_node, trait_capture::*, type_capture::capture_function_types,
     };
+    let mut def_kind_counts: HashMap<String, usize> = HashMap::new();
+    let mut mir_key_count = 0usize;
     let mut builder = DeltaCollector::new();
     let mut cache: HashMap<DefId, NodeId> = HashMap::new();
     crate_metadata::capture_crate_metadata(&mut builder, tcx, metadata);
@@ -83,6 +85,7 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
     capture_mod(&mut builder, tcx, CRATE_DEF_ID.to_def_id(), &mut cache, metadata);
     for local_def_id in crate_items.definitions() {
         let def_id = local_def_id.to_def_id();
+        *def_kind_counts.entry(format!("{:?}", tcx.def_kind(def_id))).or_insert(0) += 1;
         match tcx.def_kind(def_id) {
             DefKind::Mod => {
                 capture_mod(&mut builder, tcx, def_id, &mut cache, metadata);
@@ -106,6 +109,7 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
         }
     }
     for &local_def in tcx.mir_keys(()).iter() {
+        mir_key_count += 1;
         let def_id = local_def.to_def_id();
         if !matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn)
             || !tcx.is_mir_available(def_id)
@@ -116,6 +120,13 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
         capture_function(&mut builder, tcx, local_def, caller_id, &mut cache, metadata);
         capture_function_types(&mut builder, tcx, local_def, &mut cache, metadata);
     }
-    builder.into_deltas()
+    let deltas = builder.into_deltas();
+    eprintln!(
+        "[capture_driver] defs={} mir_keys={} deltas={}",
+        def_kind_counts.values().sum::<usize>(),
+        mir_key_count,
+        deltas.len()
+    );
+    eprintln!("[capture_driver] def_kind_counts={:?}", def_kind_counts);
+    deltas
 }
-
