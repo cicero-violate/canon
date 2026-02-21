@@ -249,16 +249,6 @@ fn propagate_move(
     for occ in occurrences.iter().filter(|occ| occ.id == norm_id && occ.kind == "use") {
         push_unique_edit(&mut rewrites, &mut seen, occ, &symbol_name);
     }
-    if let Some(old_module) = parent_module_path(&norm_id) {
-        if old_module != new_module_path {
-            for occ in occurrences
-                .iter()
-                .filter(|occ| occ.id == old_module && occ.kind == "use_path")
-            {
-                push_unique_edit(&mut rewrites, &mut seen, occ, &new_module_leaf);
-            }
-        }
-    }
     let mut importer_files: HashSet<String> = HashSet::new();
     for node in alias_graph.get_importers(&norm_id) {
         importer_files.insert(node.file.clone());
@@ -266,6 +256,23 @@ fn propagate_move(
     for chain in alias_graph.find_reexport_chains(&norm_id) {
         for node in chain {
             importer_files.insert(node.file.clone());
+        }
+    }
+    // Rewrite module path segment only in files that actually import the moved symbol.
+    // Scoping to importer_files prevents rewriting unrelated imports from the same module
+    // (e.g. StructuralEditOracle staying in oracle.rs must not have its path rewritten).
+    if let Some(old_module) = parent_module_path(&norm_id) {
+        if old_module != new_module_path {
+            for occ in occurrences
+                .iter()
+                .filter(|occ| {
+                    occ.id == old_module
+                        && occ.kind == "use_path"
+                        && importer_files.contains(&occ.file)
+                })
+            {
+                push_unique_edit(&mut rewrites, &mut seen, occ, &new_module_leaf);
+            }
         }
     }
     for file in importer_files {
