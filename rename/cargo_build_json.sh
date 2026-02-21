@@ -1,8 +1,7 @@
 cargo build --message-format=json 2>/dev/null \
 | jq -c 'select(.reason=="compiler-message")
          | .message
-         | select(.level=="error" or \
-	 .level=="warning")
+         | select(.level=="error" or .level=="warning")
          | {level: .level,
             code: (.code.code // "unknown"),
             message: .message,
