@@ -572,7 +572,7 @@ fn resolve_dst_file(
             continue;
         }
         let module = normalize_symbol_id(&module_path_for_file(&project_root, file));
-        if module == norm_dst || norm_dst.starts_with(&format!("{}::", module)) {
+        if module == norm_dst {
             return Some(file.clone());
         }
     }
