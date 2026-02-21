@@ -139,7 +139,10 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
     let mut module_list: Vec<String> = module_set.into_iter().collect();
     module_list.sort();
     for module_path in module_list {
-        let file_path = compute_new_file_path(&ModulePath::from_string(&module_path), project_root)?;
+        let has_children = modules
+            .keys()
+            .any(|m| is_direct_child(m, &module_path));
+        let file_path = module_file_path(&module_path, has_children, project_root)?;
         let mut file_items = Vec::new();
 
         let mut child_modules: Vec<String> = modules
@@ -161,7 +164,8 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
                     let snippet = snippet.trim();
                     if !snippet.is_empty() {
                         let vis = normalize_visibility(node.metadata.get("visibility").map(|s| s.as_str()))?;
-                        let rendered = if vis.is_empty() { snippet.to_string() } else { format!("{vis}{snippet}") };
+                        let snippet = strip_leading_visibility(snippet);
+                        let rendered = if vis.is_empty() { snippet } else { format!("{vis}{snippet}") };
                         file_items.push(rendered);
                     }
                 }
@@ -203,6 +207,30 @@ fn is_direct_child(module: &str, parent: &str) -> bool {
     !rest.is_empty() && !rest.contains("::")
 }
 
+fn module_file_path(module_path: &str, has_children: bool, project_root: &Path) -> Result<PathBuf> {
+    let mut path = project_root.join("src");
+    let module = ModulePath::from_string(module_path);
+    let segments: Vec<_> = module
+        .segments
+        .iter()
+        .skip_while(|s| *s == "crate")
+        .collect();
+    if segments.is_empty() {
+        return Ok(path.join("lib.rs"));
+    }
+    for segment in &segments[..segments.len().saturating_sub(1)] {
+        path = path.join(segment);
+    }
+    if let Some(last) = segments.last() {
+        if has_children {
+            path = path.join(last).join("mod.rs");
+        } else {
+            path = path.join(format!("{last}.rs"));
+        }
+    }
+    Ok(path)
+}
+
 fn module_visibility(modules: &HashMap<String, WireNode>, module: &str) -> Result<String> {
     let Some(node) = modules.get(module) else {
         return Ok(String::new());
@@ -230,6 +258,20 @@ fn normalize_visibility(value: Option<&str>) -> Result<String> {
         }
         other => Err(anyhow!("unknown visibility value: {other}")),
     }
+}
+
+fn strip_leading_visibility(snippet: &str) -> String {
+    let s = snippet.trim_start();
+    if let Some(rest) = s.strip_prefix("pub ") {
+        return rest.trim_start().to_string();
+    }
+    if let Some(rest) = s.strip_prefix("pub(") {
+        if let Some(idx) = rest.find(')') {
+            let after = &rest[idx + 1..];
+            return after.trim_start().to_string();
+        }
+    }
+    s.to_string()
 }
 
 pub(crate) fn emit_plan(
@@ -438,10 +480,24 @@ pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> 
     left_nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
     right_nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
     if left_nodes.len() != right_nodes.len() {
+        let left_defs: HashSet<String> = left
+            .nodes
+            .iter()
+            .filter_map(|n| n.metadata.get("def_path").cloned())
+            .collect();
+        let right_defs: HashSet<String> = right
+            .nodes
+            .iter()
+            .filter_map(|n| n.metadata.get("def_path").cloned())
+            .collect();
+        let extra: Vec<_> = right_defs.difference(&left_defs).take(10).cloned().collect();
+        let missing: Vec<_> = left_defs.difference(&right_defs).take(10).cloned().collect();
         return Err(anyhow!(
-            "snapshot node count mismatch (left={}, right={})",
+            "snapshot node count mismatch (left={}, right={}, extra_right={:?}, missing_right={:?})",
             left_node_count,
-            right_node_count
+            right_node_count,
+            extra,
+            missing
         ));
     }
     for (l, r) in left_nodes.iter().zip(right_nodes.iter()) {
