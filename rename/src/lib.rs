@@ -18,6 +18,7 @@ pub mod attributes;
 pub mod core;
 pub mod fs;
 pub mod macros;
+pub mod model;
 pub mod module_path;
 pub mod occurrence;
 pub mod pattern;

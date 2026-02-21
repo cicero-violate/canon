@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use syn::visit_mut::VisitMut;
 
-use crate::core::{span_to_range, SpanRange};
+use crate::model::span::{span_to_range, SpanRange};
 
 use super::config::StructuredEditOptions;
 use super::orchestrator::StructuredPass;
