@@ -428,6 +428,8 @@
 | "function"     | crate::core::project_editor::collect_use_path_updates                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::replace_last_segment                          | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::build_symbol_index                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "function"     | crate::core::project_editor::apply_cross_file_moves                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "function"     | crate::core::project_editor::find_mod_container_mut                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "function"     | crate::core::project_editor::find_project_root                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "module"       | crate::core::project_editor::ops                                           | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "module"       | crate::core::project_editor::propagate                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
@@ -503,6 +505,8 @@
 | "function"     | crate::core::project_editor::ops::get_item_mut                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |
 | "function"     | crate::core::project_editor::ops::resolve_items_container_mut              | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |
 | "function"     | crate::core::project_editor::ops::resolve_items_container_from             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |
+| "function"     | crate::core::project_editor::ops::move_symbol_intra_file                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |
+| "function"     | crate::core::project_editor::ops::find_mod_indices_by_name                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |
 | "use"          | crate::core::project_editor::propagate::HashSet                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
 | "use"          | crate::core::project_editor::propagate::HashMap                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
 | "use"          | crate::core::project_editor::propagate::PathBuf                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/propagate.rs |
