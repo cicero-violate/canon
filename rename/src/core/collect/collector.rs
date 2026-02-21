@@ -1,7 +1,6 @@
 use proc_macro2::Span;
 use std::path::Path;
 
-// use crate::alias::{ImportNode, UseKind, VisibilityScope};
 use crate::alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
 
 use super::super::paths::module_child_path;
