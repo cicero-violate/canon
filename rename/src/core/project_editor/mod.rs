@@ -444,23 +444,7 @@ fn apply_cross_file_moves(
     for (src_file, ops) in changesets {
         for queued in ops {
             if let NodeOp::MoveSymbol { handle, new_module_path, .. } = &queued.op {
-                let dst_file = registry
-                    .handles
-                    .values()
-                    .find(|h| {
-                        let file_str = h.file.to_string_lossy();
-                        new_module_path.contains(
-                            &file_str
-                                .split('/')
-                                .last()
-                                .unwrap_or("")
-                                .trim_end_matches(".rs")
-                                .to_string(),
-                        )
-                    })
-                    .map(|h| h.file.clone());
-
-                let dst_file = match dst_file {
+                let dst_file = match resolve_dst_file(registry, new_module_path, src_file) {
                     Some(f) if f != *src_file => f,
                     _ => continue,
                 };
@@ -562,6 +546,37 @@ fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
         }
     }
     Ok(None)
+}
+
+/// Resolve the destination file for a cross-file move by matching the target module
+/// path against the module paths of all ASTs currently in the registry.
+fn resolve_dst_file(
+    registry: &NodeRegistry,
+    new_module_path: &str,
+    src_file: &PathBuf,
+) -> Option<PathBuf> {
+    let project_root = registry.asts.keys().next().and_then(|f| {
+        let mut cur = f.parent()?.to_path_buf();
+        loop {
+            if cur.join("Cargo.toml").exists() {
+                return Some(cur);
+            }
+            if !cur.pop() {
+                return None;
+            }
+        }
+    })?;
+    let norm_dst = normalize_symbol_id(new_module_path);
+    for file in registry.asts.keys() {
+        if file == src_file {
+            continue;
+        }
+        let module = normalize_symbol_id(&module_path_for_file(&project_root, file));
+        if module == norm_dst || norm_dst.starts_with(&format!("{}::", module)) {
+            return Some(file.clone());
+        }
+    }
+    None
 }
 mod ops;
 mod propagate;
