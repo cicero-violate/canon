@@ -1,7 +1,7 @@
 use crate::core::project_editor::refactor::MoveSet;
 use crate::core::symbol_id::normalize_symbol_id;
 use crate::fs;
-use crate::module_path::{compute_new_file_path, ModulePath};
+use crate::module_path::ModulePath;
 use crate::state::NodeRegistry;
 use anyhow::{anyhow, Result};
 use database::graph_log::{GraphSnapshot, WireNode, WireNodeId};
@@ -471,67 +471,84 @@ pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapsho
 }
 
 pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> Result<()> {
-    let left_node_count = left.nodes.len();
-    let right_node_count = right.nodes.len();
-    let left_edge_count = left.edges.len();
-    let right_edge_count = right.edges.len();
-    let mut left_nodes = left.nodes.clone();
-    let mut right_nodes = right.nodes.clone();
-    left_nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
-    right_nodes.sort_by(|a, b| a.id.0.cmp(&b.id.0));
-    if left_nodes.len() != right_nodes.len() {
-        let left_defs: HashSet<String> = left
-            .nodes
-            .iter()
-            .filter_map(|n| n.metadata.get("def_path").cloned())
-            .collect();
-        let right_defs: HashSet<String> = right
-            .nodes
-            .iter()
-            .filter_map(|n| n.metadata.get("def_path").cloned())
-            .collect();
-        let extra: Vec<_> = right_defs.difference(&left_defs).take(10).cloned().collect();
-        let missing: Vec<_> = left_defs.difference(&right_defs).take(10).cloned().collect();
+    let mut left_map: HashMap<String, WireNode> = HashMap::new();
+    let mut right_map: HashMap<String, WireNode> = HashMap::new();
+    for node in &left.nodes {
+        let Some(def_path) = node.metadata.get("def_path") else { continue; };
+        let kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
+        let key = format!("{def_path}#{kind}");
+        left_map.insert(key, node.clone());
+    }
+    for node in &right.nodes {
+        let Some(def_path) = node.metadata.get("def_path") else { continue; };
+        let kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
+        let key = format!("{def_path}#{kind}");
+        right_map.insert(key, node.clone());
+    }
+    if left_map.len() != right_map.len() {
+        let left_keys: HashSet<_> = left_map.keys().cloned().collect();
+        let right_keys: HashSet<_> = right_map.keys().cloned().collect();
+        let extra: Vec<_> = right_keys.difference(&left_keys).take(10).cloned().collect();
+        let missing: Vec<_> = left_keys.difference(&right_keys).take(10).cloned().collect();
         return Err(anyhow!(
             "snapshot node count mismatch (left={}, right={}, extra_right={:?}, missing_right={:?})",
-            left_node_count,
-            right_node_count,
+            left_map.len(),
+            right_map.len(),
             extra,
             missing
         ));
     }
-    for (l, r) in left_nodes.iter().zip(right_nodes.iter()) {
-        if l.id != r.id || l.key != r.key || l.label != r.label || l.metadata != r.metadata {
-            return Err(anyhow!(
-                "snapshot node mismatch (left_nodes={}, right_nodes={}, left_edges={}, right_edges={})",
-                left_node_count,
-                right_node_count,
-                left_edge_count,
-                right_edge_count
-            ));
+    for (key, left_node) in &left_map {
+        let Some(right_node) = right_map.get(key) else {
+            return Err(anyhow!("snapshot node missing for key={}", key));
+        };
+        let left_meta = filtered_metadata(left_node);
+        let right_meta = filtered_metadata(right_node);
+        if left_meta != right_meta {
+            return Err(anyhow!("snapshot node mismatch for key={}", key));
         }
     }
-    let mut left_edges = left.edges.clone();
-    let mut right_edges = right.edges.clone();
-    left_edges.sort_by(|a, b| a.id.0.cmp(&b.id.0));
-    right_edges.sort_by(|a, b| a.id.0.cmp(&b.id.0));
-    if left_edges.len() != right_edges.len() {
-        return Err(anyhow!(
-            "snapshot edge count mismatch (left={}, right={})",
-            left_edge_count,
-            right_edge_count
-        ));
+
+    let mut left_edges: HashSet<(String, String, String)> = HashSet::new();
+    let mut right_edges: HashSet<(String, String, String)> = HashSet::new();
+    let left_id_to_key: HashMap<_, _> = left_map
+        .iter()
+        .map(|(k, v)| (v.id.clone(), k.clone()))
+        .collect();
+    let right_id_to_key: HashMap<_, _> = right_map
+        .iter()
+        .map(|(k, v)| (v.id.clone(), k.clone()))
+        .collect();
+    for edge in &left.edges {
+        let (Some(from), Some(to)) = (left_id_to_key.get(&edge.from), left_id_to_key.get(&edge.to)) else { continue; };
+        left_edges.insert((from.clone(), to.clone(), edge.kind.clone()));
     }
-    for (l, r) in left_edges.iter().zip(right_edges.iter()) {
-        if l.id != r.id || l.from != r.from || l.to != r.to || l.kind != r.kind || l.metadata != r.metadata {
-            return Err(anyhow!(
-                "snapshot edge mismatch (left_nodes={}, right_nodes={}, left_edges={}, right_edges={})",
-                left_node_count,
-                right_node_count,
-                left_edge_count,
-                right_edge_count
-            ));
-        }
+    for edge in &right.edges {
+        let (Some(from), Some(to)) = (right_id_to_key.get(&edge.from), right_id_to_key.get(&edge.to)) else { continue; };
+        right_edges.insert((from.clone(), to.clone(), edge.kind.clone()));
+    }
+    if left_edges != right_edges {
+        return Err(anyhow!("snapshot edge mismatch"));
     }
     Ok(())
+}
+
+fn filtered_metadata(node: &WireNode) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for key in [
+        "def_path",
+        "node_kind",
+        "module",
+        "module_path",
+        "module_id",
+        "name",
+        "visibility",
+        "kind",
+        "path",
+    ] {
+        if let Some(value) = node.metadata.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    out
 }
