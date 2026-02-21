@@ -11,10 +11,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/rename/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
-    // Move IncludeVisitor from crate::fs into crate::fs::include_visitor.
-    // Tests: Gap 6 visibility promotion, Gap 7 super:: rewrite, impl co-movement.
-    let symbol_id = "crate::fs::IncludeVisitor";
-    let new_module = "crate::fs::include_visitor";
+    // Cross-file MoveSymbol test:
+    // Move AliasGraph from crate::alias::graph into crate::alias (mod.rs).
+    let symbol_id = "crate::alias::graph::AliasGraph";
+    let new_module = "crate::alias";
 
     let handle = editor
         .registry

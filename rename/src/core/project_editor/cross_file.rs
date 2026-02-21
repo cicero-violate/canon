@@ -96,15 +96,34 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
         }
     }
     for mv in pending {
+        // First: clone original item immutably (no mutable borrow yet)
+        let original_item = {
+            let src_ast = registry
+                .asts
+                .get(&mv.src_file)
+                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
+            src_ast.items.get(mv.item_index).cloned()
+        };
+
         let mut item = {
             let src_ast = registry
                 .asts
                 .get_mut(&mv.src_file)
                 .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
-            if mv.item_index >= src_ast.items.len() {
+
+            if let Some(orig) = original_item {
+                if let Some(pos) = src_ast
+                    .items
+                    .iter()
+                    .position(|i| i.to_token_stream().to_string() == orig.to_token_stream().to_string())
+                {
+                    src_ast.items.remove(pos)
+                } else {
+                    anyhow::bail!("cross-file move: failed to locate matching item in AST")
+                }
+            } else {
                 anyhow::bail!("cross-file move: item_index {} out of bounds", mv.item_index);
             }
-        src_ast.items.remove(mv.item_index)
         };
         promote_private_to_pub_crate(&mut item);
        // Collect self-type names from impl blocks before item is consumed,
