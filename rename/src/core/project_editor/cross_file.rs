@@ -96,13 +96,21 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
         }
     }
     for mv in pending {
-        // First: clone original item immutably (no mutable borrow yet)
-        let original_item = {
-            let src_ast = registry
-                .asts
-                .get(&mv.src_file)
-                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
-            src_ast.items.get(mv.item_index).cloned()
+        // Resolve symbol name from handle instead of trusting item_index.
+        // Resolve symbol name using normalized symbol id
+        let symbol_name = {
+            let entry = registry
+                .handles
+                .iter()
+                .find(|(_, h)| h.file == mv.src_file && h.item_index == mv.item_index)
+                .ok_or_else(|| anyhow::anyhow!("cross-file move: unable to resolve handle"))?;
+
+            let full_id = entry.0;
+            full_id
+                .rsplit("::")
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("cross-file move: invalid symbol id"))?
+                .to_string()
         };
 
         let mut item = {
@@ -111,18 +119,19 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
                 .get_mut(&mv.src_file)
                 .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
 
-            if let Some(orig) = original_item {
-                if let Some(pos) = src_ast
-                    .items
-                    .iter()
-                    .position(|i| i.to_token_stream().to_string() == orig.to_token_stream().to_string())
-                {
-                    src_ast.items.remove(pos)
-                } else {
-                    anyhow::bail!("cross-file move: failed to locate matching item in AST")
+            // Match by identifier string equality only
+            if let Some(pos) = src_ast.items.iter().position(|i| {
+                match i {
+                    syn::Item::Struct(s) => s.ident.to_string() == symbol_name,
+                    syn::Item::Enum(e) => e.ident.to_string() == symbol_name,
+                    syn::Item::Trait(t) => t.ident.to_string() == symbol_name,
+                    syn::Item::Fn(f) => f.sig.ident.to_string() == symbol_name,
+                    _ => false,
                 }
+            }) {
+                src_ast.items.remove(pos)
             } else {
-                anyhow::bail!("cross-file move: item_index {} out of bounds", mv.item_index);
+                anyhow::bail!("cross-file move: symbol '{}' not found in AST", symbol_name);
             }
         };
         promote_private_to_pub_crate(&mut item);
