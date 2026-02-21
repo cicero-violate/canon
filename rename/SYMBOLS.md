@@ -340,11 +340,6 @@
 | "trait_method" | crate::core::oracle::satisfies_bounds                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
 | "trait_method" | crate::core::oracle::is_macro_generated                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
 | "trait_method" | crate::core::oracle::cross_crate_users                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
-| "struct"       | crate::core::oracle::NullOracle                                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
-| "method"       | crate::core::oracle::impact_of                                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
-| "method"       | crate::core::oracle::satisfies_bounds                                      | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
-| "method"       | crate::core::oracle::is_macro_generated                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
-| "method"       | crate::core::oracle::cross_crate_users                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/oracle.rs                   |
 | "use"          | crate::core::paths::Result                                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/paths.rs                    |
 | "use"          | crate::core::paths::HashMap                                                | /workspace/ai_sandbox/canon_workspace/rename/src/core/paths.rs                    |
 | "use"          | crate::core::paths::PathBuf                                                | /workspace/ai_sandbox/canon_workspace/rename/src/core/paths.rs                    |
@@ -370,6 +365,7 @@
 | "use"          | crate::core::project_editor::Result                                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::Context                                       | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::Visit                                         | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "use"          | crate::core::project_editor::Signature                                     | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::AliasGraph                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::collect_symbols                               | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::add_file_module_symbol                        | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
@@ -475,6 +471,7 @@
 | "method"       | crate::core::project_editor::satisfies_bounds                              | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "method"       | crate::core::project_editor::is_macro_generated                            | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "method"       | crate::core::project_editor::cross_crate_users                             | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
+| "struct"       | crate::core::project_editor::NullOracle                                    | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/mod.rs       |
 | "use"          | crate::core::project_editor::ops::HashMap                                  | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |
 | "use"          | crate::core::project_editor::ops::Result                                   | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |
 | "use"          | crate::core::project_editor::ops::ToTokens                                 | /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/ops.rs       |

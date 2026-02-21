@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
+use quote::ToTokens;
 use syn::visit::Visit;
 use syn::Signature;
 use crate::alias::AliasGraph;
@@ -491,6 +492,16 @@ fn apply_cross_file_moves(
             }
             src_ast.items.remove(mv.item_index)
         };
+        // Collect use imports from the source file that the moved item depends on,
+        // so they can be transplanted into the destination file.
+        let needed_uses: Vec<syn::ItemUse> = {
+            let src_ast = registry
+                .asts
+                .get(&mv.src_file)
+                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
+            let item_tokens = item.to_token_stream().to_string();
+            collect_needed_uses(src_ast, &item_tokens)
+        };
         touched.insert(mv.src_file.clone());
         let dst_ast = registry
             .asts
@@ -507,9 +518,75 @@ fn apply_cross_file_moves(
             Some(container) => container.push(item),
             None => dst_ast.items.push(item),
         }
+        // Transplant missing use imports into destination (top-level only).
+        let existing: HashSet<String> = dst_ast
+            .items
+            .iter()
+            .filter_map(|i| if let syn::Item::Use(u) = i {
+                Some(u.to_token_stream().to_string())
+            } else {
+                None
+            })
+            .collect();
+        for use_item in needed_uses {
+            let rendered = use_item.to_token_stream().to_string();
+            if !existing.contains(&rendered) {
+                dst_ast.items.insert(0, syn::Item::Use(use_item));
+            }
+        }
         touched.insert(mv.dst_file);
     }
     Ok(touched)
+}
+/// Given the source file AST and the token string of the moved item, return all
+/// top-level `use` items from the source whose imported leaf name appears as a
+/// word in the moved item's tokens. This is a conservative over-approximation:
+/// it may carry an extra import, but will never miss a required one.
+fn collect_needed_uses(src_ast: &syn::File, item_tokens: &str) -> Vec<syn::ItemUse> {
+    let mut result = Vec::new();
+    for src_item in &src_ast.items {
+        let syn::Item::Use(use_item) = src_item else { continue };
+        // Collect the leaf ident(s) from this use tree.
+        let mut leaves: Vec<String> = Vec::new();
+        collect_use_leaves(&use_item.tree, &mut leaves);
+        // If any leaf appears as a whole word in the moved item tokens, carry the import.
+        if leaves.iter().any(|leaf| token_contains_word(item_tokens, leaf)) {
+            result.push(use_item.clone());
+        }
+    }
+    result
+}
+/// Collect all leaf-level idents from a use tree (the names that end up in scope).
+fn collect_use_leaves(tree: &syn::UseTree, out: &mut Vec<String>) {
+    match tree {
+        syn::UseTree::Name(n) => out.push(n.ident.to_string()),
+        syn::UseTree::Rename(r) => out.push(r.rename.to_string()),
+        syn::UseTree::Glob(_) => out.push("*".to_string()),
+        syn::UseTree::Path(p) => collect_use_leaves(&p.tree, out),
+        syn::UseTree::Group(g) => {
+            for item in &g.items {
+                collect_use_leaves(item, out);
+            }
+        }
+    }
+}
+/// Check whether `ident` appears as a whole word (token boundary) in `tokens`.
+fn token_contains_word(tokens: &str, ident: &str) -> bool {
+    if ident == "*" {
+        return false;
+    }
+    let mut start = 0;
+    while let Some(pos) = tokens[start..].find(ident) {
+        let abs = start + pos;
+        let before_ok = abs == 0 || !tokens.as_bytes()[abs - 1].is_ascii_alphanumeric() && tokens.as_bytes()[abs - 1] != b'_';
+        let after = abs + ident.len();
+        let after_ok = after >= tokens.len() || !tokens.as_bytes()[after].is_ascii_alphanumeric() && tokens.as_bytes()[after] != b'_';
+        if before_ok && after_ok {
+            return true;
+        }
+        start = abs + 1;
+    }
+    false
 }
 fn find_mod_container_mut<'a>(
     ast: &'a mut syn::File,

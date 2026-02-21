@@ -14,7 +14,6 @@ pub(super) fn apply_node_op(ast: &mut syn::File, handles: &HashMap<String, NodeH
         NodeOp::DeleteNode { handle } => delete_node(ast, handle),
         NodeOp::ReorderItems { file: _, new_order } => reorder_items(ast, handles, new_order),
         NodeOp::MutateField { handle, mutation } => apply_field_mutation(ast, handle, symbol_id, mutation),
-        NodeOp::MoveSymbol { .. } => Ok(false),
         NodeOp::MoveSymbol { handle, new_module_path, .. } => {
             move_symbol_intra_file(ast, handle, new_module_path)
         }
