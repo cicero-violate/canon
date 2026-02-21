@@ -1,5 +1,3 @@
-pub mod edits;
-pub mod tracker;
+pub mod core_span;
 pub mod span;
 pub mod types;
-pub mod core_span;
