@@ -354,8 +354,25 @@ fn ensure_clean_working_tree(project_root: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn rollback_emission(project_root: &Path) -> Result<()> {
-    git_cmd(project_root, &["checkout", "--", "."])?;
+pub(crate) fn rollback_emission(project_root: &Path, written: &[PathBuf]) -> Result<()> {
+    for path in written {
+        let rel = path
+            .strip_prefix(project_root)
+            .unwrap_or(path)
+            .to_path_buf();
+        let rel_str = rel.to_string_lossy().to_string();
+        let exists_in_head = std::process::Command::new("git")
+            .args(["cat-file", "-e", &format!("HEAD:{}", rel_str)])
+            .current_dir(project_root)
+            .output()?
+            .status
+            .success();
+        if exists_in_head {
+            git_cmd(project_root, &["restore", "--source=HEAD", "--", &rel_str])?;
+        } else {
+            let _ = std::fs::remove_file(path);
+        }
+    }
     Ok(())
 }
 

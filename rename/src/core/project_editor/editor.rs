@@ -196,7 +196,7 @@ impl ProjectEditor {
                 self.rebuild_registry_from_sources()?;
                 let model2 = rebuild_graph_snapshot(&self.project_root)?;
                 if let Err(err) = compare_snapshots(&model1, &model2) {
-                    rollback_emission(&self.project_root)?;
+                    rollback_emission(&self.project_root, &report.written)?;
                     return Err(err);
                 }
                 self.model0 = Some(model2.clone());
