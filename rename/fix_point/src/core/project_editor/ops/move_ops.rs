@@ -1,3 +1,12 @@
+use anyhow::Result;
+
+
+use crate::state::NodeHandle;
+
+
+use super::helpers::{find_item_container_by_span, get_items_container_mut_by_path};
+
+
 fn find_mod_indices_by_name(
     items: &[syn::Item],
     segments: &[&str],
@@ -21,7 +30,7 @@ fn find_mod_indices_by_name(
 }
 
 
-fn move_symbol_intra_file(
+pub fn move_symbol_intra_file(
     ast: &mut syn::File,
     content: &str,
     handle: &NodeHandle,

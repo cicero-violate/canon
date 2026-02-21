@@ -1,3 +1,7 @@
+use std::path::{Path, PathBuf};
+
+
+#[derive(Debug, Clone)]
 pub enum LinuxFact {
     Exists(PathBuf),
     File(PathBuf),

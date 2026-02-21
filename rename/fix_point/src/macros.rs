@@ -1,3 +1,10 @@
+use proc_macro2::{Span, TokenStream, TokenTree};
+
+
+use syn::ItemMacro;
+
+
+#[derive(Debug, Clone)]
 pub struct MacroHandlingReport {
     pub supported_macros: usize,
     pub unsupported_macros: Vec<String>,

@@ -1,3 +1,18 @@
+use crate::alias::AliasGraph;
+
+
+use crate::model::types::SymbolIndex;
+
+
+use std::sync::Arc;
+
+
+use std::collections::HashMap;
+
+
+use std::cell::RefCell;
+
+
 pub struct Resolver<'a> {
     pub module_path: &'a str,
     pub alias_graph: &'a AliasGraph,
@@ -6,6 +21,7 @@ pub struct Resolver<'a> {
 }
 
 
+#[derive(Clone)]
 pub struct ResolverContext {
     pub module_path: String,
     pub alias_graph: Arc<AliasGraph>,

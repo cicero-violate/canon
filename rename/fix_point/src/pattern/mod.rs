@@ -1,5 +1,14 @@
 pub mod binding;
 
+use crate::pattern::binding::PatternBindingCollector;
+
+
+use syn::visit::Visit;
+
+
+use syn::{Pat, PatIdent, PatSlice, PatStruct, PatTuple, PatTupleStruct};
+
+
 pub fn extract_type_from_pattern(pat: &Pat) -> Option<String> {
     match pat {
         Pat::Type(pat_type) => Some(type_to_string(&pat_type.ty)),

@@ -1,3 +1,22 @@
+use anyhow::{Context, Result};
+
+
+use std::collections::{HashMap, HashSet};
+
+
+use std::path::{Path, PathBuf};
+
+
+use crate::fs;
+
+
+use super::paths::{module_child_path, module_path_for_file};
+
+
+use crate::model::types::{FileRename, SymbolIndex};
+
+
+#[derive(Debug)]
 struct ModuleRenamePlan {
     old_name: String,
     new_name: String,
@@ -46,7 +65,7 @@ fn resolve_renamed_path(path: PathBuf, lookup: &HashMap<String, PathBuf>) -> Pat
 }
 
 
-pub(crate) fn update_mod_declarations(
+pub fn update_mod_declarations(
     project: &Path,
     table: &SymbolIndex,
     file_renames: &[FileRename],

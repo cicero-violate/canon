@@ -1,4 +1,20 @@
-struct GraphSnapshotOracle {
+use crate::core::oracle::StructuralEditOracle;
+
+
+use crate::core::symbol_id::normalize_symbol_id;
+
+
+use database::graph_log::{GraphSnapshot as WireSnapshot, WireNodeId};
+
+
+use std::collections::{HashMap, HashSet};
+
+
+use syn::Signature;
+
+
+#[derive(Debug, Clone)]
+pub struct GraphSnapshotOracle {
     snapshot: WireSnapshot,
     id_by_key: HashMap<String, WireNodeId>,
     key_by_index: Vec<String>,
@@ -8,6 +24,7 @@ struct GraphSnapshotOracle {
 }
 
 
+#[derive(Debug, Clone, Default)]
 pub struct NullOracle;
 
 

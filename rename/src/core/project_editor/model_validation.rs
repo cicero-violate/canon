@@ -15,12 +15,7 @@ fn validate_identity_integrity(snapshot: &GraphSnapshot) -> Result<()> {
     let mut node_ids: std::collections::HashMap<_, _> = std::collections::HashMap::with_capacity(snapshot.nodes.len());
     for node in &snapshot.nodes {
         if let Some(existing) = node_ids.insert(node.id.clone(), node.key.clone()) {
-            return Err(anyhow!(
-                "duplicate node id in snapshot: id={:?} existing_key={} new_key={}",
-                node.id,
-                existing,
-                node.key
-            ));
+            return Err(anyhow!("duplicate node id in snapshot: id={:?} existing_key={} new_key={}", node.id, existing, node.key));
         }
     }
     let mut edge_ids: HashSet<_> = HashSet::with_capacity(snapshot.edges.len());
@@ -124,17 +119,5 @@ fn validate_visibility(snapshot: &GraphSnapshot) -> Result<()> {
 
 fn emits_rust_syntax(node: &database::graph_log::WireNode) -> bool {
     let node_kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
-    matches!(
-        node_kind,
-        "module"
-            | "struct"
-            | "enum"
-            | "union"
-            | "trait"
-            | "impl"
-            | "function"
-            | "const"
-            | "static"
-            | "type_alias"
-    )
+    matches!(node_kind, "module" | "struct" | "enum" | "union" | "trait" | "impl" | "function" | "const" | "static" | "type_alias")
 }

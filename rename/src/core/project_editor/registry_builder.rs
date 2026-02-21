@@ -30,26 +30,9 @@ pub(super) struct NodeRegistryBuilder<'a> {
 }
 
 impl<'a> NodeRegistryBuilder<'a> {
-    pub(super) fn new(
-        project_root: &'a Path,
-        file: &'a Path,
-        registry: &'a mut NodeRegistry,
-        source: Arc<String>,
-        span_lookup: Option<&'a SpanLookup>,
-    ) -> Self {
+    pub(super) fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry, source: Arc<String>, span_lookup: Option<&'a SpanLookup>) -> Self {
         let canonical_file = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
-        Self {
-            project_root,
-            file,
-            registry,
-            module_path: module_path_for_file(project_root, file),
-            item_index: 0,
-            parent_path: Vec::new(),
-            current_impl: None,
-            source,
-            span_lookup,
-            canonical_file,
-        }
+        Self { project_root, file, registry, module_path: module_path_for_file(project_root, file), item_index: 0, parent_path: Vec::new(), current_impl: None, source, span_lookup, canonical_file }
     }
 
     fn register(&mut self, ident: &syn::Ident, kind: NodeKind, span: SpanRange) {
@@ -59,11 +42,7 @@ impl<'a> NodeRegistryBuilder<'a> {
 
     fn register_with_id(&mut self, id: String, kind: NodeKind, span: SpanRange) {
         let norm_id = normalize_symbol_id(&id);
-        let (span, byte_range) = match self
-            .span_lookup
-            .and_then(|lookup| lookup.get(&self.canonical_file))
-            .and_then(|by_symbol| by_symbol.get(&norm_id))
-        {
+        let (span, byte_range) = match self.span_lookup.and_then(|lookup| lookup.get(&self.canonical_file)).and_then(|by_symbol| by_symbol.get(&norm_id)) {
             Some(override_span) => {
                 let range = override_span.span.clone();
                 let bytes = override_span.byte_range.unwrap_or_else(|| span_to_offsets(&self.source, &range.start, &range.end));

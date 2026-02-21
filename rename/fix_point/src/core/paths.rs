@@ -1,3 +1,15 @@
+use anyhow::Result;
+
+
+use std::collections::HashMap;
+
+
+use std::path::{Path, PathBuf};
+
+
+use crate::model::types::{FileRename, SymbolIndex};
+
+
 fn compute_new_file_path(
     old_file: &str,
     _old_module_id: &str,
@@ -46,7 +58,7 @@ fn compute_new_file_path(
 }
 
 
-pub(crate) fn module_child_path(module_path: &str, child: String) -> String {
+pub fn module_child_path(module_path: &str, child: String) -> String {
     if module_path == "crate" {
         format!("crate::{}", child)
     } else {
@@ -55,7 +67,7 @@ pub(crate) fn module_child_path(module_path: &str, child: String) -> String {
 }
 
 
-pub(crate) fn module_path_for_file(project: &Path, file: &Path) -> String {
+pub fn module_path_for_file(project: &Path, file: &Path) -> String {
     let mut rel = file.strip_prefix(project).unwrap_or(file).to_path_buf();
     if rel.components().next().map(|c| c.as_os_str()) == Some("src".as_ref()) {
         rel = rel.strip_prefix("src").unwrap_or(&rel).to_path_buf();
@@ -84,7 +96,7 @@ pub(crate) fn module_path_for_file(project: &Path, file: &Path) -> String {
 }
 
 
-pub(crate) fn plan_file_renames(
+pub fn plan_file_renames(
     table: &SymbolIndex,
     mapping: &HashMap<String, String>,
 ) -> Result<Vec<FileRename>> {

@@ -1,3 +1,12 @@
+use anyhow::{anyhow, Result};
+
+
+use database::graph_log::GraphSnapshot;
+
+
+use std::collections::HashSet;
+
+
 fn emits_rust_syntax(node: &database::graph_log::WireNode) -> bool {
     let node_kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
     matches!(
@@ -60,7 +69,7 @@ fn validate_identity_integrity(snapshot: &GraphSnapshot) -> Result<()> {
 }
 
 
-pub(crate) fn validate_model0(snapshot: &mut GraphSnapshot) -> Result<()> {
+pub fn validate_model0(snapshot: &mut GraphSnapshot) -> Result<()> {
     validate_identity_integrity(snapshot)?;
     validate_referential_integrity(snapshot)?;
     validate_ordering(snapshot)?;

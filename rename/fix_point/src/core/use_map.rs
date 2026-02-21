@@ -1,7 +1,7 @@
-pub(crate) fn build_use_map(
-    ast: &syn::File,
-    module_path: &str,
-) -> HashMap<String, String> {
+use std::collections::HashMap;
+
+
+pub fn build_use_map(ast: &syn::File, module_path: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
     for item in &ast.items {
         let syn::Item::Use(u) = item else { continue };
@@ -15,7 +15,7 @@ pub(crate) fn build_use_map(
 }
 
 
-pub(crate) fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<String> {
+pub fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<String> {
     if prefix.first().map(|s| s.as_str()) == Some("crate") {
         return prefix.to_vec();
     }
@@ -30,7 +30,7 @@ pub(crate) fn normalize_use_prefix(prefix: &[String], module_path: &str) -> Vec<
 }
 
 
-pub(crate) fn path_to_string(path: &syn::Path, module_path: &str) -> String {
+pub fn path_to_string(path: &syn::Path, module_path: &str) -> String {
     let segments: Vec<String> = path
         .segments
         .iter()
@@ -70,7 +70,7 @@ fn resolve_relative_prefix(prefix: &[String], module_path: &str) -> Vec<String> 
 }
 
 
-pub(crate) fn type_path_string(ty: &syn::Type, module_path: &str) -> String {
+pub fn type_path_string(ty: &syn::Type, module_path: &str) -> String {
     if let syn::Type::Path(tp) = ty {
         path_to_string(&tp.path, module_path)
     } else {

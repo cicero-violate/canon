@@ -1,4 +1,13 @@
-enum TargetItemMut<'a> {
+use crate::model::core_span::{span_to_offsets, span_to_range};
+
+
+use crate::state::{NodeHandle, NodeKind};
+
+
+use syn::spanned::Spanned;
+
+
+pub enum TargetItemMut<'a> {
     Top(&'a mut syn::Item),
     ImplFn(&'a mut syn::ImplItemFn),
 }
@@ -37,7 +46,7 @@ fn find_impl_item_fn_by_span(
 }
 
 
-fn find_item_container_by_span(
+pub fn find_item_container_by_span(
     items: &[syn::Item],
     content: &str,
     target: (usize, usize),
@@ -63,7 +72,7 @@ fn find_item_container_by_span(
 }
 
 
-fn get_item_mut_by_path<'a>(
+pub fn get_item_mut_by_path<'a>(
     items: &'a mut Vec<syn::Item>,
     path: &[usize],
 ) -> Option<&'a mut syn::Item> {
@@ -74,7 +83,7 @@ fn get_item_mut_by_path<'a>(
 }
 
 
-fn get_items_container_mut_by_path<'a>(
+pub fn get_items_container_mut_by_path<'a>(
     items: &'a mut Vec<syn::Item>,
     path: &[usize],
 ) -> Option<&'a mut Vec<syn::Item>> {
@@ -102,7 +111,7 @@ fn item_span_range(span: proc_macro2::Span, content: &str) -> (usize, usize) {
 }
 
 
-fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> bool {
+pub fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> bool {
     match item {
         syn::Item::Fn(item_fn) => {
             if item_fn.sig.ident == target {
@@ -152,7 +161,7 @@ fn rename_ident_in_item(item: &mut syn::Item, target: &str, new_name: &str) -> b
 }
 
 
-fn resolve_target_mut<'a>(
+pub fn resolve_target_mut<'a>(
     ast: &'a mut syn::File,
     content: &str,
     handle: &NodeHandle,

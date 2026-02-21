@@ -1,3 +1,30 @@
+use anyhow::Result;
+
+
+use std::collections::HashMap;
+
+
+use std::path::Path;
+
+
+use syn::visit_mut::VisitMut;
+
+
+use super::config::StructuredEditOptions;
+
+
+use super::orchestrator::StructuredPass;
+
+
+use crate::alias::ImportNode;
+
+
+use crate::resolve::ResolverContext;
+
+
+use crate::resolve::Resolver;
+
+
 struct UseAstRewriter<'a> {
     updates: &'a HashMap<String, String>,
     changed: bool,

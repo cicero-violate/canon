@@ -1,3 +1,42 @@
+use super::utils::find_project_root;
+
+
+use super::QueuedOp;
+
+
+use crate::alias::AliasGraph;
+
+
+use crate::core::collect::{add_file_module_symbol, collect_symbols};
+
+
+use crate::core::paths::module_path_for_file;
+
+
+use crate::core::symbol_id::normalize_symbol_id;
+
+
+use crate::model::types::SymbolIndex;
+
+
+use crate::state::NodeRegistry;
+
+
+use crate::structured::use_tree::UsePathRewritePass;
+
+
+use crate::structured::{StructuredEditOptions, StructuredPass};
+
+
+use anyhow::Result;
+
+
+use std::collections::{HashMap, HashSet};
+
+
+use std::path::PathBuf;
+
+
 fn collect_use_path_updates(
     changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
 ) -> HashMap<String, String> {
@@ -31,7 +70,7 @@ fn replace_last_segment(path: &str, new_name: &str) -> Option<String> {
 }
 
 
-fn run_use_path_rewrite(
+pub fn run_use_path_rewrite(
     registry: &mut NodeRegistry,
     changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
 ) -> Result<HashSet<PathBuf>> {

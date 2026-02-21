@@ -1,3 +1,13 @@
+use serde::{Deserialize, Serialize};
+
+
+use std::collections::HashMap;
+
+
+use crate::alias::{ImportNode, VisibilityLeakAnalysis};
+
+
+#[derive(Serialize)]
 pub struct AliasGraphReport {
     pub use_nodes: Vec<ImportNode>,
     pub edge_count: usize,
@@ -7,7 +17,8 @@ pub struct AliasGraphReport {
 }
 
 
-pub(crate) struct FileRename {
+#[derive(Clone, Serialize)]
+pub struct FileRename {
     pub(crate) from: String,
     pub(crate) to: String,
     pub(crate) is_directory_move: bool,
@@ -16,19 +27,22 @@ pub(crate) struct FileRename {
 }
 
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LineColumn {
     pub line: i64,
     pub column: i64,
 }
 
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SpanRange {
     pub start: LineColumn,
     pub end: LineColumn,
 }
 
 
-pub(crate) struct SymbolEdit {
+#[derive(Clone, Serialize)]
+pub struct SymbolEdit {
     pub(crate) id: String,
     pub(crate) file: String,
     pub(crate) kind: String,
@@ -38,11 +52,13 @@ pub(crate) struct SymbolEdit {
 }
 
 
+#[derive(Default, Clone)]
 pub struct SymbolIndex {
     pub symbols: HashMap<String, SymbolRecord>,
 }
 
 
+#[derive(Serialize)]
 pub struct SymbolIndexReport {
     pub version: i64,
     pub symbols: Vec<SymbolRecord>,
@@ -52,6 +68,7 @@ pub struct SymbolIndexReport {
 }
 
 
+#[derive(Serialize)]
 pub struct SymbolOccurrence {
     pub id: String,
     pub file: String,
@@ -60,6 +77,7 @@ pub struct SymbolOccurrence {
 }
 
 
+#[derive(Serialize, Clone)]
 pub struct SymbolRecord {
     pub id: String,
     pub kind: String,
@@ -74,4 +92,14 @@ pub struct SymbolRecord {
     pub alias: Option<String>,
     pub doc_comments: Vec<String>,
     pub attributes: Vec<String>,
+}
+
+
+#[derive(Serialize)]
+struct SymbolIndexReport {
+    pub version: i64,
+    pub symbols: Vec<SymbolRecord>,
+    pub occurrences: Vec<SymbolOccurrence>,
+    pub alias_graph: AliasGraphReport,
+    pub visibility_analysis: Option<VisibilityLeakAnalysis>,
 }

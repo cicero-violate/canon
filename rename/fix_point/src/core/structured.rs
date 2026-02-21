@@ -1,3 +1,10 @@
+use crate::structured::StructuredEditOptions;
+
+
+use std::collections::HashSet;
+
+
+#[derive(Default)]
 pub struct EditSessionTracker {
     files: HashSet<String>,
     pub(crate) doc_files: HashSet<String>,

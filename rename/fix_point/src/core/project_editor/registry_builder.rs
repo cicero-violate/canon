@@ -1,10 +1,41 @@
+use crate::core::paths::{module_child_path, module_path_for_file};
+
+
+use crate::core::symbol_id::normalize_symbol_id;
+
+
+use crate::core::use_map::{path_to_string, type_path_string};
+
+
+use crate::model::core_span::{span_to_offsets, span_to_range};
+
+
+use crate::model::types::SpanRange;
+
+
+use crate::state::{NodeKind, NodeRegistry};
+
+
+use crate::structured::node_handle;
+
+
+use std::path::{Path, PathBuf};
+
+
+use std::sync::Arc;
+
+
+use syn::spanned::Spanned;
+
+
+#[derive(Clone)]
 struct ImplContext {
     struct_path: String,
     trait_path: Option<String>,
 }
 
 
-struct NodeRegistryBuilder<'a> {
+pub struct NodeRegistryBuilder<'a> {
     project_root: &'a Path,
     file: &'a Path,
     registry: &'a mut NodeRegistry,
@@ -101,13 +132,13 @@ impl<'a> NodeRegistryBuilder<'a> {
 }
 
 
-type SpanLookup = std::collections::HashMap<
+pub type SpanLookup = std::collections::HashMap<
     PathBuf,
     std::collections::HashMap<String, SpanOverride>,
 >;
 
 
-struct SpanOverride {
+pub struct SpanOverride {
     pub span: SpanRange,
     pub byte_range: Option<(usize, usize)>,
 }

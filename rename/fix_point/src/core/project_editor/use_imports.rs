@@ -1,3 +1,6 @@
+use quote::ToTokens;
+
+
 fn absolutize_tree(tree: syn::UseTree, src_module: &str) -> syn::UseTree {
     match tree {
         syn::UseTree::Path(mut path) => {
@@ -30,7 +33,7 @@ fn absolutize_tree(tree: syn::UseTree, src_module: &str) -> syn::UseTree {
 }
 
 
-fn absolutize_use(mut item: syn::ItemUse, src_module: &str) -> syn::ItemUse {
+pub fn absolutize_use(mut item: syn::ItemUse, src_module: &str) -> syn::ItemUse {
     item.tree = absolutize_tree(item.tree, src_module);
     item
 }
@@ -50,7 +53,7 @@ fn build_use_path(segments: &[&str], inner: syn::UseTree) -> syn::UseTree {
 }
 
 
-fn collect_needed_uses(src_ast: &syn::File, item_tokens: &str) -> Vec<syn::ItemUse> {
+pub fn collect_needed_uses(src_ast: &syn::File, item_tokens: &str) -> Vec<syn::ItemUse> {
     let mut result = Vec::new();
     for src_item in &src_ast.items {
         let syn::Item::Use(use_item) = src_item else { continue };
@@ -79,7 +82,7 @@ fn collect_use_leaves(tree: &syn::UseTree, out: &mut Vec<String>) {
 }
 
 
-fn remove_orphaned_uses(src_ast: &mut syn::File) {
+pub fn remove_orphaned_uses(src_ast: &mut syn::File) {
     let body_tokens: String = src_ast
         .items
         .iter()
@@ -99,7 +102,7 @@ fn remove_orphaned_uses(src_ast: &mut syn::File) {
 }
 
 
-fn token_contains_word(tokens: &str, ident: &str) -> bool {
+pub fn token_contains_word(tokens: &str, ident: &str) -> bool {
     if ident == "*" {
         return false;
     }

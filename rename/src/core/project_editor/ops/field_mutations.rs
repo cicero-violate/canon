@@ -259,8 +259,7 @@ fn remove_struct_field(ast: &mut syn::File, content: &str, handle: &NodeHandle, 
             match &mut item_struct.fields {
                 syn::Fields::Named(named) => {
                     let before = named.named.len();
-                    let filtered: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> =
-                        named.named.iter().cloned().filter(|f| f.ident.as_ref().map(|i| i != name).unwrap_or(true)).collect();
+                    let filtered: syn::punctuated::Punctuated<syn::Field, syn::token::Comma> = named.named.iter().cloned().filter(|f| f.ident.as_ref().map(|i| i != name).unwrap_or(true)).collect();
                     named.named = filtered;
                     return named.named.len() != before;
                 }

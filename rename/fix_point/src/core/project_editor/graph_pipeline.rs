@@ -1,22 +1,59 @@
-pub(crate) struct EmissionReport {
+use crate::core::project_editor::invariants::{
+    assert_edge_endpoints_exist, assert_module_path_consistency,
+    assert_no_duplicate_edges, assert_unique_def_paths, assert_unique_node_ids,
+    assert_unique_node_keys,
+};
+
+
+use crate::core::project_editor::refactor::MoveSet;
+
+
+use crate::core::symbol_id::normalize_symbol_id;
+
+
+use crate::module_path::ModulePath;
+
+
+use crate::state::NodeRegistry;
+
+
+use crate::structured::ast_render::render_node;
+
+
+use anyhow::{anyhow, Result};
+
+
+use database::graph_log::{GraphSnapshot, WireNode, WireNodeId};
+
+
+use std::collections::{HashMap, HashSet};
+
+
+use std::path::{Path, PathBuf};
+
+
+use std::sync::Arc;
+
+
+pub struct EmissionReport {
     pub written: Vec<PathBuf>,
     pub unchanged: Vec<PathBuf>,
     pub deletion_candidates: Vec<PathBuf>,
 }
 
 
-pub(crate) struct FilePlan {
+pub struct FilePlan {
     pub path: PathBuf,
     pub content: String,
 }
 
 
-pub(crate) struct Plan1 {
+pub struct Plan1 {
     pub files: Vec<FilePlan>,
 }
 
 
-pub(crate) fn apply_moves_to_snapshot(
+pub fn apply_moves_to_snapshot(
     snapshot: &mut GraphSnapshot,
     moveset: &MoveSet,
 ) -> Result<()> {
@@ -81,10 +118,7 @@ fn apply_visibility(item: &mut syn::Item, vis_str: &str) {
 }
 
 
-pub(crate) fn compare_snapshots(
-    left: &GraphSnapshot,
-    right: &GraphSnapshot,
-) -> Result<()> {
+pub fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> Result<()> {
     let mut left_map: HashMap<String, WireNode> = HashMap::new();
     let mut right_map: HashMap<String, WireNode> = HashMap::new();
     for node in &left.nodes {
@@ -168,7 +202,7 @@ pub(crate) fn compare_snapshots(
 }
 
 
-pub(crate) fn emit_plan(
+pub fn emit_plan(
     registry: &mut NodeRegistry,
     plan: Plan1,
     project_root: &Path,
@@ -394,7 +428,7 @@ fn is_top_level_item(node: &WireNode) -> bool {
 }
 
 
-pub(crate) fn maybe_commit_emission(project_root: &Path) -> Result<()> {
+pub fn maybe_commit_emission(project_root: &Path) -> Result<()> {
     Ok(())
 }
 
@@ -449,23 +483,20 @@ fn normalize_visibility(value: Option<&str>) -> Result<String> {
     match value {
         "private" => Ok(String::new()),
         "public" => Ok("pub ".to_string()),
-        "crate" => Ok("pub(crate) ".to_string()),
-        v if v.starts_with("restricted:") => {
-            let path = v.trim_start_matches("restricted:");
-            if path.is_empty() {
-                return Err(anyhow!("restricted visibility missing path"));
-            }
-            Ok(format!("pub({}) ", path))
-        }
+        "crate" => Ok("pub ".to_string()),
+        v if v.starts_with("restricted:") => Ok("pub ".to_string()),
         other => Err(anyhow!("unknown visibility value: {other}")),
     }
 }
 
 
-pub(crate) fn project_plan(
-    snapshot: &GraphSnapshot,
-    project_root: &Path,
-) -> Result<Plan1> {
+pub fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Result<Plan1> {
+    assert_unique_node_keys(snapshot);
+    assert_unique_def_paths(snapshot);
+    assert_unique_node_ids(snapshot);
+    assert_edge_endpoints_exist(snapshot);
+    assert_no_duplicate_edges(snapshot);
+    assert_module_path_consistency(snapshot);
     let mut modules: HashMap<String, WireNode> = HashMap::new();
     let mut items_by_module: HashMap<String, Vec<WireNode>> = HashMap::new();
     let mut ast_cache: HashMap<PathBuf, syn::File> = HashMap::new();
@@ -557,6 +588,42 @@ pub(crate) fn project_plan(
             );
         }
         let mut file_items = Vec::new();
+        let use_items: Vec<String> = {
+            let mut uses = Vec::new();
+            if let Ok(orig_path) = module_file_path(
+                &module_path,
+                has_children,
+                project_root,
+            ) {
+                let orig_path = if !orig_path.exists()
+                    && orig_path.file_name().map(|f| f == "mod.rs").unwrap_or(false)
+                {
+                    let sibling = orig_path
+                        .parent()
+                        .map(|p| p.with_extension("rs"))
+                        .filter(|p| p.exists())
+                        .unwrap_or(orig_path);
+                    sibling
+                } else {
+                    orig_path
+                };
+                if !ast_cache.contains_key(&orig_path) {
+                    if let Ok(content) = std::fs::read_to_string(&orig_path) {
+                        if let Ok(parsed) = syn::parse_file(&content) {
+                            ast_cache.insert(orig_path.clone(), parsed);
+                        }
+                    }
+                }
+                if let Some(ast) = ast_cache.get(&orig_path) {
+                    for item in &ast.items {
+                        if let syn::Item::Use(_) = item {
+                            uses.push(render_node(item));
+                        }
+                    }
+                }
+            }
+            uses
+        };
         let mut child_modules: Vec<String> = modules
             .keys()
             .filter(|m| is_direct_child(m, &module_path))
@@ -567,6 +634,9 @@ pub(crate) fn project_plan(
             let vis = module_visibility(&modules, &child)?;
             let name = child.rsplit("::").next().unwrap_or(&child);
             file_items.push(format!("{vis}mod {name};"));
+        }
+        for use_item in use_items {
+            file_items.push(use_item);
         }
         if let Some(module_items) = items_by_module.get_mut(&module_path) {
             module_items.sort_by(|a, b| a.key.cmp(&b.key));
@@ -609,7 +679,7 @@ pub(crate) fn project_plan(
 }
 
 
-pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapshot> {
+pub fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapshot> {
     use compiler_capture::frontends::rustc::RustcFrontend;
     use compiler_capture::multi_capture::capture_project;
     use compiler_capture::project::CargoProject;
@@ -657,7 +727,8 @@ fn render_item_from_ast(
         .get("name")
         .cloned()
         .or_else(|| {
-            node.metadata
+            node
+                .metadata
                 .get("def_path")
                 .and_then(|d| d.split("::").last().map(|s| s.to_string()))
         })
@@ -748,7 +819,7 @@ fn render_item_from_ast(
 }
 
 
-pub(crate) fn rollback_emission(project_root: &Path, written: &[PathBuf]) -> Result<()> {
+pub fn rollback_emission(project_root: &Path, written: &[PathBuf]) -> Result<()> {
     for path in written {
         let _ = std::fs::remove_file(path);
     }

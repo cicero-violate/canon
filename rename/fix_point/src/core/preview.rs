@@ -1,4 +1,22 @@
-pub(crate) fn write_preview(
+use super::structured::EditSessionTracker;
+
+
+use crate::model::types::{FileRename, SymbolEdit};
+
+
+use crate::structured::StructuredEditOptions;
+
+
+use anyhow::Result;
+
+
+use std::collections::BTreeMap;
+
+
+use std::path::Path;
+
+
+pub fn write_preview(
     out: &Path,
     edits: &[SymbolEdit],
     renames: &[FileRename],

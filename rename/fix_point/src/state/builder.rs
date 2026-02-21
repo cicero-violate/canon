@@ -1,3 +1,18 @@
+use std::collections::BTreeMap;
+
+
+use super::graph::{
+    EdgeKind, EdgeRecord, GraphDelta, GraphDeltaError, GraphMaterializer, NodeRecord,
+};
+
+
+use super::ids::{EdgeId, NodeId};
+
+
+use std::sync::Arc;
+
+
+#[derive(Debug, Clone)]
 pub struct EdgePayload {
     from: NodeId,
     to: NodeId,
@@ -6,11 +21,13 @@ pub struct EdgePayload {
 }
 
 
+#[derive(Debug, Default)]
 pub struct KernelGraphBuilder {
     materializer: GraphMaterializer,
 }
 
 
+#[derive(Debug, Clone)]
 pub struct NodePayload {
     key: String,
     label: String,

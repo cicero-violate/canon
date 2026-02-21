@@ -423,11 +423,36 @@ fn extract_item_snippet(file: &SourceFile, span: rustc_span::Span) -> Option<Str
         return None;
     };
     let start = span.lo().0.saturating_sub(file.start_pos.0) as usize;
+    let start = walk_back_to_outer_attrs(src, start);
     let end = find_item_end(src, start)?;
     if end <= start || end > src.len() {
         return None;
     }
     Some(src[start..end].to_string())
+}
+
+fn walk_back_to_outer_attrs(src: &str, start: usize) -> usize {
+    let prefix = &src[..start];
+    let mut lines: Vec<(usize, usize)> = Vec::new();
+    let mut pos = 0usize;
+    for line in prefix.split('\n') {
+        let end = pos + line.len();
+        lines.push((pos, end));
+        pos = end + 1;
+    }
+    let mut new_start = start;
+    for &(ls, le) in lines.iter().rev() {
+        let line = src[ls..le].trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line.starts_with("#[") || line.starts_with("#![") {
+            new_start = ls;
+        } else {
+            break;
+        }
+    }
+    new_start
 }
 
 fn find_item_end(src: &str, start: usize) -> Option<usize> {

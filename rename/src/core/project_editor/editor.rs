@@ -1,8 +1,5 @@
 use super::cross_file::{apply_cross_file_moves, collect_new_files};
-use super::graph_pipeline::{
-    apply_moves_to_snapshot, compare_snapshots, emit_plan, project_plan, rebuild_graph_snapshot,
-    rollback_emission,
-};
+use super::graph_pipeline::{apply_moves_to_snapshot, compare_snapshots, emit_plan, project_plan, rebuild_graph_snapshot, rollback_emission};
 use super::model_validation::validate_model0;
 use super::ops::apply_node_op;
 use super::oracle::GraphSnapshotOracle;
@@ -12,8 +9,8 @@ use super::registry_builder::{NodeRegistryBuilder, SpanLookup, SpanOverride};
 use super::use_path::run_use_path_rewrite;
 use super::utils::{build_symbol_index, find_project_root};
 use crate::core::mod_decls::update_mod_declarations;
-use crate::core::paths::module_path_for_file;
 use crate::core::oracle::StructuralEditOracle;
+use crate::core::paths::module_path_for_file;
 use crate::core::symbol_id::normalize_symbol_id;
 use crate::fs;
 use crate::model::types::{FileRename, LineColumn, SpanRange};
@@ -23,8 +20,8 @@ use anyhow::{Context, Result};
 use compiler_capture::frontends::rustc::RustcFrontend;
 use compiler_capture::multi_capture::capture_project;
 use compiler_capture::project::CargoProject;
-use database::{MemoryEngine, MemoryEngineConfig};
 use database::graph_log::GraphSnapshot;
+use database::{MemoryEngine, MemoryEngineConfig};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -56,7 +53,6 @@ pub struct ProjectEditor {
     pending_new_files: Vec<(PathBuf, String)>,
     last_touched_files: HashSet<PathBuf>,
 }
-
 
 #[derive(Clone)]
 pub(crate) struct QueuedOp {
@@ -97,12 +93,8 @@ impl ProjectEditor {
     pub fn load_with_rustc(project: &Path) -> Result<Self> {
         let cargo = CargoProject::from_entry(project)?;
         let frontend = RustcFrontend::new();
-        let _artifacts =
-            capture_project(&frontend, &cargo, &[]).with_context(|| format!("rustc capture failed for {}", project.display()))?;
-        let workspace_root = cargo
-            .metadata()
-            .map(|m| m.workspace_root)
-            .unwrap_or_else(|_| cargo.workspace_root().to_path_buf());
+        let _artifacts = capture_project(&frontend, &cargo, &[]).with_context(|| format!("rustc capture failed for {}", project.display()))?;
+        let workspace_root = cargo.metadata().map(|m| m.workspace_root).unwrap_or_else(|_| cargo.workspace_root().to_path_buf());
         if std::env::var("RENAME_DEBUG_PLAN").ok().as_deref() == Some("1") {
             eprintln!("[plan] workspace_root={}", workspace_root.display());
         }
@@ -165,11 +157,9 @@ impl ProjectEditor {
             }
         }
         let file = match &op {
-            NodeOp::ReplaceNode { handle, .. }
-            | NodeOp::InsertBefore { handle, .. }
-            | NodeOp::InsertAfter { handle, .. }
-            | NodeOp::DeleteNode { handle }
-            | NodeOp::MutateField { handle, .. } => handle.file.clone(),
+            NodeOp::ReplaceNode { handle, .. } | NodeOp::InsertBefore { handle, .. } | NodeOp::InsertAfter { handle, .. } | NodeOp::DeleteNode { handle } | NodeOp::MutateField { handle, .. } => {
+                handle.file.clone()
+            }
             NodeOp::ReorderItems { file, .. } => file.clone(),
             NodeOp::MoveSymbol { handle, .. } => handle.file.clone(),
         };
@@ -185,10 +175,7 @@ impl ProjectEditor {
     }
 
     pub fn apply(&mut self) -> Result<ChangeReport> {
-        let only_moves = self
-            .changesets
-            .values()
-            .all(|ops| ops.iter().all(|q| matches!(q.op, NodeOp::MoveSymbol { .. })));
+        let only_moves = self.changesets.values().all(|ops| ops.iter().all(|q| matches!(q.op, NodeOp::MoveSymbol { .. })));
         if only_moves {
             if let Some(model0) = self.model0.clone() {
                 let moveset = self.build_moveset()?;
@@ -201,11 +188,7 @@ impl ProjectEditor {
                 self.oracle = Box::new(GraphSnapshotOracle::from_snapshot(model1.clone()));
                 let touched: HashSet<PathBuf> = report.written.iter().cloned().collect();
                 self.last_touched_files = touched.clone();
-                return Ok(ChangeReport {
-                    touched_files: touched.into_iter().collect(),
-                    conflicts: Vec::new(),
-                    file_moves: Vec::new(),
-                });
+                return Ok(ChangeReport { touched_files: touched.into_iter().collect(), conflicts: Vec::new(), file_moves: Vec::new() });
             }
         }
         let mut touched_files: HashSet<PathBuf> = HashSet::new();
@@ -229,8 +212,7 @@ impl ProjectEditor {
                 let changed = {
                     let ast = self.registry.asts.get_mut(file).with_context(|| format!("missing AST for {}", file.display()))?;
                     let content = self.registry.sources.get(file).map(|s| s.as_str()).unwrap_or("");
-                    apply_node_op(ast, content, &handle_snapshot, &queued.symbol_id, &queued.op)
-                        .with_context(|| format!("failed to apply {}", queued.symbol_id))?
+                    apply_node_op(ast, content, &handle_snapshot, &queued.symbol_id, &queued.op).with_context(|| format!("failed to apply {}", queued.symbol_id))?
                 };
                 if changed {
                     touched_files.insert(file.clone());
@@ -252,11 +234,7 @@ impl ProjectEditor {
         self.pending_file_moves = file_renames.iter().map(|r| (PathBuf::from(&r.from), PathBuf::from(&r.to))).collect();
         self.pending_file_renames = file_renames.clone();
         self.last_touched_files = touched_files.clone();
-        Ok(ChangeReport {
-            touched_files: touched_files.into_iter().collect(),
-            conflicts: validation,
-            file_moves: self.pending_file_moves.clone(),
-        })
+        Ok(ChangeReport { touched_files: touched_files.into_iter().collect(), conflicts: validation, file_moves: self.pending_file_moves.clone() })
     }
 
     fn rebuild_registry_from_sources(&mut self) -> Result<()> {
@@ -333,10 +311,7 @@ impl ProjectEditor {
                     if matches!(mutation, FieldMutation::ReplaceSignature(_)) {
                         let impacts = self.oracle.impact_of(&queued.symbol_id);
                         if !impacts.is_empty() {
-                            conflicts.push(EditConflict {
-                                symbol_id: queued.symbol_id.clone(),
-                                reason: "signature change may require updating call sites".to_string(),
-                            });
+                            conflicts.push(EditConflict { symbol_id: queued.symbol_id.clone(), reason: "signature change may require updating call sites".to_string() });
                         }
                     }
                 }
@@ -414,10 +389,7 @@ impl ProjectEditor {
             let ast = self.registry.asts.get(&file).with_context(|| format!("missing AST for {}", file.display()))?;
             let rendered = crate::structured::render_file(ast);
             if original != &rendered {
-                let diff = similar::TextDiff::from_lines(original, &rendered)
-                    .unified_diff()
-                    .header(&format!("{} (original)", file.display()), &format!("{} (updated)", file.display()))
-                    .to_string();
+                let diff = similar::TextDiff::from_lines(original, &rendered).unified_diff().header(&format!("{} (original)", file.display()), &format!("{} (updated)", file.display())).to_string();
                 output.push_str(&diff);
                 output.push('\n');
             }
@@ -448,10 +420,7 @@ fn build_span_lookup_from_snapshot(snapshot: &GraphSnapshot) -> Result<SpanLooku
         let Some(col) = parse_i64(metadata.get("column")) else { continue };
         let Some(end_line) = parse_i64(metadata.get("span_end_line")) else { continue };
         let Some(end_col) = parse_i64(metadata.get("span_end_column")) else { continue };
-        let span = SpanRange {
-            start: LineColumn { line, column: col + 1 },
-            end: LineColumn { line: end_line, column: end_col + 1 },
-        };
+        let span = SpanRange { start: LineColumn { line, column: col + 1 }, end: LineColumn { line: end_line, column: end_col + 1 } };
         let byte_range = match (metadata.get("span_start_byte"), metadata.get("span_end_byte")) {
             (Some(start), Some(end)) => match (start.parse::<usize>(), end.parse::<usize>()) {
                 (Ok(start), Ok(end)) => Some((start, end)),
@@ -459,10 +428,7 @@ fn build_span_lookup_from_snapshot(snapshot: &GraphSnapshot) -> Result<SpanLooku
             },
             _ => None,
         };
-        lookup
-            .entry(canonical)
-            .or_default()
-            .insert(symbol_id, SpanOverride { span, byte_range });
+        lookup.entry(canonical).or_default().insert(symbol_id, SpanOverride { span, byte_range });
     }
     Ok(lookup)
 }

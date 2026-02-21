@@ -1,3 +1,10 @@
+use anyhow::{Context, Result};
+
+
+use std::path::{Path, PathBuf};
+
+
+#[derive(Debug, Clone)]
 pub enum LayoutChange {
     /// Convert inline module to file
     InlineToFile,
@@ -8,6 +15,7 @@ pub enum LayoutChange {
 }
 
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModuleLayout {
     /// Inline module: `mod foo { ... }`
     Inline,
@@ -20,6 +28,7 @@ pub enum ModuleLayout {
 }
 
 
+#[derive(Debug, Clone)]
 pub struct ModuleMovePlan {
     /// Original module path
     pub from_path: ModulePath,
@@ -36,6 +45,7 @@ pub struct ModuleMovePlan {
 }
 
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModulePath {
     /// Segments of the module path (e.g., ["crate", "foo", "bar"])
     pub segments: Vec<String>,
@@ -72,7 +82,7 @@ pub fn compute_module_path(project_root: &Path, file_path: &Path) -> Result<Stri
 }
 
 
-pub(crate) fn compute_new_file_path(
+pub fn compute_new_file_path(
     module_path: &ModulePath,
     project_root: &Path,
 ) -> Result<PathBuf> {

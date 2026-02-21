@@ -25,16 +25,14 @@ pub(crate) fn apply_node_op(ast: &mut syn::File, content: &str, handles: &HashMa
 }
 
 fn replace_node(ast: &mut syn::File, content: &str, handle: &NodeHandle, new_node: syn::Item) -> Result<bool> {
-    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
-        .ok_or_else(|| anyhow::anyhow!("replace node: item not found by span"))?;
+    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range).ok_or_else(|| anyhow::anyhow!("replace node: item not found by span"))?;
     let items = get_items_container_mut_by_path(&mut ast.items, &path).ok_or_else(|| anyhow::anyhow!("replace node: container not found"))?;
     items[idx] = new_node;
     Ok(true)
 }
 
 fn insert_node(ast: &mut syn::File, content: &str, handle: &NodeHandle, new_node: syn::Item, before: bool) -> Result<bool> {
-    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
-        .ok_or_else(|| anyhow::anyhow!("insert node: item not found by span"))?;
+    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range).ok_or_else(|| anyhow::anyhow!("insert node: item not found by span"))?;
     let items = get_items_container_mut_by_path(&mut ast.items, &path).ok_or_else(|| anyhow::anyhow!("insert node: container not found"))?;
     let insert_at = if before { idx } else { idx.saturating_add(1) };
     if insert_at > items.len() {
@@ -45,8 +43,7 @@ fn insert_node(ast: &mut syn::File, content: &str, handle: &NodeHandle, new_node
 }
 
 fn delete_node(ast: &mut syn::File, content: &str, handle: &NodeHandle) -> Result<bool> {
-    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
-        .ok_or_else(|| anyhow::anyhow!("delete node: item not found by span"))?;
+    let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range).ok_or_else(|| anyhow::anyhow!("delete node: item not found by span"))?;
     let items = get_items_container_mut_by_path(&mut ast.items, &path).ok_or_else(|| anyhow::anyhow!("delete node: container not found"))?;
     if idx >= items.len() {
         anyhow::bail!("delete index out of bounds");
@@ -63,8 +60,7 @@ fn reorder_items(ast: &mut syn::File, content: &str, handles: &HashMap<String, N
         if handle.kind == NodeKind::ImplFn {
             anyhow::bail!("reorder not supported for impl items");
         }
-        let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range)
-            .ok_or_else(|| anyhow::anyhow!("reorder: item not found by span"))?;
+        let (path, idx) = find_item_container_by_span(&ast.items, content, handle.byte_range).ok_or_else(|| anyhow::anyhow!("reorder: item not found by span"))?;
         let ptr = path.clone();
         if let Some(existing) = &items_path {
             if existing != &ptr {

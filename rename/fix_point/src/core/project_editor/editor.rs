@@ -1,3 +1,94 @@
+use super::cross_file::{apply_cross_file_moves, collect_new_files};
+
+
+use super::graph_pipeline::{
+    apply_moves_to_snapshot, compare_snapshots, emit_plan, project_plan,
+    rebuild_graph_snapshot, rollback_emission,
+};
+
+
+use super::model_validation::validate_model0;
+
+
+use super::ops::apply_node_op;
+
+
+use super::oracle::GraphSnapshotOracle;
+
+
+use super::propagate::{apply_rewrites, build_symbol_index_and_occurrences, propagate};
+
+
+use super::refactor::{
+    run_pass1_canonical_rewrite, run_pass2_scope_rehydration, run_pass3_orphan_cleanup,
+    MoveSet,
+};
+
+
+use super::registry_builder::{NodeRegistryBuilder, SpanLookup, SpanOverride};
+
+
+use super::use_path::run_use_path_rewrite;
+
+
+use super::utils::{build_symbol_index, find_project_root};
+
+
+use crate::core::mod_decls::update_mod_declarations;
+
+
+use crate::core::oracle::StructuralEditOracle;
+
+
+use crate::core::paths::module_path_for_file;
+
+
+use crate::core::symbol_id::normalize_symbol_id;
+
+
+use crate::fs;
+
+
+use crate::model::types::{FileRename, LineColumn, SpanRange};
+
+
+use crate::state::NodeRegistry;
+
+
+use crate::structured::{FieldMutation, NodeOp};
+
+
+use anyhow::{Context, Result};
+
+
+use compiler_capture::frontends::rustc::RustcFrontend;
+
+
+use compiler_capture::multi_capture::capture_project;
+
+
+use compiler_capture::project::CargoProject;
+
+
+use database::graph_log::GraphSnapshot;
+
+
+use database::{MemoryEngine, MemoryEngineConfig};
+
+
+use std::collections::{HashMap, HashSet};
+
+
+use std::path::{Path, PathBuf};
+
+
+use std::sync::Arc;
+
+
+use syn::visit::Visit;
+
+
+#[derive(Debug, Clone)]
 pub struct ChangeReport {
     pub touched_files: Vec<PathBuf>,
     pub conflicts: Vec<EditConflict>,
@@ -5,6 +96,7 @@ pub struct ChangeReport {
 }
 
 
+#[derive(Debug, Clone)]
 pub struct EditConflict {
     pub symbol_id: String,
     pub reason: String,
@@ -26,7 +118,8 @@ pub struct ProjectEditor {
 }
 
 
-pub(crate) struct QueuedOp {
+#[derive(Clone)]
+pub struct QueuedOp {
     pub symbol_id: String,
     pub op: NodeOp,
 }
@@ -76,67 +169,6 @@ fn build_span_lookup_from_snapshot(snapshot: &GraphSnapshot) -> Result<SpanLooku
             .insert(symbol_id, SpanOverride { span, byte_range });
     }
     Ok(lookup)
-}
-
-
-fn build_symbol_index(
-    project_root: &Path,
-    registry: &NodeRegistry,
-) -> Result<SymbolIndex> {
-    let mut symbol_table = SymbolIndex::default();
-    let mut symbols = Vec::new();
-    let mut symbol_set = HashSet::new();
-    for (file, ast) in &registry.asts {
-        let module_path = normalize_symbol_id(&module_path_for_file(project_root, file));
-        add_file_module_symbol(
-            &module_path,
-            file,
-            &mut symbol_table,
-            &mut symbols,
-            &mut symbol_set,
-        );
-        let _ = collect_symbols(
-            ast,
-            &module_path,
-            file,
-            &mut symbol_table,
-            &mut symbols,
-            &mut symbol_set,
-        );
-    }
-    Ok(symbol_table)
-}
-
-
-fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
-    let file = match registry.asts.keys().next() {
-        Some(f) => f,
-        None => return Ok(None),
-    };
-    let mut current = file.parent().unwrap_or_else(|| Path::new("/")).to_path_buf();
-    loop {
-        if current.join("Cargo.toml").exists() {
-            return Ok(Some(current));
-        }
-        if !current.pop() {
-            break;
-        }
-    }
-    Ok(None)
-}
-
-
-fn find_project_root_sync(registry: &NodeRegistry) -> Option<PathBuf> {
-    let file = registry.asts.keys().next()?;
-    let mut cur = file.parent()?.to_path_buf();
-    loop {
-        if cur.join("Cargo.toml").exists() {
-            return Some(cur);
-        }
-        if !cur.pop() {
-            return None;
-        }
-    }
 }
 
 

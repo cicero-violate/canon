@@ -1,5 +1,48 @@
 mod visitor;
 
+pub(crate) use visitor::path_to_string;
+
+
+use super::core::{span_to_range, SymbolIndex, SymbolOccurrence};
+
+
+use super::alias::AliasGraph;
+
+
+use super::resolve::Resolver;
+
+
+use crate::pattern::extract_type_from_pattern;
+
+
+use crate::pattern::binding::PatternBindingCollector;
+
+
+use super::scope::ScopeBinder;
+
+
+use algorithms::string_algorithms::kmp::kmp_search;
+
+
+use proc_macro2::Span;
+
+
+use std::collections::HashMap;
+
+
+use std::path::Path;
+
+
+use syn::visit::{self, Visit};
+
+
+use syn::{
+    Arm, Expr, ExprClosure, ExprForLoop, ExprMacro, ExprMethodCall, ImplItemFn, ItemImpl,
+    Local, Pat,
+};
+
+
+#[derive(Clone)]
 struct ImplCtx {
     type_name: String,
 }

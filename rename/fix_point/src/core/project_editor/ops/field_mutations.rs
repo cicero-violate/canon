@@ -1,3 +1,18 @@
+use anyhow::Result;
+
+
+use quote::ToTokens;
+
+
+use crate::state::NodeHandle;
+
+
+use crate::structured::FieldMutation;
+
+
+use super::helpers::{rename_ident_in_item, resolve_target_mut, TargetItemMut};
+
+
 fn add_attribute(
     ast: &mut syn::File,
     content: &str,
@@ -81,7 +96,7 @@ fn add_variant(
 }
 
 
-fn apply_field_mutation(
+pub fn apply_field_mutation(
     ast: &mut syn::File,
     content: &str,
     handle: &NodeHandle,

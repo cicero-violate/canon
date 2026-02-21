@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+
 impl ScopeFrame {
     pub(crate) fn new(parent: Option<usize>) -> Self {
         Self {

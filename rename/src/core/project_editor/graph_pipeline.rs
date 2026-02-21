@@ -1,3 +1,6 @@
+use crate::core::project_editor::invariants::{
+    assert_edge_endpoints_exist, assert_module_path_consistency, assert_no_duplicate_edges, assert_unique_def_paths, assert_unique_node_ids, assert_unique_node_keys,
+};
 use crate::core::project_editor::refactor::MoveSet;
 use crate::core::symbol_id::normalize_symbol_id;
 use crate::module_path::ModulePath;
@@ -72,21 +75,18 @@ fn update_containment_edge(snapshot: &mut GraphSnapshot, node_id: WireNodeId, ol
 }
 
 fn find_node_id_by_module(snapshot: &GraphSnapshot, module_path: &str) -> Option<WireNodeId> {
-    snapshot
-        .nodes
-        .iter()
-        .find(|n| {
-            n.key == module_path
-                || n
-                    .metadata
-                    .get("def_path")
-                    .map(|v| normalize_symbol_id(v) == module_path)
-                    .unwrap_or(false)
-        })
-        .map(|n| n.id.clone())
+    snapshot.nodes.iter().find(|n| n.key == module_path || n.metadata.get("def_path").map(|v| normalize_symbol_id(v) == module_path).unwrap_or(false)).map(|n| n.id.clone())
 }
 
 pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Result<Plan1> {
+    // Enforce structural identity invariants before projection
+    assert_unique_node_keys(snapshot);
+    assert_unique_def_paths(snapshot);
+    assert_unique_node_ids(snapshot);
+    assert_edge_endpoints_exist(snapshot);
+    assert_no_duplicate_edges(snapshot);
+    assert_module_path_consistency(snapshot);
+
     let mut modules: HashMap<String, WireNode> = HashMap::new();
     let mut items_by_module: HashMap<String, Vec<WireNode>> = HashMap::new();
     let mut ast_cache: HashMap<PathBuf, syn::File> = HashMap::new();
@@ -101,12 +101,7 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
         let container_kind = node.metadata.get("container_kind").cloned().unwrap_or_default();
         *container_kind_counts.entry(container_kind).or_insert(0) += 1;
         if node_kind == "module" {
-            let module_id = node
-                .metadata
-                .get("def_path")
-                .or_else(|| node.metadata.get("module_path"))
-                .cloned()
-                .unwrap_or_else(|| node.key.clone());
+            let module_id = node.metadata.get("def_path").or_else(|| node.metadata.get("module_path")).cloned().unwrap_or_else(|| node.key.clone());
             let module_id = normalize_symbol_id(&module_id);
             if !is_local_module_path(&module_id) {
                 continue;
@@ -124,30 +119,19 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
             continue;
         }
         if debug_plan && node.metadata.get("source_snippet").is_none() {
-            eprintln!(
-                "[plan] top-level item missing source_snippet: key={} kind={}",
-                node.key, node_kind
-            );
+            eprintln!("[plan] top-level item missing source_snippet: key={} kind={}", node.key, node_kind);
         }
         let module_path = normalize_symbol_id(&select_module_path(node));
         if !is_local_module_path(&module_path) {
             continue;
         }
-       if seen_item_keys.insert(node.key.clone()) {
-           items_by_module.entry(module_path).or_default().push(node.clone());
-       }
+        if seen_item_keys.insert(node.key.clone()) {
+            items_by_module.entry(module_path).or_default().push(node.clone());
+        }
     }
 
     if !modules.contains_key("crate") {
-        modules.insert(
-            "crate".to_string(),
-            WireNode {
-                id: WireNodeId::from_key("crate"),
-                key: "crate".to_string(),
-                label: "crate".to_string(),
-                metadata: Default::default(),
-            },
-        );
+        modules.insert("crate".to_string(), WireNode { id: WireNodeId::from_key("crate"), key: "crate".to_string(), label: "crate".to_string(), metadata: Default::default() });
     }
 
     let mut files = Vec::new();
@@ -166,30 +150,56 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
         eprintln!("[plan] modules={} items_by_module={}", modules.len(), items_by_module.len());
     }
     for module_path in module_list {
-        let has_children = modules
-            .keys()
-            .any(|m| is_direct_child(m, &module_path));
+        let has_children = modules.keys().any(|m| is_direct_child(m, &module_path));
         let file_path = module_file_path(&module_path, has_children, project_root)?;
         if debug_plan {
-            eprintln!(
-                "[plan] module={} has_children={} file={}",
-                module_path,
-                has_children,
-                file_path.display()
-            );
+            eprintln!("[plan] module={} has_children={} file={}", module_path, has_children, file_path.display());
         }
         let mut file_items = Vec::new();
 
-        let mut child_modules: Vec<String> = modules
-            .keys()
-            .filter(|m| is_direct_child(m, &module_path))
-            .cloned()
-            .collect();
+        // Collect use statements from the original source file for this module.
+        let use_items: Vec<String> = {
+            let mut uses = Vec::new();
+            // Derive the original source path deterministically from the module path.
+            // module_file_path already knows the src/ layout; we just need to point
+            // at the original tree (project_root/src/…) not the output (fix_point/src/…).
+            if let Ok(orig_path) = module_file_path(&module_path, has_children, project_root) {
+                // If computed path is mod.rs but original used file-module layout (e.g. src/fs.rs),
+                // fall back to the sibling .rs file.
+                let orig_path = if !orig_path.exists() && orig_path.file_name().map(|f| f == "mod.rs").unwrap_or(false) {
+                    let sibling = orig_path.parent().map(|p| p.with_extension("rs")).filter(|p| p.exists()).unwrap_or(orig_path);
+                    sibling
+                } else {
+                    orig_path
+                };
+                if !ast_cache.contains_key(&orig_path) {
+                    if let Ok(content) = std::fs::read_to_string(&orig_path) {
+                        if let Ok(parsed) = syn::parse_file(&content) {
+                            ast_cache.insert(orig_path.clone(), parsed);
+                        }
+                    }
+                }
+                if let Some(ast) = ast_cache.get(&orig_path) {
+                    for item in &ast.items {
+                        if let syn::Item::Use(_) = item {
+                            uses.push(render_node(item));
+                        }
+                    }
+                }
+            }
+            uses
+        };
+
+        let mut child_modules: Vec<String> = modules.keys().filter(|m| is_direct_child(m, &module_path)).cloned().collect();
         child_modules.sort();
         for child in child_modules {
             let vis = module_visibility(&modules, &child)?;
             let name = child.rsplit("::").next().unwrap_or(&child);
             file_items.push(format!("{vis}mod {name};"));
+        }
+
+        for use_item in use_items {
+            file_items.push(use_item);
         }
 
         if let Some(module_items) = items_by_module.get_mut(&module_path) {
@@ -215,11 +225,7 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
 
         let content = file_items.join("\n\n");
         if debug_plan {
-            eprintln!(
-                "[plan] file={} items={}",
-                file_path.display(),
-                file_items.len()
-            );
+            eprintln!("[plan] file={} items={}", file_path.display(), file_items.len());
         }
         files.push(FilePlan { path: file_path, content });
     }
@@ -233,10 +239,7 @@ fn is_top_level_item(node: &WireNode) -> bool {
     if node_kind == "module" {
         return false;
     }
-    let is_emit_kind = matches!(
-        node_kind,
-        "struct" | "enum" | "union" | "trait" | "impl" | "function" | "const" | "static" | "type_alias"
-    );
+    let is_emit_kind = matches!(node_kind, "struct" | "enum" | "union" | "trait" | "impl" | "function" | "const" | "static" | "type_alias");
     if !is_emit_kind {
         return false;
     }
@@ -255,10 +258,7 @@ fn is_local_module_path(module_path: &str) -> bool {
 }
 
 fn select_module_path(node: &WireNode) -> String {
-    let candidates = [
-        node.metadata.get("module_path"),
-        node.metadata.get("module"),
-    ];
+    let candidates = [node.metadata.get("module_path"), node.metadata.get("module")];
     for cand in candidates {
         if let Some(value) = cand {
             if !value.is_empty() && !value.contains('<') && !value.contains('>') {
@@ -269,16 +269,9 @@ fn select_module_path(node: &WireNode) -> String {
     "crate".to_string()
 }
 
-fn extract_item_snippet(
-    node: &WireNode,
-    project_root: &Path,
-    ast_cache: &mut HashMap<PathBuf, syn::File>,
-) -> Option<String> {
+fn extract_item_snippet(node: &WireNode, project_root: &Path, ast_cache: &mut HashMap<PathBuf, syn::File>) -> Option<String> {
     let node_kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
-    if !matches!(
-        node_kind,
-        "struct" | "enum" | "union" | "trait" | "impl" | "function" | "const" | "static" | "type_alias"
-    ) {
+    if !matches!(node_kind, "struct" | "enum" | "union" | "trait" | "impl" | "function" | "const" | "static" | "type_alias") {
         return None;
     }
     if let Some(snippet) = node.metadata.get("source_snippet") {
@@ -315,11 +308,7 @@ fn apply_visibility(item: &mut syn::Item, vis_str: &str) {
     }
 }
 
-fn render_item_from_ast(
-    node: &WireNode,
-    project_root: &Path,
-    ast_cache: &mut HashMap<PathBuf, syn::File>,
-) -> Option<String> {
+fn render_item_from_ast(node: &WireNode, project_root: &Path, ast_cache: &mut HashMap<PathBuf, syn::File>) -> Option<String> {
     let source_file = node.metadata.get("source_file")?;
     if source_file.contains('<') || source_file.contains('>') {
         return None;
@@ -336,16 +325,7 @@ fn render_item_from_ast(
         ast_cache.insert(path.clone(), parsed);
         ast_cache.get(&path)?
     };
-    let name = node
-        .metadata
-        .get("name")
-        .cloned()
-        .or_else(|| {
-            node.metadata
-                .get("def_path")
-                .and_then(|d| d.split("::").last().map(|s| s.to_string()))
-        })
-        .unwrap_or_default();
+    let name = node.metadata.get("name").cloned().or_else(|| node.metadata.get("def_path").and_then(|d| d.split("::").last().map(|s| s.to_string()))).unwrap_or_default();
     let node_kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
     match node_kind {
         "struct" => ast.items.iter().find_map(|i| match i {
@@ -423,11 +403,7 @@ fn is_direct_child(module: &str, parent: &str) -> bool {
 fn module_file_path(module_path: &str, has_children: bool, project_root: &Path) -> Result<PathBuf> {
     let mut path = project_root.join("src");
     let module = ModulePath::from_string(module_path);
-    let segments: Vec<_> = module
-        .segments
-        .iter()
-        .skip_while(|s| *s == "crate")
-        .collect();
+    let segments: Vec<_> = module.segments.iter().skip_while(|s| *s == "crate").collect();
     if segments.is_empty() {
         return Ok(path.join("lib.rs"));
     }
@@ -461,14 +437,8 @@ fn normalize_visibility(value: Option<&str>) -> Result<String> {
     match value {
         "private" => Ok(String::new()),
         "public" => Ok("pub ".to_string()),
-        "crate" => Ok("pub(crate) ".to_string()),
-        v if v.starts_with("restricted:") => {
-            let path = v.trim_start_matches("restricted:");
-            if path.is_empty() {
-                return Err(anyhow!("restricted visibility missing path"));
-            }
-            Ok(format!("pub({}) ", path))
-        }
+        "crate" => Ok("pub ".to_string()),
+        v if v.starts_with("restricted:") => Ok("pub ".to_string()),
         other => Err(anyhow!("unknown visibility value: {other}")),
     }
 }
@@ -487,12 +457,7 @@ fn strip_leading_visibility(snippet: &str) -> String {
     s.to_string()
 }
 
-pub(crate) fn emit_plan(
-    registry: &mut NodeRegistry,
-    plan: Plan1,
-    project_root: &Path,
-    _allow_delete: bool,
-) -> Result<EmissionReport> {
+pub(crate) fn emit_plan(registry: &mut NodeRegistry, plan: Plan1, project_root: &Path, _allow_delete: bool) -> Result<EmissionReport> {
     let mut written = Vec::new();
     let mut unchanged = Vec::new();
     enforce_root_guard(project_root, &plan)?;
@@ -502,22 +467,11 @@ pub(crate) fn emit_plan(
     registry.asts.clear();
     registry.sources.clear();
     for file in plan.files {
-        let rel = file
-            .path
-            .strip_prefix(project_root)
-            .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
+        let rel = file.path.strip_prefix(project_root).map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
         let out_path = output_root.join(rel);
         let ast = syn::parse_file(&file.content).map_err(|e| {
-            let preview = file
-                .content
-                .lines()
-                .take(20)
-                .collect::<Vec<_>>()
-                .join("\n");
-            anyhow!(
-                "failed to parse {}: {e}\n---\n{preview}",
-                file.path.display()
-            )
+            let preview = file.content.lines().take(20).collect::<Vec<_>>().join("\n");
+            anyhow!("failed to parse {}: {e}\n---\n{preview}", file.path.display())
         })?;
         let source = Arc::new(file.content);
         registry.insert_ast(out_path.clone(), ast);
@@ -539,17 +493,8 @@ pub(crate) fn emit_plan(
             unchanged.push(out_path);
         }
     }
-    eprintln!(
-        "Plan emission summary: written={}, unchanged={}, deletions={}",
-        written.len(),
-        unchanged.len(),
-        deletion_count
-    );
-    Ok(EmissionReport {
-        written,
-        unchanged,
-        deletion_candidates,
-    })
+    eprintln!("Plan emission summary: written={}, unchanged={}, deletions={}", written.len(), unchanged.len(), deletion_count);
+    Ok(EmissionReport { written, unchanged, deletion_candidates })
 }
 
 fn enforce_root_guard(project_root: &Path, plan: &Plan1) -> Result<()> {
@@ -564,23 +509,14 @@ fn enforce_root_guard(project_root: &Path, plan: &Plan1) -> Result<()> {
     }
     let output_root = project_root.join("fix_point");
     for file in &plan.files {
-        let rel_any = file
-            .path
-            .strip_prefix(project_root)
-            .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
+        let rel_any = file.path.strip_prefix(project_root).map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
         for comp in rel_any.components() {
             if comp.as_os_str() == ".." {
                 return Err(anyhow!("plan path contains ..: {}", file.path.display()));
             }
         }
-        let rel = file
-            .path
-            .strip_prefix(project_root)
-            .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
-        let rel = file
-            .path
-            .strip_prefix(project_root)
-            .map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
+        let rel = file.path.strip_prefix(project_root).map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
+        let rel = file.path.strip_prefix(project_root).map_err(|_| anyhow!("plan path escapes project_root: {}", file.path.display()))?;
         let out_path = output_root.join(rel);
         if out_path.components().any(|c| c.as_os_str() == "..") {
             return Err(anyhow!("output path contains ..: {}", out_path.display()));
@@ -608,12 +544,8 @@ pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapsho
 
     let cargo = CargoProject::from_entry(project_root)?;
     let frontend = RustcFrontend::new();
-    let _artifacts = capture_project(&frontend, &cargo, &[])
-        .map_err(|e| anyhow!("rustc capture failed: {e}"))?;
-    let workspace_root = cargo
-        .metadata()
-        .map(|m| m.workspace_root)
-        .unwrap_or_else(|_| cargo.workspace_root().to_path_buf());
+    let _artifacts = capture_project(&frontend, &cargo, &[]).map_err(|e| anyhow!("rustc capture failed: {e}"))?;
+    let workspace_root = cargo.metadata().map(|m| m.workspace_root).unwrap_or_else(|_| cargo.workspace_root().to_path_buf());
     let state_dir = workspace_root.join(".rename");
     std::fs::create_dir_all(&state_dir)?;
     let tlog_path = state_dir.join("state.tlog");
@@ -626,13 +558,17 @@ pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> 
     let mut left_map: HashMap<String, WireNode> = HashMap::new();
     let mut right_map: HashMap<String, WireNode> = HashMap::new();
     for node in &left.nodes {
-        let Some(def_path) = node.metadata.get("def_path") else { continue; };
+        let Some(def_path) = node.metadata.get("def_path") else {
+            continue;
+        };
         let kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
         let key = format!("{def_path}#{kind}");
         left_map.insert(key, node.clone());
     }
     for node in &right.nodes {
-        let Some(def_path) = node.metadata.get("def_path") else { continue; };
+        let Some(def_path) = node.metadata.get("def_path") else {
+            continue;
+        };
         let kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
         let key = format!("{def_path}#{kind}");
         right_map.insert(key, node.clone());
@@ -642,13 +578,7 @@ pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> 
         let right_keys: HashSet<_> = right_map.keys().cloned().collect();
         let extra: Vec<_> = right_keys.difference(&left_keys).take(10).cloned().collect();
         let missing: Vec<_> = left_keys.difference(&right_keys).take(10).cloned().collect();
-        return Err(anyhow!(
-            "snapshot node count mismatch (left={}, right={}, extra_right={:?}, missing_right={:?})",
-            left_map.len(),
-            right_map.len(),
-            extra,
-            missing
-        ));
+        return Err(anyhow!("snapshot node count mismatch (left={}, right={}, extra_right={:?}, missing_right={:?})", left_map.len(), right_map.len(), extra, missing));
     }
     for (key, left_node) in &left_map {
         let Some(right_node) = right_map.get(key) else {
@@ -663,20 +593,18 @@ pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> 
 
     let mut left_edges: HashSet<(String, String, String)> = HashSet::new();
     let mut right_edges: HashSet<(String, String, String)> = HashSet::new();
-    let left_id_to_key: HashMap<_, _> = left_map
-        .iter()
-        .map(|(k, v)| (v.id.clone(), k.clone()))
-        .collect();
-    let right_id_to_key: HashMap<_, _> = right_map
-        .iter()
-        .map(|(k, v)| (v.id.clone(), k.clone()))
-        .collect();
+    let left_id_to_key: HashMap<_, _> = left_map.iter().map(|(k, v)| (v.id.clone(), k.clone())).collect();
+    let right_id_to_key: HashMap<_, _> = right_map.iter().map(|(k, v)| (v.id.clone(), k.clone())).collect();
     for edge in &left.edges {
-        let (Some(from), Some(to)) = (left_id_to_key.get(&edge.from), left_id_to_key.get(&edge.to)) else { continue; };
+        let (Some(from), Some(to)) = (left_id_to_key.get(&edge.from), left_id_to_key.get(&edge.to)) else {
+            continue;
+        };
         left_edges.insert((from.clone(), to.clone(), edge.kind.clone()));
     }
     for edge in &right.edges {
-        let (Some(from), Some(to)) = (right_id_to_key.get(&edge.from), right_id_to_key.get(&edge.to)) else { continue; };
+        let (Some(from), Some(to)) = (right_id_to_key.get(&edge.from), right_id_to_key.get(&edge.to)) else {
+            continue;
+        };
         right_edges.insert((from.clone(), to.clone(), edge.kind.clone()));
     }
     if left_edges != right_edges {
@@ -687,17 +615,7 @@ pub(crate) fn compare_snapshots(left: &GraphSnapshot, right: &GraphSnapshot) -> 
 
 fn filtered_metadata(node: &WireNode) -> HashMap<String, String> {
     let mut out = HashMap::new();
-    for key in [
-        "def_path",
-        "node_kind",
-        "module",
-        "module_path",
-        "module_id",
-        "name",
-        "visibility",
-        "kind",
-        "path",
-    ] {
+    for key in ["def_path", "node_kind", "module", "module_path", "module_id", "name", "visibility", "kind", "path"] {
         if let Some(value) = node.metadata.get(key) {
             out.insert(key.to_string(), value.clone());
         }

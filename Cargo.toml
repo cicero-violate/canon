@@ -12,7 +12,7 @@ members = [
   # "smt",
   "chromium_messenger", "rename",
   "rename/fix_point",
-  "compiler_capture", "graph_gpu", "algorithms", "rtree", "test_projects/test_rust_project", "analysis",
+  "compiler_capture", "graph_gpu", "algorithms", "rtree", "test_projects/test_rust_project", "analysis", "test_projects/test_pipeline", "kernel",
 ]
 
 resolver = "2"

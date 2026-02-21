@@ -1,3 +1,39 @@
+use crate::core::paths::module_path_for_file;
+
+
+use crate::core::project_editor::propagate::build_symbol_index_and_occurrences;
+
+
+use crate::core::symbol_id::normalize_symbol_id;
+
+
+use crate::core::use_map::{normalize_use_prefix, path_to_string};
+
+
+use crate::resolve::Resolver;
+
+
+use crate::state::NodeRegistry;
+
+
+use anyhow::Result;
+
+
+use quote::ToTokens;
+
+
+use std::collections::{HashMap, HashSet};
+
+
+use std::path::PathBuf;
+
+
+use syn::visit::{self, Visit};
+
+
+use syn::visit_mut::VisitMut;
+
+
 struct CanonicalRewriteVisitor {
     module_path: String,
     rewrite_map: HashMap<String, (String, String)>,
@@ -5,7 +41,8 @@ struct CanonicalRewriteVisitor {
 }
 
 
-pub(crate) struct MoveSet {
+#[derive(Debug, Default, Clone)]
+pub struct MoveSet {
     pub entries: HashMap<String, (String, String)>,
 }
 
@@ -144,7 +181,7 @@ fn is_private_use(item: &syn::ItemUse) -> bool {
 }
 
 
-pub(crate) fn run_pass1_canonical_rewrite(
+pub fn run_pass1_canonical_rewrite(
     registry: &mut NodeRegistry,
     moveset: &MoveSet,
 ) -> Result<HashSet<PathBuf>> {
@@ -183,7 +220,7 @@ pub(crate) fn run_pass1_canonical_rewrite(
 }
 
 
-pub(crate) fn run_pass2_scope_rehydration(
+pub fn run_pass2_scope_rehydration(
     registry: &mut NodeRegistry,
     moveset: &MoveSet,
 ) -> Result<HashSet<PathBuf>> {
@@ -258,7 +295,7 @@ pub(crate) fn run_pass2_scope_rehydration(
 }
 
 
-pub(crate) fn run_pass3_orphan_cleanup(
+pub fn run_pass3_orphan_cleanup(
     registry: &mut NodeRegistry,
 ) -> Result<HashSet<PathBuf>> {
     let (symbol_table, occurrences, alias_graph) = build_symbol_index_and_occurrences(

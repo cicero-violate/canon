@@ -1,4 +1,13 @@
-pub(crate) fn format_files(paths: &[PathBuf]) -> Result<Vec<String>> {
+use anyhow::Result;
+
+
+use std::path::PathBuf;
+
+
+use std::process::Command;
+
+
+pub fn format_files(paths: &[PathBuf]) -> Result<Vec<String>> {
     let existing: Vec<_> = paths.iter().filter(|p| p.exists()).collect();
     if existing.is_empty() {
         return Ok(Vec::new());

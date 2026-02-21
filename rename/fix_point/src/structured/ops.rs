@@ -1,3 +1,16 @@
+use std::path::PathBuf;
+
+
+use std::sync::Arc;
+
+
+use crate::state::{NodeHandle, NodeKind};
+
+
+use crate::model::types::SpanRange;
+
+
+#[derive(Clone)]
 pub enum FieldMutation {
     RenameIdent(String),
     ChangeVisibility(syn::Visibility),
@@ -11,6 +24,7 @@ pub enum FieldMutation {
 }
 
 
+#[derive(Clone)]
 pub enum NodeOp {
     ReplaceNode { handle: NodeHandle, new_node: syn::Item },
     InsertBefore { handle: NodeHandle, new_node: syn::Item },

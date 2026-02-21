@@ -1,4 +1,40 @@
-fn apply_cross_file_moves(
+use super::utils::find_project_root_sync;
+
+
+use super::QueuedOp;
+
+
+use crate::core::paths::module_path_for_file;
+
+
+use crate::core::symbol_id::normalize_symbol_id;
+
+
+use crate::module_path::{compute_new_file_path, ModulePath};
+
+
+use crate::state::NodeRegistry;
+
+
+use anyhow::Result;
+
+
+use std::collections::HashSet;
+
+
+use std::path::PathBuf;
+
+
+use std::sync::Arc;
+
+
+use syn::spanned::Spanned;
+
+
+use syn::visit_mut::VisitMut;
+
+
+pub fn apply_cross_file_moves(
     registry: &mut NodeRegistry,
     changesets: &std::collections::HashMap<PathBuf, Vec<QueuedOp>>,
 ) -> Result<HashSet<PathBuf>> {
@@ -184,7 +220,7 @@ fn build_super_tree(tail: &syn::UseTree) -> syn::UseTree {
 }
 
 
-fn collect_new_files(
+pub fn collect_new_files(
     registry: &NodeRegistry,
     changesets: &std::collections::HashMap<PathBuf, Vec<QueuedOp>>,
 ) -> Vec<(PathBuf, String)> {

@@ -1,5 +1,3 @@
-use syn::spanned::Spanned;
-use syn::visit_mut::VisitMut;
 use super::utils::find_project_root_sync;
 use super::QueuedOp;
 use crate::core::paths::module_path_for_file;
@@ -10,6 +8,8 @@ use anyhow::Result;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use syn::spanned::Spanned;
+use syn::visit_mut::VisitMut;
 
 /// Cross-file move pass: for each MoveSymbol op, if source and destination file differ,
 /// extract the item from source text spans and insert into destination text.
@@ -37,12 +37,7 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
                     Some(f) if f != *src_file => f,
                     _ => continue,
                 };
-                let segments: Vec<String> = new_module_path
-                    .trim_start_matches("crate::")
-                    .split("::")
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.to_string())
-                    .collect();
+                let segments: Vec<String> = new_module_path.trim_start_matches("crate::").split("::").filter(|s| !s.is_empty()).map(|s| s.to_string()).collect();
                 pending.push(PendingMove {
                     src_file: src_file.clone(),
                     dst_file,
@@ -74,9 +69,7 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
         }
         let struct_name = mv.symbol_id.rsplit("::").next().unwrap_or(&mv.symbol_id).to_string();
         let src_text = registry.sources.get(&mv.src_file).expect("source missing");
-        let src_ast = src_ast_cache
-            .entry(mv.src_file.clone())
-            .or_insert_with(|| syn::parse_file(src_text).unwrap_or_else(|_| syn::parse_quote!()));
+        let src_ast = src_ast_cache.entry(mv.src_file.clone()).or_insert_with(|| syn::parse_file(src_text).unwrap_or_else(|_| syn::parse_quote!()));
         for item in &src_ast.items {
             let syn::Item::Impl(item_impl) = item else { continue };
             let self_name = impl_self_type_name(&item_impl.self_ty);
@@ -107,8 +100,7 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
             anyhow::bail!("cross-file move: invalid span {}..{} for {}", start, end, mv.src_file.display());
         }
         let snippet = src_text[start..end].to_string();
-        let item = parse_single_item(&snippet)
-            .ok_or_else(|| anyhow::anyhow!("cross-file move: span does not parse as a single item in {}", mv.src_file.display()))?;
+        let item = parse_single_item(&snippet).ok_or_else(|| anyhow::anyhow!("cross-file move: span does not parse as a single item in {}", mv.src_file.display()))?;
         validate_item_matches(&item, &mv.symbol_id)?;
         resolved.push(ResolvedMove { pending: mv.clone(), item });
     }
@@ -248,17 +240,10 @@ fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
     }
 }
 
- 
-
 fn resolve_or_create_dst_file(registry: &mut NodeRegistry, new_module_path: &str, src_file: &PathBuf) -> Option<PathBuf> {
     let project_root = find_project_root_sync(registry)?;
     let norm_dst = normalize_symbol_id(new_module_path);
-    let existing: Option<PathBuf> = registry
-        .asts
-        .keys()
-        .filter(|f| *f != src_file)
-        .find(|f| normalize_symbol_id(&module_path_for_file(&project_root, f)) == norm_dst)
-        .cloned();
+    let existing: Option<PathBuf> = registry.asts.keys().filter(|f| *f != src_file).find(|f| normalize_symbol_id(&module_path_for_file(&project_root, f)) == norm_dst).cloned();
     if let Some(f) = existing {
         return Some(f);
     }
@@ -310,7 +295,9 @@ pub(super) fn collect_new_files(registry: &NodeRegistry, changesets: &std::colle
 /// Trait impl methods (`impl Trait for Type { fn foo() }`) are NOT touched —
 /// their visibility is dictated by the trait contract.
 fn promote_private_to_pub_crate(item: &mut syn::Item) {
-    struct Promoter { in_trait_impl: bool }
+    struct Promoter {
+        in_trait_impl: bool,
+    }
 
     impl VisitMut for Promoter {
         fn visit_item_impl_mut(&mut self, node: &mut syn::ItemImpl) {
@@ -396,11 +383,7 @@ fn superize_tree(tree: syn::UseTree, src_crate_path: &str) -> syn::UseTree {
 
 /// Recursively walk a UseTree. `accumulated` tracks segments seen so far.
 /// When the accumulated path equals src_crate_path, replace with super:: tail.
-fn try_superize(
-    tree: &syn::UseTree,
-    src_crate_path: &str,
-    accumulated: &[String],
-) -> Option<syn::UseTree> {
+fn try_superize(tree: &syn::UseTree, src_crate_path: &str, accumulated: &[String]) -> Option<syn::UseTree> {
     match tree {
         syn::UseTree::Path(p) => {
             let mut acc = accumulated.to_vec();
@@ -412,11 +395,7 @@ fn try_superize(
             } else if src_crate_path.starts_with(&format!("{}::", acc_str)) {
                 // Still a prefix — keep descending.
                 let inner = try_superize(&p.tree, src_crate_path, &acc)?;
-                Some(syn::UseTree::Path(syn::UsePath {
-                    ident: p.ident.clone(),
-                    colon2_token: p.colon2_token,
-                    tree: Box::new(inner),
-                }))
+                Some(syn::UseTree::Path(syn::UsePath { ident: p.ident.clone(), colon2_token: p.colon2_token, tree: Box::new(inner) }))
             } else {
                 None
             }
@@ -428,9 +407,5 @@ fn try_superize(
 /// Wrap a UseTree tail with `super::`.
 fn build_super_tree(tail: &syn::UseTree) -> syn::UseTree {
     let super_ident = syn::Ident::new("super", proc_macro2::Span::call_site());
-    syn::UseTree::Path(syn::UsePath {
-        ident: super_ident,
-        colon2_token: syn::token::PathSep::default(),
-        tree: Box::new(tail.clone()),
-    })
+    syn::UseTree::Path(syn::UsePath { ident: super_ident, colon2_token: syn::token::PathSep::default(), tree: Box::new(tail.clone()) })
 }

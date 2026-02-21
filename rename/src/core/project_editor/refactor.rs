@@ -1,13 +1,13 @@
 use crate::core::paths::module_path_for_file;
-use crate::core::use_map::{normalize_use_prefix, path_to_string};
 use crate::core::project_editor::propagate::build_symbol_index_and_occurrences;
 use crate::core::symbol_id::normalize_symbol_id;
+use crate::core::use_map::{normalize_use_prefix, path_to_string};
 use crate::resolve::Resolver;
 use crate::state::NodeRegistry;
 use anyhow::Result;
+use quote::ToTokens;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use quote::ToTokens;
 use syn::visit::{self, Visit};
 use syn::visit_mut::VisitMut;
 
@@ -21,23 +21,13 @@ pub(crate) fn run_pass1_canonical_rewrite(registry: &mut NodeRegistry, moveset: 
         return Ok(HashSet::new());
     }
     let (symbol_table, _occurrences, alias_graph) = build_symbol_index_and_occurrences(registry)?;
-    let project_root = registry
-        .asts
-        .keys()
-        .next()
-        .and_then(|f| f.parent())
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("."));
+    let project_root = registry.asts.keys().next().and_then(|f| f.parent()).map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
 
     let mut touched = HashSet::new();
     for (file, ast) in registry.asts.iter_mut() {
         let module_path = normalize_symbol_id(&module_path_for_file(&project_root, file));
         let rewrite_map = build_moveset_rewrite_map(moveset);
-        let mut rewriter = CanonicalRewriteVisitor {
-            module_path,
-            rewrite_map,
-            changed: false,
-        };
+        let mut rewriter = CanonicalRewriteVisitor { module_path, rewrite_map, changed: false };
         rewriter.visit_file_mut(ast);
         if rewriter.changed {
             let rendered = crate::structured::render_file(ast);
@@ -149,19 +139,12 @@ fn build_moveset_rewrite_map(moveset: &MoveSet) -> HashMap<String, (String, Stri
     map
 }
 
-
 pub(crate) fn run_pass2_scope_rehydration(registry: &mut NodeRegistry, moveset: &MoveSet) -> Result<HashSet<PathBuf>> {
     if moveset.entries.is_empty() {
         return Ok(HashSet::new());
     }
     let (symbol_table, _occurrences, alias_graph) = build_symbol_index_and_occurrences(registry)?;
-    let project_root = registry
-        .asts
-        .keys()
-        .next()
-        .and_then(|f| f.parent())
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("."));
+    let project_root = registry.asts.keys().next().and_then(|f| f.parent()).map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
 
     let dest_modules: HashSet<String> = moveset.entries.values().map(|(_, new)| new.clone()).collect();
     let mut touched = HashSet::new();
@@ -225,13 +208,7 @@ pub(crate) fn run_pass3_orphan_cleanup(registry: &mut NodeRegistry) -> Result<Ha
     for occ in occurrences {
         occ_by_file.entry(occ.file.clone()).or_default().push(occ);
     }
-    let project_root = registry
-        .asts
-        .keys()
-        .next()
-        .and_then(|f| f.parent())
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("."));
+    let project_root = registry.asts.keys().next().and_then(|f| f.parent()).map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
 
     let mut touched = HashSet::new();
     for (file, ast) in registry.asts.iter_mut() {

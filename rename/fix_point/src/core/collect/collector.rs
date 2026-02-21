@@ -1,10 +1,35 @@
+use proc_macro2::Span;
+
+
+use std::path::Path;
+
+
+use crate::alias::{AliasGraph, ImportNode, UseKind, VisibilityScope};
+
+
+use super::super::paths::module_child_path;
+
+
+use super::super::symbol_id::normalize_symbol_id;
+
+
+use super::super::use_map::{normalize_use_prefix, path_to_string, type_path_string};
+
+
+use crate::model::core_span::span_to_range;
+
+
+use crate::model::types::SymbolRecord;
+
+
+#[derive(Clone)]
 struct ImplContext {
     struct_path: String,
     trait_path: Option<String>,
 }
 
 
-struct ItemCollector<'a> {
+pub struct ItemCollector<'a> {
     file: &'a Path,
     symbols: Vec<SymbolRecord>,
     alias_graph: &'a mut crate::alias::AliasGraph,

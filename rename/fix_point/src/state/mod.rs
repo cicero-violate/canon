@@ -9,3 +9,5 @@ pub mod ids;
 pub mod node;
 
 pub mod workspace;
+
+pub use self::node::{NodeHandle, NodeKind, NodeRegistry};

@@ -1,3 +1,13 @@
+use std::collections::HashMap;
+
+
+use std::path::PathBuf;
+
+
+use std::sync::Arc;
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NodeHandle {
     /// File containing the node.
     pub file: PathBuf,
@@ -16,6 +26,7 @@ pub struct NodeHandle {
 }
 
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NodeKind {
     Fn,
     Struct,
@@ -30,6 +41,7 @@ pub enum NodeKind {
 }
 
 
+#[derive(Default)]
 pub struct NodeRegistry {
     /// symbol_id -> node handle
     pub handles: HashMap<String, NodeHandle>,

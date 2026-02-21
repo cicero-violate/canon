@@ -4,6 +4,8 @@ mod editor;
 
 mod graph_pipeline;
 
+mod invariants;
+
 mod model_validation;
 
 mod ops;
@@ -21,3 +23,11 @@ mod use_imports;
 mod use_path;
 
 mod utils;
+
+pub use editor::{ChangeReport, EditConflict, ProjectEditor};
+
+
+pub use oracle::NullOracle;
+
+
+pub(crate) use editor::QueuedOp;

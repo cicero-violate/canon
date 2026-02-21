@@ -3,19 +3,12 @@ use quote::ToTokens;
 /// Remove top-level `use` items from `src_ast` whose leaf idents are no longer
 /// referenced in any remaining (non-use) item in the file.
 pub(super) fn remove_orphaned_uses(src_ast: &mut syn::File) {
-    let body_tokens: String = src_ast
-        .items
-        .iter()
-        .filter(|i| !matches!(i, syn::Item::Use(_)))
-        .map(|i| i.to_token_stream().to_string())
-        .collect::<Vec<_>>()
-        .join(" ");
+    let body_tokens: String = src_ast.items.iter().filter(|i| !matches!(i, syn::Item::Use(_))).map(|i| i.to_token_stream().to_string()).collect::<Vec<_>>().join(" ");
     src_ast.items.retain(|item| {
         let syn::Item::Use(use_item) = item else { return true };
         let mut leaves = Vec::new();
         collect_use_leaves(&use_item.tree, &mut leaves);
-        leaves.iter().any(|leaf| token_contains_word(&body_tokens, leaf))
-            || leaves.iter().any(|leaf| leaf == "self")
+        leaves.iter().any(|leaf| token_contains_word(&body_tokens, leaf)) || leaves.iter().any(|leaf| leaf == "self")
     });
 }
 

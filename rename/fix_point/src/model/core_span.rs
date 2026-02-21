@@ -1,4 +1,10 @@
-pub(crate) fn span_to_offsets(
+use proc_macro2::Span;
+
+
+use super::types::{LineColumn, SpanRange};
+
+
+pub fn span_to_offsets(
     content: &str,
     start: &LineColumn,
     end: &LineColumn,

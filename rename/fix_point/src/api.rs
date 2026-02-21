@@ -1,3 +1,19 @@
+use super::core::{apply_rename_with_map, collect_names, SymbolIndexReport, SymbolRecord};
+
+
+use super::structured::{apply_ast_rewrites, AstEdit, NodeOp};
+
+
+use anyhow::{bail, Result};
+
+
+use std::collections::HashMap;
+
+
+use std::path::{Path, PathBuf};
+
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct MutationRequest {
     /// Symbol identifier → new name mapping.
     #[serde(default)]
@@ -11,6 +27,7 @@ pub struct MutationRequest {
 }
 
 
+#[derive(serde::Serialize)]
 pub struct MutationResult {
     pub renamed: usize,
     pub dry_run: bool,
@@ -18,6 +35,7 @@ pub struct MutationResult {
 }
 
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryRequest {
     /// Optional list of symbol kinds to match (e.g., `["function","struct"]`).
     #[serde(default)]
@@ -31,6 +49,7 @@ pub struct QueryRequest {
 }
 
 
+#[derive(serde::Serialize)]
 pub struct QueryResult {
     /// Full names report (symbols, occurrences, alias graph, etc.)
     pub report: SymbolIndexReport,
@@ -39,6 +58,7 @@ pub struct QueryResult {
 }
 
 
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct UpsertRequest {
     /// Concrete AST edits to apply.
     #[serde(default)]
@@ -52,8 +72,23 @@ pub struct UpsertRequest {
 }
 
 
+#[derive(serde::Serialize)]
 pub struct UpsertResult {
     pub touched_files: Vec<PathBuf>,
+}
+
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct QueryRequest {
+    /// Optional list of symbol kinds to match (e.g., `["function","struct"]`).
+    #[serde(default)]
+    pub kinds: Vec<String>,
+    /// Optional module prefix filter (e.g., `crate::rename`).
+    #[serde(default)]
+    pub module_prefix: Option<String>,
+    /// Optional substring filter applied to symbol names (case-insensitive).
+    #[serde(default)]
+    pub name_contains: Option<String>,
 }
 
 

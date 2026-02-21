@@ -1,3 +1,13 @@
+use serde::Serialize;
+
+
+use std::collections::HashMap;
+
+
+use syn::Visibility;
+
+
+#[derive(Debug, Clone, Serialize)]
 pub struct AliasEdge {
     /// Source use node ID
     pub from: String,
@@ -8,6 +18,7 @@ pub struct AliasEdge {
 }
 
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub enum EdgeKind {
     /// Direct import: A imports B
     Import,
@@ -20,6 +31,7 @@ pub enum EdgeKind {
 }
 
 
+#[derive(Debug, Clone, Serialize)]
 pub struct ExposurePath {
     /// The symbol's original module
     pub origin_module: String,
@@ -30,6 +42,7 @@ pub struct ExposurePath {
 }
 
 
+#[derive(Debug, Clone, Serialize)]
 pub struct ImportNode {
     /// Unique identifier for this use statement
     pub id: String,
@@ -50,6 +63,7 @@ pub struct ImportNode {
 }
 
 
+#[derive(Debug, Clone, Serialize)]
 pub struct LeakedSymbol {
     /// Symbol identifier
     pub symbol_id: String,
@@ -62,6 +76,7 @@ pub struct LeakedSymbol {
 }
 
 
+#[derive(Debug, Clone)]
 pub struct ResolutionChain {
     /// Starting identifier (as used in code)
     pub start_name: String,
@@ -74,6 +89,7 @@ pub struct ResolutionChain {
 }
 
 
+#[derive(Debug, Clone)]
 pub struct ResolutionStep {
     /// Type of resolution step
     pub kind: StepKind,
@@ -86,6 +102,7 @@ pub struct ResolutionStep {
 }
 
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StepKind {
     /// Starting point
     Start,
@@ -100,6 +117,7 @@ pub enum StepKind {
 }
 
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub enum UseKind {
     /// Simple import: use foo::Bar;
     Simple,
@@ -114,6 +132,7 @@ pub enum UseKind {
 }
 
 
+#[derive(Debug, Clone, Serialize)]
 pub struct VisibilityLeakAnalysis {
     /// Symbols that are publicly exposed from each module
     /// Key: module_path -> Vec<(symbol_name, exposure_path)>
@@ -125,6 +144,7 @@ pub struct VisibilityLeakAnalysis {
 }
 
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub enum VisibilityScope {
     /// pub
     Public,
@@ -136,4 +156,25 @@ pub enum VisibilityScope {
     Private,
     /// pub(in path)
     Restricted(String),
+}
+
+
+#[derive(Debug, Clone, Serialize)]
+struct ImportNode {
+    /// Unique identifier for this use statement
+    pub id: String,
+    /// The module where this use statement appears
+    pub module_path: String,
+    /// Source path being imported (e.g., "std::collections::HashMap")
+    pub source_path: String,
+    /// Local name (after 'as' if present, otherwise last segment)
+    pub local_name: String,
+    /// Original name (before 'as' if present)
+    pub original_name: Option<String>,
+    /// Type of use statement
+    pub kind: UseKind,
+    /// Visibility of this use statement
+    pub visibility: VisibilityScope,
+    /// File where this use appears
+    pub file: String,
 }

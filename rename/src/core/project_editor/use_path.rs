@@ -37,11 +37,7 @@ pub(super) fn run_use_path_rewrite(registry: &mut NodeRegistry, changesets: &Has
     let symbol_table = std::sync::Arc::new(symbol_table);
     for (file, ast) in registry.asts.iter_mut() {
         let alias_nodes = alias_graph.nodes_in_file(&file.to_string_lossy()).into_iter().cloned().collect::<Vec<_>>();
-        let resolver = crate::resolve::ResolverContext {
-            module_path: module_path_for_file(&project_root, file),
-            alias_graph: alias_graph.clone(),
-            symbol_table: symbol_table.clone(),
-        };
+        let resolver = crate::resolve::ResolverContext { module_path: module_path_for_file(&project_root, file), alias_graph: alias_graph.clone(), symbol_table: symbol_table.clone() };
         let mut pass = UsePathRewritePass::new(updates.clone(), alias_nodes, config.clone(), resolver);
         if pass.execute(file, "", ast)? {
             touched.insert(file.clone());
