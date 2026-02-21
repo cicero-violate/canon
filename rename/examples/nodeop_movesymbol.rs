@@ -3,8 +3,8 @@
 #[cfg(feature = "rustc_frontend")]
 extern crate rustc_driver;
 
-use rename::rename::core::project_editor::ProjectEditor;
-use rename::rename::structured::NodeOp;
+use rename::core::project_editor::ProjectEditor;
+use rename::structured::NodeOp;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

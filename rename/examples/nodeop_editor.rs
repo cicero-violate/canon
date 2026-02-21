@@ -4,8 +4,8 @@
 extern crate rustc_driver;
 
 use anyhow::Result;
-use rename::rename::core::ProjectEditor;
-use rename::rename::structured::FieldMutation;
+use rename::core::ProjectEditor;
+use rename::structured::FieldMutation;
 use std::path::Path;
 
 fn main() -> Result<()> {

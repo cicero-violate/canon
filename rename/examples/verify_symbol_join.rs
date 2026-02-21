@@ -8,7 +8,7 @@ use rename::collect_names;
 use rename::compiler_capture::frontends::rustc::RustcFrontend;
 use rename::compiler_capture::multi_capture::capture_project;
 use rename::compiler_capture::project::CargoProject;
-use rename::rename::core::normalize_symbol_id;
+use rename::core::normalize_symbol_id;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

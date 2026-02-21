@@ -3,19 +3,20 @@
 #[cfg(feature = "rustc_frontend")]
 extern crate rustc_driver;
 
-use rename::rename::core::project_editor::ProjectEditor;
-use rename::rename::structured::FieldMutation;
+// rename::* is redundant/confusing.
+// Crate name is already `rename`.
+use rename::core::project_editor::ProjectEditor;
+use rename::structured::FieldMutation;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Target the Canon crate (where CanonicalIr and related symbols live)
+    // Target external project to refactor (example: canon crate)
     let project_path = Path::new("/workspace/ai_sandbox/canon_workspace/canon/src");
     let mut editor = ProjectEditor::load_with_rustc(project_path)?;
 
     // NOTE:
-    // The rename engine requires symbol handles that exist in the
-    // currently loaded project (graph_gpu/src).
-    // Use `editor.list_symbols()` (or equivalent) to discover valid IDs.
+    // Symbol IDs must exist in the loaded project.
+    // Use symbol index inspection to discover valid IDs.
     //
     // Example valid rename (must exist in loaded project):
     let renames = [
