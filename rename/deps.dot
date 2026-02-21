@@ -1,240 +1,245 @@
- → mod.rs
-  ├── alias
-  ├── api
-  ├── attributes
-  ├── core
-  ├── macros
-  ├── module_path
-  ├── occurrence
-  ├── pattern
-  ├── scope
-  ├── structured
-  └── structured::ast_render
-alias → mod.rs
-  ├── alias::graph
-  ├── alias::helpers
-  ├── alias::types
-  └── alias::visibility
-alias::graph → (no dependencies) graph.rs
-alias::helpers → (no dependencies) helpers.rs
-alias::types → (no dependencies) types.rs
-alias::visibility → (no dependencies) visibility.rs
-api → (no dependencies) api.rs
-attributes → (no dependencies) attributes.rs
-core → mod.rs
-  ├── core::alias
-  ├── core::cli
-  ├── core::collect
-  ├── core::format
-  ├── core::mod_decls
-  ├── core::oracle
-  ├── core::paths
-  ├── core::preview
-  ├── core::project_editor
-  ├── core::rename
-  ├── core::structured
-  ├── core::symbol_id
-  ├── core::use_map
-  ├── core::use_paths
-  ├── model::core_span
-  └── model::types
-core::alias → alias.rs
-  ├── fs
-  ├── model::core_span
-  └── model::types
-core::cli → (no dependencies) cli.rs
-core::collect → mod.rs
-  ├── alias
-  ├── core::collect::collector
-  ├── fs
-  ├── model::types
-  └── occurrence
-core::collect::collector → collector.rs
-  ├── alias
-  ├── model::core_span
-  └── model::types
-core::format → (no dependencies) format.rs
-core::mod_decls → mod_decls.rs
-  ├── fs
-  └── model::types
-core::oracle → (no dependencies) oracle.rs
-core::paths → paths.rs
-  └── model::types
-core::preview → preview.rs
-  ├── model::types
-  └── structured
-core::project_editor → mod.rs
-  ├── core::project_editor::cross_file
-  ├── core::project_editor::editor
-  ├── core::project_editor::ops
-  ├── core::project_editor::oracle
-  ├── core::project_editor::propagate
-  ├── core::project_editor::registry_builder
-  ├── core::project_editor::use_imports
-  ├── core::project_editor::use_path
-  └── core::project_editor::utils
-core::project_editor::cross_file → cross_file.rs
-  ├── core::paths
-  ├── core::symbol_id
-  ├── module_path
-  └── state
-core::project_editor::editor → editor.rs
-  ├── core::mod_decls
-  ├── core::oracle
-  ├── core::symbol_id
-  ├── fs
-  ├── model::types
-  ├── state
-  └── structured
-core::project_editor::ops → mod.rs
-  ├── core::project_editor::ops::dispatch
-  ├── core::project_editor::ops::field_mutations
-  ├── core::project_editor::ops::helpers
-  └── core::project_editor::ops::move_ops
-core::project_editor::ops::dispatch → dispatch.rs
-  ├── state
-  └── structured
-core::project_editor::ops::field_mutations → field_mutations.rs
-  ├── state
-  └── structured
-core::project_editor::ops::helpers → helpers.rs
-  └── state
-core::project_editor::ops::move_ops → move_ops.rs
-  └── state
-core::project_editor::oracle → oracle.rs
-  ├── core::oracle
-  └── core::symbol_id
-core::project_editor::propagate → propagate.rs
-  ├── alias
-  ├── core::collect
-  ├── core::oracle
-  ├── core::paths
-  ├── core::rename
-  ├── core::symbol_id
-  ├── core::use_map
-  ├── model::types
-  ├── module_path
-  ├── occurrence
-  ├── state
-  └── structured
-core::project_editor::registry_builder → registry_builder.rs
-  ├── core::paths
-  ├── core::symbol_id
-  ├── core::use_map
-  ├── state
-  └── structured
-core::project_editor::use_imports → (no dependencies) use_imports.rs
-core::project_editor::use_path → use_path.rs
-  ├── alias
-  ├── core::collect
-  ├── core::paths
-  ├── core::symbol_id
-  ├── model::types
-  ├── state
-  ├── structured
-  └── structured::use_tree
-core::project_editor::utils → utils.rs
-  ├── core::collect
-  ├── core::paths
-  ├── core::symbol_id
-  ├── model::types
-  └── state
-core::rename → rename.rs
-  ├── alias
-  ├── fs
-  ├── model::types
-  └── structured
-core::structured → structured.rs
-  └── structured
-core::symbol_id → (no dependencies) symbol_id.rs
-core::use_map → (no dependencies) use_map.rs
-core::use_paths → use_paths.rs
-  ├── alias
-  ├── fs
-  ├── model::types
-  ├── resolve
-  └── structured
-fs → (no dependencies) fs.rs
-fs::include_visitor → (no dependencies) include_visitor.rs
-lib → lib.rs
-  ├── alias
-  ├── api
-  ├── attributes
-  ├── core
-  ├── fs
-  ├── macros
-  ├── model
-  ├── module_path
-  ├── occurrence
-  ├── pattern
-  ├── resolve
-  ├── scope
-  ├── state
-  └── structured
-macros → (no dependencies) macros.rs
-model → mod.rs
-  ├── model::core_span
-  ├── model::span
-  └── model::types
-model::core_span → (no dependencies) core_span.rs
-model::span → span.rs
-  ├── model::core_span
-  └── model::types
-model::types → types.rs
-  └── alias
-module_path → (no dependencies) module_path.rs
-occurrence → occurrence.rs
-  ├── occurrence::visitor
-  ├── pattern
-  └── pattern::binding
-occurrence::visitor → visitor.rs
-  ├── attributes
-  ├── macros
-  └── resolve
-pattern → pattern.rs
-  └── pattern::binding
-pattern::binding → (no dependencies) binding.rs
-resolve → resolve.rs
-  ├── alias
-  └── model::types
-scope → scope.rs
-  └── scope::frame
-scope::frame → (no dependencies) frame.rs
-state → mod.rs
-  ├── state::builder
-  ├── state::capability
-  ├── state::graph
-  ├── state::ids
-  ├── state::node
-  └── state::workspace
-state::builder → (no dependencies) builder.rs
-state::capability → mod.rs
-  └── state::capability::shell
-state::capability::shell → (no dependencies) shell.rs
-state::graph → (no dependencies) graph.rs
-state::ids → (no dependencies) ids.rs
-state::node → (no dependencies) node.rs
-state::workspace → (no dependencies) workspace.rs
-structured → mod.rs
-  ├── structured::ast_render
-  ├── structured::config
-  ├── structured::doc_attr
-  ├── structured::edits
-  ├── structured::ops
-  ├── structured::orchestrator
-  └── structured::use_tree
-structured::ast_render → (no dependencies) ast_render.rs
-structured::config → (no dependencies) config.rs
-structured::doc_attr → doc_attr.rs
-  └── model::span
-structured::edits → edits.rs
-  ├── model::core_span
-  └── model::span
-structured::ops → ops.rs
-  └── state
-structured::orchestrator → orchestrator.rs
-  ├── alias
-  └── resolve
-structured::use_tree → use_tree.rs
-  ├── alias
-  └── resolve
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box fontname="monospace"];
+  "core::project_editor::use_imports";
+  "core::project_editor::ops::helpers";
+  "resolve";
+  "alias::types";
+  "state::graph";
+  "model::span";
+  "state";
+  "core::project_editor::ops::field_mutations";
+  "model";
+  "core::project_editor::editor";
+  "occurrence::visitor";
+  "core::symbol_id";
+  "core";
+  "core::project_editor::propagate";
+  "";
+  "occurrence";
+  "lib";
+  "model::types";
+  "core::oracle";
+  "state::workspace";
+  "core::use_paths";
+  "structured::config";
+  "state::capability::shell";
+  "core::project_editor::ops";
+  "core::paths";
+  "state::capability";
+  "api";
+  "alias::visibility";
+  "attributes";
+  "alias::graph";
+  "structured::use_tree";
+  "state::node";
+  "core::structured";
+  "core::cli";
+  "core::project_editor";
+  "core::project_editor::utils";
+  "core::collect::collector";
+  "pattern";
+  "alias";
+  "state::ids";
+  "structured::ops";
+  "core::project_editor::cross_file";
+  "alias::helpers";
+  "core::alias";
+  "core::use_map";
+  "fs::include_visitor";
+  "model::core_span";
+  "macros";
+  "structured::ast_render";
+  "core::collect";
+  "structured::edits";
+  "core::format";
+  "module_path";
+  "structured";
+  "core::project_editor::use_path";
+  "scope";
+  "structured::doc_attr";
+  "core::preview";
+  "core::rename";
+  "core::project_editor::ops::move_ops";
+  "core::project_editor::registry_builder";
+  "core::project_editor::oracle";
+  "fs";
+  "core::project_editor::ops::dispatch";
+  "structured::orchestrator";
+  "core::mod_decls";
+  "pattern::binding";
+  "scope::frame";
+  "state::builder";
+  "core::project_editor::ops::helpers" -> "state";
+  "resolve" -> "model::types";
+  "resolve" -> "alias";
+  "model::span" -> "model::types";
+  "model::span" -> "model::core_span";
+  "state" -> "state::builder";
+  "state" -> "state::workspace";
+  "state" -> "state::ids";
+  "state" -> "state::graph";
+  "state" -> "state::node";
+  "state" -> "state::capability";
+  "core::project_editor::ops::field_mutations" -> "state";
+  "core::project_editor::ops::field_mutations" -> "structured";
+  "model" -> "model::span";
+  "model" -> "model::types";
+  "model" -> "model::core_span";
+  "core::project_editor::editor" -> "fs";
+  "core::project_editor::editor" -> "structured";
+  "core::project_editor::editor" -> "core::oracle";
+  "core::project_editor::editor" -> "model::types";
+  "core::project_editor::editor" -> "core::mod_decls";
+  "core::project_editor::editor" -> "state";
+  "core::project_editor::editor" -> "core::symbol_id";
+  "occurrence::visitor" -> "resolve";
+  "occurrence::visitor" -> "macros";
+  "occurrence::visitor" -> "attributes";
+  "core" -> "core::rename";
+  "core" -> "core::collect";
+  "core" -> "core::alias";
+  "core" -> "core::mod_decls";
+  "core" -> "core::preview";
+  "core" -> "core::symbol_id";
+  "core" -> "model::core_span";
+  "core" -> "core::format";
+  "core" -> "core::paths";
+  "core" -> "core::cli";
+  "core" -> "core::use_paths";
+  "core" -> "core::oracle";
+  "core" -> "core::structured";
+  "core" -> "core::use_map";
+  "core" -> "model::types";
+  "core" -> "core::project_editor";
+  "core::project_editor::propagate" -> "core::use_map";
+  "core::project_editor::propagate" -> "module_path";
+  "core::project_editor::propagate" -> "core::oracle";
+  "core::project_editor::propagate" -> "core::paths";
+  "core::project_editor::propagate" -> "model::types";
+  "core::project_editor::propagate" -> "structured";
+  "core::project_editor::propagate" -> "alias";
+  "core::project_editor::propagate" -> "state";
+  "core::project_editor::propagate" -> "occurrence";
+  "core::project_editor::propagate" -> "core::symbol_id";
+  "core::project_editor::propagate" -> "core::rename";
+  "core::project_editor::propagate" -> "core::collect";
+  "" -> "occurrence";
+  "" -> "macros";
+  "" -> "pattern";
+  "" -> "scope";
+  "" -> "attributes";
+  "" -> "api";
+  "" -> "core";
+  "" -> "structured";
+  "" -> "alias";
+  "" -> "module_path";
+  "" -> "structured::ast_render";
+  "occurrence" -> "occurrence::visitor";
+  "occurrence" -> "pattern";
+  "occurrence" -> "pattern::binding";
+  "lib" -> "fs";
+  "lib" -> "state";
+  "lib" -> "pattern";
+  "lib" -> "scope";
+  "lib" -> "structured";
+  "lib" -> "occurrence";
+  "lib" -> "model";
+  "lib" -> "macros";
+  "lib" -> "resolve";
+  "lib" -> "module_path";
+  "lib" -> "core";
+  "lib" -> "attributes";
+  "lib" -> "api";
+  "lib" -> "alias";
+  "model::types" -> "alias";
+  "core::use_paths" -> "structured";
+  "core::use_paths" -> "resolve";
+  "core::use_paths" -> "fs";
+  "core::use_paths" -> "alias";
+  "core::use_paths" -> "model::types";
+  "core::project_editor::ops" -> "core::project_editor::ops::helpers";
+  "core::project_editor::ops" -> "core::project_editor::ops::field_mutations";
+  "core::project_editor::ops" -> "core::project_editor::ops::dispatch";
+  "core::project_editor::ops" -> "core::project_editor::ops::move_ops";
+  "core::paths" -> "model::types";
+  "state::capability" -> "state::capability::shell";
+  "structured::use_tree" -> "alias";
+  "structured::use_tree" -> "resolve";
+  "core::structured" -> "structured";
+  "core::project_editor" -> "core::project_editor::editor";
+  "core::project_editor" -> "core::project_editor::registry_builder";
+  "core::project_editor" -> "core::project_editor::propagate";
+  "core::project_editor" -> "core::project_editor::ops";
+  "core::project_editor" -> "core::project_editor::utils";
+  "core::project_editor" -> "core::project_editor::oracle";
+  "core::project_editor" -> "core::project_editor::cross_file";
+  "core::project_editor" -> "core::project_editor::use_path";
+  "core::project_editor" -> "core::project_editor::use_imports";
+  "core::project_editor::utils" -> "core::collect";
+  "core::project_editor::utils" -> "core::paths";
+  "core::project_editor::utils" -> "model::types";
+  "core::project_editor::utils" -> "state";
+  "core::project_editor::utils" -> "core::symbol_id";
+  "core::collect::collector" -> "model::core_span";
+  "core::collect::collector" -> "model::types";
+  "core::collect::collector" -> "alias";
+  "pattern" -> "pattern::binding";
+  "alias" -> "alias::helpers";
+  "alias" -> "alias::visibility";
+  "alias" -> "alias::graph";
+  "alias" -> "alias::types";
+  "structured::ops" -> "state";
+  "core::project_editor::cross_file" -> "core::symbol_id";
+  "core::project_editor::cross_file" -> "state";
+  "core::project_editor::cross_file" -> "module_path";
+  "core::project_editor::cross_file" -> "core::paths";
+  "core::alias" -> "model::core_span";
+  "core::alias" -> "fs";
+  "core::alias" -> "model::types";
+  "core::collect" -> "core::collect::collector";
+  "core::collect" -> "model::types";
+  "core::collect" -> "occurrence";
+  "core::collect" -> "alias";
+  "core::collect" -> "fs";
+  "structured::edits" -> "model::span";
+  "structured::edits" -> "model::core_span";
+  "structured" -> "structured::use_tree";
+  "structured" -> "structured::ast_render";
+  "structured" -> "structured::ops";
+  "structured" -> "structured::config";
+  "structured" -> "structured::edits";
+  "structured" -> "structured::orchestrator";
+  "structured" -> "structured::doc_attr";
+  "core::project_editor::use_path" -> "model::types";
+  "core::project_editor::use_path" -> "structured";
+  "core::project_editor::use_path" -> "core::symbol_id";
+  "core::project_editor::use_path" -> "structured::use_tree";
+  "core::project_editor::use_path" -> "alias";
+  "core::project_editor::use_path" -> "core::collect";
+  "core::project_editor::use_path" -> "state";
+  "core::project_editor::use_path" -> "core::paths";
+  "scope" -> "scope::frame";
+  "structured::doc_attr" -> "model::span";
+  "core::preview" -> "structured";
+  "core::preview" -> "model::types";
+  "core::rename" -> "structured";
+  "core::rename" -> "model::types";
+  "core::rename" -> "alias";
+  "core::rename" -> "fs";
+  "core::project_editor::ops::move_ops" -> "state";
+  "core::project_editor::registry_builder" -> "core::paths";
+  "core::project_editor::registry_builder" -> "core::symbol_id";
+  "core::project_editor::registry_builder" -> "core::use_map";
+  "core::project_editor::registry_builder" -> "structured";
+  "core::project_editor::registry_builder" -> "state";
+  "core::project_editor::oracle" -> "core::oracle";
+  "core::project_editor::oracle" -> "core::symbol_id";
+  "fs" -> "fs::include_visitor";
+  "core::project_editor::ops::dispatch" -> "state";
+  "core::project_editor::ops::dispatch" -> "structured";
+  "structured::orchestrator" -> "alias";
+  "structured::orchestrator" -> "resolve";
+  "core::mod_decls" -> "model::types";
+  "core::mod_decls" -> "fs";
+}
