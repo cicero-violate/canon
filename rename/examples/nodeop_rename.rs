@@ -25,20 +25,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example valid rename (must exist in loaded project):
     let renames = [
         // IR → Canonical State
-        ("crate::ir::core::CanonicalIr", "CanonicalState"),
+        ("crate::ir::core::SystemState", "CanonicalState"),
         ("crate::ir::delta::Delta", "CanonicalDelta"),
         ("crate::ir::delta::DeltaPayload", "CanonicalDeltaPayload"),
-
         // Execution terminology
         ("crate::ir::graphs::TickGraph", "ExecutionPlanGraph"),
         ("crate::runtime::tick_executor::TickExecutor", "ExecutionEngine"),
-
         // Judgment terminology
         ("crate::ir::judgment::JudgmentPredicate", "JudgmentRule"),
-
         // Layout terminology
         ("crate::layout::LayoutGraph", "SourceTopology"),
-
         // Agent terminology
         ("crate::agent::capability::CapabilityGraph", "AgentTopology"),
     ];
