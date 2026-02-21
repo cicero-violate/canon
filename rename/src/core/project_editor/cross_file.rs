@@ -267,8 +267,16 @@ pub(super) fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &s
             }
 
             if is_direct_child {
-                for self_name in &impl_self_names {
-                    let use_str = format!("use super::{};", self_name);
+               for self_name in &impl_self_names {
+                    // Don't inject `use super::X` if X is already defined
+                    // in the dst file (i.e. the struct itself was also moved there).
+                    let already_defined = dst_ast.items.iter().any(|i| match i {
+                        syn::Item::Struct(s) => s.ident == self_name.as_str(),
+                        syn::Item::Enum(e) => e.ident == self_name.as_str(),
+                        _ => false,
+                    });
+                    if already_defined { continue; }
+                   let use_str = format!("use super::{};", self_name);
                     if let Ok(parsed) = syn::parse_str::<syn::ItemUse>(&use_str) {
                         let already = dst_ast.items.iter().any(|i| {
                             if let syn::Item::Use(u) = i {
