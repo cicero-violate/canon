@@ -1,29 +1,29 @@
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
-use anyhow::{Context, Result};
-use quote::ToTokens;
-use syn::visit::Visit;
-use syn::Signature;
 use crate::alias::AliasGraph;
 use crate::core::collect::{add_file_module_symbol, collect_symbols};
 use crate::core::mod_decls::update_mod_declarations;
 use crate::core::oracle::StructuralEditOracle;
 use crate::core::paths::{module_child_path, module_path_for_file};
-use crate::module_path::{compute_new_file_path, ModulePath};
 use crate::core::symbol_id::normalize_symbol_id;
-use crate::model::types::FileRename;
-use crate::model::types::SymbolIndex;
 use crate::core::use_map::{path_to_string, type_path_string};
 use crate::fs;
+use crate::model::types::FileRename;
+use crate::model::types::SymbolIndex;
+use crate::module_path::{compute_new_file_path, ModulePath};
 use crate::state::{NodeKind, NodeRegistry};
 use crate::structured::use_tree::UsePathRewritePass;
 use crate::structured::{node_handle, FieldMutation, NodeOp};
 use crate::structured::{StructuredEditOptions, StructuredPass};
+use anyhow::{Context, Result};
 use compiler_capture::frontends::rustc::RustcFrontend;
 use compiler_capture::multi_capture::capture_project;
 use compiler_capture::project::CargoProject;
 use database::graph_log::{GraphSnapshot as WireSnapshot, WireNodeId};
 use database::{MemoryEngine, MemoryEngineConfig};
+use quote::ToTokens;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use syn::visit::Visit;
+use syn::Signature;
 #[derive(Debug, Clone)]
 pub struct EditConflict {
     pub symbol_id: String,
@@ -57,8 +57,7 @@ impl ProjectEditor {
         let mut original_sources = HashMap::new();
         for file in files {
             let content = std::fs::read_to_string(&file)?;
-            let ast = syn::parse_file(&content)
-                .with_context(|| format!("Failed to parse {}", file.display()))?;
+            let ast = syn::parse_file(&content).with_context(|| format!("Failed to parse {}", file.display()))?;
             let mut builder = NodeRegistryBuilder::new(project, &file, &mut registry);
             builder.visit_file(&ast);
             registry.insert_ast(file.clone(), ast);
@@ -78,8 +77,7 @@ impl ProjectEditor {
     pub fn load_with_rustc(project: &Path) -> Result<Self> {
         let cargo = CargoProject::from_entry(project)?;
         let frontend = RustcFrontend::new();
-        let _artifacts = capture_project(&frontend, &cargo, &[])
-            .with_context(|| format!("rustc capture failed for {}", project.display()))?;
+        let _artifacts = capture_project(&frontend, &cargo, &[]).with_context(|| format!("rustc capture failed for {}", project.display()))?;
         let state_dir = cargo.workspace_root().join(".rename");
         std::fs::create_dir_all(&state_dir)?;
         let tlog_path = state_dir.join("state.tlog");
@@ -106,33 +104,19 @@ impl ProjectEditor {
             }
         }
         let file = match &op {
-            NodeOp::ReplaceNode { handle, .. }
-            | NodeOp::InsertBefore { handle, .. }
-            | NodeOp::InsertAfter { handle, .. }
-            | NodeOp::DeleteNode { handle }
-            | NodeOp::MutateField { handle, .. } => handle.file.clone(),
+            NodeOp::ReplaceNode { handle, .. } | NodeOp::InsertBefore { handle, .. } | NodeOp::InsertAfter { handle, .. } | NodeOp::DeleteNode { handle } | NodeOp::MutateField { handle, .. } => {
+                handle.file.clone()
+            }
             NodeOp::ReorderItems { file, .. } => file.clone(),
             NodeOp::MoveSymbol { handle, .. } => handle.file.clone(),
         };
         self.changesets.entry(file).or_default().push(QueuedOp { symbol_id: norm, op });
         Ok(())
     }
-    pub fn queue_by_id(
-        &mut self,
-        symbol_id: &str,
-        mutation: FieldMutation,
-    ) -> Result<()> {
+    pub fn queue_by_id(&mut self, symbol_id: &str, mutation: FieldMutation) -> Result<()> {
         let norm = normalize_symbol_id(symbol_id);
-        let handle = self
-            .registry
-            .handles
-            .get(&norm)
-            .cloned()
-            .with_context(|| format!("no handle found for {symbol_id}"))?;
-        let op = NodeOp::MutateField {
-            handle,
-            mutation,
-        };
+        let handle = self.registry.handles.get(&norm).cloned().with_context(|| format!("no handle found for {symbol_id}"))?;
+        let op = NodeOp::MutateField { handle, mutation };
         self.queue(&norm, op)
     }
     pub fn apply(&mut self) -> Result<ChangeReport> {
@@ -143,12 +127,7 @@ impl ProjectEditor {
         let handle_snapshot = self.registry.handles.clone();
         for (_file, ops) in &self.changesets {
             for queued in ops {
-                let prop = propagate(
-                    &queued.op,
-                    &queued.symbol_id,
-                    &self.registry,
-                    &*self.oracle,
-                )?;
+                let prop = propagate(&queued.op, &queued.symbol_id, &self.registry, &*self.oracle)?;
                 rewrites.extend(prop.rewrites);
                 conflicts.extend(prop.conflicts);
                 file_renames.extend(prop.file_renames);
@@ -159,55 +138,31 @@ impl ProjectEditor {
         for (file, ops) in &self.changesets {
             for queued in ops {
                 let changed = {
-                    let ast = self
-                        .registry
-                        .asts
-                        .get_mut(file)
-                        .with_context(|| format!("missing AST for {}", file.display()))?;
-                    apply_node_op(ast, &handle_snapshot, &queued.symbol_id, &queued.op)
-                        .with_context(|| {
-                            format!("failed to apply {}", queued.symbol_id)
-                        })?
+                    let ast = self.registry.asts.get_mut(file).with_context(|| format!("missing AST for {}", file.display()))?;
+                    apply_node_op(ast, &handle_snapshot, &queued.symbol_id, &queued.op).with_context(|| format!("failed to apply {}", queued.symbol_id))?
                 };
                 if changed {
                     touched_files.insert(file.clone());
                 }
             }
         }
-        let use_path_touched = run_use_path_rewrite(
-            &mut self.registry,
-            &self.changesets,
-        )?;
+        let use_path_touched = run_use_path_rewrite(&mut self.registry, &self.changesets)?;
         touched_files.extend(use_path_touched);
-        let cross_file_touched = apply_cross_file_moves(
-            &mut self.registry,
-            &self.changesets,
-        )?;
+        let cross_file_touched = apply_cross_file_moves(&mut self.registry, &self.changesets)?;
         touched_files.extend(cross_file_touched);
         self.pending_new_files = collect_new_files(&self.registry, &self.changesets);
         let mut validation = self.validate()?;
         validation.extend(conflicts);
-        self.pending_file_moves = file_renames
-            .iter()
-            .map(|r| (PathBuf::from(&r.from), PathBuf::from(&r.to)))
-            .collect();
+        self.pending_file_moves = file_renames.iter().map(|r| (PathBuf::from(&r.from), PathBuf::from(&r.to))).collect();
         self.pending_file_renames = file_renames.clone();
         self.last_touched_files = touched_files.clone();
-        Ok(ChangeReport {
-            touched_files: touched_files.into_iter().collect(),
-            conflicts: validation,
-            file_moves: self.pending_file_moves.clone(),
-        })
+        Ok(ChangeReport { touched_files: touched_files.into_iter().collect(), conflicts: validation, file_moves: self.pending_file_moves.clone() })
     }
     pub fn validate(&self) -> Result<Vec<EditConflict>> {
         let mut conflicts = Vec::new();
         for (symbol_id, _handle) in &self.registry.handles {
             if self.oracle.is_macro_generated(symbol_id) {
-                conflicts
-                    .push(EditConflict {
-                        symbol_id: symbol_id.clone(),
-                        reason: "symbol generated by macro".to_string(),
-                    });
+                conflicts.push(EditConflict { symbol_id: symbol_id.clone(), reason: "symbol generated by macro".to_string() });
             }
         }
         for ops in self.changesets.values() {
@@ -216,12 +171,7 @@ impl ProjectEditor {
                     if matches!(mutation, FieldMutation::ReplaceSignature(_)) {
                         let impacts = self.oracle.impact_of(&queued.symbol_id);
                         if !impacts.is_empty() {
-                            conflicts
-                                .push(EditConflict {
-                                    symbol_id: queued.symbol_id.clone(),
-                                    reason: "signature change may require updating call sites"
-                                        .to_string(),
-                                });
+                            conflicts.push(EditConflict { symbol_id: queued.symbol_id.clone(), reason: "signature change may require updating call sites".to_string() });
                         }
                     }
                 }
@@ -231,18 +181,13 @@ impl ProjectEditor {
     }
     pub fn commit(&self) -> Result<Vec<PathBuf>> {
         let mut written = Vec::new();
-        let targets: Vec<PathBuf> = if self.last_touched_files.is_empty() {
-            self.changesets.keys().cloned().collect()
-        } else {
-            self.last_touched_files.iter().cloned().collect()
-        };
+        let targets: Vec<PathBuf> = if self.last_touched_files.is_empty() { self.changesets.keys().cloned().collect() } else { self.last_touched_files.iter().cloned().collect() };
         for file in targets {
-            let ast = self
-                .registry
-                .asts
-                .get(&file)
-                .with_context(|| format!("missing AST for {}", file.display()))?;
+            let ast = self.registry.asts.get(&file).with_context(|| format!("missing AST for {}", file.display()))?;
             let rendered = crate::structured::render_file(ast);
+            if let Some(parent) = file.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
             std::fs::write(&file, rendered)?;
             written.push(file.clone());
         }
@@ -257,12 +202,7 @@ impl ProjectEditor {
             if let Some(project_root) = find_project_root(&self.registry)? {
                 let symbol_table = build_symbol_index(&project_root, &self.registry)?;
                 let mut touched = HashSet::new();
-                update_mod_declarations(
-                    &project_root,
-                    &symbol_table,
-                    &self.pending_file_renames,
-                    &mut touched,
-                )?;
+                update_mod_declarations(&project_root, &symbol_table, &self.pending_file_renames, &mut touched)?;
                 written.extend(touched.into_iter());
             }
         }
@@ -291,41 +231,23 @@ impl ProjectEditor {
                         });
                     }
                 }
-                update_mod_declarations(
-                    &project_root,
-                    &symbol_table,
-                    &synthetic_renames,
-                    &mut touched,
-                )?;
+                update_mod_declarations(&project_root, &symbol_table, &synthetic_renames, &mut touched)?;
                 written.extend(touched.into_iter());
             }
         }
+        written.sort();
+        written.dedup();
         Ok(written)
     }
     pub fn preview(&self) -> Result<String> {
         let mut output = String::new();
-        let targets: Vec<PathBuf> = if self.last_touched_files.is_empty() {
-            self.changesets.keys().cloned().collect()
-        } else {
-            self.last_touched_files.iter().cloned().collect()
-        };
-        for file in targets.into_iter().filter(|p| self.original_sources.contains_key(p))
-        {
+        let targets: Vec<PathBuf> = if self.last_touched_files.is_empty() { self.changesets.keys().cloned().collect() } else { self.last_touched_files.iter().cloned().collect() };
+        for file in targets.into_iter().filter(|p| self.original_sources.contains_key(p)) {
             let original = &self.original_sources[&file];
-            let ast = self
-                .registry
-                .asts
-                .get(&file)
-                .with_context(|| format!("missing AST for {}", file.display()))?;
+            let ast = self.registry.asts.get(&file).with_context(|| format!("missing AST for {}", file.display()))?;
             let rendered = crate::structured::render_file(ast);
             if original != &rendered {
-                let diff = similar::TextDiff::from_lines(original, &rendered)
-                    .unified_diff()
-                    .header(
-                        &format!("{} (original)", file.display()),
-                        &format!("{} (updated)", file.display()),
-                    )
-                    .to_string();
+                let diff = similar::TextDiff::from_lines(original, &rendered).unified_diff().header(&format!("{} (original)", file.display()), &format!("{} (updated)", file.display())).to_string();
                 output.push_str(&diff);
                 output.push('\n');
             }
@@ -341,39 +263,20 @@ impl ProjectEditor {
         self.registry.handles.keys().cloned().collect()
     }
 }
-fn run_use_path_rewrite(
-    registry: &mut NodeRegistry,
-    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
-) -> Result<HashSet<PathBuf>> {
+fn run_use_path_rewrite(registry: &mut NodeRegistry, changesets: &HashMap<PathBuf, Vec<QueuedOp>>) -> Result<HashSet<PathBuf>> {
     let updates = collect_use_path_updates(changesets);
     if updates.is_empty() {
         return Ok(HashSet::new());
     }
-    let project_root = find_project_root(registry)?
-        .unwrap_or_else(|| PathBuf::from("."));
+    let project_root = find_project_root(registry)?.unwrap_or_else(|| PathBuf::from("."));
     let mut symbol_table = SymbolIndex::default();
     let mut symbols = Vec::new();
     let mut symbol_set: HashSet<String> = HashSet::new();
     let mut alias_graph = AliasGraph::new();
     for (file, ast) in &registry.asts {
-        let module_path = normalize_symbol_id(
-            &module_path_for_file(&project_root, file),
-        );
-        add_file_module_symbol(
-            &module_path,
-            file,
-            &mut symbol_table,
-            &mut symbols,
-            &mut symbol_set,
-        );
-        let file_alias_graph = collect_symbols(
-            ast,
-            &module_path,
-            file,
-            &mut symbol_table,
-            &mut symbols,
-            &mut symbol_set,
-        );
+        let module_path = normalize_symbol_id(&module_path_for_file(&project_root, file));
+        add_file_module_symbol(&module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
+        let file_alias_graph = collect_symbols(ast, &module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
         for node in file_alias_graph.all_nodes() {
             alias_graph.add_use_node(node.clone());
         }
@@ -384,39 +287,21 @@ fn run_use_path_rewrite(
     let alias_graph = std::sync::Arc::new(alias_graph);
     let symbol_table = std::sync::Arc::new(symbol_table);
     for (file, ast) in registry.asts.iter_mut() {
-        let alias_nodes = alias_graph
-            .nodes_in_file(&file.to_string_lossy())
-            .into_iter()
-            .cloned()
-            .collect::<Vec<_>>();
-        let resolver = crate::resolve::ResolverContext {
-            module_path: module_path_for_file(&project_root, file),
-            alias_graph: alias_graph.clone(),
-            symbol_table: symbol_table.clone(),
-        };
-        let mut pass = UsePathRewritePass::new(
-            updates.clone(),
-            alias_nodes,
-            config.clone(),
-            resolver,
-        );
+        let alias_nodes = alias_graph.nodes_in_file(&file.to_string_lossy()).into_iter().cloned().collect::<Vec<_>>();
+        let resolver = crate::resolve::ResolverContext { module_path: module_path_for_file(&project_root, file), alias_graph: alias_graph.clone(), symbol_table: symbol_table.clone() };
+        let mut pass = UsePathRewritePass::new(updates.clone(), alias_nodes, config.clone(), resolver);
         if pass.execute(file, "", ast)? {
             touched.insert(file.clone());
         }
     }
     Ok(touched)
 }
-fn collect_use_path_updates(
-    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
-) -> HashMap<String, String> {
+fn collect_use_path_updates(changesets: &HashMap<PathBuf, Vec<QueuedOp>>) -> HashMap<String, String> {
     let mut updates = HashMap::new();
     for ops in changesets.values() {
         for queued in ops {
             match &queued.op {
-                NodeOp::MutateField {
-                    mutation: FieldMutation::RenameIdent(new_name),
-                    ..
-                } => {
+                NodeOp::MutateField { mutation: FieldMutation::RenameIdent(new_name), .. } => {
                     let old_id = normalize_symbol_id(&queued.symbol_id);
                     if let Some(new_id) = replace_last_segment(&old_id, new_name) {
                         updates.insert(old_id, new_id);
@@ -436,39 +321,20 @@ fn replace_last_segment(path: &str, new_name: &str) -> Option<String> {
     *parts.last_mut().unwrap() = new_name;
     Some(parts.join("::"))
 }
-fn build_symbol_index(
-    project_root: &Path,
-    registry: &NodeRegistry,
-) -> Result<SymbolIndex> {
+fn build_symbol_index(project_root: &Path, registry: &NodeRegistry) -> Result<SymbolIndex> {
     let mut symbol_table = SymbolIndex::default();
     let mut symbols = Vec::new();
     let mut symbol_set = HashSet::new();
     for (file, ast) in &registry.asts {
         let module_path = normalize_symbol_id(&module_path_for_file(project_root, file));
-        add_file_module_symbol(
-            &module_path,
-            file,
-            &mut symbol_table,
-            &mut symbols,
-            &mut symbol_set,
-        );
-        let _ = collect_symbols(
-            ast,
-            &module_path,
-            file,
-            &mut symbol_table,
-            &mut symbols,
-            &mut symbol_set,
-        );
+        add_file_module_symbol(&module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
+        let _ = collect_symbols(ast, &module_path, file, &mut symbol_table, &mut symbols, &mut symbol_set);
     }
     Ok(symbol_table)
 }
 /// Cross-file move pass: for each MoveSymbol op, if source and destination file differ,
 /// extract the item from the source AST and append it to the destination AST.
-fn apply_cross_file_moves(
-    registry: &mut NodeRegistry,
-    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
-) -> Result<HashSet<PathBuf>> {
+fn apply_cross_file_moves(registry: &mut NodeRegistry, changesets: &HashMap<PathBuf, Vec<QueuedOp>>) -> Result<HashSet<PathBuf>> {
     let mut touched: HashSet<PathBuf> = HashSet::new();
     struct PendingMove {
         src_file: PathBuf,
@@ -480,82 +346,85 @@ fn apply_cross_file_moves(
     for (src_file, ops) in changesets {
         for queued in ops {
             if let NodeOp::MoveSymbol { handle, new_module_path, .. } = &queued.op {
-                let dst_file = match resolve_or_create_dst_file(
-                    registry,
-                    new_module_path,
-                    src_file,
-                ) {
+                let dst_file = match resolve_or_create_dst_file(registry, new_module_path, src_file) {
                     Some(f) if f != *src_file => f,
                     _ => continue,
                 };
-                let segments: Vec<String> = new_module_path
-                    .trim_start_matches("crate::")
-                    .split("::")
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.to_string())
-                    .collect();
-                pending
-                    .push(PendingMove {
-                        src_file: src_file.clone(),
-                        item_index: handle.item_index,
-                        dst_file,
-                        dst_module_segments: segments,
-                    });
+                let segments: Vec<String> = new_module_path.trim_start_matches("crate::").split("::").filter(|s| !s.is_empty()).map(|s| s.to_string()).collect();
+                pending.push(PendingMove { src_file: src_file.clone(), item_index: handle.item_index, dst_file, dst_module_segments: segments });
             }
         }
     }
+    // For each pending struct/enum move, also carry impl blocks whose self_ty matches.
+    let mut extra: Vec<PendingMove> = Vec::new();
+    for mv in &pending {
+        let struct_name = {
+            let src_ast = match registry.asts.get(&mv.src_file) {
+                Some(a) => a,
+                None => continue,
+            };
+            let item = match src_ast.items.get(mv.item_index) {
+                Some(i) => i,
+                None => continue,
+            };
+            match item {
+                syn::Item::Struct(s) => s.ident.to_string(),
+                syn::Item::Enum(e) => e.ident.to_string(),
+                syn::Item::Trait(t) => t.ident.to_string(),
+                _ => continue,
+            }
+        };
+        let src_ast = match registry.asts.get(&mv.src_file) {
+            Some(a) => a,
+            None => continue,
+        };
+        for (idx, item) in src_ast.items.iter().enumerate() {
+            if idx == mv.item_index {
+                continue;
+            }
+            if let syn::Item::Impl(item_impl) = item {
+                let self_name = impl_self_type_name(&item_impl.self_ty);
+                if self_name.as_deref() == Some(&struct_name) {
+                    // Skip if already queued (another MoveSymbol op covers this index).
+                    let already = pending.iter().any(|p| p.src_file == mv.src_file && p.item_index == idx);
+                    if !already {
+                        extra.push(PendingMove { src_file: mv.src_file.clone(), item_index: idx, dst_file: mv.dst_file.clone(), dst_module_segments: mv.dst_module_segments.clone() });
+                    }
+                }
+            }
+        }
+    }
+    pending.extend(extra);
     pending.sort_by(|a, b| b.item_index.cmp(&a.item_index));
     for mv in pending {
         let item = {
-            let src_ast = registry
-                .asts
-                .get_mut(&mv.src_file)
-                .ok_or_else(|| {
-                    anyhow::anyhow!("missing source AST for {}", mv.src_file.display())
-                })?;
+            let src_ast = registry.asts.get_mut(&mv.src_file).ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
             if mv.item_index >= src_ast.items.len() {
-                anyhow::bail!(
-                    "cross-file move: item_index {} out of bounds", mv.item_index
-                );
+                anyhow::bail!("cross-file move: item_index {} out of bounds", mv.item_index);
             }
             src_ast.items.remove(mv.item_index)
         };
         // Collect use imports from the source file that the moved item depends on,
         // so they can be transplanted into the destination file.
         let needed_uses: Vec<syn::ItemUse> = {
-            let src_ast = registry
-                .asts
-                .get(&mv.src_file)
-                .ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
+            let src_ast = registry.asts.get(&mv.src_file).ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
             let item_tokens = item.to_token_stream().to_string();
             collect_needed_uses(src_ast, &item_tokens)
         };
         touched.insert(mv.src_file.clone());
-        let dst_ast = registry
-            .asts
-            .get_mut(&mv.dst_file)
-            .ok_or_else(|| {
-                anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display())
-            })?;
-        let segs: Vec<&str> = mv
-            .dst_module_segments
-            .iter()
-            .map(|s| s.as_str())
-            .collect();
+        // Remove use imports that are now orphaned in the source file.
+        {
+            let src_ast = registry.asts.get_mut(&mv.src_file).ok_or_else(|| anyhow::anyhow!("missing source AST for {}", mv.src_file.display()))?;
+            remove_orphaned_uses(src_ast);
+        }
+        let dst_ast = registry.asts.get_mut(&mv.dst_file).ok_or_else(|| anyhow::anyhow!("missing dest AST for {}", mv.dst_file.display()))?;
+        let segs: Vec<&str> = mv.dst_module_segments.iter().map(|s| s.as_str()).collect();
         match find_mod_container_mut(dst_ast, &segs) {
             Some(container) => container.push(item),
             None => dst_ast.items.push(item),
         }
         // Transplant missing use imports into destination (top-level only).
-        let existing: HashSet<String> = dst_ast
-            .items
-            .iter()
-            .filter_map(|i| if let syn::Item::Use(u) = i {
-                Some(u.to_token_stream().to_string())
-            } else {
-                None
-            })
-            .collect();
+        let existing: HashSet<String> = dst_ast.items.iter().filter_map(|i| if let syn::Item::Use(u) = i { Some(u.to_token_stream().to_string()) } else { None }).collect();
         for use_item in needed_uses {
             let rendered = use_item.to_token_stream().to_string();
             if !existing.contains(&rendered) {
@@ -565,6 +434,21 @@ fn apply_cross_file_moves(
         touched.insert(mv.dst_file);
     }
     Ok(touched)
+}
+/// Remove top-level `use` items from `src_ast` whose leaf idents are no longer
+/// referenced in any remaining (non-use) item in the file.
+fn remove_orphaned_uses(src_ast: &mut syn::File) {
+    // Build token string of all non-use items remaining in the file.
+    let body_tokens: String = src_ast.items.iter().filter(|i| !matches!(i, syn::Item::Use(_))).map(|i| i.to_token_stream().to_string()).collect::<Vec<_>>().join(" ");
+    // Also include use items themselves (a use may reference another use leaf via re-export).
+    // But we only remove a use if its leaf is absent from non-use content.
+    src_ast.items.retain(|item| {
+        let syn::Item::Use(use_item) = item else { return true };
+        let mut leaves = Vec::new();
+        collect_use_leaves(&use_item.tree, &mut leaves);
+        // Keep if any leaf appears in body tokens.
+        leaves.iter().any(|leaf| token_contains_word(&body_tokens, leaf))
+    });
 }
 /// Given the source file AST and the token string of the moved item, return all
 /// top-level `use` items from the source whose imported leaf name appears as a
@@ -616,14 +500,16 @@ fn token_contains_word(tokens: &str, ident: &str) -> bool {
     }
     false
 }
-fn find_mod_container_mut<'a>(
-    ast: &'a mut syn::File,
-    segments: &[&str],
-) -> Option<&'a mut Vec<syn::Item>> {
-    fn recurse<'a>(
-        items: &'a mut Vec<syn::Item>,
-        segments: &[&str],
-    ) -> Option<&'a mut Vec<syn::Item>> {
+/// Extract the last segment name of the self type of an impl block.
+/// e.g. `impl Foo` → Some("Foo"), `impl<T> Bar<T>` → Some("Bar"), `impl Trait for Foo` → Some("Foo")
+fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
+    match ty {
+        syn::Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
+        _ => None,
+    }
+}
+fn find_mod_container_mut<'a>(ast: &'a mut syn::File, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
+    fn recurse<'a>(items: &'a mut Vec<syn::Item>, segments: &[&str]) -> Option<&'a mut Vec<syn::Item>> {
         if segments.is_empty() {
             return Some(items);
         }
@@ -659,26 +545,18 @@ fn find_project_root(registry: &NodeRegistry) -> Result<Option<PathBuf>> {
 }
 /// Resolve the destination file for a cross-file move by matching the target module
 /// path against the module paths of all ASTs currently in the registry.
-fn resolve_dst_file(
-    registry: &NodeRegistry,
-    new_module_path: &str,
-    src_file: &PathBuf,
-) -> Option<PathBuf> {
-    let project_root = registry
-        .asts
-        .keys()
-        .next()
-        .and_then(|f| {
-            let mut cur = f.parent()?.to_path_buf();
-            loop {
-                if cur.join("Cargo.toml").exists() {
-                    return Some(cur);
-                }
-                if !cur.pop() {
-                    return None;
-                }
+fn resolve_dst_file(registry: &NodeRegistry, new_module_path: &str, src_file: &PathBuf) -> Option<PathBuf> {
+    let project_root = registry.asts.keys().next().and_then(|f| {
+        let mut cur = f.parent()?.to_path_buf();
+        loop {
+            if cur.join("Cargo.toml").exists() {
+                return Some(cur);
             }
-        })?;
+            if !cur.pop() {
+                return None;
+            }
+        }
+    })?;
     let norm_dst = normalize_symbol_id(new_module_path);
     for file in registry.asts.keys() {
         if file == src_file {
@@ -693,19 +571,10 @@ fn resolve_dst_file(
 }
 /// Resolve the destination file, creating a blank AST in the registry if it doesn't exist yet.
 /// Returns None only if the project root cannot be determined.
-fn resolve_or_create_dst_file(
-    registry: &mut NodeRegistry,
-    new_module_path: &str,
-    src_file: &PathBuf,
-) -> Option<PathBuf> {
+fn resolve_or_create_dst_file(registry: &mut NodeRegistry, new_module_path: &str, src_file: &PathBuf) -> Option<PathBuf> {
     let project_root = find_project_root_sync(registry)?;
     let norm_dst = normalize_symbol_id(new_module_path);
-    let existing: Option<PathBuf> = registry
-        .asts
-        .keys()
-        .filter(|f| *f != src_file)
-        .find(|f| normalize_symbol_id(&module_path_for_file(&project_root, f)) == norm_dst)
-        .cloned();
+    let existing: Option<PathBuf> = registry.asts.keys().filter(|f| *f != src_file).find(|f| normalize_symbol_id(&module_path_for_file(&project_root, f)) == norm_dst).cloned();
     if let Some(f) = existing {
         return Some(f);
     }
@@ -724,10 +593,7 @@ fn resolve_or_create_dst_file(
 }
 /// After apply(), scan changesets to find which dst files were newly synthesized
 /// (i.e. not present on disk). Returns (path, module_id) pairs for commit() to write.
-fn collect_new_files(
-    registry: &NodeRegistry,
-    changesets: &HashMap<PathBuf, Vec<QueuedOp>>,
-) -> Vec<(PathBuf, String)> {
+fn collect_new_files(registry: &NodeRegistry, changesets: &HashMap<PathBuf, Vec<QueuedOp>>) -> Vec<(PathBuf, String)> {
     let project_root = match find_project_root_sync(registry) {
         Some(r) => r,
         None => return Vec::new(),
@@ -743,10 +609,7 @@ fn collect_new_files(
                     Ok(p) => p,
                     Err(_) => continue,
                 };
-                if !dst_file.exists()
-                    && registry.asts.contains_key(&dst_file)
-                    && seen.insert(dst_file.clone())
-                {
+                if !dst_file.exists() && registry.asts.contains_key(&dst_file) && seen.insert(dst_file.clone()) {
                     let _ = handle;
                     result.push((dst_file, norm_dst));
                 }
@@ -781,32 +644,15 @@ struct NodeRegistryBuilder<'a> {
     current_impl: Option<ImplContext>,
 }
 impl<'a> NodeRegistryBuilder<'a> {
-    fn new(
-        project_root: &'a Path,
-        file: &'a Path,
-        registry: &'a mut NodeRegistry,
-    ) -> Self {
-        Self {
-            project_root,
-            file,
-            registry,
-            module_path: module_path_for_file(project_root, file),
-            item_index: 0,
-            parent_path: Vec::new(),
-            current_impl: None,
-        }
+    fn new(project_root: &'a Path, file: &'a Path, registry: &'a mut NodeRegistry) -> Self {
+        Self { project_root, file, registry, module_path: module_path_for_file(project_root, file), item_index: 0, parent_path: Vec::new(), current_impl: None }
     }
     fn register(&mut self, ident: &syn::Ident, kind: NodeKind) {
         let id = module_child_path(&self.module_path, ident.to_string());
         self.register_with_id(id, kind);
     }
     fn register_with_id(&mut self, id: String, kind: NodeKind) {
-        let handle = node_handle(
-            self.file,
-            self.item_index,
-            self.parent_path.clone(),
-            kind,
-        );
+        let handle = node_handle(self.file, self.item_index, self.parent_path.clone(), kind);
         self.registry.insert_handle(normalize_symbol_id(&id), handle);
     }
     fn register_use_tree(&mut self, tree: &syn::UseTree) {
@@ -884,14 +730,8 @@ impl<'ast> syn::visit::Visit<'ast> for NodeRegistryBuilder<'_> {
         let impl_index = self.item_index;
         let prev_impl = self.current_impl.clone();
         let struct_path = type_path_string(&i.self_ty, &self.module_path);
-        let trait_path = i
-            .trait_
-            .as_ref()
-            .map(|(_, path, _)| path_to_string(path, &self.module_path));
-        self.current_impl = Some(ImplContext {
-            struct_path,
-            trait_path,
-        });
+        let trait_path = i.trait_.as_ref().map(|(_, path, _)| path_to_string(path, &self.module_path));
+        self.current_impl = Some(ImplContext { struct_path, trait_path });
         self.parent_path.push(impl_index);
         syn::visit::visit_item_impl(self, i);
         self.parent_path.pop();
@@ -900,11 +740,7 @@ impl<'ast> syn::visit::Visit<'ast> for NodeRegistryBuilder<'_> {
     fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) {
         if let Some(ctx) = &self.current_impl {
             let name = i.sig.ident.to_string();
-            let id = if let Some(trait_path) = &ctx.trait_path {
-                format!("{} as {}::{}", ctx.struct_path, trait_path, name)
-            } else {
-                format!("{}::{}", ctx.struct_path, name)
-            };
+            let id = if let Some(trait_path) = &ctx.trait_path { format!("{} as {}::{}", ctx.struct_path, trait_path, name) } else { format!("{}::{}", ctx.struct_path, name) };
             self.register_with_id(id, NodeKind::ImplFn);
         } else {
             self.register(&i.sig.ident, NodeKind::ImplFn);
@@ -941,35 +777,19 @@ impl GraphSnapshotOracle {
             if is_macro_generated(&node.metadata) {
                 macro_generated.insert(key.clone());
             }
-            if let Some(crate_name) = node
-                .metadata
-                .get("crate")
-                .or_else(|| node.metadata.get("crate_name"))
-                .or_else(|| node.metadata.get("package"))
-            {
+            if let Some(crate_name) = node.metadata.get("crate").or_else(|| node.metadata.get("crate_name")).or_else(|| node.metadata.get("package")) {
                 crate_by_key.insert(key.clone(), crate_name.clone());
             }
             if let Some(signature) = node.metadata.get("signature") {
                 signature_by_key.insert(key.clone(), signature.clone());
             }
         }
-        Self {
-            snapshot,
-            id_by_key,
-            key_by_index,
-            macro_generated,
-            crate_by_key,
-            signature_by_key,
-        }
+        Self { snapshot, id_by_key, key_by_index, macro_generated, crate_by_key, signature_by_key }
     }
 }
 fn is_macro_generated(metadata: &std::collections::BTreeMap<String, String>) -> bool {
-    let value = metadata
-        .get("macro_generated")
-        .or_else(|| metadata.get("generated_by_macro"))
-        .or_else(|| metadata.get("macro"))
-        .or_else(|| metadata.get("is_macro"));
-    matches!(value.map(| v | v.as_str()), Some("true") | Some("1") | Some("yes"))
+    let value = metadata.get("macro_generated").or_else(|| metadata.get("generated_by_macro")).or_else(|| metadata.get("macro")).or_else(|| metadata.get("is_macro"));
+    matches!(value.map(|v| v.as_str()), Some("true") | Some("1") | Some("yes"))
 }
 impl StructuralEditOracle for GraphSnapshotOracle {
     fn impact_of(&self, symbol_id: &str) -> Vec<String> {
@@ -987,7 +807,11 @@ impl StructuralEditOracle for GraphSnapshotOracle {
                     return None;
                 }
                 let key = self.key_by_index.get(idx)?;
-                if key == &symbol_id { None } else { Some(key.clone()) }
+                if key == &symbol_id {
+                    None
+                } else {
+                    Some(key.clone())
+                }
             })
             .collect()
     }
@@ -1025,7 +849,11 @@ impl StructuralEditOracle for GraphSnapshotOracle {
                     return None;
                 }
                 let other_crate = self.crate_by_key.get(key)?;
-                if other_crate != symbol_crate { Some(key.clone()) } else { None }
+                if other_crate != symbol_crate {
+                    Some(key.clone())
+                } else {
+                    None
+                }
             })
             .collect()
     }
