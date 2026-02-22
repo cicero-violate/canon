@@ -13,12 +13,12 @@ pub mod capture;
 pub mod cargo_project;
 /// Compatibility shims when compiler_capture is built standalone.
 pub mod compat;
-/// Compiler/language-specific frontends.
-pub mod frontends;
 /// Linux fact capture helpers.
 pub mod linux;
 /// Multi-target capture utilities for Cargo projects.
 pub mod multi_capture;
+/// Compiler/language-specific frontends.
+pub mod rustc;
 /// Transformation utilities that normalize captured items into the graph.
 pub mod transform;
 /// Workspace metadata for capture outputs.
