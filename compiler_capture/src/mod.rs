@@ -50,7 +50,8 @@ pub mod rename {
 pub use crate::{fs, rename as rename_mod, state};
 
 use crate::compiler_capture::graph::GraphDelta;
-pub use frontends::rustc::{RustcFrontend, RustcFrontendError};
+pub use crate::rustc::frontend_driver::RustcFrontend;
+pub use crate::rustc::RustcFrontendError;
 
 // Allow `crate::compiler_capture::*` when built as a standalone crate.
 pub mod compiler_capture {
@@ -264,7 +265,6 @@ pub struct StaticCapture {
 }
 
 /// A structured error emitted during extraction.
-/// A structured error emitted during extraction.
 #[derive(Debug, Clone)]
 pub struct ExtractionError {
     /// Stable error code.
@@ -282,7 +282,6 @@ impl ExtractionError {
     }
 }
 
-/// Describes the location within a source file where an error happened.
 /// Describes the location within a source file where an error happened.
 #[derive(Debug, Clone)]
 pub struct SourceLocation {
