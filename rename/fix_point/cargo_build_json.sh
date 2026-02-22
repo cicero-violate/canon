@@ -9,8 +9,10 @@ cargo build --message-format=json 2>/dev/null \
             spans: [.spans[]? | {file: .file_name, line: .line_start, col: .column_start}]}' \
 > build_diagnostics.json
 
+bat -n build_diagnostics.json
+
 jq -r '.level + ":" + .code' build_diagnostics.json \
 | sort | uniq -c | sort -k2
 
-bat -n build_diagnostics.json
+
 
