@@ -1,7 +1,7 @@
-use crate::memory_engine::Kernel;
+use crate::kernel::Kernel;
 use crate::{
     delta::DeltaError,
-    memory_engine::{CommitError, KernelError},
+    kernel::{CommitError, KernelError},
     primitives::StateHash,
     proofs::{AdmissionProof, CommitProof},
 };
