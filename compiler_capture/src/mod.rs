@@ -9,6 +9,8 @@
 pub mod capability;
 /// Capture pipeline infrastructure and orchestration.
 pub mod capture;
+/// Project helpers for invoking cargo/rustc.
+pub mod cargo_project;
 /// Compatibility shims when compiler_capture is built standalone.
 pub mod compat;
 /// Compiler/language-specific frontends.
@@ -17,8 +19,6 @@ pub mod frontends;
 pub mod linux;
 /// Multi-target capture utilities for Cargo projects.
 pub mod multi_capture;
-/// Project helpers for invoking cargo/rustc.
-pub mod project;
 /// Transformation utilities that normalize captured items into the kernel graph.
 pub mod transform;
 /// Workspace metadata for capture outputs.
