@@ -537,9 +537,9 @@ pub(crate) fn maybe_commit_emission(project_root: &Path) -> Result<()> {
 }
 
 pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapshot> {
-    use compiler_capture::frontends::rustc::RustcFrontend;
+    use compiler_capture::cargo_project::CargoProject;
     use compiler_capture::multi_capture::capture_project;
-    use compiler_capture::project::CargoProject;
+    use compiler_capture::rustc::RustcFrontend;
     use kernel::kernel::{Kernel as MemoryEngine, MemoryEngineConfig};
 
     let cargo = CargoProject::from_entry(project_root)?;
