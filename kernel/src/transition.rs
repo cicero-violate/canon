@@ -1,9 +1,12 @@
 //! Minimal transition interface for callers that only need `(state, delta) -> (state, proof)`.
 //!
 //! This trait intentionally hides all snapshot, checkpoint, and WAL plumbing.
-use crate::{delta::Delta, kernel::KernelError, primitives::StateHash, proofs::CommitProof};
+use crate::kernel::KernelError;
+use database::{delta::Delta, primitives::StateHash, proofs::CommitProof};
+
+// transition trait must not depend on Kernel concrete type
 /// Minimal surface that exposes the canonical `(Hash, Delta) -> (Hash, CommitProof)` transition.
-pub trait MemoryTransition {
+pub trait KernelTransition {
     /// Returns the current canonical root hash.
     fn genesis(&self) -> StateHash;
     /// Applies a delta starting from the provided state hash and emits the resulting hash + proof.
