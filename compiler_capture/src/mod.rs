@@ -1,4 +1,4 @@
-//! Integration layer connecting the kernel to external capture frontends.
+//! Integration layer connecting to external capture frontends.
 //!
 //! This module now exposes a layered architecture:
 //! - [`frontends`] host compiler/language specific collectors.
