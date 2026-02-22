@@ -6,19 +6,23 @@
 //! - Event hash construction
 //!
 //! Canonical state + Merkle logic live in dedicated modules.
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf, sync::Arc,
-};
 use crate::hash::gpu::create_gpu_backend;
-use parking_lot::{Mutex, RwLock};
-use sha2::{Digest, Sha256};
 use crate::{
-    canonical_state::MerkleState, delta::Delta, epoch::EpochCell,
+    canonical_state::MerkleState,
+    delta::Delta,
+    epoch::EpochCell,
     graph_log::{GraphDelta, GraphDeltaLog, GraphSnapshot},
-    persistence::mmap_log::MmapLog, persistence::root_header::RootHeader,
+    persistence::mmap_log::MmapLog,
+    persistence::root_header::RootHeader,
     primitives::StateHash,
     proofs::{AdmissionProof, CommitProof, JudgmentProof, OutcomeProof},
+};
+use parking_lot::{Mutex, RwLock};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
 };
 const DOMAIN_DELTA: &[u8] = b"DELTA_V1";
 const DOMAIN_EVENT: &[u8] = b"EVENT_V1";
@@ -27,7 +31,7 @@ pub struct MemoryEngineConfig {
     pub tlog_path: PathBuf,
 }
 #[derive(Debug, thiserror::Error)]
-pub enum MemoryEngineError {
+pub enum KernelError {
     #[error("Failed to open transaction log: {0}")]
     TlogOpen(#[source] std::io::Error),
     #[error("Failed to open graph delta log: {0}")]
@@ -57,7 +61,7 @@ pub enum CommitError {
     #[error("failed to append to transaction log: {0}")]
     TlogWrite(#[source] std::io::Error),
 }
-pub struct MemoryEngine {
+pub struct Kernel {
     pub(crate) wal: Arc<Mutex<MmapLog>>,
     pub(crate) epoch: Arc<EpochCell>,
     pub(crate) admitted: RwLock<HashSet<StateHash>>,
@@ -65,58 +69,30 @@ pub struct MemoryEngine {
     pub(crate) state: Arc<RwLock<MerkleState>>,
     pub(crate) graph_log: Arc<Mutex<GraphDeltaLog>>,
 }
-impl MemoryEngine {
-    pub fn new(config: MemoryEngineConfig) -> Result<Self, MemoryEngineError> {
-        let wal = Arc::new(
-            Mutex::new(
-                MmapLog::open(&config.tlog_path, 64 * 1024 * 1024)
-                    .map_err(MemoryEngineError::TlogOpen)?,
-            ),
-        );
+impl Kernel {
+    pub fn new(config: MemoryEngineConfig) -> Result<Self, KernelError> {
+        let wal = Arc::new(Mutex::new(MmapLog::open(&config.tlog_path, 64 * 1024 * 1024).map_err(KernelError::TlogOpen)?));
         let graph_log_path = config.tlog_path.with_extension("graph.log");
-        let graph_log = Arc::new(
-            Mutex::new(
-                GraphDeltaLog::open(&graph_log_path)
-                    .map_err(|e| MemoryEngineError::GraphLogOpen(
-                        std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-                    ))?,
-            ),
-        );
+        let graph_log = Arc::new(Mutex::new(GraphDeltaLog::open(&graph_log_path).map_err(|e| KernelError::GraphLogOpen(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?));
         let backend = create_gpu_backend();
         let mut state = MerkleState::new_empty(backend);
-        if let Some(header) = wal
-            .lock()
-            .read_latest_root()
-            .map_err(MemoryEngineError::TlogOpen)?
-        {
+        if let Some(header) = wal.lock().read_latest_root().map_err(KernelError::TlogOpen)? {
             let records = {
                 let guard = wal.lock();
                 guard.scan_records()
             };
             for rec in records {
-                let (admission, delta): (AdmissionProof, Delta) = bincode::deserialize(
-                        &rec,
-                    )
-                    .map_err(|e| MemoryEngineError::TlogOpen(
-                        std::io::Error::new(std::io::ErrorKind::Other, e),
-                    ))?;
+                let (admission, delta): (AdmissionProof, Delta) = bincode::deserialize(&rec).map_err(|e| KernelError::TlogOpen(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
                 let _ = admission;
-                state.apply_delta(&delta).map_err(|_| MemoryEngineError::DeltaNotFound)?;
+                state.apply_delta(&delta).map_err(|_| KernelError::DeltaNotFound)?;
             }
-            state.apply_deltas_batch(&[]).map_err(|_| MemoryEngineError::DeltaNotFound)?;
+            state.apply_deltas_batch(&[]).map_err(|_| KernelError::DeltaNotFound)?;
             if state.root_hash() != header.root_hash {
                 panic!("WAL replay root mismatch");
             }
         }
         let state = Arc::new(RwLock::new(state));
-        Ok(Self {
-            wal,
-            epoch: Arc::new(EpochCell::new(0)),
-            admitted: RwLock::new(HashSet::new()),
-            deltas: RwLock::new(HashMap::new()),
-            state,
-            graph_log,
-        })
+        Ok(Self { wal, epoch: Arc::new(EpochCell::new(0)), admitted: RwLock::new(HashSet::new()), deltas: RwLock::new(HashMap::new()), state, graph_log })
     }
     pub fn checkpoint<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let state = self.state.read();
@@ -128,10 +104,7 @@ impl MemoryEngine {
     pub fn compact(&self) -> std::io::Result<()> {
         self.compact_with("checkpoint.bin")
     }
-    pub fn compact_with<P: AsRef<std::path::Path>>(
-        &self,
-        checkpoint_path: P,
-    ) -> std::io::Result<()> {
+    pub fn compact_with<P: AsRef<std::path::Path>>(&self, checkpoint_path: P) -> std::io::Result<()> {
         {
             let state = self.state.read();
             state.checkpoint(checkpoint_path)?;
@@ -143,10 +116,7 @@ impl MemoryEngine {
         }
         Ok(())
     }
-    pub fn admit_execution(
-        &self,
-        judgment_proof: &JudgmentProof,
-    ) -> Result<AdmissionProof, AdmissionError> {
+    pub fn admit_execution(&self, judgment_proof: &JudgmentProof) -> Result<AdmissionProof, AdmissionError> {
         if !self.verify_judgment_proof(judgment_proof) {
             return Err(AdmissionError::InvalidJudgmentProof);
         }
@@ -159,17 +129,10 @@ impl MemoryEngine {
         if !admitted.insert(judgment_hash) {
             return Err(AdmissionError::AlreadyAdmitted);
         }
-        Ok(AdmissionProof {
-            judgment_proof_hash: judgment_hash,
-            epoch: current_epoch.0 as u64,
-            nonce: admitted.len() as u64,
-        })
+        Ok(AdmissionProof { judgment_proof_hash: judgment_hash, epoch: current_epoch.0 as u64, nonce: admitted.len() as u64 })
     }
     pub fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof {
-        OutcomeProof {
-            commit_proof_hash: commit.hash(),
-            success: true,
-        }
+        OutcomeProof { commit_proof_hash: commit.hash(), success: true }
     }
     pub fn register_delta(&self, delta: Delta) -> StateHash {
         let hash = Self::hash_delta(&delta);
@@ -179,58 +142,25 @@ impl MemoryEngine {
     pub fn fetch_delta_by_hash(&self, hash: &StateHash) -> Option<Delta> {
         self.deltas.read().get(hash).cloned()
     }
-    pub fn commit_batch(
-        &self,
-        admission: &AdmissionProof,
-        delta_hashes: &[StateHash],
-    ) -> Result<Vec<CommitProof>, MemoryEngineError> {
-        let deltas: Vec<Delta> = delta_hashes
-            .iter()
-            .map(|h| self.fetch_delta_by_hash(h).ok_or(MemoryEngineError::DeltaNotFound))
-            .collect::<Result<_, _>>()?;
+    pub fn commit_batch(&self, admission: &AdmissionProof, delta_hashes: &[StateHash]) -> Result<Vec<CommitProof>, KernelError> {
+        let deltas: Vec<Delta> = delta_hashes.iter().map(|h| self.fetch_delta_by_hash(h).ok_or(KernelError::DeltaNotFound)).collect::<Result<_, _>>()?;
         {
             let mut state = self.state.write();
-            state
-                .apply_deltas_batch(&deltas)
-                .map_err(|_| MemoryEngineError::DeltaNotFound)?;
+            state.apply_deltas_batch(&deltas).map_err(|_| KernelError::DeltaNotFound)?;
         }
         self.epoch.increment();
         for delta in &deltas {
-            let encoded = bincode::serialize(&(admission, delta))
-                .map_err(|e| MemoryEngineError::TlogOpen(
-                    std::io::Error::new(std::io::ErrorKind::Other, e),
-                ))?;
-            self.wal.lock().append(&encoded).map_err(MemoryEngineError::TlogOpen)?;
+            let encoded = bincode::serialize(&(admission, delta)).map_err(|e| KernelError::TlogOpen(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            self.wal.lock().append(&encoded).map_err(KernelError::TlogOpen)?;
         }
         let root = self.state.read().root_hash();
         {
-            let header = RootHeader {
-                generation: self.epoch.load().0 as u64,
-                tree_size: self.state.read().tree_size,
-                root_hash: root,
-            };
-            self.wal
-                .lock()
-                .write_root_header(&header)
-                .map_err(MemoryEngineError::TlogOpen)?;
+            let header = RootHeader { generation: self.epoch.load().0 as u64, tree_size: self.state.read().tree_size, root_hash: root };
+            self.wal.lock().write_root_header(&header).map_err(KernelError::TlogOpen)?;
         }
-        Ok(
-            delta_hashes
-                .iter()
-                .map(|delta_hash| CommitProof {
-                    admission_proof_hash: admission.hash(),
-                    delta_hash: *delta_hash,
-                    state_hash: root,
-                })
-                .collect(),
-        )
+        Ok(delta_hashes.iter().map(|delta_hash| CommitProof { admission_proof_hash: admission.hash(), delta_hash: *delta_hash, state_hash: root }).collect())
     }
-    pub fn compute_event_hash(
-        &self,
-        admission: &AdmissionProof,
-        commit: &CommitProof,
-        outcome: &OutcomeProof,
-    ) -> StateHash {
+    pub fn compute_event_hash(&self, admission: &AdmissionProof, commit: &CommitProof, outcome: &OutcomeProof) -> StateHash {
         let mut hasher = Sha256::new();
         hasher.update(DOMAIN_EVENT);
         hasher.update(admission.hash());
@@ -238,56 +168,31 @@ impl MemoryEngine {
         hasher.update(outcome.hash());
         hasher.finalize().into()
     }
-    pub fn commit_graph_delta(
-        &self,
-        delta: GraphDelta,
-    ) -> Result<(), MemoryEngineError> {
-        self.graph_log
-            .lock()
-            .append(&delta)
-            .map_err(|e| MemoryEngineError::GraphLogIo(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-            ))
+    pub fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), KernelError> {
+        self.graph_log.lock().append(&delta).map_err(|e| KernelError::GraphLogIo(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
     }
     /// Replay graph state up to delta index `limit` (exclusive).
-    pub fn graph_snapshot_at(
-        &self,
-        limit: u64,
-    ) -> Result<GraphSnapshot, MemoryEngineError> {
+    pub fn graph_snapshot_at(&self, limit: u64) -> Result<GraphSnapshot, KernelError> {
         let path = self.graph_log.lock().path().to_path_buf();
-        GraphDeltaLog::replay_up_to(path, limit)
-            .map_err(|e| MemoryEngineError::GraphLogIo(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-            ))
+        GraphDeltaLog::replay_up_to(path, limit).map_err(|e| KernelError::GraphLogIo(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
     }
     /// Total number of graph deltas persisted so far.
     pub fn graph_delta_count(&self) -> u64 {
         self.graph_log.lock().entry_count()
     }
-    pub fn materialized_graph(&self) -> Result<GraphSnapshot, MemoryEngineError> {
+    pub fn materialized_graph(&self) -> Result<GraphSnapshot, KernelError> {
         let path = self.graph_log.lock().path().to_path_buf();
-        GraphDeltaLog::replay_all(path)
-            .map_err(|e| MemoryEngineError::GraphLogIo(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-            ))
+        GraphDeltaLog::replay_all(path).map_err(|e| KernelError::GraphLogIo(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
     }
     fn verify_judgment_proof(&self, proof: &JudgmentProof) -> bool {
         proof.approved && proof.hash != [0u8; 32]
     }
-    fn transition_judgment(
-        &self,
-        previous_state: StateHash,
-        delta_hash: StateHash,
-    ) -> JudgmentProof {
+    fn transition_judgment(&self, previous_state: StateHash, delta_hash: StateHash) -> JudgmentProof {
         let mut hasher = Sha256::new();
         hasher.update(DOMAIN_TRANSITION_JUDGMENT);
         hasher.update(previous_state);
         hasher.update(delta_hash);
-        JudgmentProof {
-            approved: true,
-            timestamp: self.epoch.load().0 as u64,
-            hash: hasher.finalize().into(),
-        }
+        JudgmentProof { approved: true, timestamp: self.epoch.load().0 as u64, hash: hasher.finalize().into() }
     }
     fn hash_delta(delta: &Delta) -> StateHash {
         let mut hasher = Sha256::new();
@@ -302,68 +207,44 @@ impl MemoryEngine {
     }
 }
 use crate::{engine::DeltaExecutionEngine, transition::MemoryTransition};
-impl DeltaExecutionEngine for MemoryEngine {
-    type Error = MemoryEngineError;
-    fn admit_execution(
-        &self,
-        judgment_proof: &JudgmentProof,
-    ) -> Result<AdmissionProof, Self::Error> {
-        MemoryEngine::admit_execution(self, judgment_proof)
-            .map_err(MemoryEngineError::Admission)
+impl DeltaExecutionEngine for Kernel {
+    type Error = KernelError;
+    fn admit_execution(&self, judgment_proof: &JudgmentProof) -> Result<AdmissionProof, Self::Error> {
+        Kernel::admit_execution(self, judgment_proof).map_err(KernelError::Admission)
     }
     fn register_delta(&self, delta: Delta) -> StateHash {
-        MemoryEngine::register_delta(self, delta)
+        Kernel::register_delta(self, delta)
     }
     fn fetch_delta_by_hash(&self, hash: &StateHash) -> Option<Delta> {
-        MemoryEngine::fetch_delta_by_hash(self, hash)
+        Kernel::fetch_delta_by_hash(self, hash)
     }
-    fn commit_delta(
-        &self,
-        admission: &AdmissionProof,
-        delta_hash: &StateHash,
-    ) -> Result<CommitProof, Self::Error> {
-        MemoryEngine::commit_delta(self, admission, delta_hash)
+    fn commit_delta(&self, admission: &AdmissionProof, delta_hash: &StateHash) -> Result<CommitProof, Self::Error> {
+        Kernel::commit_delta(self, admission, delta_hash)
     }
-    fn commit_batch(
-        &self,
-        admission: &AdmissionProof,
-        delta_hashes: &[StateHash],
-    ) -> Result<Vec<CommitProof>, Self::Error> {
-        MemoryEngine::commit_batch(self, admission, delta_hashes)
+    fn commit_batch(&self, admission: &AdmissionProof, delta_hashes: &[StateHash]) -> Result<Vec<CommitProof>, Self::Error> {
+        Kernel::commit_batch(self, admission, delta_hashes)
     }
     fn record_outcome(&self, commit: &CommitProof) -> OutcomeProof {
-        MemoryEngine::record_outcome(self, commit)
+        Kernel::record_outcome(self, commit)
     }
-    fn compute_event_hash(
-        &self,
-        admission: &AdmissionProof,
-        commit: &CommitProof,
-        outcome: &OutcomeProof,
-    ) -> StateHash {
-        MemoryEngine::compute_event_hash(self, admission, commit, outcome)
+    fn compute_event_hash(&self, admission: &AdmissionProof, commit: &CommitProof, outcome: &OutcomeProof) -> StateHash {
+        Kernel::compute_event_hash(self, admission, commit, outcome)
     }
     fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), Self::Error> {
-        MemoryEngine::commit_graph_delta(self, delta)
+        Kernel::commit_graph_delta(self, delta)
     }
     fn materialized_graph(&self) -> Result<GraphSnapshot, Self::Error> {
-        MemoryEngine::materialized_graph(self)
+        Kernel::materialized_graph(self)
     }
 }
-impl MemoryTransition for MemoryEngine {
+impl MemoryTransition for Kernel {
     fn genesis(&self) -> StateHash {
         self.current_root_hash()
     }
-    fn step(
-        &self,
-        state: StateHash,
-        delta: Delta,
-    ) -> Result<(StateHash, CommitProof), MemoryEngineError> {
+    fn step(&self, state: StateHash, delta: Delta) -> Result<(StateHash, CommitProof), KernelError> {
         let current = self.current_root_hash();
         if current != state {
-            return Err(MemoryEngineError::StateMismatch {
-                expected: current,
-                provided: state,
-            });
+            return Err(KernelError::StateMismatch { expected: current, provided: state });
         }
         let delta_hash = self.register_delta(delta);
         let judgment = self.transition_judgment(state, delta_hash);
