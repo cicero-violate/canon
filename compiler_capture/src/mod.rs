@@ -3,7 +3,7 @@
 //! This module now exposes a layered architecture:
 //! - [`frontends`] host compiler/language specific collectors.
 //! - [`capture`] provides multi-crate orchestration and deduplication tools.
-//! - [`transform`] converts captured items into the graph kernel representation.
+//! - [`transform`] converts captured items into the graph representation.
 
 /// Small capability helpers (standalone).
 pub mod capability;
@@ -19,7 +19,7 @@ pub mod frontends;
 pub mod linux;
 /// Multi-target capture utilities for Cargo projects.
 pub mod multi_capture;
-/// Transformation utilities that normalize captured items into the kernel graph.
+/// Transformation utilities that normalize captured items into the graph.
 pub mod transform;
 /// Workspace metadata for capture outputs.
 pub mod workspace;
