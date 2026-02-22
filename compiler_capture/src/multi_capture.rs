@@ -1,12 +1,12 @@
 //! Capture helpers that merge multiple cargo targets into a single delta stream.
 
+use crate::compiler_capture::cargo_project::CargoProject;
 use crate::compiler_capture::frontends::rustc::{RustcFrontend, RustcFrontendError};
 use crate::compiler_capture::graph::{GraphDelta, NodeId};
-use crate::compiler_capture::project::CargoProject;
 use crate::compiler_capture::workspace::{GraphWorkspace, WorkspaceBuilder};
 use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
 use database::graph_log::WireEdgeId;
-use database::{MemoryEngine, MemoryEngineConfig, MemoryEngineError};
+use kernel::kernel::{Kernel as MemoryEngine, KernelError as MemoryEngineError, MemoryEngineConfig};
 
 /// Captured artifacts from a workspace build (delta stream + workspace overlay).
 pub struct CaptureArtifacts {
@@ -100,11 +100,7 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
         // Strip rustc crate hash: foo[abcd]::bar -> foo::bar
         fn normalize_key(key: &str) -> String {
             // Strip DefId(N:M ~ path) wrapper -> path
-            let key = if let (Some(start), Some(end)) = (key.find(" ~ "), key.rfind(')')) {
-                &key[start + 3..end]
-            } else {
-                key
-            };
+            let key = if let (Some(start), Some(end)) = (key.find(" ~ "), key.rfind(')')) { &key[start + 3..end] } else { key };
             // Strip rustc crate hash brackets: foo[abcd]::bar -> foo::bar
             let mut out = String::with_capacity(key.len());
             let mut in_brackets = false;
