@@ -17,6 +17,7 @@ path = "src/bin/capture_driver.rs"
 required-features = ["rustc_frontend"]
 
 [dependencies]
+kernel = { path = "../kernel" }
 anyhow = "1"
 database = { path = "../memory/database" }
 serde = { version = "1", features = ["derive"] }

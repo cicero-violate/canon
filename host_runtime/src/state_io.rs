@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, bail, Context, Result};
 use database::delta::{Delta, ShellDelta};
 use database::hash::gpu::create_gpu_backend;
-use database::primitives::Hash;
+use database::primitives::StateHash as Hash;
 use database::MerkleState;
 use hex;
 use host_state_controller::{RunReceipt, StateController};

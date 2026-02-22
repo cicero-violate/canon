@@ -10,6 +10,7 @@ compiler_capture_crate = []
 cuda = ["algorithms/cuda"]
 
 [dependencies]
+kernel = { path = "../kernel" }
 anyhow = "1"
 compiler_capture = { path = "../compiler_capture" }
 database = { path = "../memory/database" }

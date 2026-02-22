@@ -41,9 +41,7 @@ pub(super) fn apply_common_metadata<'tcx>(mut payload: NodePayload, tcx: TyCtxt<
     let absolute_path = resolve_source_path_abs(&filename);
     let relative_path = resolve_source_path_rel(&absolute_path, frontend.workspace_root.as_deref());
     let file_stats = compute_source_file_metrics(&lo.file);
-    let snippet = extract_item_snippet(&lo.file, span)
-        .or_else(|| source_map.span_to_snippet(span).ok())
-        .unwrap_or_else(String::new);
+    let snippet = extract_item_snippet(&lo.file, span).or_else(|| source_map.span_to_snippet(span).ok()).unwrap_or_else(String::new);
     payload = payload
         .with_metadata("def_path", def_path.clone())
         .with_metadata("path", def_path.clone())

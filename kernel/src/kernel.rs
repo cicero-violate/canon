@@ -6,8 +6,8 @@
 //! - Event hash construction
 //!
 //! Canonical state + Merkle logic live in dedicated modules.
-use crate::hash::gpu::create_gpu_backend;
-use crate::{
+use database::hash::gpu::create_gpu_backend;
+use database::{
     canonical_state::MerkleState,
     delta::Delta,
     epoch::EpochCell,
@@ -155,7 +155,11 @@ impl Kernel {
         }
         let root = self.state.read().root_hash();
         {
-            let header = RootHeader { generation: self.epoch.load().0 as u64, tree_size: self.state.read().tree_size, root_hash: root };
+            let header = RootHeader {
+                generation: self.epoch.load().0 as u64,
+                tree_size: 0, // database owns tree metadata now
+                root_hash: root,
+            };
             self.wal.lock().write_root_header(&header).map_err(KernelError::TlogOpen)?;
         }
         Ok(delta_hashes.iter().map(|delta_hash| CommitProof { admission_proof_hash: admission.hash(), delta_hash: *delta_hash, state_hash: root }).collect())
@@ -187,7 +191,7 @@ impl Kernel {
     fn verify_judgment_proof(&self, proof: &JudgmentProof) -> bool {
         proof.approved && proof.hash != [0u8; 32]
     }
-    fn transition_judgment(&self, previous_state: StateHash, delta_hash: StateHash) -> JudgmentProof {
+    pub(crate) fn transition_judgment(&self, previous_state: StateHash, delta_hash: StateHash) -> JudgmentProof {
         let mut hasher = Sha256::new();
         hasher.update(DOMAIN_TRANSITION_JUDGMENT);
         hasher.update(previous_state);
@@ -206,7 +210,7 @@ impl Kernel {
         hasher.finalize().into()
     }
 }
-use crate::{engine::DeltaExecutionEngine, transition::MemoryTransition};
+use crate::engine::DeltaExecutionEngine;
 impl DeltaExecutionEngine for Kernel {
     type Error = KernelError;
     fn admit_execution(&self, judgment_proof: &JudgmentProof) -> Result<AdmissionProof, Self::Error> {
@@ -237,19 +241,4 @@ impl DeltaExecutionEngine for Kernel {
         Kernel::materialized_graph(self)
     }
 }
-impl MemoryTransition for Kernel {
-    fn genesis(&self) -> StateHash {
-        self.current_root_hash()
-    }
-    fn step(&self, state: StateHash, delta: Delta) -> Result<(StateHash, CommitProof), KernelError> {
-        let current = self.current_root_hash();
-        if current != state {
-            return Err(KernelError::StateMismatch { expected: current, provided: state });
-        }
-        let delta_hash = self.register_delta(delta);
-        let judgment = self.transition_judgment(state, delta_hash);
-        let admission = self.admit_execution(&judgment)?;
-        let commit = self.commit_delta(&admission, &delta_hash)?;
-        Ok((self.current_root_hash(), commit))
-    }
-}
+// MemoryTransition impl moved to transition_impl.rs to break kernel ↔ transition cycle

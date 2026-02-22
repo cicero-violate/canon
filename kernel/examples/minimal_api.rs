@@ -7,8 +7,9 @@ use database::{
     epoch::Epoch,
     graph_log::{GraphDelta, WireEdge, WireEdgeId, WireNode, WireNodeId},
     primitives::{DeltaID, PageID},
-    MemoryEngine, MemoryEngineConfig, MemoryTransition,
 };
+use kernel::kernel::{Kernel as MemoryEngine, MemoryEngineConfig};
+use kernel::transition::KernelTransition;
 use std::collections::BTreeMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

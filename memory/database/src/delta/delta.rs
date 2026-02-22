@@ -1,12 +1,11 @@
 use crate::delta::{DeltaError, Source};
 use crate::epoch::Epoch;
-use crate::page::DeltaAppliable;
-use crate::page::Page;
-use crate::page::PageError;
-use crate::primitives::{DeltaID, StateHash, PageID};
-use std::time::{SystemTime, UNIX_EPOCH};
+// delta layer must not depend on page layer
+// Page implements delta application, not the other way around
+use crate::primitives::{DeltaID, PageID, StateHash};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Delta {
     pub delta_id: DeltaID,
@@ -20,71 +19,25 @@ pub struct Delta {
     pub intent_metadata: Option<String>,
 }
 impl Delta {
-    pub fn new_dense(
-        delta_id: DeltaID,
-        page_id: PageID,
-        epoch: Epoch,
-        data: Vec<u8>,
-        mask: Vec<bool>,
-        source: Source,
-    ) -> Result<Self, DeltaError> {
+    pub fn new_dense(delta_id: DeltaID, page_id: PageID, epoch: Epoch, data: Vec<u8>, mask: Vec<bool>, source: Source) -> Result<Self, DeltaError> {
         if data.len() != mask.len() {
-            return Err(DeltaError::SizeMismatch {
-                mask_len: mask.len(),
-                payload_len: data.len(),
-            });
+            return Err(DeltaError::SizeMismatch { mask_len: mask.len(), payload_len: data.len() });
         }
-        Ok(Self {
-            delta_id,
-            page_id,
-            epoch,
-            mask,
-            payload: data,
-            is_sparse: false,
-            timestamp: now_ns(),
-            source,
-            intent_metadata: None,
-        })
+        Ok(Self { delta_id, page_id, epoch, mask, payload: data, is_sparse: false, timestamp: now_ns(), source, intent_metadata: None })
     }
-    pub fn new_sparse(
-        delta_id: DeltaID,
-        page_id: PageID,
-        epoch: Epoch,
-        mask: Vec<bool>,
-        payload: Vec<u8>,
-        source: Source,
-    ) -> Result<Self, DeltaError> {
+    pub fn new_sparse(delta_id: DeltaID, page_id: PageID, epoch: Epoch, mask: Vec<bool>, payload: Vec<u8>, source: Source) -> Result<Self, DeltaError> {
         let changed = mask.iter().filter(|&&m| m).count();
         if changed != payload.len() {
-            return Err(DeltaError::SizeMismatch {
-                mask_len: mask.len(),
-                payload_len: payload.len(),
-            });
+            return Err(DeltaError::SizeMismatch { mask_len: mask.len(), payload_len: payload.len() });
         }
-        Ok(Self {
-            delta_id,
-            page_id,
-            epoch,
-            mask,
-            payload,
-            is_sparse: true,
-            timestamp: now_ns(),
-            source,
-            intent_metadata: None,
-        })
+        Ok(Self { delta_id, page_id, epoch, mask, payload, is_sparse: true, timestamp: now_ns(), source, intent_metadata: None })
     }
     pub fn merge(&self, other: &Delta) -> Result<Delta, DeltaError> {
         if self.page_id != other.page_id {
-            return Err(DeltaError::PageIDMismatch {
-                expected: self.page_id,
-                found: other.page_id,
-            });
+            return Err(DeltaError::PageIDMismatch { expected: self.page_id, found: other.page_id });
         }
         if self.mask.len() != other.mask.len() {
-            return Err(DeltaError::MaskSizeMismatch {
-                expected: self.mask.len(),
-                found: other.mask.len(),
-            });
+            return Err(DeltaError::MaskSizeMismatch { expected: self.mask.len(), found: other.mask.len() });
         }
         let mut merged_mask = self.mask.clone();
         let mut merged_payload = self.to_dense();
@@ -104,10 +57,7 @@ impl Delta {
             is_sparse: false,
             timestamp: other.timestamp.max(self.timestamp),
             source: other.source.clone(),
-            intent_metadata: other
-                .intent_metadata
-                .clone()
-                .or_else(|| self.intent_metadata.clone()),
+            intent_metadata: other.intent_metadata.clone().or_else(|| self.intent_metadata.clone()),
         })
     }
     pub fn to_dense(&self) -> Vec<u8> {
@@ -124,18 +74,8 @@ impl Delta {
         }
         dense
     }
-    pub fn apply_to(&self, page: &mut Page) -> Result<(), PageError> {
-        if let Err(err) = super::delta_validation::validate_delta(self) {
-            return Err(
-                match err {
-                    DeltaError::SizeMismatch { .. } => PageError::MaskSizeMismatch,
-                    DeltaError::PageIDMismatch { .. } => PageError::PageIDMismatch,
-                    DeltaError::MaskSizeMismatch { .. } => PageError::MaskSizeMismatch,
-                },
-            );
-        }
-        page.apply_delta(self)
-    }
+    // delta no longer applies itself to Page.
+    // Page layer owns delta application.
     pub fn hash(&self) -> StateHash {
         let mut hasher = Sha256::new();
         hasher.update(&self.page_id.0.to_be_bytes());

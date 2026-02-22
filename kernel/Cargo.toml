@@ -4,3 +4,27 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+database = { path = "../memory/database" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+parking_lot = "0.12"
+rayon = "1.8"
+sha2 = "0.10"
+hex = "0.4"
+bincode = "1.3"
+bytemuck = { version = "1.14", features = ["derive"] }
+
+# needed by persistence
+memmap2 = "0.9"
+crc32fast = "1.5"
+
+# needed by graph_log
+algorithms = { path = "../algorithms", default-features = false }
+
+# GPU (optional, owned by kernel)
+cuda-sys = { version = "0.2", optional = true }
+
+[features]
+default = []
+cuda = ["cuda-sys"]

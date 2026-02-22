@@ -3,7 +3,7 @@ use std::env;
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
-use canon::ir::{CanonicalIr, SystemGraph};
+use canon::ir::{SystemState, SystemGraph};
 use canon::runtime::value::ScalarValue;
 use canon::runtime::{SystemExecutionEvent, SystemExecutionResult, SystemInterpreter, Value};
 use database::primitives::PageID;
@@ -58,8 +58,9 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
 
     println!("Intent: lhs={}, rhs={}", intent.lhs, intent.rhs);
 
-    let config = database::MemoryEngineConfig { tlog_path: repo_root.join("canon_store").join("engine.wal") };
-    let engine = database::MemoryEngine::new(config)?;
+    use kernel::kernel::{Kernel as MemoryEngine, MemoryEngineConfig};
+    let config = MemoryEngineConfig { tlog_path: repo_root.join("canon_store").join("engine.wal") };
+    let engine = MemoryEngine::new(config)?;
     let interpreter = SystemInterpreter::new(&ir, &engine);
     let inputs = build_initial_inputs(&intent);
     let graph = select_system_graph(&ir)?;
@@ -84,13 +85,13 @@ pub fn run_system_flow(repo_root: &Path, verify_only: bool, intent: Intent) -> R
     Ok(())
 }
 
-fn load_ir(path: &Path) -> Result<CanonicalIr> {
+fn load_ir(path: &Path) -> Result<SystemState> {
     let data = std::fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
     let ir = serde_json::from_slice(&data)?;
     Ok(ir)
 }
 
-fn select_system_graph<'a>(ir: &'a CanonicalIr) -> Result<&'a SystemGraph> {
+fn select_system_graph<'a>(ir: &'a SystemState) -> Result<&'a SystemGraph> {
     ir.system_graphs.first().ok_or_else(|| anyhow!("no system graphs defined in Canonical IR"))
 }
 

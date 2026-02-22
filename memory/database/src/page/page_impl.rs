@@ -1,6 +1,5 @@
 use super::*;
-use crate::delta::Delta;
-use crate::epoch::{Epoch, EpochCell};
+use crate::epoch::epoch_types::{Epoch, EpochCell};
 use crate::primitives::PageID;
 
 impl std::fmt::Debug for Page {
@@ -47,27 +46,7 @@ impl PageAccess for Page {
     }
 }
 
-impl DeltaAppliable for Page {
-    fn apply_delta(&mut self, delta: &Delta) -> Result<(), PageError> {
-        if delta.page_id != self.id {
-            return Err(PageError::PageIDMismatch);
-        }
-
-        let data_slice = self.data_mut_slice();
-
-        if delta.mask.len() != data_slice.len() {
-            return Err(PageError::MaskSizeMismatch);
-        }
-
-        let dense = delta.to_dense();
-
-        for (i, &mask_bit) in delta.mask.iter().enumerate() {
-            if mask_bit {
-                data_slice[i] = dense[i];
-            }
-        }
-
-        self.set_epoch(delta.epoch);
-        Ok(())
-    }
-}
+// DeltaAppliable impl removed.
+// Page owns mutation logic directly via inherent methods.
+// Delta application removed from page layer.
+// Page is now pure storage + epoch carrier.

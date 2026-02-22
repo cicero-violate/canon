@@ -1,6 +1,6 @@
 use bincode;
 use database::delta::Delta;
-use database::primitives::Hash;
+use database::primitives::StateHash as Hash;
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, ErrorKind, Read, Write};

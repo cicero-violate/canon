@@ -540,7 +540,7 @@ pub(crate) fn rebuild_graph_snapshot(project_root: &Path) -> Result<GraphSnapsho
     use compiler_capture::frontends::rustc::RustcFrontend;
     use compiler_capture::multi_capture::capture_project;
     use compiler_capture::project::CargoProject;
-    use database::{MemoryEngine, MemoryEngineConfig};
+    use kernel::kernel::{Kernel as MemoryEngine, MemoryEngineConfig};
 
     let cargo = CargoProject::from_entry(project_root)?;
     let frontend = RustcFrontend::new();

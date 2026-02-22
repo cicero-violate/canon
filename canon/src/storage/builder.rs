@@ -16,7 +16,8 @@ use database::delta::delta_types::Source;
 use database::delta::Delta;
 use database::epoch::Epoch;
 use database::primitives::{DeltaID, StateHash as EngineHash, PageID};
-use database::{AdmissionError, AdmissionProof, CommitProof, JudgmentProof, MemoryEngine};
+use database::{AdmissionProof, CommitProof, JudgmentProof};
+use kernel::kernel::{AdmissionError, Kernel as MemoryEngine};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -451,7 +452,7 @@ pub enum MemoryIrBuilderError {
     #[error("delta encode failed for `{artifact_id}`: {source}")]
     Delta { artifact_id: String, #[source] source: database::delta::DeltaError },
     #[error("memory engine error: {0}")]
-    Memory(#[from] database::MemoryEngineError),
+    Memory(#[from] kernel::kernel::KernelError),
     #[error("admission failed: {0}")]
     Admission(#[from] AdmissionError),
 }

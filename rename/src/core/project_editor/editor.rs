@@ -21,7 +21,7 @@ use compiler_capture::frontends::rustc::RustcFrontend;
 use compiler_capture::multi_capture::capture_project;
 use compiler_capture::project::CargoProject;
 use database::graph_log::GraphSnapshot;
-use database::{MemoryEngine, MemoryEngineConfig};
+use kernel::kernel::{Kernel as MemoryEngine, MemoryEngineConfig};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

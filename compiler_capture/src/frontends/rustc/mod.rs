@@ -2,11 +2,11 @@
 #[cfg(feature = "rustc_frontend")]
 mod crate_metadata;
 #[cfg(feature = "rustc_frontend")]
+pub mod driver_entry;
+#[cfg(feature = "rustc_frontend")]
 mod frontend_context;
 #[cfg(feature = "rustc_frontend")]
 pub mod frontend_driver;
-#[cfg(feature = "rustc_frontend")]
-pub mod driver_entry;
 #[cfg(feature = "rustc_frontend")]
 mod hir_dump;
 #[cfg(feature = "rustc_frontend")]

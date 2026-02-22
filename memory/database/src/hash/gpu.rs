@@ -1,7 +1,7 @@
-use crate::hash::{cpu, HashBackend};
-use crate::primitives::StateHash;
 #[cfg(feature = "cuda")]
 use crate::hash::cuda_ffi::*;
+use crate::hash::{cpu, HashBackend};
+use crate::primitives::StateHash;
 #[cfg(feature = "cuda")]
 use algorithms::cryptography::merkle_tree_gpu::{merkle_build_gpu, HASH_SIZE, PAGE_SIZE};
 #[cfg(feature = "cuda")]
@@ -45,12 +45,7 @@ impl GpuBackend {
     }
 }
 impl HashBackend for GpuBackend {
-    fn rebuild_merkle_tree(
-        &self,
-        nodes: &mut [StateHash],
-        tree_size: u64,
-        pages_ptr: *const u8,
-    ) {
+    fn rebuild_merkle_tree(&self, nodes: &mut [StateHash], tree_size: u64, pages_ptr: *const u8) {
         if tree_size == 0 {
             return;
         }
@@ -89,7 +84,8 @@ pub fn create_gpu_backend() -> Box<dyn HashBackend> {
         }
         return Box::new(GpuBackend { cuda: false });
     }
-    #[cfg(not(feature = "cuda"))] Box::new(GpuBackend { cuda: false })
+    #[cfg(not(feature = "cuda"))]
+    Box::new(GpuBackend { cuda: false })
 }
 #[cfg(feature = "cuda")]
 static CUDA_ONCE: Once = Once::new();
@@ -107,12 +103,11 @@ fn detect_cuda() -> bool {
 #[cfg(feature = "cuda")]
 pub fn gpu_available() -> bool {
     unsafe {
-        CUDA_ONCE
-            .call_once(|| {
-                CUDA_PRESENT = detect_cuda();
-                let present = CUDA_PRESENT;
-                debug_cuda(&format!("gpu_available cached result: {}", present));
-            });
+        CUDA_ONCE.call_once(|| {
+            CUDA_PRESENT = detect_cuda();
+            let present = CUDA_PRESENT;
+            debug_cuda(&format!("gpu_available cached result: {}", present));
+        });
         CUDA_PRESENT
     }
 }

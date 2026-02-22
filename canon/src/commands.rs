@@ -29,7 +29,7 @@ use crate::semantic_builder::SemanticIrBuilder;
 use crate::storage::builder::StateWriter;
 use crate::validate::validate_ir;
 use crate::version_gate::enforce_version_gate;
-use database::{MemoryEngine, MemoryEngineConfig};
+use kernel::kernel::{Kernel as MemoryEngine, MemoryEngineConfig};
 use std::fs;
 pub async fn execute_command(cmd: Command) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {

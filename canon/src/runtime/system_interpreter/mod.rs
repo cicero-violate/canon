@@ -16,9 +16,9 @@ use database::delta::Delta as EngineDelta;
 use database::epoch::Epoch;
 use database::primitives::{DeltaID, StateHash as EngineHash, PageID};
 use database::{
-    AdmissionProof, CommitProof, JudgmentProof, MemoryEngine, MemoryEngineError,
-    OutcomeProof,
+    AdmissionProof, CommitProof, JudgmentProof, OutcomeProof,
 };
+use kernel::kernel::{Kernel as MemoryEngine, KernelError as MemoryEngineError};
 mod effects;
 mod planner;
 /// Executes Canon system graphs.

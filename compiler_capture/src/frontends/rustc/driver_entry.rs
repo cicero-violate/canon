@@ -31,7 +31,9 @@ pub fn run_capture_driver() -> anyhow::Result<()> {
 
     // Set env vars
     for (k, v) in &req.env_vars {
-        unsafe { std::env::set_var(k, v); }
+        unsafe {
+            std::env::set_var(k, v);
+        }
     }
 
     // Run rustc and collect deltas
@@ -40,7 +42,9 @@ pub fn run_capture_driver() -> anyhow::Result<()> {
 
     // Unset env vars
     for (k, _) in &req.env_vars {
-        unsafe { std::env::remove_var(k); }
+        unsafe {
+            std::env::remove_var(k);
+        }
     }
 
     if exit != ExitCode::SUCCESS {
@@ -72,10 +76,7 @@ impl Callbacks for DriverCallbacks {
 }
 
 fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> Vec<GraphDelta> {
-    use super::super::super::frontends::rustc::{
-        crate_metadata, item_capture::*, mir_capture::capture_function,
-        node_builder::ensure_node, trait_capture::*, type_capture::capture_function_types,
-    };
+    use super::super::super::frontends::rustc::{crate_metadata, item_capture::*, mir_capture::capture_function, node_builder::ensure_node, trait_capture::*, type_capture::capture_function_types};
     let mut def_kind_counts: HashMap<String, usize> = HashMap::new();
     let mut mir_key_count = 0usize;
     let mut builder = DeltaCollector::new();
@@ -111,9 +112,7 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
     for &local_def in tcx.mir_keys(()).iter() {
         mir_key_count += 1;
         let def_id = local_def.to_def_id();
-        if !matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn)
-            || !tcx.is_mir_available(def_id)
-        {
+        if !matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) || !tcx.is_mir_available(def_id) {
             continue;
         }
         let caller_id = ensure_node(&mut builder, tcx, def_id, &mut cache, metadata);
@@ -121,12 +120,7 @@ fn build_graph_deltas<'tcx>(tcx: TyCtxt<'tcx>, metadata: &FrontendMetadata) -> V
         capture_function_types(&mut builder, tcx, local_def, &mut cache, metadata);
     }
     let deltas = builder.into_deltas();
-    eprintln!(
-        "[capture_driver] defs={} mir_keys={} deltas={}",
-        def_kind_counts.values().sum::<usize>(),
-        mir_key_count,
-        deltas.len()
-    );
+    eprintln!("[capture_driver] defs={} mir_keys={} deltas={}", def_kind_counts.values().sum::<usize>(), mir_key_count, deltas.len());
     eprintln!("[capture_driver] def_kind_counts={:?}", def_kind_counts);
     deltas
 }
