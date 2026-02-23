@@ -1,3 +1,4 @@
+cd /workspace/ai_sandbox/canon_workspace/rename/fix_point
 cargo build --message-format=json 2>/dev/null \
 | jq -c 'select(.reason=="compiler-message")
          | .message
