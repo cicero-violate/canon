@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use super::ids::{EdgeId, NodeId};
-use database::graph_log as wire;
+use database::graph_log;
 
 #[cfg(feature = "cuda")]
 use algorithms::graph::{csr::Csr, gpu::bfs_gpu};
@@ -112,7 +112,7 @@ impl GraphSnapshot {
         self.hash
     }
 
-    pub fn from_wire(snapshot: wire::GraphSnapshot) -> Self {
+    pub fn from_wire(snapshot: graph_log::GraphSnapshot) -> Self {
         let mut nodes_by_id: HashMap<NodeId, NodeRecord> = HashMap::new();
         for node in snapshot.nodes {
             let id = NodeId::from_bytes(node.id.0);
@@ -186,7 +186,7 @@ impl GraphSnapshot {
         changed.into_iter().collect()
     }
 
-    pub fn to_wire_snapshot(&self) -> wire::GraphSnapshot {
+    pub fn to_wire_snapshot(&self) -> graph_log::GraphSnapshot {
         /// Return all NodeIds reachable from `start` via directed edges, using GPU BFS.
         /// Builds a CSR from current edges, runs bfs_gpu, returns nodes with level >= 0.
         /// Falls back to empty vec if `start` is not found.
@@ -217,38 +217,38 @@ impl GraphSnapshot {
             let levels = bfs_gpu(&csr, start_idx);
             levels.into_iter().enumerate().filter(|(_, lvl)| *lvl >= 0).map(|(i, _)| idx_to_node[i]).collect()
         }
-        let nodes: Vec<wire::WireNode> = self
+        let nodes: Vec<graph_log::WireNode> = self
             .nodes
             .iter()
-            .map(|node| wire::WireNode { id: wire::WireNodeId(node.id.as_bytes()), key: node.key.to_string(), label: node.label.to_string(), metadata: node.metadata.clone() })
+            .map(|node| graph_log::WireNode { id: graph_log::WireNodeId(node.id.as_bytes()), key: node.key.to_string(), label: node.label.to_string(), metadata: node.metadata.clone() })
             .collect();
 
-        let edges: Vec<wire::WireEdge> = self
+        let edges: Vec<graph_log::WireEdge> = self
             .edges
             .iter()
-            .map(|edge| wire::WireEdge {
-                id: wire::WireEdgeId(edge.id.as_bytes()),
-                from: wire::WireNodeId(edge.from.as_bytes()),
-                to: wire::WireNodeId(edge.to.as_bytes()),
+            .map(|edge| graph_log::WireEdge {
+                id: graph_log::WireEdgeId(edge.id.as_bytes()),
+                from: graph_log::WireNodeId(edge.from.as_bytes()),
+                to: graph_log::WireNodeId(edge.to.as_bytes()),
                 kind: edge.kind.as_str().to_string(),
                 metadata: edge.metadata.clone(),
             })
             .collect();
 
-        wire::GraphSnapshot::new(nodes, edges)
+        graph_log::GraphSnapshot::new(nodes, edges)
     }
 }
 
 impl GraphDelta {
-    pub fn to_wire(&self) -> wire::GraphDelta {
+    pub fn to_wire(&self) -> graph_log::GraphDelta {
         match self {
             GraphDelta::AddNode(node) => {
-                wire::GraphDelta::AddNode(wire::WireNode { id: wire::WireNodeId(node.id.as_bytes()), key: node.key.to_string(), label: node.label.to_string(), metadata: node.metadata.clone() })
+                graph_log::GraphDelta::AddNode(graph_log::WireNode { id: graph_log::WireNodeId(node.id.as_bytes()), key: node.key.to_string(), label: node.label.to_string(), metadata: node.metadata.clone() })
             }
-            GraphDelta::AddEdge(edge) => wire::GraphDelta::AddEdge(wire::WireEdge {
-                id: wire::WireEdgeId(edge.id.as_bytes()),
-                from: wire::WireNodeId(edge.from.as_bytes()),
-                to: wire::WireNodeId(edge.to.as_bytes()),
+            GraphDelta::AddEdge(edge) => graph_log::GraphDelta::AddEdge(graph_log::WireEdge {
+                id: graph_log::WireEdgeId(edge.id.as_bytes()),
+                from: graph_log::WireNodeId(edge.from.as_bytes()),
+                to: graph_log::WireNodeId(edge.to.as_bytes()),
                 kind: edge.kind.as_str().to_string(),
                 metadata: edge.metadata.clone(),
             }),

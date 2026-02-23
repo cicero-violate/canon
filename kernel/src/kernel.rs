@@ -68,6 +68,13 @@ pub struct Kernel {
     pub(crate) deltas: RwLock<HashMap<StateHash, Delta>>,
     pub(crate) state: Arc<RwLock<MerkleState>>,
     pub(crate) graph_log: Arc<Mutex<GraphDeltaLog>>,
+    pub(crate) graph_dedup: RwLock<GraphDedupState>,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct GraphDedupState {
+    seen_nodes: HashSet<database::graph_log::WireNodeId>,
+    seen_edges: HashSet<database::graph_log::WireEdgeId>,
 }
 impl Kernel {
     pub fn new(config: MemoryEngineConfig) -> Result<Self, KernelError> {
@@ -92,7 +99,15 @@ impl Kernel {
             }
         }
         let state = Arc::new(RwLock::new(state));
-        Ok(Self { wal, epoch: Arc::new(EpochCell::new(0)), admitted: RwLock::new(HashSet::new()), deltas: RwLock::new(HashMap::new()), state, graph_log })
+        Ok(Self {
+            wal,
+            epoch: Arc::new(EpochCell::new(0)),
+            admitted: RwLock::new(HashSet::new()),
+            deltas: RwLock::new(HashMap::new()),
+            state,
+            graph_log,
+            graph_dedup: RwLock::new(GraphDedupState::default()),
+        })
     }
     pub fn checkpoint<P: AsRef<std::path::Path>>(&self, path: P) -> std::io::Result<()> {
         let state = self.state.read();
@@ -173,7 +188,30 @@ impl Kernel {
         hasher.finalize().into()
     }
     pub fn commit_graph_delta(&self, delta: GraphDelta) -> Result<(), KernelError> {
-        self.graph_log.lock().append(&delta).map_err(|e| KernelError::GraphLogIo(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))
+        {
+            let mut dedup = self.graph_dedup.write();
+            match &delta {
+                GraphDelta::AddNode(node) => {
+                    if !dedup.seen_nodes.insert(node.id.clone()) {
+                        return Ok(());
+                    }
+                }
+                GraphDelta::AddEdge(edge) => {
+                    if !dedup.seen_edges.insert(edge.id.clone()) {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        self.graph_log
+            .lock()
+            .append(&delta)
+            .map_err(|e| {
+                KernelError::GraphLogIo(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            })
     }
     /// Replay graph state up to delta index `limit` (exclusive).
     pub fn graph_snapshot_at(&self, limit: u64) -> Result<GraphSnapshot, KernelError> {

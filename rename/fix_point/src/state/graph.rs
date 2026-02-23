@@ -10,7 +10,7 @@ use std::sync::Arc;
 use super::ids::{EdgeId, NodeId};
 
 
-use database::graph_log as wire;
+use database::graph_log;
 
 
 #[cfg(feature = "cuda")]

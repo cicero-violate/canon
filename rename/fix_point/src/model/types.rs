@@ -18,7 +18,7 @@ pub struct AliasGraphReport {
 
 
 #[derive(Clone, Serialize)]
-pub struct FileRename {
+pub(crate) struct FileRename {
     pub(crate) from: String,
     pub(crate) to: String,
     pub(crate) is_directory_move: bool,
@@ -42,7 +42,7 @@ pub struct SpanRange {
 
 
 #[derive(Clone, Serialize)]
-pub struct SymbolEdit {
+pub(crate) struct SymbolEdit {
     pub(crate) id: String,
     pub(crate) file: String,
     pub(crate) kind: String,

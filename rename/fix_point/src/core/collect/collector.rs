@@ -494,12 +494,3 @@ impl<'a> ItemCollector<'a> {
         }
     }
 }
-
-
-fn split_prefix(prefix: &str) -> Vec<String> {
-    if prefix.is_empty() {
-        Vec::new()
-    } else {
-        prefix.split("::").map(|s| s.to_string()).collect()
-    }
-}

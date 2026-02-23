@@ -94,11 +94,7 @@ impl ProjectEditor {
         let cargo = CargoProject::from_entry(project)?;
         let frontend = RustcFrontend::new();
         let _artifacts = capture_project(&frontend, &cargo, &[]).with_context(|| format!("rustc capture failed for {}", project.display()))?;
-        let workspace_root = cargo.metadata().map(|m| m.workspace_root).unwrap_or_else(|_| cargo.workspace_root().to_path_buf());
-        if std::env::var("RENAME_DEBUG_PLAN").ok().as_deref() == Some("1") {
-            eprintln!("[plan] workspace_root={}", workspace_root.display());
-        }
-        let state_dir = workspace_root.join(".rename");
+        let state_dir = project.join(".rename");
         std::fs::create_dir_all(&state_dir)?;
         let tlog_path = state_dir.join("state.tlog");
         let engine = MemoryEngine::new(MemoryEngineConfig { tlog_path })?;

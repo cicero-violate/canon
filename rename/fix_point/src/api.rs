@@ -90,29 +90,3 @@ struct QueryRequest {
     #[serde(default)]
     pub name_contains: Option<String>,
 }
-
-
-fn default_true() -> bool {
-    true
-}
-
-
-pub fn execute_mutation_json(project: &Path, payload: &str) -> Result<String> {
-    let request: MutationRequest = serde_json::from_str(payload)?;
-    let response = request.execute(project)?;
-    Ok(serde_json::to_string_pretty(&response)?)
-}
-
-
-pub fn execute_query_json(project: &Path, payload: &str) -> Result<String> {
-    let request: QueryRequest = serde_json::from_str(payload)?;
-    let response = request.execute(project)?;
-    Ok(serde_json::to_string_pretty(&response)?)
-}
-
-
-pub fn execute_upsert_json(payload: &str) -> Result<String> {
-    let request: UpsertRequest = serde_json::from_str(payload)?;
-    let response = request.execute()?;
-    Ok(serde_json::to_string_pretty(&response)?)
-}

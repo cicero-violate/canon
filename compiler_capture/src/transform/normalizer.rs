@@ -92,6 +92,7 @@ impl GraphNormalizer {
 fn make_node_record(path: &str, label: &str, kind: &str, metadata: std::collections::HashMap<String, String>, signature: Option<String>) -> WireNode {
     let mut meta = BTreeMap::new();
     meta.insert("kind".into(), kind.into());
+    meta.insert("node_kind".into(), kind.into());
     if let Some(sig) = signature {
         meta.insert("signature".into(), sig);
     }

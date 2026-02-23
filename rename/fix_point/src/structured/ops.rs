@@ -39,24 +39,3 @@ pub enum NodeOp {
         new_crate: Option<String>,
     },
 }
-
-
-pub fn node_handle(
-    file: impl Into<PathBuf>,
-    item_index: usize,
-    nested_path: Vec<usize>,
-    kind: NodeKind,
-    span: SpanRange,
-    byte_range: (usize, usize),
-    source: Arc<String>,
-) -> NodeHandle {
-    NodeHandle {
-        file: file.into(),
-        item_index,
-        nested_path,
-        kind,
-        span,
-        byte_range,
-        source,
-    }
-}

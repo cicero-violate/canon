@@ -1,10 +1,11 @@
 //! Capture helpers that merge multiple cargo targets into a single delta stream.
 
 use crate::compiler_capture::cargo_project::CargoProject;
-use crate::compiler_capture::frontends::rustc::{RustcFrontend, RustcFrontendError};
 use crate::compiler_capture::graph::{GraphDelta, NodeId};
 use crate::compiler_capture::workspace::{GraphWorkspace, WorkspaceBuilder};
 use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
+use crate::rustc::frontend_driver::RustcFrontend;
+use crate::rustc::RustcFrontendError;
 use database::graph_log::WireEdgeId;
 use kernel::kernel::{Kernel as MemoryEngine, KernelError as MemoryEngineError, MemoryEngineConfig};
 
@@ -64,9 +65,16 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
     let project_meta = project.metadata()?;
     let workspace_root = project_meta.workspace_root.clone();
     let primary_package = project_meta.packages.first().cloned();
-    let engine = open_engine(&workspace_root)?;
+    // Use the package manifest directory, not workspace_root, so each
+    // package gets its own isolated graph log under <package>/.rename/.
+    let package_root = primary_package
+        .as_ref()
+        .and_then(|p| std::path::Path::new(&p.manifest_path).parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| workspace_root.clone());
+    let engine = open_engine(&package_root)?;
     let mut committed_node_ids: std::collections::HashSet<NodeId> = std::collections::HashSet::new();
     let mut committed_edge_ids: std::collections::HashSet<database::graph_log::WireEdgeId> = std::collections::HashSet::new();
+    let mut captured_src_paths: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
 
     let mut externs = project.extern_args("debug").map_err(|e| CaptureError::Generic(format!("failed to gather extern args: {e}")))?;
 
@@ -84,7 +92,21 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
     }
 
     for target in project.targets()? {
+        // Only capture lib/rlib targets. Bins, examples, and tests re-compile
+        // the same library source under a different crate root, causing every
+        // local symbol to be emitted once per target.
+        let is_lib = target.kind.iter().any(|k| k == "lib" || k == "rlib");
+        if !is_lib {
+            continue;
+        }
         let mut target_frontend = frontend.clone().with_target_name(&target.name);
+        // Each unique (crate, src_path) pair should only be captured once.
+        // lib + examples + bins that share the same src/lib.rs would otherwise
+        // re-emit every local symbol N times, one per target compilation.
+        let canonical_src = std::fs::canonicalize(&target.src_path).unwrap_or_else(|_| target.src_path.clone().into());
+        if !captured_src_paths.insert(canonical_src) {
+            continue;
+        }
         target_frontend = target_frontend.with_workspace_root(workspace_root.clone());
         if let Some(pkg) = &primary_package {
             target_frontend = target_frontend.with_package_info(pkg.name.clone(), pkg.version.clone()).with_edition(pkg.edition.clone()).with_package_features(pkg.features.keys().cloned());
@@ -120,7 +142,14 @@ pub fn capture_project(frontend: &RustcFrontend, project: &CargoProject, extra_a
                 GraphDelta::AddNode(mut node) => {
                     let target_kind = target.kind.join(",");
                     let norm_key = normalize_key(node.key.as_str());
-                    let norm_key = normalize_symbol_id_with_crate(&norm_key, None);
+                    let crate_name = primary_package.as_ref().map(|p| p.name.as_str());
+                    let norm_key = normalize_symbol_id_with_crate(&norm_key, crate_name);
+                    // Skip nodes that don't belong to this crate after normalization.
+                    // Cross-crate symbols (deps) must not be emitted into our snapshot.
+                    if !norm_key.starts_with("crate::") && norm_key != "crate" {
+                        id_map.insert(node.id.clone(), NodeId::from_key(&norm_key));
+                        continue;
+                    }
                     let new_id = NodeId::from_key(&norm_key);
                     // Map both the original id and the already-normalized id
                     id_map.insert(node.id.clone(), new_id.clone());
@@ -157,6 +186,12 @@ fn open_engine(root: &std::path::Path) -> Result<MemoryEngine, CaptureError> {
     let state_dir = root.join(".rename");
     std::fs::create_dir_all(&state_dir)?;
     let tlog_path = state_dir.join("state.tlog");
+    // Truncate the graph log on each fresh capture so nodes don't accumulate
+    // across runs. The graph log is always rebuilt from source, never incremental.
+    let graph_log_path = tlog_path.with_extension("graph.log");
+    if graph_log_path.exists() {
+        std::fs::remove_file(&graph_log_path)?;
+    }
     Ok(MemoryEngine::new(MemoryEngineConfig { tlog_path })?)
 }
 

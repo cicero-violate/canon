@@ -125,7 +125,14 @@ pub(crate) fn project_plan(snapshot: &GraphSnapshot, project_root: &Path) -> Res
         if !is_local_module_path(&module_path) {
             continue;
         }
-        if seen_item_keys.insert(node.key.clone()) {
+        // Dedup by def_path+kind to catch nodes with different key spellings
+        // (e.g. "crate::foo::Bar" vs "foo::Bar") that refer to the same symbol.
+        let dedup_key = {
+            let def = node.metadata.get("def_path").unwrap_or(&node.key);
+            let kind = node.metadata.get("node_kind").map(|s| s.as_str()).unwrap_or("");
+            format!("{}#{}", normalize_symbol_id(def), kind)
+        };
+        if seen_item_keys.insert(dedup_key) {
             items_by_module.entry(module_path).or_default().push(node.clone());
         }
     }
@@ -243,6 +250,15 @@ fn is_top_level_item(node: &WireNode) -> bool {
     if !is_emit_kind {
         return false;
     }
+    // Skip compiler-generated trait impls (derive macros, auto-traits).
+    // These are identified by the <Type as Trait> key pattern and have no
+    // source snippet — they will be re-derived from #[derive(...)] attributes.
+    if node_kind == "impl" {
+        let key = node.key.as_str();
+        if key.contains(" as ") || key.starts_with("crate::<") {
+            return false;
+        }
+    }
     let container = node.metadata.get("container_kind").map(|s| s.as_str()).unwrap_or("");
     container.is_empty() || container == "module" || container == "unknown"
 }
@@ -262,10 +278,11 @@ fn select_module_path(node: &WireNode) -> String {
     for cand in candidates {
         if let Some(value) = cand {
             if !value.is_empty() && !value.contains('<') && !value.contains('>') {
-                return value.clone();
+                return normalize_symbol_id(value);
             }
         }
     }
+    eprintln!("[warn] node key={} has no module_path/module metadata, defaulting to crate", node.key);
     "crate".to_string()
 }
 
@@ -362,12 +379,36 @@ fn render_item_from_ast(node: &WireNode, project_root: &Path, ast_cache: &mut Ha
         }),
         "impl" => {
             use quote::ToTokens;
+            let trait_path = node.metadata.get("trait_path").map(|s| s.as_str()).unwrap_or("");
+            let def_path = node.metadata.get("def_path").map(|s| s.as_str()).unwrap_or("");
+            let start_line = node.metadata.get("start_line").and_then(|s| s.parse::<u32>().ok());
             ast.items.iter().find_map(|i| match i {
                 syn::Item::Impl(imp) => {
                     let self_ty = imp.self_ty.to_token_stream().to_string();
-                    if !name.is_empty() && !self_ty.contains(&name) {
+                    if !name.is_empty() && !self_ty.contains(name.as_str()) {
                         return None;
                     }
+                    // If we have a line number from the snapshot, use it to disambiguate
+                    // multiple impl blocks for the same type.
+                    if let Some(line) = start_line {
+                        let span_line = imp.impl_token.span.start().line as u32;
+                        if span_line != line {
+                            return None;
+                        }
+                    }
+                    if !trait_path.is_empty() {
+                        let impl_trait = imp
+                            .trait_
+                            .as_ref()
+                            .map(|(_, p, _)| p.to_token_stream().to_string())
+                            .unwrap_or_default();
+                        let trait_last = trait_path.rsplit("::").next().unwrap_or(trait_path);
+                        if !impl_trait.contains(trait_last) {
+                            return None;
+                        }
+                    }
+                    // Prefer an exact def_path match if available; skip if clearly wrong.
+                    let _ = def_path;
                     Some(render_node(imp))
                 }
                 _ => None,
@@ -422,24 +463,28 @@ fn module_file_path(module_path: &str, has_children: bool, project_root: &Path) 
 
 fn module_visibility(modules: &HashMap<String, WireNode>, module: &str) -> Result<String> {
     let Some(node) = modules.get(module) else {
+        eprintln!("[warn] module_visibility: no node for module={module}");
         return Ok(String::new());
     };
     normalize_visibility(node.metadata.get("visibility").map(|s| s.as_str()))
 }
 
 fn normalize_visibility(value: Option<&str>) -> Result<String> {
-    let Some(value) = value else {
-        return Err(anyhow!("missing visibility metadata"));
+    let value = match value {
+        None | Some("") => {
+            return Ok(String::new());
+        }
+        Some(v) => v,
     };
-    if value.is_empty() {
-        return Err(anyhow!("empty visibility metadata"));
-    }
     match value {
         "private" => Ok(String::new()),
         "public" => Ok("pub ".to_string()),
-        "crate" => Ok("pub ".to_string()),
+        "crate" => Ok("pub(crate) ".to_string()),
         v if v.starts_with("restricted:") => Ok("pub ".to_string()),
-        other => Err(anyhow!("unknown visibility value: {other}")),
+        other => {
+            eprintln!("[warn] unknown visibility value: {other:?}, defaulting to private");
+            Ok(String::new())
+        }
     }
 }
 
