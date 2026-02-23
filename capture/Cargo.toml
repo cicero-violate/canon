@@ -7,9 +7,8 @@ edition = "2024"
 path = "src/lib.rs"
 
 [features]
-default = ["rustc_frontend", "capture_crate"]
+default = ["rustc_frontend"]
 rustc_frontend = []
-compiler_capture_crate = []
 
 [[bin]]
 name = "capture_driver"
