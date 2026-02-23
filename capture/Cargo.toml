@@ -4,7 +4,18 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1"
+syn = { version = "2", features = ["full"] }
+walkdir = "2"
+model = { path = "../model" }
+
+# rustc frontend (nightly required)
+rustc_driver = { version = "0.0.0", package = "rustc_driver", optional = true }
+rustc_interface = { version = "0.0.0", package = "rustc_interface", optional = true }
+rustc_hir = { version = "0.0.0", package = "rustc_hir", optional = true }
+rustc_middle = { version = "0.0.0", package = "rustc_middle", optional = true }
 
 [features]
+rustc = []
 default = []
 rustc_frontend = []
