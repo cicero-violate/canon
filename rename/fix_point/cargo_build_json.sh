@@ -15,5 +15,7 @@ cargo build --message-format=json 2>/dev/null \
 jq -r '.level + ":" + .code' build_diagnostics.json \
 | sort | uniq -c | sort -k2
 
+echo "colordiff /workspace/ai_sandbox/canon_workspace/rename/fix_point/src/core/project_editor/graph_pipeline.rs /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/graph_pipeline.rs"
+colordiff /workspace/ai_sandbox/canon_workspace/rename/fix_point/src/core/project_editor/graph_pipeline.rs /workspace/ai_sandbox/canon_workspace/rename/src/core/project_editor/graph_pipeline.rs
 
 
