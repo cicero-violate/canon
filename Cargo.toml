@@ -13,11 +13,11 @@ members = [
   "chromium_messenger",
   "transform",
   "kernel",
-  "capture",
+  # "capture",
   # "graph_gpu",
   "algorithms", "rtree", "test_projects/test_rust_project",
   # "analysis",
-  "test_projects/test_pipeline", "kernel", "projection", "model", "orchestration",
+  "test_projects/test_pipeline", "kernel", "projection", "model", "orchestration", "capture_rustc",
 ]
 
 exclude = [
