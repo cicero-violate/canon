@@ -4,7 +4,7 @@
 #![cfg(feature = "rustc_frontend")]
 
 use super::frontend_context::FrontendMetadata;
-use crate::compiler_capture::graph::{DeltaCollector, GraphDelta, NodeId};
+use crate::internal_graph::{DeltaCollector, GraphDelta, NodeId};
 use rustc_driver::{catch_with_exit_code, run_compiler, Callbacks, Compilation};
 use rustc_hir::def::DefKind;
 use rustc_interface::interface::Compiler;

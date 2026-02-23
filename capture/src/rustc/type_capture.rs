@@ -2,8 +2,8 @@
 use super::frontend_context::FrontendMetadata;
 use super::item_capture::capture_adt;
 use super::trait_capture::capture_trait;
-use crate::compiler_capture::graph::DeltaCollector;
-use crate::compiler_capture::graph::NodeId;
+use crate::internal_graph::DeltaCollector;
+use crate::internal_graph::NodeId;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_middle::ty::{self, TyCtxt, TyKind};

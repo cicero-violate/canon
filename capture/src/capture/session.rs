@@ -1,6 +1,6 @@
 //! Lightweight capture session bookkeeping.
 
-use crate::compiler_capture::ExtractionResult;
+use crate::ExtractionResult;
 
 /// Bookkeeping structure tracking capture runs during a workspace crawl.
 #[derive(Debug, Default)]

@@ -1,9 +1,9 @@
 //! Capture helpers that merge multiple cargo targets into a single delta stream.
 
-use crate::compiler_capture::cargo_project::CargoProject;
-use crate::compiler_capture::graph::{GraphDelta, NodeId};
-use crate::compiler_capture::workspace::{GraphWorkspace, WorkspaceBuilder};
-use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
+use crate::cargo_project::CargoProject;
+use crate::internal_graph::{GraphDelta, NodeId};
+use crate::workspace::{GraphWorkspace, WorkspaceBuilder};
+use crate::compat::symbol_id::normalize_symbol_id_with_crate;
 use crate::rustc::frontend_driver::RustcFrontend;
 use crate::rustc::RustcFrontendError;
 use database::graph_log::WireEdgeId;

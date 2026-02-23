@@ -2,8 +2,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::compiler_capture::graph::{DeltaCollector, EdgeKind, EdgePayload, GraphDelta, NodeId, NodePayload};
-use crate::compiler_capture::CapturedItem;
+use crate::internal_graph::{DeltaCollector, EdgeKind, EdgePayload, GraphDelta, NodeId, NodePayload};
+use crate::CapturedItem;
 use database::graph_log::{WireEdge, WireEdgeId, WireNode, WireNodeId};
 
 /// Normalizes captured items into graph deltas.

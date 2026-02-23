@@ -1,6 +1,6 @@
 //! Deduplication utilities that collapse duplicate captured items.
 
-use crate::compiler_capture::{CapturedItem, ExtractionResult};
+use crate::{CapturedItem, ExtractionResult};
 
 /// Collapses duplicate captured items before normalization.
 #[derive(Debug, Default)]

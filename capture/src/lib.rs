@@ -12,7 +12,7 @@ extern crate rustc_middle;
 #[cfg(feature = "rustc_frontend")]
 extern crate rustc_span;
 
-#[path = "mod.rs"]
+#[path = "shared.rs"]
 mod shared;
 
 pub use shared::*;

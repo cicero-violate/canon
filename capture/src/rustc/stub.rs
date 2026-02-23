@@ -1,5 +1,5 @@
 use super::RustcFrontendError;
-use crate::compiler_capture::graph::GraphDelta;
+use crate::internal_graph::GraphDelta;
 
 /// Stubbed frontend compiled when `rustc_frontend` feature is disabled.
 #[derive(Debug, Clone, Default)]

@@ -1,8 +1,8 @@
 #![cfg(feature = "rustc_frontend")]
 //! Attribute, visibility, and generics metadata helpers.
 use super::frontend_context::FrontendMetadata;
-use crate::compiler_capture::graph::NodePayload;
-use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
+use crate::internal_graph::NodePayload;
+use crate::compat::symbol_id::normalize_symbol_id_with_crate;
 use blake3::hash;
 use rustc_hir::{def::DefKind, def_id::DefId, Attribute as HirAttribute};
 use rustc_middle::ty::{GenericParamDefKind, TyCtxt, Visibility};
@@ -410,6 +410,8 @@ fn format_symbol_label(module: &str, name: &str) -> String {
 }
 
 fn extract_item_snippet(file: &SourceFile, span: rustc_span::Span) -> Option<String> {
+    // Use the compiler-provided span bytes directly — span.hi() is already
+    // extended to include the fn body (see apply_common_metadata lines 32-36).
     let owned;
     let src = if let Some(s) = file.src.as_ref() {
         s.as_str()
@@ -422,10 +424,16 @@ fn extract_item_snippet(file: &SourceFile, span: rustc_span::Span) -> Option<Str
     };
     let start = span.lo().0.saturating_sub(file.start_pos.0) as usize;
     let start = walk_back_to_outer_attrs(src, start);
-    let end = find_item_end(src, start)?;
+    let mut end = span.hi().0.saturating_sub(file.start_pos.0) as usize;
+
     if end <= start || end > src.len() {
-        return None;
+        if let Some(found) = find_item_end(src, start) {
+            end = found;
+        } else {
+            return None;
+        }
     }
+
     Some(src[start..end].to_string())
 }
 

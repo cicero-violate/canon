@@ -24,36 +24,17 @@ pub mod transform;
 /// Workspace metadata for capture outputs.
 pub mod workspace;
 
-pub mod graph;
+pub mod internal_graph;
 pub mod kernel_root;
 
 use std::collections::HashMap;
 
-#[cfg(feature = "compiler_capture_crate")]
-pub mod rename {
-    pub mod core {
-        pub mod symbol_id {
-            pub use crate::compat::symbol_id::*;
-        }
-        pub mod oracle {
-            pub use crate::compat::oracle::*;
-        }
-        pub use crate::compat::oracle::{NullOracle, StructuralEditOracle};
-        pub use crate::compat::symbol_id::{normalize_symbol_id, normalize_symbol_id_with_crate};
-    }
-}
-#[cfg(not(feature = "compiler_capture_crate"))]
-pub mod rename {
-    pub use crate::rename::core;
-}
-#[cfg(not(feature = "compiler_capture_crate"))]
-pub use crate::{fs, rename as rename_mod, state};
 
-use crate::compiler_capture::graph::GraphDelta;
+use crate::internal_graph::GraphDelta;
 pub use crate::rustc::frontend_driver::RustcFrontend;
 pub use crate::rustc::RustcFrontendError;
 
-// Allow `crate::compiler_capture::*` when built as a standalone crate.
+// Allow `crate::*` when built as a standalone crate.
 pub mod compiler_capture {
     pub use crate::*;
 }

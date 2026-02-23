@@ -1,9 +1,9 @@
 #![cfg(feature = "rustc_frontend")]
 use super::frontend_context::FrontendMetadata;
 use super::metadata_capture;
-use crate::compiler_capture::graph::NodeId;
-use crate::compiler_capture::graph::{DeltaCollector, NodePayload};
-use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
+use crate::internal_graph::NodeId;
+use crate::internal_graph::{DeltaCollector, NodePayload};
+use crate::compat::symbol_id::normalize_symbol_id_with_crate;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::TyCtxt;

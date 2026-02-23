@@ -1,7 +1,7 @@
 //! Coordinates running compiler frontends across projects within a workspace.
 use super::dedup::Deduplicator;
 use super::session::CaptureSession;
-use crate::compiler_capture::{ExtractionResult, FrontendExtractor};
+use crate::{ExtractionResult, FrontendExtractor};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 /// High level orchestrator that walks a workspace and runs a frontend for each crate.

@@ -1,8 +1,8 @@
 #![cfg(feature = "rustc_frontend")]
 use super::frontend_context::FrontendMetadata;
 use super::node_builder::ensure_node;
-use crate::compiler_capture::graph::{DeltaCollector, EdgeKind, EdgePayload, NodeId};
-use crate::rename::core::symbol_id::normalize_symbol_id_with_crate;
+use crate::internal_graph::{DeltaCollector, EdgeKind, EdgePayload, NodeId};
+use crate::compat::symbol_id::normalize_symbol_id_with_crate;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_middle::mir::{self, BasicBlock, TerminatorKind};
 use rustc_middle::ty::{self, TyCtxt};
@@ -20,7 +20,7 @@ pub(super) fn capture_function<'tcx>(builder: &mut DeltaCollector, tcx: TyCtxt<'
         let bb_label = format!("{function_name}::bb{}", bb_idx.index());
         let bb_key = format!("{function_key}::bb{}", bb_idx.index());
         let statement_count = bb_data.statements.len();
-        let mut payload = crate::compiler_capture::graph::NodePayload::new(&bb_key, bb_label)
+        let mut payload = crate::internal_graph::NodePayload::new(&bb_key, bb_label)
             .with_metadata("type", "basic_block")
             .with_metadata("index", bb_idx.index().to_string())
             .with_metadata("statement_count", statement_count.to_string())

@@ -1,7 +1,7 @@
 #![cfg(feature = "rustc_frontend")]
 //! Crate-level metadata capture (hashes, dependencies, etc.).
 use super::frontend_context::FrontendMetadata;
-use crate::compiler_capture::graph::{DeltaCollector, NodePayload};
+use crate::internal_graph::{DeltaCollector, NodePayload};
 use rustc_middle::ty::TyCtxt;
 use rustc_span::def_id::LOCAL_CRATE;
 use serde::Serialize;

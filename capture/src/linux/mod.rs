@@ -1,7 +1,7 @@
 //! Linux state capture that records facts into the state graph.
 
-use crate::compiler_capture::capability::shell::{probe_fact, LinuxFact};
-use crate::compiler_capture::graph::{DeltaCollector, GraphDelta, NodePayload};
+use crate::capability::shell::{probe_fact, LinuxFact};
+use crate::internal_graph::{DeltaCollector, GraphDelta, NodePayload};
 use std::collections::BTreeMap;
 
 /// Captures the provided facts and stores true facts into GraphDeltas.

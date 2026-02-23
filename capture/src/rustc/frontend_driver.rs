@@ -1,7 +1,7 @@
 #![cfg(feature = "rustc_frontend")]
 use super::frontend_context::FrontendMetadata;
 use super::RustcFrontendError;
-use crate::compiler_capture::graph::GraphDelta;
+use crate::internal_graph::GraphDelta;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
