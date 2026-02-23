@@ -6,7 +6,7 @@ edition = "2024"
 [features]
 default = ["rustc_frontend"]
 cuda = ["algorithms/cuda"]
-rustc_frontend = ["compiler_capture/rustc_frontend"]
+rustc_frontend = ["capture/rustc_frontend"]
 
 [dependencies]
 anyhow = "1"
