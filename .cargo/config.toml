@@ -1,5 +1,5 @@
 [env]
 RUSTC_BOOTSTRAP = "1"
 
-[build]
-rustflags = ["-A", "warnings"]
+# [build]
+# rustflags = ["-A", "warnings"]
