@@ -12,7 +12,7 @@ members = [
   # "smt",
   "chromium_messenger", "rename",
   "kernel",
-  "compiler_capture",
+  "capture",
   # "graph_gpu",
   "algorithms", "rtree", "test_projects/test_rust_project", "analysis", "test_projects/test_pipeline", "kernel",
 ]
