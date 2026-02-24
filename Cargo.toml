@@ -18,7 +18,13 @@ members = [
   "algorithms", "rtree", "test_projects/test_rust_project",
   # "analysis",
   "analyzer",
-  "test_projects/test_pipeline", "kernel", "projection", "model", "orchestration", "capture_rustc", "rustc_capture_wrapper", "analyzer",
+  "test_projects/test_pipeline",
+  "kernel",
+  "projection",
+  "model",
+  "orchestration",
+  "capture_rustc",
+  "rustc_capture_wrapper",
 ]
 
 exclude = [
