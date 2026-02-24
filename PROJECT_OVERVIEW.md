@@ -119,32 +119,32 @@ test_projects/test_rust_project/model_ir.json
 
 ### Remaining IR gaps (emit coverage)
 
-| Gap | What is missing | IR fix needed |
-|-----|----------------|---------------|
-| E1  | `#[attribute]` on any item | `attrs: Vec<String>` on Struct, Fn, Impl, Trait |
-| E2  | `where` clauses | `where_clauses: Vec<String>` on Fn, Impl, Struct, Trait |
-| E3  | `pub use` re-exports | `vis: Visibility` on `NodeKind::Use` |
-| E4  | `extern crate` | `NodeKind::ExternCrate { name, alias }` |
-| E5  | `const` / `static` | `NodeKind::Const`, `NodeKind::Static` — unblocks S11 |
-| E6  | `enum` variants | `NodeKind::Enum { variants }` — unblocks S13 |
-| E7  | Tuple/unit structs | `StructKind` enum on `NodeKind::Struct` |
-| E8  | `impl Trait` / `dyn Trait` edges | TypeOf edges from Fn → Trait nodes |
-| E9  | Lifetime annotations | fix `fmt_params` for `&'a T`; add Outlives edges — unblocks S9 |
-| E10 | Inline `mod` blocks | `inline: bool` on `NodeKind::Module` |
-| E11 | Trait bounds on impl | verify `fmt_generics` round-trips `impl<T: Clone> Foo<T>` |
-| E12 | `unsafe` flag | `unsafe_: bool` on Fn, Impl, Trait — unblocks S15 |
-| E13 | `async` flag | `async_: bool` on Function/Method |
-| E14 | Macro invocations | `NodeKind::MacroCall { path, tokens }` — unblocks S12 |
-| E15 | Glob imports | `glob: bool` on `NodeKind::Use` |
+| Gap | What is missing                  | IR fix needed                                                  |
+|-----+----------------------------------+----------------------------------------------------------------|
+| E1  | `#[attribute]` on any item       | `attrs: Vec<String>` on Struct, Fn, Impl, Trait                |
+| E2  | `where` clauses                  | `where_clauses: Vec<String>` on Fn, Impl, Struct, Trait        |
+| E3  | `pub use` re-exports             | `vis: Visibility` on `NodeKind::Use`                           |
+| E4  | `extern crate`                   | `NodeKind::ExternCrate { name, alias }`                        |
+| E5  | `const` / `static`               | `NodeKind::Const`, `NodeKind::Static` — unblocks S11           |
+| E6  | `enum` variants                  | `NodeKind::Enum { variants }` — unblocks S13                   |
+| E7  | Tuple/unit structs               | `StructKind` enum on `NodeKind::Struct`                        |
+| E8  | `impl Trait` / `dyn Trait` edges | TypeOf edges from Fn → Trait nodes                             |
+| E9  | Lifetime annotations             | fix `fmt_params` for `&'a T`; add Outlives edges — unblocks S9 |
+| E10 | Inline `mod` blocks              | `inline: bool` on `NodeKind::Module`                           |
+| E11 | Trait bounds on impl             | verify `fmt_generics` round-trips `impl<T: Clone> Foo<T>`      |
+| E12 | `unsafe` flag                    | `unsafe_: bool` on Fn, Impl, Trait — unblocks S15              |
+| E13 | `async` flag                     | `async_: bool` on Function/Method                              |
+| E14 | Macro invocations                | `NodeKind::MacroCall { path, tokens }` — unblocks S12          |
+| E15 | Glob imports                     | `glob: bool` on `NodeKind::Use`                                |
 
 ### Remaining solver gaps
 
-| Gap | What is missing |
-|-----|----------------|
-| S1  | use_solver: only one level of Resolves — transitive re-exports not followed |
-| S2  | type_solver: SCC cycles detected but no diagnostic node emitted into IR |
+| Gap | What is missing                                                                                    |
+|-----+----------------------------------------------------------------------------------------------------|
+| S1  | use_solver: only one level of Resolves — transitive re-exports not followed                        |
+| S2  | type_solver: SCC cycles detected but no diagnostic node emitted into IR                            |
 | S3  | call_solver: dead functions marked but not removed from emit_order (liveness_solver now does this) |
-| S4  | invariant_solver: Impl.for_struct check is warn-only, not hard error |
+| S4  | invariant_solver: Impl.for_struct check is warn-only, not hard error                               |
 
 ---
 
