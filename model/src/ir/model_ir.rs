@@ -7,6 +7,9 @@
 //!   call_graph   : CsrGraph<NodeId, EdgeKind>     — G_call
 //!   module_graph : CsrGraph<NodeId, EdgeKind>     — G_module
 //!   cfg_graph    : CsrGraph<NodeId, EdgeKind>     — G_cfg
+//!   region_graph : CsrGraph<NodeId, EdgeKind>     — G_region
+//!   value_graph  : CsrGraph<NodeId, EdgeKind>     — G_value
+//!   macro_graph  : CsrGraph<NodeId, EdgeKind>     — G_macro
 //!
 //! Pipeline:
 //!   capture  ->  ModelIR  ->  derive()  ->  solve()  ->  emit()
@@ -40,6 +43,12 @@ pub struct ModelIR {
     pub module_graph: CsrGraph<NodeId, EdgeKind>,
     /// G_cfg   — control-flow edges within function bodies.
     pub cfg_graph: CsrGraph<NodeId, EdgeKind>,
+    /// G_region — lifetime outlives constraints (borrow solver).
+    pub region_graph: CsrGraph<NodeId, EdgeKind>,
+    /// G_value  — const/static dependency edges (const solver).
+    pub value_graph: CsrGraph<NodeId, EdgeKind>,
+    /// G_macro  — macro expansion edges (macro solver).
+    pub macro_graph: CsrGraph<NodeId, EdgeKind>,
 }
 
 impl ModelIR {
@@ -54,6 +63,9 @@ impl ModelIR {
             call_graph: CsrGraph::empty(),
             module_graph: CsrGraph::empty(),
             cfg_graph: CsrGraph::empty(),
+            region_graph: CsrGraph::empty(),
+            value_graph: CsrGraph::empty(),
+            macro_graph: CsrGraph::empty(),
         }
     }
 

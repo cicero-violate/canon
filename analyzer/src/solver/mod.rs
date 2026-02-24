@@ -20,6 +20,21 @@ pub mod module_solver;
 pub mod name_solver;
 pub mod type_solver;
 pub mod use_solver;
+pub mod invariant_solver;
+pub mod visibility_solver;
+pub mod impl_solver;
+pub mod trait_solver;
+pub mod generic_solver;
+pub mod provenance_solver;
+pub mod cycle_diag_solver;
+pub mod liveness_solver;
+pub mod stability_solver;
+pub mod borrow_solver;
+pub mod const_solver;
+pub mod macro_solver;
+pub mod exhaustiveness_solver;
+pub mod drop_solver;
+pub mod unsafe_solver;
 
 /// Run all solvers in dependency order.
 pub fn solve(ir: &mut ModelIR) -> Result<()> {
@@ -29,6 +44,23 @@ pub fn solve(ir: &mut ModelIR) -> Result<()> {
     call_solver::solve(ir)?;     // call reachability depends on resolved types
     cfg_solver::solve(ir)?;      // CFG dominators depend on call resolution
     use_solver::solve(ir)?;      // inject Use nodes after all names are resolved
+    // ── Phase 2: semantic correctness ───────────────────────────────────────
+    invariant_solver::solve(ir)?; // structural safety (edges, impl targets, acyclicity)
+    visibility_solver::solve(ir)?;// pub/private access rule enforcement
+    impl_solver::solve(ir)?;      // impl target existence + duplicate detection
+    trait_solver::solve(ir)?;     // trait method completeness
+    generic_solver::solve(ir)?;   // TypeUnifies concrete conflict detection
+    provenance_solver::solve(ir)?;// name shadowing + symbol origin chains
+    cycle_diag_solver::solve(ir)?;// structured diagnostics for type SCC cycles
+    liveness_solver::solve(ir)?;  // prune dead functions from emit_order
+    stability_solver::solve(ir)?; // deterministic emit_order sort
+    // ── Phase 3: advanced (stubs — active once IR gaps E5/E6/E12/E14 land) ─
+    borrow_solver::solve(ir)?;
+    const_solver::solve(ir)?;
+    macro_solver::solve(ir)?;
+    exhaustiveness_solver::solve(ir)?;
+    drop_solver::solve(ir)?;
+    unsafe_solver::solve(ir)?;
     Ok(())
 }
 

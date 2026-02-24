@@ -25,6 +25,7 @@ members = [
   "orchestration",
   "capture_rustc",
   "rustc_capture_wrapper",
+  "mutation",
 ]
 
 exclude = [

@@ -10,3 +10,4 @@ pub mod gpu;
 pub mod invariant;
 pub mod scc;
 pub mod topological_sort;
+pub mod reachability;

@@ -18,3 +18,6 @@ pub mod cfg_graph;
 pub mod module_graph;
 pub mod name_graph;
 pub mod type_graph;
+pub mod region_graph;
+pub mod value_graph;
+pub mod macro_graph;

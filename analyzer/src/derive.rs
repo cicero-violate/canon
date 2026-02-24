@@ -25,6 +25,9 @@ use crate::graph::{
     module_graph::ModuleGraphBuilder,
     name_graph::NameGraphBuilder,
     type_graph::TypeGraphBuilder,
+    region_graph::RegionGraphBuilder,
+    value_graph::ValueGraphBuilder,
+    macro_graph::MacroGraphBuilder,
 };
 
 pub fn derive(ir: &mut ModelIR) -> Result<()> {
@@ -35,6 +38,9 @@ pub fn derive(ir: &mut ModelIR) -> Result<()> {
     let mut name_b   = NameGraphBuilder::new(v);
     let mut type_b   = TypeGraphBuilder::new(v);
     let mut cfg_b    = CfgGraphBuilder::new(v);
+    let mut region_b = RegionGraphBuilder::new(v);
+    let mut value_b  = ValueGraphBuilder::new(v);
+    let mut macro_b  = MacroGraphBuilder::new(v);
 
     // Route edge_hints into builders.
     for hint in &ir.edge_hints {
@@ -65,6 +71,15 @@ pub fn derive(ir: &mut ModelIR) -> Result<()> {
             EdgeKind::CfgBranch { label } => {
                 cfg_b.add_branch(src, dst, label.clone());
             }
+            EdgeKind::Outlives => {
+                region_b.add_outlives(src, dst);
+            }
+            EdgeKind::ConstDep => {
+                value_b.add_const_dep(src, dst);
+            }
+            EdgeKind::Expands => {
+                macro_b.add_expands(src, dst);
+            }
         }
     }
 
@@ -84,6 +99,9 @@ pub fn derive(ir: &mut ModelIR) -> Result<()> {
     ir.name_graph   = name_b.build();
     ir.type_graph   = type_b.build();
     ir.cfg_graph    = cfg_b.build();
+    ir.region_graph = region_b.build();
+    ir.value_graph  = value_b.build();
+    ir.macro_graph  = macro_b.build();
 
     Ok(())
 }

@@ -29,6 +29,12 @@ pub enum EdgeKind {
     // control-flow graph
     CfgEdge,
     CfgBranch { label: String },
+    // region / borrow graph
+    Outlives,        // lifetime 'a outlives 'b
+    // value / const graph
+    ConstDep,        // const item depends on another const item
+    // macro expansion graph
+    Expands,         // macro node expands to item node
 }
 
 /// A single edge declaration for use in JSON / capture layer.

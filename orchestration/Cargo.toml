@@ -10,3 +10,4 @@ serde_json = "1"
 model = { path = "../model" }
 analyzer = { path = "../analyzer" }
 projection = { path = "../projection" }
+mutation   = { path = "../mutation" }
