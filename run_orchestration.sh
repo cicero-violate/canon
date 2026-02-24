@@ -4,3 +4,4 @@ cargo run -p orchestration -- \
   /tmp/test_emit
 
 cd /tmp/test_emit && cargo build
+cargo run
