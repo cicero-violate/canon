@@ -47,6 +47,7 @@ impl ModelIR {
             version: "0.2".into(),
             nodes: Vec::new(),
             emit_order: Vec::new(),
+            edge_hints: Vec::new(),
             name_graph: CsrGraph::empty(),
             type_graph: CsrGraph::empty(),
             call_graph: CsrGraph::empty(),
