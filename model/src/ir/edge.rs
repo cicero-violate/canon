@@ -30,3 +30,12 @@ pub enum EdgeKind {
     CfgEdge,
     CfgBranch { label: String },
 }
+
+/// A single edge declaration for use in JSON / capture layer.
+/// derive() routes each hint to the correct CsrGraph builder.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EdgeHint {
+    pub src: u32,
+    pub dst: u32,
+    pub kind: EdgeKind,
+}
