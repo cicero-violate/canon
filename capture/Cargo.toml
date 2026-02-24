@@ -8,14 +8,16 @@ anyhow = "1"
 syn = { version = "2", features = ["full"] }
 walkdir = "2"
 model = { path = "../model" }
+serde = { version = "1", features = ["derive"] }
+capture_rustc = { path = "../capture_rustc", optional = true }
 
-# rustc frontend (nightly required)
-rustc_driver = { version = "0.0.0", package = "rustc_driver", optional = true }
-rustc_interface = { version = "0.0.0", package = "rustc_interface", optional = true }
-rustc_hir = { version = "0.0.0", package = "rustc_hir", optional = true }
-rustc_middle = { version = "0.0.0", package = "rustc_middle", optional = true }
+# NOTE:
+# rustc_* crates are NOT published on crates.io.
+# They require `#![feature(rustc_private)]` + nightly + RUSTC_BOOTSTRAP=1
+# and must NOT be declared as crates.io dependencies.
 
 [features]
-rustc = []
 default = []
+rustc = []
 rustc_frontend = []
+hir = ["capture_rustc"]

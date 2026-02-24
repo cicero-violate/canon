@@ -1,0 +1,63 @@
+//! ModelIR — the central intermediate representation.
+//!
+//! Variables:
+//!   nodes        : Vec<Node>                      — flat node arena
+//!   name_graph   : CsrGraph<NodeId, EdgeKind>     — G_name
+//!   type_graph   : CsrGraph<NodeId, EdgeKind>     — G_type
+//!   call_graph   : CsrGraph<NodeId, EdgeKind>     — G_call
+//!   module_graph : CsrGraph<NodeId, EdgeKind>     — G_module
+//!   cfg_graph    : CsrGraph<NodeId, EdgeKind>     — G_cfg
+//!
+//! Pipeline:
+//!   capture  ->  ModelIR  ->  derive()  ->  solve()  ->  emit()
+
+use crate::ir::{
+    csr_graph::CsrGraph,
+    edge::EdgeKind,
+    node::{Node, NodeId, NodeKind},
+};
+use serde::{Deserialize, Serialize};
+
+/// The full intermediate representation of a Rust workspace.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelIR {
+    pub version: String,
+    /// Flat arena — all NodeIds index into this.
+    pub nodes: Vec<Node>,
+    /// G_name  — rename / name-resolution constraints.
+    pub name_graph: CsrGraph<NodeId, EdgeKind>,
+    /// G_type  — type inference / unification edges.
+    pub type_graph: CsrGraph<NodeId, EdgeKind>,
+    /// G_call  — caller → callee edges.
+    pub call_graph: CsrGraph<NodeId, EdgeKind>,
+    /// G_module — containment: module → item.
+    pub module_graph: CsrGraph<NodeId, EdgeKind>,
+    /// G_cfg   — control-flow edges within function bodies.
+    pub cfg_graph: CsrGraph<NodeId, EdgeKind>,
+}
+
+impl ModelIR {
+    pub fn new() -> Self {
+        Self {
+            version: "0.2".into(),
+            nodes: Vec::new(),
+            name_graph: CsrGraph::empty(),
+            type_graph: CsrGraph::empty(),
+            call_graph: CsrGraph::empty(),
+            module_graph: CsrGraph::empty(),
+            cfg_graph: CsrGraph::empty(),
+        }
+    }
+
+    /// Allocate a new node and return its NodeId.
+    pub fn push_node(&mut self, kind: NodeKind, span: Option<String>) -> NodeId {
+        let id = NodeId(self.nodes.len() as u32);
+        self.nodes.push(Node { id, kind, span });
+        id
+    }
+
+    /// Convenience: look up a node by id.
+    pub fn node(&self, id: NodeId) -> &Node {
+        &self.nodes[id.index()]
+    }
+}
