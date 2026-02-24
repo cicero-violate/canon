@@ -16,6 +16,7 @@ use crate::ir::{
     edge::EdgeKind,
     node::{Node, NodeId, NodeKind},
 };
+use crate::ir::edge::EdgeHint;
 use serde::{Deserialize, Serialize};
 
 /// The full intermediate representation of a Rust workspace.

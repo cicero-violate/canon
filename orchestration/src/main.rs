@@ -1,37 +1,61 @@
-#![feature(rustc_private)]
+//! Orchestration — JSON ModelIR → analyze → emit Rust source.
+//!
+//! Usage:
+//!   orchestration <model_ir.json> <output_dir>
+//!
+//! Pipeline:
+//!   1. load:    read JSON -> deserialize ModelIR
+//!   2. edges:   populate graph builders from ir.edge_hints
+//!   3. derive:  build all five CSR graphs
+//!   4. solve:   run all five solvers
+//!   5. emit:    walk module_graph -> write .rs files to output_dir
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::PathBuf;
+use model::ir::model_ir::ModelIR;
 
 fn main() -> Result<()> {
-    let root = std::env::args().nth(1).map(PathBuf::from).expect("workspace path required");
-    run_pipeline(root)
+    let mut args = std::env::args().skip(1);
+    let json_path = args.next().map(PathBuf::from)
+        .context("usage: orchestration <model_ir.json> <output_dir>")?;
+    let out_dir = args.next().map(PathBuf::from)
+        .context("usage: orchestration <model_ir.json> <output_dir>")?;
+
+    run_pipeline(json_path, out_dir)
 }
 
-fn run_pipeline(root: PathBuf) -> Result<()> {
-    println!("Starting pipeline on {:?}", root);
+fn run_pipeline(json_path: PathBuf, out_dir: PathBuf) -> Result<()> {
+    // ── Stage 1: load ModelIR from JSON ─────────────────────────────────────
+    println!("Loading {:?}", json_path);
+    let json = std::fs::read_to_string(&json_path)
+        .with_context(|| format!("cannot read {:?}", json_path))?;
+    let mut ir: ModelIR = serde_json::from_str(&json)
+        .with_context(|| format!("cannot parse ModelIR from {:?}", json_path))?;
+    println!("  nodes: {}", ir.nodes.len());
 
-    // Stage 1: construct ModelIR (capture_rustc will populate nodes later).
-    let mut ir = model::ir::model_ir::ModelIR::new();
-
-    // Stage 2: derive constraint graphs + solve.
+    // ── Stage 2: derive constraint graphs ───────────────────────────────────
+    println!("Deriving constraint graphs...");
     analyzer::analyze(&mut ir)
-        .map_err(|e| anyhow::anyhow!("analysis failed: {e}"))?;
+        .context("analysis failed")?;
 
-    // Stage 3: project ModelIR -> file plan -> emit to disk.
+    // ── Stage 3: project → emit to disk ─────────────────────────────────────
+    println!("Emitting source...");
     let plan = projection::project(&ir)
-        .map_err(|e| anyhow::anyhow!("project failed: {e}"))?;
-    projection::emit_to_disk(&plan, &root)
-        .map_err(|e| anyhow::anyhow!("emit failed: {e}"))?;
+        .context("project failed")?;
+    projection::emit_to_disk(&plan, &out_dir)
+        .context("emit failed")?;
 
-    // Stage 4: JSON snapshot for inspection.
-    let out_path = root.join("model_ir.json");
-    let json = serde_json::to_string_pretty(&ir)
-        .map_err(|e| anyhow::anyhow!("json serialize failed: {e}"))?;
-    std::fs::write(&out_path, &json)
-        .map_err(|e| anyhow::anyhow!("json write failed: {e}"))?;
+    println!("Emitted {} file(s) to {:?}", plan.files.len(), out_dir);
 
-    println!("Emitted {} files.", plan.files.len());
+    // ── Stage 4: write back annotated JSON snapshot ──────────────────────────
+    let snap_path = out_dir.join("model_ir_solved.json");
+    let snap = serde_json::to_string_pretty(&ir)
+        .context("json serialize failed")?;
+    std::fs::create_dir_all(&out_dir)?;
+    std::fs::write(&snap_path, snap)
+        .context("json write failed")?;
+    println!("Snapshot written to {:?}", snap_path);
+
     println!("Pipeline complete.");
     Ok(())
 }

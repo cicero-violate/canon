@@ -1,43 +1,89 @@
-//! Phase 1: derive constraint graphs from the ModelIR node arena.
+//! Phase 1 — derive all five CSR graphs from the ModelIR node arena.
 //!
 //! Variables:
-//!   ir.nodes          — flat arena, length V
-//!   ir.module_graph   — G_module, built from Contains edges
-//!   ir.call_graph     — G_call,   built from Calls edges in node kinds
-//!   ir.name_graph     — G_name,   built from Renames/Resolves edges
+//!   V           = ir.nodes.len()
+//!   edge_hints  = explicit (src, dst, EdgeKind) triples from JSON
 //!
-//! Equation:
-//!   for each (src, dst, EdgeKind::Contains) in raw_edges -> module_graph
-//!   for each (src, dst, EdgeKind::Calls)    in raw_edges -> call_graph
-//!   for each (src, dst, EdgeKind::Renames)  in raw_edges -> name_graph
+//! Each hint is routed to the matching builder:
+//!   Contains | ImplFor              -> module_graph
+//!   Calls                           -> call_graph
+//!   Renames | Resolves              -> name_graph
+//!   TypeOf  | TypeUnifies           -> type_graph
+//!   CfgEdge | CfgBranch             -> cfg_graph
+//!
+//! CFG edges are also auto-derived from Body::Blocks terminators.
 
 use anyhow::Result;
 use model::ir::{
-    model_ir::ModelIR,
     edge::EdgeKind,
-    csr_graph::CsrGraph,
-    node::NodeId,
+    model_ir::ModelIR,
+    node::{NodeId, NodeKind},
+};
+use crate::graph::{
+    call_graph::CallGraphBuilder,
+    cfg_graph::CfgGraphBuilder,
+    module_graph::ModuleGraphBuilder,
+    name_graph::NameGraphBuilder,
+    type_graph::TypeGraphBuilder,
 };
 
-/// Phase 1: walk the node arena and populate all five CSR graphs.
 pub fn derive(ir: &mut ModelIR) -> Result<()> {
     let v = ir.nodes.len();
 
-    // Collect raw edges from node kinds.
-    // In a full implementation, capture_rustc fills these via push_node + explicit edge lists.
-    // Here we prepare the infrastructure: empty graphs sized to V.
-    let node_ids: Vec<NodeId> = (0..v as u32).map(NodeId).collect();
+    let mut module_b = ModuleGraphBuilder::new(v);
+    let mut call_b   = CallGraphBuilder::new(v);
+    let mut name_b   = NameGraphBuilder::new(v);
+    let mut type_b   = TypeGraphBuilder::new(v);
+    let mut cfg_b    = CfgGraphBuilder::new(v);
 
-    // module_graph: Contains edges — placeholder, no edges yet.
-    ir.module_graph = CsrGraph::from_edges(node_ids.clone(), vec![]);
-    // call_graph
-    ir.call_graph   = CsrGraph::from_edges(node_ids.clone(), vec![]);
-    // name_graph
-    ir.name_graph   = CsrGraph::from_edges(node_ids.clone(), vec![]);
-    // type_graph
-    ir.type_graph   = CsrGraph::from_edges(node_ids.clone(), vec![]);
-    // cfg_graph
-    ir.cfg_graph    = CsrGraph::from_edges(node_ids, vec![]);
+    // Route edge_hints into builders.
+    for hint in &ir.edge_hints {
+        let src = NodeId(hint.src);
+        let dst = NodeId(hint.dst);
+        match &hint.kind {
+            EdgeKind::Contains | EdgeKind::ImplFor => {
+                module_b.add_contains(src, dst);
+            }
+            EdgeKind::Calls => {
+                call_b.add_call(src, dst);
+            }
+            EdgeKind::Renames => {
+                name_b.add_rename(src, dst);
+            }
+            EdgeKind::Resolves => {
+                name_b.add_resolves(src, dst);
+            }
+            EdgeKind::TypeOf => {
+                type_b.add_type_of(src, dst);
+            }
+            EdgeKind::TypeUnifies => {
+                type_b.add_unifies(src, dst);
+            }
+            EdgeKind::CfgEdge => {
+                cfg_b.add_cfg_edge(src, dst);
+            }
+            EdgeKind::CfgBranch { label } => {
+                cfg_b.add_branch(src, dst, label.clone());
+            }
+        }
+    }
+
+    // Auto-derive CFG edges from Body::Blocks terminators.
+    let nodes = ir.nodes.clone();
+    for node in &nodes {
+        match &node.kind {
+            NodeKind::Function { body, .. } | NodeKind::Method { body, .. } => {
+                cfg_b.add_from_body(node.id, body);
+            }
+            _ => {}
+        }
+    }
+
+    ir.module_graph = module_b.build();
+    ir.call_graph   = call_b.build();
+    ir.name_graph   = name_b.build();
+    ir.type_graph   = type_b.build();
+    ir.cfg_graph    = cfg_b.build();
 
     Ok(())
 }

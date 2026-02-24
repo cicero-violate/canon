@@ -137,6 +137,13 @@ pub enum NodeKind {
     Function { name: String, vis: Visibility, generics: Vec<GenericParam>, params: Vec<Param>, ret: String, body: Body },
     Method { name: String, vis: Visibility, generics: Vec<GenericParam>, params: Vec<Param>, ret: String, body: Body },
     TypeRef { name: String },
+    TypeAlias {
+        name: String,
+        vis: Visibility,
+        generics: Vec<GenericParam>,
+        /// The right-hand side, e.g. "std::result::Result<T, String>"
+        ty: String,
+    },
 }
 
 /// A node in the arena: identity + kind + source span (optional).

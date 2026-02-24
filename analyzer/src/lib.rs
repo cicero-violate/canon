@@ -3,6 +3,7 @@ use model::ir::model_ir::ModelIR;
 
 pub mod derive;
 pub mod solver;
+pub mod graph;
 
 /// Unified analysis entry point.
 ///
@@ -11,5 +12,6 @@ pub mod solver;
 ///   2. solve(&mut ModelIR) — propagate constraints, annotate nodes
 pub fn analyze(ir: &mut ModelIR) -> Result<()> {
     derive::derive(ir)?;
-    solver::solve(ir)
+    solver::solve(ir)?;
+    Ok(())
 }
