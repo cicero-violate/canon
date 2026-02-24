@@ -24,7 +24,7 @@ members = [
   "model",
   "orchestration",
   # "capture_rustc",
-  "rustc_capture_wrapper",
+  # "rustc_capture_wrapper",
   "mutation",
 ]
 
