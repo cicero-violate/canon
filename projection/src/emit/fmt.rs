@@ -53,7 +53,7 @@ pub fn fmt_trait_method(m: &TraitMethod, _ir: &ModelIR, pad: &str) -> String {
     let sig = format!(
         "{}{}fn {}{}{}{}",
         pad,
-        m.vis.to_token(),
+        "",
         m.name,
         fmt_generics(&m.generics),
         fmt_params(&m.params),
@@ -66,4 +66,3 @@ pub fn fmt_trait_method(m: &TraitMethod, _ir: &ModelIR, pad: &str) -> String {
         Body::Raw(src) => format!("{} {{\n{}{}}}\n", sig, indent_raw(src, &inner), pad),
     }
 }
-

@@ -271,7 +271,19 @@ impl Emit for ImplEmitter<'_> {
                 if *edge != EdgeKind::Contains {
                     continue;
                 }
-                let src = dispatch(ir, child_id, &inner);
+                // Trait impl methods must not carry a visibility qualifier.
+                // Equation: vis(method in trait impl) = ε
+                let src = if self.for_trait.is_some() {
+                    match &ir.node(child_id).kind {
+                        NodeKind::Method { name, generics, params, ret, body, .. } => {
+                            FnEmitter { name, vis: &Visibility::Private, generics, params, ret, body }
+                                .emit(ir, &inner)
+                        }
+                        _ => dispatch(ir, child_id, &inner),
+                    }
+                } else {
+                    dispatch(ir, child_id, &inner)
+                };
                 s.push_str(&src);
             }
         }

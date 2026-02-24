@@ -1,33 +1,63 @@
-| Graph           | Algorithm                |
-| --------------- | ------------------------ |
-| Name resolution | scope walk + binding map |
-| Type inference  | union–find               |
-| Borrow          | dataflow fixpoint        |
-| Trait           | Horn resolution          |
-| CFG dataflow    | monotone framework       |
+# Solver Status — algorithms used and completion state
 
-NameSolver
-TypeSolver
-BorrowSolver
-TraitSolver
-CFGDataflowSolver
-DependencySolver
+## Graph → Algorithm mapping
 
+| Graph           | Algorithm                          | Crate function                              |
+| --------------- | ---------------------------------- | ------------------------------------------- |
+| G_name          | Topological sort (Kahn's)          | `algorithms::graph::topological_sort`       |
+| G_type          | Kosaraju SCC                       | `algorithms::graph::scc::kosaraju_scc`      |
+| G_call          | BFS reachability                   | `algorithms::graph::reachability`           |
+| G_module        | Topological sort + DFS             | `algorithms::graph::topological_sort`, dfs  |
+| G_cfg           | DFS + Cooper dominators            | `algorithms::graph::dfs`                    |
+| G_region        | Cycle detection (is_acyclic)       | `algorithms::graph::reachability::is_acyclic` |
+| G_value         | Topological sort                   | `algorithms::graph::topological_sort`       |
+| G_macro         | DFS                                | `algorithms::graph::dfs`                    |
 
-| Priority | Solver Name                       | Category      | Purpose                                                                       | Required For            |
-| -------- | --------------------------------- | ------------- | ----------------------------------------------------------------------------- | ----------------------- |
-| **1**    | **Mutation Invariant Solver**     | Safety        | No dangling nodes, no invalid edges, valid Impl targets, acyclic module graph | Safe mutate → emit      |
-| **2**    | **Visibility Solver**             | Semantic      | Enforce `pub` / private access rules across modules                           | Correct name resolution |
-| **3**    | **Impl Resolution Solver**        | Semantic      | Ensure `impl` targets exist, enforce orphan rules, prevent duplicate impls    | Trait correctness       |
-| **4**    | **Trait Obligation Solver**       | Semantic      | Verify trait bounds, method completeness, associated types                    | Generic correctness     |
-| **5**    | **Generic Constraint Solver**     | Type System   | Propagate `TypeUnifies` constraints across call graph                         | Type soundness          |
-| **6**    | **Name Provenance Solver**        | Rename Safety | Track symbol origin, shadowing, re-export chains                              | Stable refactoring      |
-| **7**    | **Type Cycle Diagnostic Solver**  | Type System   | Emit structured diagnostics for SCC cycles                                    | Compiler-grade errors   |
-| **8**    | **Call Graph Liveness Solver**    | Optimization  | Remove unreachable/dead functions from emit_order                             | Clean output            |
-| **9**    | **Borrow & Lifetime Solver**      | Safety        | Region graph + borrow conflict detection                                      | Memory correctness      |
-| **10**   | **Emission Stability Solver**     | Determinism   | Deterministic ordering + stable hashing                                       | Snapshot diff stability |
-| **11**   | **Const Evaluation Solver**       | Execution     | Evaluate constant expressions in IR                                           | Const correctness       |
-| **12**   | **Macro Expansion Solver**        | Expansion     | Expand macro item nodes before analyze                                        | Full Rust coverage      |
-| **13**   | **Pattern Exhaustiveness Solver** | Safety        | Match exhaustiveness and unreachable arm detection                            | Enum correctness        |
-| **14**   | **Drop Order Solver**             | Safety        | Ensure correct destruction ordering                                           | Ownership correctness   |
-| **15**   | **Unsafe Soundness Solver**       | Safety        | Validate `unsafe` blocks obey invariants                                      | Sound IR                |
+---
+
+## Solver status
+
+| Priority | Solver                      | File                      | Status     | Algorithm used              | Blocked by     |
+| -------- | --------------------------- | ------------------------- | ---------- | --------------------------- | -------------- |
+| 1        | Mutation Invariant          | invariant_solver.rs       | ✅ COMPLETE | is_acyclic, edge scan       | —              |
+| 2        | Visibility                  | visibility_solver.rs      | ✅ COMPLETE | reachability, inv-module DFS| —              |
+| 3        | Impl Resolution             | impl_solver.rs            | ✅ COMPLETE | HashMap dedup               | —              |
+| 4        | Trait Obligation            | trait_solver.rs           | ✅ COMPLETE | module_graph children       | —              |
+| 5        | Generic Constraint          | generic_solver.rs         | ✅ COMPLETE | kosaraju_scc                | —              |
+| 6        | Name Provenance             | provenance_solver.rs      | ✅ COMPLETE | dfs, inv-module DFS         | —              |
+| 7        | Type Cycle Diagnostic       | cycle_diag_solver.rs      | ✅ COMPLETE | kosaraju_scc                | —              |
+| 8        | Call Graph Liveness         | liveness_solver.rs        | ✅ COMPLETE | reachability BFS            | —              |
+| 9        | Borrow & Lifetime           | borrow_solver.rs          | ⏳ STUB     | is_acyclic on G_region      | IR gap E9      |
+| 10       | Emission Stability          | stability_solver.rs       | ✅ COMPLETE | sort by (kind_bucket, name) | —              |
+| 11       | Const Evaluation            | const_solver.rs           | ⏳ STUB     | topo sort on G_value        | IR gap E5      |
+| 12       | Macro Expansion             | macro_solver.rs           | ⏳ STUB     | DFS on G_macro              | IR gap E14     |
+| 13       | Pattern Exhaustiveness      | exhaustiveness_solver.rs  | ⏳ STUB     | set cover on variants       | IR gap E6      |
+| 14       | Drop Order                  | drop_solver.rs            | ⏳ STUB     | post-dominator on G_cfg     | IR scope nodes |
+| 15       | Unsafe Soundness            | unsafe_solver.rs          | ⏳ STUB     | reachability on G_call      | IR gap E12     |
+
+**Complete: 9/15**
+**Stub (blocked by IR gaps): 6/15** — E5, E6, E9, E12, E14, scope nodes
+
+---
+
+## Original solvers (pre-existing)
+
+| Solver          | File                | Status     | Algorithm              |
+| --------------- | ------------------- | ---------- | ---------------------- |
+| module_solver   | module_solver.rs    | ✅ COMPLETE | topological_sort       |
+| name_solver     | name_solver.rs      | ✅ COMPLETE | topological_sort       |
+| type_solver     | type_solver.rs      | ✅ COMPLETE | kosaraju_scc           |
+| call_solver     | call_solver.rs      | ✅ COMPLETE | DFS reachability       |
+| cfg_solver      | cfg_solver.rs       | ✅ COMPLETE | DFS + dominators       |
+| use_solver      | use_solver.rs       | ✅ COMPLETE | DFS on inv_module      |
+
+---
+
+## Known solver correctness gaps (not IR-blocked)
+
+| Gap | Solver affected | Issue |
+|-----|----------------|-------|
+| S1  | use_solver      | Only one level of Resolves followed — transitive re-exports not propagated |
+| S2  | type_solver     | SCC cycles detected but not injected as diagnostic nodes into IR arena |
+| S3  | invariant_solver| Impl.for_struct mismatch is warn-only (eprintln), not a hard Result::Err |
+| S4  | visibility_solver | PubIn(_) path not checked — conservatively accepted |

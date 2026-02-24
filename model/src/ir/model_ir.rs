@@ -44,10 +44,13 @@ pub struct ModelIR {
     /// G_cfg   — control-flow edges within function bodies.
     pub cfg_graph: CsrGraph<NodeId, EdgeKind>,
     /// G_region — lifetime outlives constraints (borrow solver).
+    #[serde(default)]
     pub region_graph: CsrGraph<NodeId, EdgeKind>,
     /// G_value  — const/static dependency edges (const solver).
+    #[serde(default)]
     pub value_graph: CsrGraph<NodeId, EdgeKind>,
     /// G_macro  — macro expansion edges (macro solver).
+    #[serde(default)]
     pub macro_graph: CsrGraph<NodeId, EdgeKind>,
 }
 

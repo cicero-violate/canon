@@ -73,3 +73,7 @@ impl<ND, ED> CsrGraph<ND, ED> {
         Self { node_data, row_ptr, col_idx, edge_data }
     }
 }
+
+impl<ND, ED> Default for CsrGraph<ND, ED> {
+    fn default() -> Self { Self::empty() }
+}
