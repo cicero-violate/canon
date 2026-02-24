@@ -17,7 +17,8 @@ members = [
   # "graph_gpu",
   "algorithms", "rtree", "test_projects/test_rust_project",
   # "analysis",
-  "test_projects/test_pipeline", "kernel", "projection", "model", "orchestration", "capture_rustc",
+  "analyzer",
+  "test_projects/test_pipeline", "kernel", "projection", "model", "orchestration", "capture_rustc", "rustc_capture_wrapper", "analyzer",
 ]
 
 exclude = [
