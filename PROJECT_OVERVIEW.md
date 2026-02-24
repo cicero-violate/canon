@@ -105,15 +105,15 @@ test_projects/test_rust_project/model_ir.json
 
 ### Gaps closed this session
 
-| # | Gap | Fix |
-|---|-----|-----|
-| 1 | 15 solvers missing | All implemented (S1–S8 full, S9–S15 stubs wired to graphs) |
-| 2 | Only 5 graphs, no 1:1 for stub solvers | +3 graphs: region, value, macro |
-| 3 | No mutation pipeline | mutation crate: MutationOp, ChangeSet, apply/diff/verify |
-| 4 | orchestration had no --mutate flag | Extended with snapshot_A/B + diff_report.json |
-| 5 | Trait impl methods emitting `pub` | ImplEmitter + fmt_trait_method both fixed |
-| 6 | CsrGraph had no Default impl | Added — enables #[serde(default)] on new graph fields |
-| 7 | model_diff.rs only diffed nodes | Now covers all 8 graphs + edge_hints + emit_order |
+| # | Gap                                    | Fix                                                        |
+|---+----------------------------------------+------------------------------------------------------------|
+| 1 | 15 solvers missing                     | All implemented (S1–S8 full, S9–S15 stubs wired to graphs) |
+| 2 | Only 5 graphs, no 1:1 for stub solvers | +3 graphs: region, value, macro                            |
+| 3 | No mutation pipeline                   | mutation crate: MutationOp, ChangeSet, apply/diff/verify   |
+| 4 | orchestration had no --mutate flag     | Extended with snapshot_A/B + diff_report.json              |
+| 5 | Trait impl methods emitting `pub`      | ImplEmitter + fmt_trait_method both fixed                  |
+| 6 | CsrGraph had no Default impl           | Added — enables #[serde(default)] on new graph fields      |
+| 7 | model_diff.rs only diffed nodes        | Now covers all 8 graphs + edge_hints + emit_order          |
 
 ---
 
