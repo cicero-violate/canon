@@ -24,6 +24,11 @@ pub struct ModelIR {
     pub version: String,
     /// Flat arena — all NodeIds index into this.
     pub nodes: Vec<Node>,
+    /// Topological emit order produced by module_solver.
+    pub emit_order: Vec<NodeId>,
+    /// Explicit edge hints provided by JSON author or capture layer.
+    /// derive() distributes these into the five CSR graphs.
+    pub edge_hints: Vec<EdgeHint>,
     /// G_name  — rename / name-resolution constraints.
     pub name_graph: CsrGraph<NodeId, EdgeKind>,
     /// G_type  — type inference / unification edges.
@@ -41,6 +46,7 @@ impl ModelIR {
         Self {
             version: "0.2".into(),
             nodes: Vec::new(),
+            emit_order: Vec::new(),
             name_graph: CsrGraph::empty(),
             type_graph: CsrGraph::empty(),
             call_graph: CsrGraph::empty(),
