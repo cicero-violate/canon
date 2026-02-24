@@ -23,7 +23,7 @@ members = [
   "projection",
   "model",
   "orchestration",
-  "capture_rustc",
+  # "capture_rustc",
   "rustc_capture_wrapper",
   "mutation",
 ]
