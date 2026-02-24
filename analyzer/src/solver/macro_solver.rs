@@ -1,21 +1,41 @@
-//! Macro Expansion Solver (S12) — stub pending NodeKind::MacroCall.
+//! Macro Expansion Solver (S12).
 //!
-//! Variables (future):
-//!   M = { v | NodeKind::MacroCall { tokens } }
-//!   expand(v) = parse(v.tokens) -> Vec<NodeKind>
+//! Variables:
+//!   M       = { v | NodeKind::MacroCall { path, tokens } }
+//!   G_macro = ir.macro_graph  (Expands edges)
+//!   topo(G) = topological order of G
 //!
-//! Equation (future):
-//!   IR' = IR ∪ ⋃ expand(m) for m ∈ M
-//!
-//! Status: structural shell complete. G_macro is now wired.
-//!         Activates when NodeKind::MacroCall added (IR gap E14).
+//! Equations:
+//!   expand_order = topo(G_macro)     — safe expansion sequence
+//!   ∃ cycle in G_macro  =>  Err     — recursive macro detected
 
-use anyhow::Result;
-use model::ir::model_ir::ModelIR;
+use anyhow::{bail, Result};
+use model::ir::{model_ir::ModelIR, node::NodeKind};
+use crate::solver::csr_to_adj;
+use algorithms::graph::topological_sort::topological_sort;
 
-pub fn solve(_ir: &mut ModelIR) -> Result<()> {
-    // G_macro = ir.macro_graph (Expands edges).
-    // DFS on G_macro => expansion order; cycle => recursive macro error.
-    // TODO(S12): implement when NodeKind::MacroCall lands (IR gap E14).
+pub fn solve(ir: &mut ModelIR) -> Result<()> {
+    let macro_nodes: Vec<usize> = ir.nodes.iter()
+        .filter(|n| matches!(&n.kind, NodeKind::MacroCall { .. }))
+        .map(|n| n.id.index())
+        .collect();
+
+    if macro_nodes.is_empty() {
+        return Ok(());
+    }
+
+    let v = ir.macro_graph.vertex_count();
+    if v == 0 {
+        return Ok(());
+    }
+
+    // Equation: topo(G_macro) succeeds <=> no recursive macro expansion cycle.
+    let adj = csr_to_adj(&ir.macro_graph);
+    let order = topological_sort(&adj);
+    if order.len() != v {
+        bail!("macro_solver: recursive macro expansion cycle detected in G_macro");
+    }
+
+    log::info!("macro_solver: {} macro call(s), expansion order is acyclic", macro_nodes.len());
     Ok(())
 }

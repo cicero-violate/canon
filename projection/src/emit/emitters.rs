@@ -59,16 +59,16 @@ fn dispatch(ir: &ModelIR, id: NodeId, pad: &str) -> String {
             EnumEmitter { name, vis, generics, variants, derives, attrs, where_clauses }.emit(ir, pad)
         }
         NodeKind::Trait { name, vis, generics, methods, attrs, where_clauses, unsafe_ } => {
-            TraitEmitter { name, vis, generics, methods, attrs, where_clauses, unsafe_ }.emit(ir, pad)
+            TraitEmitter { name, vis, generics, methods, attrs, where_clauses, unsafe_: *unsafe_ }.emit(ir, pad)
         }
         NodeKind::Impl { for_struct, for_trait, generics, attrs, where_clauses, unsafe_ } => {
-            ImplEmitter { id, for_struct, for_trait, generics, attrs, where_clauses, unsafe_ }.emit(ir, pad)
+            ImplEmitter { id, for_struct, for_trait, generics, attrs, where_clauses, unsafe_: *unsafe_ }.emit(ir, pad)
         }
         NodeKind::Function { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ } => {
-            FnEmitter { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ }.emit(ir, pad)
+            FnEmitter { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_: *unsafe_, async_: *async_ }.emit(ir, pad)
         }
         NodeKind::Method { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ } => {
-            FnEmitter { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ }.emit(ir, pad)
+            FnEmitter { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_: *unsafe_, async_: *async_ }.emit(ir, pad)
         }
         NodeKind::Use { path, alias } => {
             UseEmitter { path, alias }.emit(ir, pad)
@@ -78,7 +78,7 @@ fn dispatch(ir: &ModelIR, id: NodeId, pad: &str) -> String {
             ConstEmitter { name, vis, ty, value, attrs }.emit(ir, pad)
         }
         NodeKind::Static { name, vis, ty, value, mutable, attrs } => {
-            StaticEmitter { name, vis, ty, value, mutable, attrs }.emit(ir, pad)
+            StaticEmitter { name, vis, ty, value, mutable: *mutable, attrs }.emit(ir, pad)
         }
         NodeKind::TypeAlias { name, vis, generics, ty, attrs, where_clauses } => {
             TypeAliasEmitter { name, vis, generics, ty, attrs, where_clauses }.emit(ir, pad)
@@ -107,14 +107,13 @@ impl Emit for TypeAliasEmitter<'_> {
     /// Equation:
     ///   emit(TypeAlias) = vis "type" name generics "=" ty ";"
     fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
-        let mut s = fmt_attrs(self.attrs, pad);
+        let s = fmt_attrs(self.attrs, pad);
         let wc = fmt_where(self.where_clauses);
         format!(
             "{}{}{}type {}{} = {}{};\n",
             s,
             pad,
             self.vis.to_token(),
-            if self.attrs.is_empty() { "" } else { "" }, // attrs already in s
             self.name,
             fmt_generics(self.generics),
             self.ty,
@@ -316,9 +315,20 @@ impl Emit for ImplEmitter<'_> {
                 // Equation: vis(method in trait impl) = ε
                 let src = if self.for_trait.is_some() {
                     match &ir.node(child_id).kind {
-                        NodeKind::Method { name, generics, params, ret, body, .. } => {
-                            FnEmitter { name, vis: &Visibility::Private, generics, params, ret, body }
-                                .emit(ir, &inner)
+                        NodeKind::Method { name, generics, params, ret, body, attrs, where_clauses, unsafe_, async_, .. } => {
+                            FnEmitter {
+                                name,
+                                vis: &Visibility::Private,
+                                generics,
+                                params,
+                                ret,
+                                body,
+                                attrs,
+                                where_clauses,
+                                unsafe_: *unsafe_,
+                                async_: *async_,
+                            }
+                            .emit(ir, &inner)
                         }
                         _ => dispatch(ir, child_id, &inner),
                     }
