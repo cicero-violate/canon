@@ -3,13 +3,18 @@
 //! Variables:
 //!   NodeId       = dense u32 index into the node arena
 //!   NodeKind     = discriminated union of all IR item types
-//!   GenericParam = (name, bounds)
+//!   GenericParam = (name, bounds, is_lifetime)
 //!   Field        = (name, ty, vis)
+//!   EnumVariant  = (name, fields)
 //!   BodyNode     = one statement/expression in a function body CFG
 //!   Terminator   = how a basic block exits
 //!
-//! Equation:
+//! Equations:
 //!   node_arena[NodeId] -> NodeKind
+//!   attrs(v)          -> Vec<String>      (#[attr] list, E1)
+//!   where_clauses(v)  -> Vec<String>      (E2)
+//!   unsafe_(v)        -> bool             (E12)
+//!   async_(v)         -> bool             (E13)
 
 use serde::{Deserialize, Serialize};
 
@@ -37,11 +42,11 @@ pub enum Visibility {
 impl Visibility {
     pub fn to_token(&self) -> &str {
         match self {
-            Visibility::Public => "pub ",
-            Visibility::PubCrate => "pub(crate) ",
-            Visibility::PubSuper => "pub(super) ",
-            Visibility::PubIn(_) => "pub(in ...) ",
-            Visibility::Private => "",
+            Visibility::Public    => "pub ",
+            Visibility::PubCrate  => "pub(crate) ",
+            Visibility::PubSuper  => "pub(super) ",
+            Visibility::PubIn(_)  => "pub(in ...) ",
+            Visibility::Private   => "",
         }
     }
 }
@@ -50,7 +55,7 @@ impl Visibility {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GenericParam {
     pub name: String,
-    pub bounds: Vec<String>, // e.g. ["Clone", "Debug"]
+    pub bounds: Vec<String>,
     pub is_lifetime: bool,
 }
 
@@ -69,6 +74,15 @@ pub struct Param {
     pub ty: String,
     pub is_self: bool,
     pub mutable: bool,
+}
+
+/// One variant of an enum  (E6).
+///   name   : identifier, e.g. "Ok", "Err", "Point"
+///   fields : empty = unit variant; Some(name)=None = tuple; Some(name)=Some = named
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EnumVariant {
+    pub name: String,
+    pub fields: Vec<Field>,
 }
 
 /// A single statement or expression inside a function body.
@@ -116,36 +130,207 @@ pub enum Body {
 }
 
 /// A trait method signature (with optional default body).
+///
+/// E1  : attrs          — #[attr] list on the method declaration
+/// E2  : where_clauses  — where T: Foo bounds
+/// E12 : unsafe_        — unsafe fn
+/// E13 : async_         — async fn
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TraitMethod {
     pub name: String,
     pub vis: Visibility,
     pub generics: Vec<GenericParam>,
     pub params: Vec<Param>,
-    pub ret: String, // "()" if unit
+    pub ret: String,
     pub body: Body,
+    /// E1 — #[attr] annotations on the method.
+    #[serde(default)]
+    pub attrs: Vec<String>,
+    /// E2 — where clauses, e.g. ["T: Clone", "U: Debug"].
+    #[serde(default)]
+    pub where_clauses: Vec<String>,
+    /// E12 — unsafe fn.
+    #[serde(default)]
+    pub unsafe_: bool,
+    /// E13 — async fn.
+    #[serde(default)]
+    pub async_: bool,
 }
 
 /// Every item in the IR is one of these kinds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeKind {
+    // ── Crate / Module ──────────────────────────────────────────────────────
     Crate { name: String, edition: String },
+
+    /// E10: inline flag not yet added (future).
     Module { path: String, file: String },
-    Struct { name: String, vis: Visibility, generics: Vec<GenericParam>, fields: Vec<Field>, derives: Vec<String> },
-    Trait { name: String, vis: Visibility, generics: Vec<GenericParam>, methods: Vec<TraitMethod> },
-    Impl { for_struct: String, for_trait: Option<String>, generics: Vec<GenericParam> },
-    Function { name: String, vis: Visibility, generics: Vec<GenericParam>, params: Vec<Param>, ret: String, body: Body },
-    Method { name: String, vis: Visibility, generics: Vec<GenericParam>, params: Vec<Param>, ret: String, body: Body },
+
+    // ── Type definitions ────────────────────────────────────────────────────
+
+    /// E1: attrs; E2: where_clauses; E7: StructKind not yet split.
+    Struct {
+        name: String,
+        vis: Visibility,
+        generics: Vec<GenericParam>,
+        fields: Vec<Field>,
+        derives: Vec<String>,
+        /// E1 — #[attr] list.
+        #[serde(default)]
+        attrs: Vec<String>,
+        /// E2 — where clauses.
+        #[serde(default)]
+        where_clauses: Vec<String>,
+    },
+
+    /// E6 — enum with variants.  Unblocks S13 (exhaustiveness_solver).
+    Enum {
+        name: String,
+        vis: Visibility,
+        generics: Vec<GenericParam>,
+        variants: Vec<EnumVariant>,
+        derives: Vec<String>,
+        /// E1 — #[attr] list.
+        #[serde(default)]
+        attrs: Vec<String>,
+        /// E2 — where clauses.
+        #[serde(default)]
+        where_clauses: Vec<String>,
+    },
+
+    // ── Trait / Impl ────────────────────────────────────────────────────────
+
+    Trait {
+        name: String,
+        vis: Visibility,
+        generics: Vec<GenericParam>,
+        methods: Vec<TraitMethod>,
+        /// E1
+        #[serde(default)]
+        attrs: Vec<String>,
+        /// E2
+        #[serde(default)]
+        where_clauses: Vec<String>,
+        /// E12 — unsafe trait.
+        #[serde(default)]
+        unsafe_: bool,
+    },
+
+    Impl {
+        for_struct: String,
+        for_trait: Option<String>,
+        generics: Vec<GenericParam>,
+        /// E1
+        #[serde(default)]
+        attrs: Vec<String>,
+        /// E2
+        #[serde(default)]
+        where_clauses: Vec<String>,
+        /// E12 — unsafe impl.
+        #[serde(default)]
+        unsafe_: bool,
+    },
+
+    // ── Functions / Methods ─────────────────────────────────────────────────
+
+    Function {
+        name: String,
+        vis: Visibility,
+        generics: Vec<GenericParam>,
+        params: Vec<Param>,
+        ret: String,
+        body: Body,
+        /// E1
+        #[serde(default)]
+        attrs: Vec<String>,
+        /// E2
+        #[serde(default)]
+        where_clauses: Vec<String>,
+        /// E12 — unsafe fn.
+        #[serde(default)]
+        unsafe_: bool,
+        /// E13 — async fn.
+        #[serde(default)]
+        async_: bool,
+    },
+
+    Method {
+        name: String,
+        vis: Visibility,
+        generics: Vec<GenericParam>,
+        params: Vec<Param>,
+        ret: String,
+        body: Body,
+        /// E1
+        #[serde(default)]
+        attrs: Vec<String>,
+        /// E2
+        #[serde(default)]
+        where_clauses: Vec<String>,
+        /// E12 — unsafe fn.
+        #[serde(default)]
+        unsafe_: bool,
+        /// E13 — async fn.
+        #[serde(default)]
+        async_: bool,
+    },
+
+    // ── Values ──────────────────────────────────────────────────────────────
+
+    /// E5 — const item.  Unblocks S11 (const_solver).
+    ///   Equation: emit = attrs vis "const" name ":" ty "=" value ";"
+    Const {
+        name: String,
+        vis: Visibility,
+        ty: String,
+        value: String,
+        /// E1
+        #[serde(default)]
+        attrs: Vec<String>,
+    },
+
+    /// E5 — static item.  Unblocks S11 (const_solver).
+    ///   Equation: emit = attrs vis ["mut"] "static" name ":" ty "=" value ";"
+    Static {
+        name: String,
+        vis: Visibility,
+        ty: String,
+        value: String,
+        /// true -> `static mut`
+        #[serde(default)]
+        mutable: bool,
+        /// E1
+        #[serde(default)]
+        attrs: Vec<String>,
+    },
+
+    // ── Use / Type helpers ──────────────────────────────────────────────────
+
     /// A synthetic `use` declaration injected by use_solver.
-    /// path = fully-qualified item path, e.g. "crate::data::model::User"
     Use { path: String, alias: Option<String> },
+
     TypeRef { name: String },
+
     TypeAlias {
         name: String,
         vis: Visibility,
         generics: Vec<GenericParam>,
-        /// The right-hand side, e.g. "std::result::Result<T, String>"
         ty: String,
+        /// E1
+        #[serde(default)]
+        attrs: Vec<String>,
+        /// E2
+        #[serde(default)]
+        where_clauses: Vec<String>,
+    },
+
+    // ── Macros ──────────────────────────────────────────────────────────────
+
+    /// E14 — macro invocation.  Unblocks S12 (macro_solver).
+    ///   Equation: emit = path "!(" tokens ")"
+    MacroCall {
+        path: String,
+        tokens: String,
     },
 }
 

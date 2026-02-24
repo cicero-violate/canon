@@ -26,6 +26,10 @@ fn node_sort_key(kind: &NodeKind) -> (&'static str, String) {
         ),
         NodeKind::Function  { name, .. }  => ("7_fn",      name.clone()),
         NodeKind::Method    { name, .. }  => ("8_method",  name.clone()),
+        NodeKind::Enum      { name, .. }  => ("3_enum",    name.clone()),
+        NodeKind::Const     { name, .. }  => ("5b_const",  name.clone()),
+        NodeKind::Static    { name, .. }  => ("5c_static", name.clone()),
+        NodeKind::MacroCall { path, .. }  => ("9b_macro",  path.clone()),
         NodeKind::TypeRef   { name }      => ("9_tyref",   name.clone()),
     }
 }

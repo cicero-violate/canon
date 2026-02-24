@@ -2,7 +2,7 @@ use model::ir::{
     edge::EdgeKind,
     model_ir::ModelIR,
     node::{
-        Body, Field, GenericParam, NodeId, NodeKind, Param, TraitMethod, Visibility,
+        Body, EnumVariant, Field, GenericParam, NodeId, NodeKind, Param, TraitMethod, Visibility,
     },
 };
 
@@ -52,27 +52,39 @@ fn dispatch(ir: &ModelIR, id: NodeId, pad: &str) -> String {
     let node = ir.node(id);
     match &node.kind {
         NodeKind::Module { .. } => ModuleEmitter(id).emit(ir, pad),
-        NodeKind::Struct { name, vis, generics, fields, derives } => {
-            StructEmitter { name, vis, generics, fields, derives }.emit(ir, pad)
+        NodeKind::Struct { name, vis, generics, fields, derives, attrs, where_clauses } => {
+            StructEmitter { name, vis, generics, fields, derives, attrs, where_clauses }.emit(ir, pad)
         }
-        NodeKind::Trait { name, vis, generics, methods } => {
-            TraitEmitter { name, vis, generics, methods }.emit(ir, pad)
+        NodeKind::Enum { name, vis, generics, variants, derives, attrs, where_clauses } => {
+            EnumEmitter { name, vis, generics, variants, derives, attrs, where_clauses }.emit(ir, pad)
         }
-        NodeKind::Impl { for_struct, for_trait, generics } => {
-            ImplEmitter { id, for_struct, for_trait, generics }.emit(ir, pad)
+        NodeKind::Trait { name, vis, generics, methods, attrs, where_clauses, unsafe_ } => {
+            TraitEmitter { name, vis, generics, methods, attrs, where_clauses, unsafe_ }.emit(ir, pad)
         }
-        NodeKind::Function { name, vis, generics, params, ret, body } => {
-            FnEmitter { name, vis, generics, params, ret, body }.emit(ir, pad)
+        NodeKind::Impl { for_struct, for_trait, generics, attrs, where_clauses, unsafe_ } => {
+            ImplEmitter { id, for_struct, for_trait, generics, attrs, where_clauses, unsafe_ }.emit(ir, pad)
         }
-        NodeKind::Method { name, vis, generics, params, ret, body } => {
-            FnEmitter { name, vis, generics, params, ret, body }.emit(ir, pad)
+        NodeKind::Function { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ } => {
+            FnEmitter { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ }.emit(ir, pad)
+        }
+        NodeKind::Method { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ } => {
+            FnEmitter { name, vis, generics, params, ret, body, attrs, where_clauses, unsafe_, async_ }.emit(ir, pad)
         }
         NodeKind::Use { path, alias } => {
             UseEmitter { path, alias }.emit(ir, pad)
         }
         NodeKind::TypeRef { name } => TypeRefEmitter { name }.emit(ir, pad),
-        NodeKind::TypeAlias { name, vis, generics, ty } => {
-            TypeAliasEmitter { name, vis, generics, ty }.emit(ir, pad)
+        NodeKind::Const { name, vis, ty, value, attrs } => {
+            ConstEmitter { name, vis, ty, value, attrs }.emit(ir, pad)
+        }
+        NodeKind::Static { name, vis, ty, value, mutable, attrs } => {
+            StaticEmitter { name, vis, ty, value, mutable, attrs }.emit(ir, pad)
+        }
+        NodeKind::TypeAlias { name, vis, generics, ty, attrs, where_clauses } => {
+            TypeAliasEmitter { name, vis, generics, ty, attrs, where_clauses }.emit(ir, pad)
+        }
+        NodeKind::MacroCall { path, tokens } => {
+            MacroCallEmitter { path, tokens }.emit(ir, pad)
         }
         NodeKind::Crate { .. } => String::new(),
     }
@@ -87,19 +99,26 @@ struct TypeAliasEmitter<'a> {
     vis: &'a Visibility,
     generics: &'a [GenericParam],
     ty: &'a str,
+    attrs: &'a [String],
+    where_clauses: &'a [String],
 }
 
 impl Emit for TypeAliasEmitter<'_> {
     /// Equation:
     ///   emit(TypeAlias) = vis "type" name generics "=" ty ";"
     fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
+        let mut s = fmt_attrs(self.attrs, pad);
+        let wc = fmt_where(self.where_clauses);
         format!(
-            "{}{}type {}{} = {};\n",
+            "{}{}{}type {}{} = {}{};\n",
+            s,
             pad,
             self.vis.to_token(),
+            if self.attrs.is_empty() { "" } else { "" }, // attrs already in s
             self.name,
             fmt_generics(self.generics),
-            self.ty
+            self.ty,
+            wc,
         )
     }
 }
@@ -177,22 +196,26 @@ struct StructEmitter<'a> {
     generics: &'a [GenericParam],
     fields: &'a [Field],
     derives: &'a [String],
+    attrs: &'a [String],
+    where_clauses: &'a [String],
 }
 
 impl Emit for StructEmitter<'_> {
     /// Equation:
     ///   emit(Struct) = [#[derive(...)]] vis "struct" name generics "{" fields "}"
     fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
-        let mut s = String::new();
+        let mut s = fmt_attrs(self.attrs, pad);
         if !self.derives.is_empty() {
             s.push_str(&format!("{}#[derive({})]\n", pad, self.derives.join(", ")));
         }
+        let wc = fmt_where(self.where_clauses);
         s.push_str(&format!(
-            "{}{}struct {}{} {{\n",
+            "{}{}struct {}{}{} {{\n",
             pad,
             self.vis.to_token(),
             self.name,
-            fmt_generics(self.generics)
+            fmt_generics(self.generics),
+            wc,
         ));
         for f in self.fields {
             s.push_str(&fmt_field(f, &format!("{}    ", pad)));
@@ -211,6 +234,9 @@ struct TraitEmitter<'a> {
     vis: &'a Visibility,
     generics: &'a [GenericParam],
     methods: &'a [TraitMethod],
+    attrs: &'a [String],
+    where_clauses: &'a [String],
+    unsafe_: bool,
 }
 
 impl Emit for TraitEmitter<'_> {
@@ -218,13 +244,18 @@ impl Emit for TraitEmitter<'_> {
     ///   emit(Trait) = vis "trait" name generics "{" methods "}"
     fn emit(&self, ir: &ModelIR, pad: &str) -> String {
         let inner = format!("{}    ", pad);
-        let mut s = format!(
-            "{}{}trait {}{} {{\n",
+        let mut s = fmt_attrs(self.attrs, pad);
+        let unsafe_kw = if self.unsafe_ { "unsafe " } else { "" };
+        let wc = fmt_where(self.where_clauses);
+        s.push_str(&format!(
+            "{}{}{}trait {}{}{} {{\n",
             pad,
             self.vis.to_token(),
+            unsafe_kw,
             self.name,
-            fmt_generics(self.generics)
-        );
+            fmt_generics(self.generics),
+            wc,
+        ));
         for m in self.methods {
             s.push_str(&fmt_trait_method(m, ir, &inner));
         }
@@ -242,6 +273,9 @@ struct ImplEmitter<'a> {
     for_struct: &'a str,
     for_trait: &'a Option<String>,
     generics: &'a [GenericParam],
+    attrs: &'a [String],
+    where_clauses: &'a [String],
+    unsafe_: bool,
 }
 
 impl Emit for ImplEmitter<'_> {
@@ -249,22 +283,29 @@ impl Emit for ImplEmitter<'_> {
     ///   emit(Impl) = "impl" generics [trait "for"] struct "{" methods "}"
     ///   methods    = children via module_graph Contains edges
     fn emit(&self, ir: &ModelIR, pad: &str) -> String {
+        let mut s = fmt_attrs(self.attrs, pad);
+        let unsafe_kw = if self.unsafe_ { "unsafe " } else { "" };
+        let wc = fmt_where(self.where_clauses);
         let header = match self.for_trait {
             Some(tr) => format!(
-                "{}impl{} {} for {} {{\n",
+                "{}{}impl{} {} for {}{} {{\n",
                 pad,
+                unsafe_kw,
                 fmt_generics(self.generics),
                 tr,
-                self.for_struct
+                self.for_struct,
+                wc,
             ),
             None => format!(
-                "{}impl{} {} {{\n",
+                "{}{}impl{} {}{} {{\n",
                 pad,
+                unsafe_kw,
                 fmt_generics(self.generics),
-                self.for_struct
+                self.for_struct,
+                wc,
             ),
         };
-        let mut s = header;
+        s.push_str(&header);
         let inner = format!("{}    ", pad);
         if self.id.index() < ir.module_graph.vertex_count() {
             for (child_id, edge) in ir.module_graph.neighbours(self.id) {
@@ -303,6 +344,10 @@ struct FnEmitter<'a> {
     params: &'a [Param],
     ret: &'a str,
     body: &'a Body,
+    attrs: &'a [String],
+    where_clauses: &'a [String],
+    unsafe_: bool,
+    async_: bool,
 }
 
 impl Emit for FnEmitter<'_> {
@@ -314,21 +359,29 @@ impl Emit for FnEmitter<'_> {
         } else {
             format!(" -> {}", self.ret)
         };
+        let unsafe_kw = if self.unsafe_ { "unsafe " } else { "" };
+        let async_kw  = if self.async_  { "async "  } else { "" };
+        let wc = fmt_where(self.where_clauses);
+        let mut s = fmt_attrs(self.attrs, pad);
         let sig = format!(
-            "{}{}fn {}{}{}{}",
+            "{}{}{}{}fn {}{}{}{}{}",
             pad,
             self.vis.to_token(),
+            async_kw,
+            unsafe_kw,
             self.name,
             fmt_generics(self.generics),
             fmt_params(self.params),
-            ret_part
+            ret_part,
+            wc,
         );
         let inner = format!("{}    ", pad);
-        match self.body {
+        s.push_str(&match self.body {
             Body::None => format!("{};\n", sig),
             Body::Blocks(bb) => format!("{} {{\n{}{}}}\n", sig, emit_blocks(bb, &inner), pad),
             Body::Raw(src) => format!("{} {{\n{}{}}}\n", sig, indent_raw(src, &inner), pad),
-        }
+        });
+        s
     }
 }
 
@@ -364,5 +417,149 @@ impl Emit for TypeRefEmitter<'_> {
     /// TypeRef with no expansion emits a placeholder comment.
     fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
         format!("{}// type alias: {}\n", pad, self.name)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EnumEmitter  (E6)
+// ═══════════════════════════════════════════════════════════════════════════
+
+struct EnumEmitter<'a> {
+    name: &'a str,
+    vis: &'a Visibility,
+    generics: &'a [GenericParam],
+    variants: &'a [EnumVariant],
+    derives: &'a [String],
+    attrs: &'a [String],
+    where_clauses: &'a [String],
+}
+
+impl Emit for EnumEmitter<'_> {
+    /// Equation:
+    ///   emit(Enum) = attrs [#[derive(...)]] vis "enum" name generics wc "{" variants "}"
+    fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
+        let mut s = fmt_attrs(self.attrs, pad);
+        if !self.derives.is_empty() {
+            s.push_str(&format!("{}#[derive({})]\n", pad, self.derives.join(", ")));
+        }
+        let wc = fmt_where(self.where_clauses);
+        s.push_str(&format!(
+            "{}{}enum {}{}{} {{\n",
+            pad,
+            self.vis.to_token(),
+            self.name,
+            fmt_generics(self.generics),
+            wc,
+        ));
+        let inner = format!("{}    ", pad);
+        for v in self.variants {
+            if v.fields.is_empty() {
+                // Unit variant: Foo,
+                s.push_str(&format!("{}{},\n", inner, v.name));
+            } else if v.fields.iter().all(|f| f.name.is_none()) {
+                // Tuple variant: Foo(T, U),
+                let tys: Vec<&str> = v.fields.iter().map(|f| f.ty.as_str()).collect();
+                s.push_str(&format!("{}{}({}),\n", inner, v.name, tys.join(", ")));
+            } else {
+                // Named-field variant: Foo { x: T, y: U },
+                s.push_str(&format!("{}{} {{\n", inner, v.name));
+                let inner2 = format!("{}    ", inner);
+                for f in &v.fields {
+                    s.push_str(&fmt_field(f, &inner2));
+                }
+                s.push_str(&format!("{}}},\n", inner));
+            }
+        }
+        s.push_str(&format!("{}}}\n", pad));
+        s
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ConstEmitter  (E5)
+// ═══════════════════════════════════════════════════════════════════════════
+
+struct ConstEmitter<'a> {
+    name: &'a str,
+    vis: &'a Visibility,
+    ty: &'a str,
+    value: &'a str,
+    attrs: &'a [String],
+}
+
+impl Emit for ConstEmitter<'_> {
+    /// Equation:
+    ///   emit(Const) = attrs vis "const" name ":" ty "=" value ";"
+    fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
+        let mut s = fmt_attrs(self.attrs, pad);
+        s.push_str(&format!(
+            "{}{}const {}: {} = {};\n",
+            pad, self.vis.to_token(), self.name, self.ty, self.value,
+        ));
+        s
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// StaticEmitter  (E5)
+// ═══════════════════════════════════════════════════════════════════════════
+
+struct StaticEmitter<'a> {
+    name: &'a str,
+    vis: &'a Visibility,
+    ty: &'a str,
+    value: &'a str,
+    mutable: bool,
+    attrs: &'a [String],
+}
+
+impl Emit for StaticEmitter<'_> {
+    /// Equation:
+    ///   emit(Static) = attrs vis ["mut"] "static" name ":" ty "=" value ";"
+    fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
+        let mut s = fmt_attrs(self.attrs, pad);
+        let mut_kw = if self.mutable { "mut " } else { "" };
+        s.push_str(&format!(
+            "{}{}static {}{}: {} = {};\n",
+            pad, self.vis.to_token(), mut_kw, self.name, self.ty, self.value,
+        ));
+        s
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MacroCallEmitter  (E14)
+// ═══════════════════════════════════════════════════════════════════════════
+
+struct MacroCallEmitter<'a> {
+    path: &'a str,
+    tokens: &'a str,
+}
+
+impl Emit for MacroCallEmitter<'_> {
+    /// Equation:
+    ///   emit(MacroCall) = path "!(" tokens ");"
+    fn emit(&self, _ir: &ModelIR, pad: &str) -> String {
+        format!("{}{}!({});\n", pad, self.path, self.tokens)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Shared helpers
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Emit `#[attr]` lines for an attrs list.
+/// Equation: fmt_attrs(A, pad) = ∑_{a ∈ A} pad "#[" a "]\n"
+fn fmt_attrs(attrs: &[String], pad: &str) -> String {
+    attrs.iter().map(|a| format!("{}#[{}]\n", pad, a)).collect()
+}
+
+/// Emit a `where` clause block if non-empty.
+/// Equation: fmt_where(W) = "" if W=∅, else "\nwhere " W.join(", ")
+fn fmt_where(wc: &[String]) -> String {
+    if wc.is_empty() {
+        String::new()
+    } else {
+        format!("\nwhere\n    {}", wc.join(",\n    "))
     }
 }

@@ -50,19 +50,30 @@ pub fn fmt_field(f: &Field, pad: &str) -> String {
 /// Trait method helper (not a NodeKind — lives inside Trait node directly)
 pub fn fmt_trait_method(m: &TraitMethod, _ir: &ModelIR, pad: &str) -> String {
     let ret_part = if m.ret == "()" { String::new() } else { format!(" -> {}", m.ret) };
+    let unsafe_kw = if m.unsafe_ { "unsafe " } else { "" };
+    let async_kw  = if m.async_  { "async "  } else { "" };
+    let wc = if m.where_clauses.is_empty() {
+        String::new()
+    } else {
+        format!("\nwhere\n    {}", m.where_clauses.join(",\n    "))
+    };
+    let mut s: String = m.attrs.iter().map(|a| format!("{}#[{}]\n", pad, a)).collect();
     let sig = format!(
-        "{}{}fn {}{}{}{}",
+        "{}{}{}fn {}{}{}{}{}",
         pad,
-        "",
+        async_kw,
+        unsafe_kw,
         m.name,
         fmt_generics(&m.generics),
         fmt_params(&m.params),
-        ret_part
+        ret_part,
+        wc,
     );
     let inner = format!("{}    ", pad);
-    match &m.body {
+    s.push_str(&match &m.body {
         Body::None => format!("{};\n", sig),
         Body::Blocks(bb) => format!("{} {{\n{}{}}}\n", sig, emit_blocks(bb, &inner), pad),
         Body::Raw(src) => format!("{} {{\n{}{}}}\n", sig, indent_raw(src, &inner), pad),
-    }
+    });
+    s
 }
