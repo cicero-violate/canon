@@ -19,6 +19,7 @@ pub mod cfg_solver;
 pub mod module_solver;
 pub mod name_solver;
 pub mod type_solver;
+pub mod use_solver;
 
 /// Run all solvers in dependency order.
 pub fn solve(ir: &mut ModelIR) -> Result<()> {
@@ -27,6 +28,7 @@ pub fn solve(ir: &mut ModelIR) -> Result<()> {
     type_solver::solve(ir)?;     // type unification depends on resolved names
     call_solver::solve(ir)?;     // call reachability depends on resolved types
     cfg_solver::solve(ir)?;      // CFG dominators depend on call resolution
+    use_solver::solve(ir)?;      // inject Use nodes after all names are resolved
     Ok(())
 }
 

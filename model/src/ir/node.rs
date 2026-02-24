@@ -131,11 +131,14 @@ pub struct TraitMethod {
 pub enum NodeKind {
     Crate { name: String, edition: String },
     Module { path: String, file: String },
-    Struct { name: String, vis: Visibility, generics: Vec<GenericParam>, fields: Vec<Field> },
+    Struct { name: String, vis: Visibility, generics: Vec<GenericParam>, fields: Vec<Field>, derives: Vec<String> },
     Trait { name: String, vis: Visibility, generics: Vec<GenericParam>, methods: Vec<TraitMethod> },
     Impl { for_struct: String, for_trait: Option<String>, generics: Vec<GenericParam> },
     Function { name: String, vis: Visibility, generics: Vec<GenericParam>, params: Vec<Param>, ret: String, body: Body },
     Method { name: String, vis: Visibility, generics: Vec<GenericParam>, params: Vec<Param>, ret: String, body: Body },
+    /// A synthetic `use` declaration injected by use_solver.
+    /// path = fully-qualified item path, e.g. "crate::data::model::User"
+    Use { path: String, alias: Option<String> },
     TypeRef { name: String },
     TypeAlias {
         name: String,

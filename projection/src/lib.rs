@@ -16,6 +16,15 @@ pub fn project(ir: &ModelIR) -> Result<Plan> {
         .into_iter()
         .map(|(path, src)| (PathBuf::from(path), src))
         .collect();
+
+    // Emit Cargo.toml using crate name and edition from NodeKind::Crate.
+    // Equation:
+    //   crate_node = first node where kind == Crate { name, edition }
+    //   Cargo.toml = "[package]\nname = {name}\nversion = \"0.1.0\"\nedition = {edition}\n..."
+    if let Some(cargo_src) = emit::emit_cargo_toml(ir) {
+        files.push((PathBuf::from("Cargo.toml"), cargo_src));
+    }
+
     files.sort_by(|a, b| a.0.cmp(&b.0));
     Ok(Plan { files })
 }
